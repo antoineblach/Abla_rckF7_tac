@@ -2,20 +2,21 @@
 
 - Mise à jour : 2026-10-15 15:40
 - Branche : `lot-1-corrections` (depuis `main`), PR vers `main` à ouvrir en fin de correction
-- Dernier commit : « Plan de correction après recette du lot 1 » (ce fichier)
+- Dernier commit : « CI sur ubuntu-24.04 » (ce fichier), après `5057bd3` « Plan de correction après recette du lot 1 »
 - `main` : lot 1 fusionné (PR #1, `d37f3f6`), déployé sur Pages ; protection vérifiée par `gh api` le 15/10 (D-055)
 
 ## En cours
 
 - Correction après recette du lot 1 : plan `docs/plans/lot-1-corrections.md` (étapes 0 à 7).
-- Étape en cours : 1 (CI sur `ubuntu-24.04`).
+- Étape en cours : 2 (vue indépendante du conteneur).
 - Action suivante : étape 2, vue indépendante du conteneur (`viewport.ts`, `viewStore.ts`, `FieldCanvas.tsx`).
 
 ## Fait
 
 - Lot 1 : étapes 0 à 7 (voir `docs/plans/lot-1.md`), PR #1 fusionnée.
 - Après le lot : convention « Réponds-moi toujours en français » (`ff85ea0`, D-046) ; longueur indicative de ce fichier (`1fba2ce`, D-047).
-- Correction, étape 0 : causes mesurées (Playwright sur le site déployé), plan, décisions D-048 à D-055.
+- Correction, étape 0 : causes mesurées (Playwright sur le site déployé), plan, décisions D-048 à D-055 (`5057bd3`).
+- Correction, étape 1 : CI sur `ubuntu-24.04` (D-053).
 
 ## Recette manuelle du lot 1
 
@@ -36,7 +37,7 @@
 
 ## Reste à faire
 
-- Étapes 1 à 7 du plan de correction ; audit de la section « Lot 1 » de `RECETTE.md` (chaque point relié à un test, tests ajoutés pour l'automatisable non couvert).
+- Étapes 2 à 7 du plan de correction ; audit de la section « Lot 1 » de `RECETTE.md` (chaque point relié à un test, tests ajoutés pour l'automatisable non couvert).
 - Après fusion de la correction : synchronisation Drive entre les deux PC, conflit Drive réel, séance d'usage libre ; puis lot 2.
 
 ## Questions ouvertes

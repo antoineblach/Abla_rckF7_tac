@@ -52,14 +52,14 @@ Pistes écartées par la mesure :
 
 ## Étapes et commits
 
-### [x] Étape 0 : mémoire (commit « Plan de correction après recette du lot 1 », hash reporté à l’étape suivante)
+### [x] Étape 0 : mémoire (`5057bd3`)
 - Créer la branche `lot-1-corrections`.
 - Créer `docs/plans/lot-1-corrections.md` : copie de ce plan avec des cases.
 - Réécrire `docs/ETAT.md` (écart corrigé, PR #1 fusionnée, nouvelle branche).
 - Ajouter à `docs/DECISIONS.md` les décisions D-048 à D-054 (liste plus bas).
 - Commit « Plan de correction après recette du lot 1 ».
 
-### [ ] Étape 1 : CI
+### [x] Étape 1 : CI (commit « CI sur ubuntu-24.04 », hash reporté à l’étape suivante)
 - `.github/workflows/ci.yml` : `runs-on: ubuntu-24.04` pour les jobs `checks` et `deploy`.
 - Le nom du statut « checks » ne change pas, la protection de `main` reste valable.
 
