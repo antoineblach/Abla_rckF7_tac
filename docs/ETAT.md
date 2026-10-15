@@ -1,7 +1,7 @@
 # État du projet
 
-- Mise à jour : 2026-10-15 02:15
-- Branche : `lot-1`, PR vers `main` ouverte (voir `gh pr list`) ; dernier commit : « Clôture du lot 1 (plan et état) »
+- Mise à jour : 2026-10-15
+- Branche : `lot-1`, PR vers `main` ouverte (voir `gh pr list`) ; dernier commit : « Convention : réponses en français » (D-046)
 - `main` protégée : statut CI « checks » obligatoire (D-028)
 
 ## En cours

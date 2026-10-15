@@ -43,6 +43,7 @@ La mémoire du projet vit dans le dépôt, jamais seulement dans la conversation
 - Textes d'interface en français, sans tiret cadratin. Messages de commit en français.
 - Aucune logique métier dans les composants React : React affiche, Zustand porte l'état, `model/`, `engine/`, `io/` portent la logique.
 - Unités : mètres, secondes, m/s.
+- Réponds-moi toujours en français.
 
 ## Commandes npm attendues
 

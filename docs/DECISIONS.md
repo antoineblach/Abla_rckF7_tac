@@ -321,3 +321,10 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : 6.1, 6.4, 6.5, 7, 8.7 ; tests de bout en bout sans code propre aux tests.
 - Alternatives écartées : bibliothèque de composants ; CSS modules (peu de composants, une seule page).
 - Origine : choix technique.
+
+### D-046 : réponses en français
+- Date : 2026-10-15
+- Décision : Claude répond toujours en français ; consigne ajoutée à `CLAUDE.md`, section « Conventions ».
+- Raison : langue de travail de l'utilisateur.
+- Alternatives écartées : aucune.
+- Origine : demande de l'utilisateur.
