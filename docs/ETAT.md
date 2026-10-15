@@ -2,14 +2,14 @@
 
 - Mise à jour : 2026-10-15 15:40
 - Branche : `lot-1-corrections` (depuis `main`), PR vers `main` à ouvrir en fin de correction
-- Dernier commit : « Mise en page fixe autour du terrain » (ce fichier), après `7a16e89` « Vue indépendante de la taille du terrain »
+- Dernier commit : « Section Combinaison en tête de l'inspecteur » (ce fichier), après `220da7b` « Mise en page fixe autour du terrain »
 - `main` : lot 1 fusionné (PR #1, `d37f3f6`), déployé sur Pages ; protection vérifiée par `gh api` le 15/10 (D-055)
 
 ## En cours
 
 - Correction après recette du lot 1 : plan `docs/plans/lot-1-corrections.md` (étapes 0 à 7).
-- Étape en cours : 5 (inspecteur).
-- Action suivante : étape 5 (« Combinaison » en tête, repliable), puis étape 6 (tests de bout en bout, audit de la recette).
+- Étape en cours : 6 (tests de bout en bout, audit de la recette du lot 1).
+- Action suivante : `e2e/field-stability.spec.ts` (gestes, molette, Espace + glisser, Ajuster, redimensionnement, plein écran), test de l'inspecteur, puis audit de la section « Lot 1 » de `RECETTE.md`.
 
 ## Fait
 
@@ -18,7 +18,8 @@
 - Correction, étape 0 : causes mesurées (Playwright sur le site déployé), plan, décisions D-048 à D-055 (`5057bd3`).
 - Correction, étape 1 : CI sur `ubuntu-24.04` (D-053, `5b2de29`).
 - Correction, étapes 2 et 4 : vue (centre, échelle) conservée au redimensionnement, « Ajuster » (F), « Zone utile », molette et déplacement en lecture, seuil de glisser ; 191 tests unitaires verts (`7a16e89`).
-- Correction, étape 3 : grille sans ligne `auto`, barres de hauteur fixe, bandeau, message et choix d'option en surimpression ; message effacé au changement de temps et en lecture. Mesure sur le build local (scripts de reproduction) : aucun changement d'échelle ni de position du canevas, à 1536×864 et 1280×720.
+- Correction, étape 3 : grille sans ligne `auto`, barres de hauteur fixe, bandeau, message et choix d'option en surimpression ; message effacé au changement de temps et en lecture. Mesure sur le build local (scripts de reproduction) : aucun changement d'échelle ni de position du canevas, à 1536×864 et 1280×720 (`220da7b`).
+- Correction, étape 5 : « Combinaison » en tête de l'inspecteur, repliable ; replis de la section et de la bibliothèque mémorisés par poste (`panelsStore`, la préférence de la bibliothèque n'était pas branchée) ; 192 tests unitaires.
 
 ## Recette manuelle du lot 1
 
@@ -39,7 +40,7 @@
 
 ## Reste à faire
 
-- Étapes 5, 6 et 7 du plan de correction ; audit de la section « Lot 1 » de `RECETTE.md` (chaque point relié à un test, tests ajoutés pour l'automatisable non couvert).
+- Étapes 6 et 7 du plan de correction ; audit de la section « Lot 1 » de `RECETTE.md` (chaque point relié à un test, tests ajoutés pour l'automatisable non couvert).
 - Après fusion de la correction : synchronisation Drive entre les deux PC, conflit Drive réel, séance d'usage libre ; puis lot 2.
 
 ## Questions ouvertes

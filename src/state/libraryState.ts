@@ -35,7 +35,6 @@ export interface LibraryState {
   search: string
   category: PlayCategory | 'all'
   sort: 'name' | 'date'
-  collapsed: boolean
   dialogs: LibraryDialog[]
   toasts: Toast[]
 }
@@ -49,7 +48,6 @@ export const useLibraryState = create<LibraryState>(() => ({
   search: '',
   category: 'all',
   sort: 'date',
-  collapsed: false,
   dialogs: [],
   toasts: [],
 }))

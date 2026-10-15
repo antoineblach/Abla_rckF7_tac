@@ -9,6 +9,7 @@ import { THEMES } from '../../render/themes'
 import { createViewport, frameForView } from '../../render/viewport'
 import { useEditorStore } from '../../state/editorStore'
 import { pushDialog, useLibraryState, visibleSummaries } from '../../state/libraryState'
+import { setLibraryCollapsed, usePanelsStore } from '../../state/panelsStore'
 import {
   currentStore,
   duplicateInLibrary,
@@ -108,19 +109,20 @@ function IssueItem({ issue }: { issue: LibraryIssue }) {
 
 export function LibraryPanel() {
   const state = useLibraryState()
+  const collapsed = usePanelsStore((s) => s.libraryCollapsed)
   const openId = useEditorStore((s) => s.play?.id ?? null)
   const fileInput = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const summaries = visibleSummaries(state)
 
-  if (state.collapsed) {
+  if (collapsed) {
     return (
       <aside className="library library--collapsed" aria-label="Bibliothèque">
         <button
           type="button"
           aria-label="Déplier la bibliothèque"
           onClick={() => {
-            useLibraryState.setState({ collapsed: false })
+            setLibraryCollapsed(false)
           }}
         >
           »
@@ -137,7 +139,7 @@ export function LibraryPanel() {
           type="button"
           aria-label="Replier la bibliothèque"
           onClick={() => {
-            useLibraryState.setState({ collapsed: true })
+            setLibraryCollapsed(true)
           }}
         >
           «

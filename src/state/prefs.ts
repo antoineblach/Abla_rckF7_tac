@@ -14,6 +14,7 @@ export interface Prefs {
   stopAtOptions: boolean
   orientation: Orientation
   libraryCollapsed: boolean
+  playSectionCollapsed: boolean
   snap: boolean
 }
 
@@ -25,6 +26,7 @@ export const DEFAULT_PREFS: Prefs = {
   stopAtOptions: true,
   orientation: 'landscape',
   libraryCollapsed: false,
+  playSectionCollapsed: false,
   snap: false,
 }
 

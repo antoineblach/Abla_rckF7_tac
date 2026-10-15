@@ -38,6 +38,7 @@ import {
   siblingsOf,
 } from '../../state/selectors'
 import { updateSettings } from '../../state/session'
+import { setPlaySectionCollapsed, usePanelsStore } from '../../state/panelsStore'
 import { useSettingsStore } from '../../state/settingsStore'
 import { useViewStore } from '../../state/viewStore'
 import { CheckboxField, CommitTextField, NumberField, SelectField } from '../common/fields'
@@ -244,13 +245,22 @@ function viewKey(view: FieldView): 'full' | 'attack' | 'defense' | 'frame' {
   return view.kind === 'half' ? view.side : view.kind
 }
 
+/** Always shown, at the top, foldable; the folded state is remembered per computer (D-052). */
 function PlayInspector({ play, disabled }: { play: Play; disabled: boolean }) {
   const visible = useViewStore((s) => s.visible)
+  const collapsed = usePanelsStore((s) => s.playSectionCollapsed)
   const hasBall = play.entities.some((e) => e.kind === 'ball')
   const view = play.field.view
   return (
-    <section className="inspector__section" aria-label="Combinaison">
-      <h3>Combinaison</h3>
+    <details
+      className="inspector__section"
+      aria-label="Combinaison"
+      open={!collapsed}
+      onToggle={(e) => {
+        setPlaySectionCollapsed(!e.currentTarget.open)
+      }}
+    >
+      <summary className="inspector__summary">Combinaison</summary>
       <CommitTextField
         label="Nom"
         value={play.name}
@@ -412,7 +422,7 @@ function PlayInspector({ play, disabled }: { play: Play; disabled: boolean }) {
           />
         </>
       ) : null}
-    </section>
+    </details>
   )
 }
 
@@ -546,6 +556,7 @@ export function Inspector() {
   const found = actionId ? findAction(play, actionId) : null
   return (
     <aside className="inspector" aria-label="Inspecteur">
+      <PlayInspector play={play} disabled={readOnly} />
       {single ? (
         <PlayerInspector play={play} id={single} issues={issues} disabled={readOnly} />
       ) : null}
@@ -583,7 +594,6 @@ export function Inspector() {
       {phaseId ? (
         <PhaseInspector play={play} phaseId={phaseId} settings={settings} disabled={readOnly} />
       ) : null}
-      {!single && !found ? <PlayInspector play={play} disabled={readOnly} /> : null}
       <section className="inspector__section" aria-label="Alertes de la combinaison">
         <h3>Alertes</h3>
         {issues.length === 0 ? (

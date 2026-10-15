@@ -115,7 +115,7 @@ Pistes écartées par la mesure :
 - La touche est libre ; c'est le raccourci « fit » usuel.
 - `editor/shortcuts.ts` reçoit une commande `{ kind: 'fit' }`, branchée dans `handleKey`.
 
-### [x] Étape 3 : mise en page fixe (D-048, D-050) (commit « Mise en page fixe autour du terrain », hash reporté à l’étape suivante ; en plus : message effacé au changement de temps et en lecture, commandes de vue en tête de la seconde rangée du transport)
+### [x] Étape 3 : mise en page fixe (D-048, D-050) (`220da7b` ; en plus : message effacé au changement de temps et en lecture, commandes de vue en tête de la seconde rangée du transport)
 
 Fichiers touchés : `src/ui/global.css`, `App.tsx`, `StatusBanner.tsx`, `TransportBar.tsx`, `PhaseTree.tsx`.
 
@@ -145,7 +145,7 @@ Les hauteurs (`--toolbar-h`, `--transport-h`, `--tree-h`) sont des variables CSS
 - Dans `editorActions`, le glisser d'une joueuse ou d'un point de passage ne commence qu'au-delà du seuil.
 - En deçà, rien ne bouge : pas d'étape d'annulation, pas de « Modifications en cours ».
 
-### [ ] Étape 5 : inspecteur (D-052)
+### [x] Étape 5 : inspecteur (D-052) (commit « Section Combinaison en tête de l’inspecteur », hash reporté à l’étape suivante ; en plus : le repli de la bibliothèque, prévu par D-026 mais non branché, est désormais mémorisé ; store `state/panelsStore.ts`)
 - `src/ui/inspector/Inspector.tsx` : « Combinaison » passe en tête, toujours affichée, dans un `<details>` repliable.
 - Ordre ensuite : joueuse, course ou passe, temps, alertes, réglages.
 - `src/state/prefs.ts` : ajout de `playSectionCollapsed` (faux par défaut), mémorisé par poste comme les autres préférences (D-026).
