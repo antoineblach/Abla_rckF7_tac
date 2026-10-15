@@ -179,13 +179,13 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 - Stores Zustand qui relient l'éditeur, le lecteur et io.
 - Tests.
 
-- [x] **Étape 6 : interface.** (commit « Interface et tests de bout en bout », hash reporté au commit suivant)
+- [x] **Étape 6 : interface.** (commit `087856d`)
 - Disposition 6.1, canevas : rendu à la demande, `requestAnimationFrame` seulement pendant la lecture.
 - Barre d'outils, bibliothèque (vignettes, recherche, filtre, tri, dupliquer, supprimer, exporter, importer), inspecteur, arbre des temps, transport, choix d'option.
 - Plein écran, aperçu d'orientation, bandeaux (mode dégradé, « Réautoriser le dossier »), notifications, dialogues de conflit.
 - Tests e2e.
 
-- [ ] **Étape 7 : clôture.**
+- [x] **Étape 7 : clôture.** (commits `b5cc10d`, `e69ebcb` et « Clôture du lot 1 » ; PR vers `main` ouverte, fusion après la recette manuelle)
 - README : installation, lancement, build, déploiement Pages, Google Drive pour ordinateur et dossier, conseil « Autoriser à chaque visite », mode dégradé.
 - `docs/ARCHITECTURE.md` et `docs/DECISIONS.md`.
 - Commit dédié « Mise à jour de la spécification selon les décisions du lot 1 » : docs/SPEC.md et docs/RECETTE.md mis à jour partout où Q1 à Q27 modifient ou complètent le texte (pas seulement 3.2, 3.3, 8.1, 8.3, 8.6). Sections modifiées listées dans la description de la PR.
@@ -419,5 +419,5 @@ Je ne modifie pas d'autres passages de la SPEC sans ton accord. En fin de lot, j
 
 ## 8. Compléments demandés en cours de lot
 
-- [ ] **Mise à jour de la SPEC et de la RECETTE (étape 7).** À l'étape 7, commit dédié « Mise à jour de la spécification selon les décisions du lot 1 » : docs/SPEC.md et docs/RECETTE.md mis à jour partout où Q1 à Q27 modifient ou complètent le texte, sans se limiter à 3.2, 3.3, 8.1, 8.3 et 8.6. Sections modifiées listées dans la description de la PR.
+- [x] **Mise à jour de la SPEC et de la RECETTE (étape 7).** (commit `e69ebcb`) À l'étape 7, commit dédié « Mise à jour de la spécification selon les décisions du lot 1 » : docs/SPEC.md et docs/RECETTE.md mis à jour partout où Q1 à Q27 modifient ou complètent le texte, sans se limiter à 3.2, 3.3, 8.1, 8.3 et 8.6. Sections modifiées listées dans la description de la PR.
 - [x] **Mémoire de projet.** Commit dédié « Mémoire de projet » : ce fichier, `docs/ETAT.md` (60 lignes au plus, réécrit à chaque mise à jour), `docs/DECISIONS.md` en entrées numérotées D-001..., section « Mémoire du projet » de `CLAUDE.md` (avec `@docs/ETAT.md`), prompt « Reprise » de `docs/PROMPTS.md`. Tenus à jour jusqu'à la fin du lot. (commit `eb74c37`)
