@@ -1,14 +1,14 @@
 # État du projet
 
-- Mise à jour : 2026-10-15 16:15
-- Branche : `lot-1-corrections` (depuis `main`) ; PR vers `main` ouverte (voir `gh pr list`)
-- Dernier commit : « Mise à jour de l'état du projet » (ce fichier), après `df5ceb9` « Documents de la correction après recette »
+- Mise à jour : 2026-10-15 16:25
+- Branche : `lot-1-corrections` (depuis `main`) ; PR #2 vers `main` ouverte, fusionnable, CI verte sur `ubuntu-24.04` (`bfb590f`) : https://github.com/antoineblach/Abla_rckF7_tac/pull/2
+- Dernier commit : « État : PR #2 et CI verte » (ce fichier), après `bfb590f` « Mise à jour de l'état du projet »
 - `main` : lot 1 fusionné (PR #1, `d37f3f6`), déployé sur Pages ; protection vérifiée par `gh api` le 15/10 (D-055)
 
 ## En cours
 
 - Correction après recette du lot 1 terminée côté code : plan `docs/plans/lot-1-corrections.md`, étapes 0 à 7 cochées.
-- Action suivante : CI de la PR, puis fusion par l'utilisateur ; ensuite les 2 vérifications manuelles restantes et la séance d'usage libre ; puis lot 2.
+- Action suivante : fusion de la PR #2 par l'utilisateur ; ensuite les 2 vérifications manuelles restantes et la séance d'usage libre ; puis lot 2.
 
 ## Fait
 
