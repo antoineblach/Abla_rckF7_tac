@@ -1,32 +1,43 @@
 # État du projet
 
-- Mise à jour : 2026-10-15 07:43
-- Branche : `lot-1` ; PR #1 vers `main` ouverte, fusionnable, CI verte sur `ff85ea0` (https://github.com/antoineblach/Abla_rckF7_tac/pull/1)
-- Dernier commit : « Mise à jour de l'état du projet » (ce fichier), après `ff85ea0` « Convention : réponses en français »
-- `main` protégée : statut CI « checks » obligatoire (D-028)
+- Mise à jour : 2026-10-15 15:40
+- Branche : `lot-1-corrections` (depuis `main`), PR vers `main` à ouvrir en fin de correction
+- Dernier commit : « Plan de correction après recette du lot 1 » (ce fichier)
+- `main` : lot 1 fusionné (PR #1, `d37f3f6`), déployé sur Pages ; protection vérifiée par `gh api` le 15/10 (D-055)
 
 ## En cours
 
-- Lot 1 terminé côté code ; en attente de la recette manuelle de l'utilisateur (`docs/RECETTE.md`, section « Lot 1 ») puis de la fusion de la PR par l'utilisateur.
-- Action suivante : traiter les retours de recette avec le prompt « Correction après recette » (`docs/PROMPTS.md`) ; après fusion, lot 2 avec son prompt.
+- Correction après recette du lot 1 : plan `docs/plans/lot-1-corrections.md` (étapes 0 à 7).
+- Étape en cours : 1 (CI sur `ubuntu-24.04`).
+- Action suivante : étape 2, vue indépendante du conteneur (`viewport.ts`, `viewStore.ts`, `FieldCanvas.tsx`).
 
 ## Fait
 
-- Étape 0 : outillage, CI, protection de `main` (`1a2de6f`).
-- Étape 1 : modèle, zod v1 et v0, migrations, validation ; SPEC 13.1 corrigée (`4a566e1`, `8ba710d`).
-- Étape 2 : moteur, `evaluate`, passes, traces, caches (`a6cdb3c`).
-- Mémoire de projet (`eb74c37`).
-- Étape 3 : terrain, viewport, thèmes, rendu, images de référence (`1ff408b`).
-- Étape 4 : stockage dossier et navigateur, import et export, conflits, synchronisation (`ade4e5b`).
-- Étape 5 : édition, historique, outils, transport, stores, session (`434ac77`).
-- Étape 6 : interface React, 8 tests e2e (`087856d`).
-- Étape 7 : README et ARCHITECTURE (`b5cc10d`), SPEC et RECETTE mises à jour (`e69ebcb`), recette automatisable verte (lint, typecheck, 183 tests unitaires, 8 e2e, build), PR #1.
-- Après le lot : convention « Réponds-moi toujours en français » dans `CLAUDE.md` (`ff85ea0`, D-046).
+- Lot 1 : étapes 0 à 7 (voir `docs/plans/lot-1.md`), PR #1 fusionnée.
+- Après le lot : convention « Réponds-moi toujours en français » (`ff85ea0`, D-046) ; longueur indicative de ce fichier (`1fba2ce`, D-047).
+- Correction, étape 0 : causes mesurées (Playwright sur le site déployé), plan, décisions D-048 à D-055.
+
+## Recette manuelle du lot 1
+
+- Validé le 15/10/2026 par l'utilisateur sur le site déployé :
+  - dossier `G:\Mon Drive\Rugby7` en mode diffusion de Drive pour ordinateur : choix, structure créée, écriture et sauvegarde automatique, aucun `.crswap` résiduel (hypothèses 8.3 et 8.8 confirmées) ;
+  - « Autoriser à chaque visite » : accès conservé après fermeture et réouverture complète de Chrome ;
+  - déploiement sur Pages après fusion de la PR #1.
+- Vérifié par `gh api` : statut « checks » obligatoire, branche à jour exigée, administrateurs inclus (D-055).
+- Restent en manuel : synchronisation Drive réelle entre les deux PC ; conflit Drive réel (« Garder les deux »).
+- Nouvelle règle (D-054) : tout l'automatisable est testé ; au plus 5 vérifications manuelles ; puis séance d'usage libre.
+
+## Causes du changement d'échelle (mesurées)
+
+- Arbre des temps en ligne `auto` : en Chrome, sa hauteur suit celle de l'inspecteur (sélection d'une joueuse : 98 à 210 px, échelle 7,11 à 5,31).
+- Message « position héritée », choix d'option, barres d'outils et de transport qui passent à la ligne : insérés dans la colonne du terrain.
+- Viewport réajusté au cadre à chaque changement de taille ; cadrage automatique pendant la lecture.
+- Un clic de sélection avec 1 px de tremblement déplaçait la joueuse (seuil de glisser, D-051).
 
 ## Reste à faire
 
-- Recette manuelle du lot 1 par l'utilisateur, sur ses deux PC (Drive réel).
-- Fusion de la PR `lot-1` (par l'utilisateur), vérification du déploiement Pages.
+- Étapes 1 à 7 du plan de correction ; audit de la section « Lot 1 » de `RECETTE.md` (chaque point relié à un test, tests ajoutés pour l'automatisable non couvert).
+- Après fusion de la correction : synchronisation Drive entre les deux PC, conflit Drive réel, séance d'usage libre ; puis lot 2.
 
 ## Questions ouvertes
 
@@ -35,8 +46,6 @@
 ## Écarts connus
 
 - Aucun test désactivé.
-- Hypothèses à confirmer en recette manuelle : écriture via `.crswap` validée à `close()` (8.3) ; File System Access sur le lecteur virtuel du mode diffusion de Drive (8.8).
-- Non automatisés : zoom à la molette, déplacement Espace+glisser, plein écran, « Réautoriser le dossier », synchronisation Drive réelle entre deux PC.
 - Fixture figée `src/test/fixtures/play-v1-7v7-options.json` : ne plus la modifier (elle servira à la migration v1 vers v2 du lot 3).
 - Le seuil « traits >= 3 px » du thème Contraste fort est testé sur `render`, pas sur la surcouche d'édition (jamais exportée).
 
@@ -50,7 +59,9 @@
 - Plages U+0300 à U+036F écrites en échappement dans une regex : elles ont fini en caractères bruts ; utiliser `/\p{Mn}/gu`.
 - La règle ESLint des hooks React prend toute fonction `useXxx` pour un hook.
 - Playwright refuse `fill` sur un curseur hors pas : utiliser la touche End.
-- Conteneur flexible du canevas : `flex: 1 1 0`, sinon il grandit avec le canevas et déborde.
+- Grille CSS : une ligne `auto` voisine d'une ligne `1fr` voit sa hauteur varier avec le contenu des autres cellules en Chrome ; n'utiliser que des hauteurs fixes autour du terrain.
+- Le canevas centré peut se décaler sans que `data-viewport` change : les tests de stabilité comparent aussi sa boîte.
+- Scripts de reproduction Playwright de la session : `repro.cjs`, `repro2.cjs`, `toolbar.cjs` (dossier temporaire, non versionnés).
 
 ## Chantiers en parallèle
 

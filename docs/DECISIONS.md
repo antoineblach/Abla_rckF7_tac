@@ -139,6 +139,7 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : section 7 incomplète sur ces points.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q19).
+- Partie cadrage (cadrage automatique pendant la lecture) remplacée par D-049 (vue unique).
 
 ### D-020 : interface LibraryStore
 - Date : 2026-10-14
@@ -335,4 +336,60 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Décision : les 60 lignes de `docs/ETAT.md` sont un objectif indicatif, pas une limite stricte ; s'il faut plus de place, dépasser plutôt que supprimer une information nécessaire. Précise D-030 ; règle reportée dans `CLAUDE.md`, section « Mémoire du projet ».
 - Raison : ne jamais perdre une information utile à la reprise pour tenir un plafond de longueur.
 - Alternatives écartées : plafond strict de 60 lignes.
+- Origine : demande de l'utilisateur.
+
+### D-048 : stabilité du terrain
+- Date : 2026-10-15
+- Décision : la zone du terrain ne dépend pas du contenu des autres panneaux. Barre d'outils, transport et arbre des temps ont une hauteur fixe (aucune ligne `auto` dans la grille de la page) ; messages, bandeau et choix d'option s'affichent en surimpression du terrain ; panneaux latéraux de largeur fixe avec défilement interne. Quand le conteneur change de taille (fenêtre, bibliothèque repliée, plein écran), l'échelle et le point central sont conservés. Seules changent la vue : molette, Espace + glisser ou bouton du milieu, choix de la vue enregistrée, orientation, ouverture d'une combinaison, « Ajuster » et « Zone utile ».
+- Raison : recette du lot 1 ; en Chrome, la hauteur de l'arbre des temps (ligne `auto`) suivait la hauteur de l'inspecteur, et le viewport réajustait le cadre à chaque changement de taille : l'échelle changeait à chaque sélection.
+- Alternatives écartées : réajuster le cadre à chaque redimensionnement ; garder des barres qui passent à la ligne.
+- Origine : retour de recette de l'utilisateur, causes mesurées avec Playwright.
+
+### D-049 : vue unique pour l'édition et la lecture
+- Date : 2026-10-15
+- Décision : une seule vue (centre et échelle) sert à l'édition et à la lecture ; lancer la lecture, choisir une option ou revenir à l'édition ne la change pas. La liste « Cadrage » devient deux commandes ponctuelles : « Ajuster » (raccourci F, recadre sur la vue enregistrée) et « Zone utile » (recadre sur la boîte englobante de la ligne lue, plus 5 m). Molette et déplacement sont permis aussi pendant la lecture. Remplace la partie cadrage de D-019 (cadrage automatique appliqué pendant la lecture).
+- Raison : le cadrage automatique changeait l'échelle au lancement de la lecture, au choix d'une option et au retour à l'édition, contraire à D-048.
+- Alternatives écartées : cadrage automatique calculé sur toutes les lignes (le passage édition et lecture changeait encore l'échelle) ; SPEC 7 inchangée, exigence limitée à l'édition.
+- Origine : réponse de l'utilisateur ; raccourci F proposé puis validé par l'utilisateur.
+
+### D-050 : bandeau en surimpression
+- Date : 2026-10-15
+- Décision : le bandeau (mode dégradé, dossier à réautoriser) s'affiche par-dessus le haut du terrain, comme les messages, sans place réservée.
+- Raison : son apparition ou sa disparition ne doit jamais déplacer le terrain (D-048).
+- Alternatives écartées : barre d'état permanente ; emplacement réservé toujours présent.
+- Origine : réponse de l'utilisateur.
+
+### D-051 : seuil de glisser
+- Date : 2026-10-15
+- Décision : le glisser d'une joueuse ou d'un point de passage ne commence qu'au-delà de 4 pixels de mouvement depuis l'appui (`DRAG_THRESHOLD_PX`, HYPOTHÈSE) ; en deçà, un clic ne modifie rien.
+- Raison : un clic de sélection avec un tremblement d'un pixel déplaçait la joueuse d'environ 0,14 m, créait une étape d'annulation et marquait la combinaison modifiée.
+- Alternatives écartées : aucun seuil (comportement du lot 1).
+- Origine : constaté pendant l'analyse de la recette.
+
+### D-052 : section « Combinaison » de l'inspecteur
+- Date : 2026-10-15
+- Décision : la section « Combinaison » est en tête de l'inspecteur, toujours affichée, repliable ; l'état replié est mémorisé par poste avec les autres préférences (D-026). Ordre ensuite : joueuse, course ou passe, temps, alertes, réglages. Complète D-045.
+- Raison : la section était sous celle du temps et disparaissait quand une joueuse était sélectionnée.
+- Alternatives écartées : aucune.
+- Origine : retour de recette de l'utilisateur.
+
+### D-053 : version d'Ubuntu de la CI
+- Date : 2026-10-15
+- Décision : les jobs `checks` et `deploy` tournent sur `ubuntu-24.04` au lieu de `ubuntu-latest`.
+- Raison : GitHub fait passer `ubuntu-latest` à Ubuntu 26 à partir du 19 octobre 2026 ; éviter une casse imprévue (navigateurs Playwright, images de référence).
+- Alternatives écartées : rester sur `ubuntu-latest`.
+- Origine : demande de l'utilisateur.
+
+### D-054 : règle de recette
+- Date : 2026-10-15
+- Décision : tout ce qui est automatisable est couvert par les tests ; plus de listes de vérifications manuelles. En fin de lot, Claude liste au plus 5 vérifications manuelles, seulement celles qui sont à la fois indispensables et impossibles à automatiser. Le reste de la recette est une séance d'usage libre, suivie d'un retour de l'utilisateur. Inscrite dans `CLAUDE.md` (règle 12) et `docs/RECETTE.md`.
+- Raison : réduire la recette manuelle à l'indispensable.
+- Alternatives écartées : listes de cases à cocher par lot (lot 1).
+- Origine : demande de l'utilisateur.
+
+### D-055 : contrôle du blocage des fusions
+- Date : 2026-10-15
+- Décision : le blocage d'une fusion par une CI rouge se vérifie par lecture de la protection de `main` (`gh api repos/antoineblach/Abla_rckF7_tac/branches/main/protection`), sans branche volontairement cassée. Résultat du 15/10/2026 : statut « checks » obligatoire (application GitHub Actions), branche à jour exigée (`strict`), administrateurs inclus, aucune revue exigée, poussées forcées et suppression interdites. Conforme à D-028.
+- Raison : vérification exacte et sans bruit dans l'historique.
+- Alternatives écartées : branche avec un test cassé (point de la recette du lot 1).
 - Origine : demande de l'utilisateur.
