@@ -307,3 +307,10 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : 8.3 (date, taille, puis contenu) ; règle 9 (jamais de perte) ; un fichier seulement « touché » par Drive ne doit pas bloquer l'enregistrement.
 - Alternatives écartées : confirmation par `updatedAt` seul (manquerait une retouche à la main) ; suppression avant vérification de la copie.
 - Origine : choix technique, couvert par les tests de `FolderStore`.
+
+### D-044 : couche d'état et interactions
+- Date : 2026-10-14
+- Décision : stores Zustand dans `src/state/` (`editorStore`, `playerStore`, `libraryState`, `settingsStore`) ; interactions du terrain et raccourcis dans `state/editorActions.ts` (positions déjà en mètres, logique déléguée à `editor/`) ; orchestration du stockage dans `state/session.ts` (démarrage, dossier ou navigateur, synchronisation, conflits, import et export) ; textes d'interface dans `ui/strings.ts`, aussi utilisés par la session pour les notifications ; un rechargement silencieux remet l'historique d'annulation à zéro ; pendant la lecture, un premier clic sur le terrain revient au mode édition du temps affiché sans rien modifier ; une nouvelle combinaison est enregistrée dès sa création ; le champ du nom n'est appliqué qu'à la validation (perte du focus ou Entrée, D-005) ; un geste (glisser) est appliqué en aperçu depuis l'état de départ et compte pour une étape.
+- Raison : séparation 3.3.7 (React affiche, Zustand porte l'état, `model`, `engine`, `io` et `editor` portent la logique) ; un retour arrière après un rechargement réécrirait la version de l'autre PC ; éviter un renommage de fichier à chaque frappe.
+- Alternatives écartées : historique conservé après rechargement ; logique dans les composants React.
+- Origine : choix technique.

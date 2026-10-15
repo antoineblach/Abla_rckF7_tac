@@ -1,13 +1,13 @@
 # État du projet
 
-- Mise à jour : 2026-10-14 23:20
-- Branche : `lot-1` (PR non ouverte) ; dernier commit : étape 4 « Stockage et synchronisation » (hash dans le plan au commit suivant)
+- Mise à jour : 2026-10-15 00:30
+- Branche : `lot-1` (PR non ouverte) ; dernier commit : étape 5 « Éditeur, lecteur et état » (hash dans le plan au commit suivant)
 - `main` protégée : statut CI « checks » obligatoire (D-028)
 
 ## En cours
 
-- Lot 1, étape 5 : editor, player et stores (`docs/plans/lot-1.md`, section 2, étape 5).
-- Action suivante : `src/editor/commands.ts` (commandes pures : placer, déplacer, supprimer en cascade, course, points, passe avec délai par défaut via `ballObtainedAt`, temps, « Insérer un temps après », option, défaut, ballon, équipe) et `src/editor/commands.test.ts` ; puis `history.ts`, `selection.ts`, `hitTest.ts`, `snap.ts`, `placements.ts`, `shortcuts.ts`, `tools/*`, `src/player/transport.ts`, `framing.ts`, puis `src/state/*.ts`.
+- Lot 1, étape 6 : interface React et e2e (`docs/plans/lot-1.md`, section 2, étape 6).
+- Action suivante : `src/ui/App.tsx` et `layout/AppLayout.tsx` (disposition 6.1), `field/FieldCanvas.tsx` (rendu à la demande, rAF en lecture, `data-viewport`, conversion souris vers mètres, hit test, zoom molette, Espace+glisser), puis barre d'outils, bibliothèque, inspecteur, arbre des temps, transport, bandeaux et dialogues ; branchement `startSession()` dans `main.tsx` ; puis les e2e `e2e/folder.chromium.spec.ts`, `external-changes.chromium.spec.ts`, `degraded.firefox.spec.ts`.
 
 ## Fait
 
@@ -16,11 +16,12 @@
 - Étape 2 : moteur, `evaluate`, passes, traces, caches (`a6cdb3c`).
 - Mémoire de projet (`eb74c37`).
 - Étape 3 : terrain, viewport, thèmes, rendu, 7 images de référence, validées par la CI Linux (`1ff408b`).
-- Étape 4 : `FolderStore`, `IdbStore`, accès au dossier, import et export, conflits, synchronisation, brouillon, cache de lecture ; 131 tests verts.
+- Étape 4 : stockage dossier et navigateur, import et export, conflits, synchronisation, brouillon (`ade4e5b`).
+- Étape 5 : commandes d'édition, historique, sélection, outils, raccourcis, placements, transport, cadrage, stores Zustand, session ; 181 tests verts.
 
 ## Reste à faire
 
-- Étapes 5 à 7 du plan (editor/player/stores, interface et e2e, clôture).
+- Étapes 6 et 7 du plan (interface et e2e, clôture).
 - Étape 7 : README, ARCHITECTURE.md, commit de mise à jour SPEC et RECETTE (D-029), PR.
 
 ## Questions ouvertes
@@ -30,7 +31,7 @@
 ## Écarts connus
 
 - Aucun test désactivé.
-- `folderAccess.ts` (handle natif, permission) n'a pas de test unitaire : couvert par les e2e Chromium de l'étape 6 (OPFS).
+- `folderAccess.ts`, `session.ts` et `download.ts` (API du navigateur) n'ont pas de test unitaire : couverts par les e2e de l'étape 6.
 - Fixture figée `src/test/fixtures/play-v1-7v7-options.json` : le test l'exige identique à `sevenVsSevenWithOptions()` ; si le scénario évolue, régénérer la fixture seulement si le schéma v1 n'a pas changé.
 - Seuil « traits >= 3 px » du thème Contraste fort testé sur `render`, pas sur la surcouche d'édition (jamais exportée).
 
@@ -43,6 +44,8 @@
 - `prettier --write` reformate les fichiers : relire avant un Edit.
 - L'outil Bash échoue sur les longs heredocs contenant certaines apostrophes : écrire les gros fichiers avec l'outil Write.
 - `Omit<Union, 'k'>` ne distribue pas sur une union : déclarer le type sans le champ explicitement.
+- Plages `̀-ͯ` dans une regex : elles ont fini en caractères bruts ; utiliser `/\p{Mn}/gu`.
+- La règle ESLint des hooks React prend toute fonction `useXxx` pour un hook : ne pas nommer ainsi une fonction ordinaire.
 
 ## Chantiers en parallèle
 

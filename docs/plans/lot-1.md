@@ -160,7 +160,7 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 - Thèmes, calques, primitives (dont la flèche de sens d'attaque sur la ligne d'avantage), `render`, `renderSchematic`.
 - Images de référence et contrôle des aplats.
 
-- [x] **Étape 4 : io.** (commit « Stockage et synchronisation », hash reporté au commit suivant)
+- [x] **Étape 4 : io.** (commit `ade4e5b`)
 - Abstraction du système de fichiers et `memoryFs` ; `FolderStore` et `IdbStore` (interface étendue, Q20).
 - Accès au dossier et permission ; structure créée au premier usage (`reglages.json`, `combinaisons/`, `_corbeille/` seulement).
 - Réglages, lots de combinaisons, conflits (Q22), noms (Q23), fichiers inattendus (Q24).
@@ -169,7 +169,7 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 - Brouillon (Q25), cache de lecture.
 - Tests contre `memoryFs` et `memoryKv`.
 
-- [ ] **Étape 5 : editor, player et stores.**
+- [x] **Étape 5 : editor, player et stores.** (commit « Éditeur, lecteur et état », hash reporté au commit suivant)
 - Commandes pures, y compris « Insérer un temps après » et la suppression en cascade (Q14).
 - Historique, sélection, hit test, aimantation.
 - Outils : machines d'état sur des événements déjà convertis en mètres.

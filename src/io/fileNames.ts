@@ -17,7 +17,7 @@ export function shortName(name: string): string {
     .toLowerCase()
     .replace(/[œæß]/g, (c) => LIGATURES[c] ?? c)
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{Mn}/gu, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, SHORT_NAME_MAX)
