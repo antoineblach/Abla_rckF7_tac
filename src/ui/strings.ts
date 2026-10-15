@@ -1,0 +1,130 @@
+// Interface texts, in French, without em dash (CLAUDE.md conventions).
+import type { Issue } from '../model/issues'
+import type { PhaseLabelParts } from '../model/phaseTree'
+import type { Pace, PlayCategory } from '../model/types'
+import type { ReadError } from '../io/readPlay'
+import type { EditorNotice } from '../state/editorStore'
+import type { ToolId } from '../editor/tools/types'
+
+export const CATEGORY_LABELS: Record<PlayCategory, string> = {
+  scrum: 'Mêlée',
+  lineout: 'Touche',
+  restart: "Coup d'envoi / renvoi",
+  phasePlay: 'Ruck / jeu courant',
+  drill: 'Exercice',
+}
+
+export const PACE_LABELS: Record<Pace, string> = { walk: 'Marche', jog: 'Trot', sprint: 'Sprint' }
+
+export const TOOL_LABELS: Record<ToolId, { label: string; key: string }> = {
+  select: { label: 'Sélection', key: 'V' },
+  placeA: { label: 'Placer A', key: 'A' },
+  placeB: { label: 'Placer B', key: 'B' },
+  run: { label: 'Course', key: 'R' },
+  pass: { label: 'Passe', key: 'P' },
+}
+
+export function phaseLabel(parts: PhaseLabelParts): string {
+  if (parts.custom) return parts.custom
+  const base = `Temps ${parts.depth}`
+  return parts.option ? `${base}, option ${parts.option}` : base
+}
+
+export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
+  inheritedPosition:
+    'Position héritée du temps précédent : sélectionnez le temps 1 pour modifier le placement, ou déplacez les points de passage.',
+  readOnly: 'Combinaison en lecture seule : résolvez d’abord la copie de conflit.',
+  rootOption: 'Le premier temps ne peut pas avoir d’option.',
+  notLeaf:
+    'Ce temps a déjà une suite : utilisez « Insérer un temps après » ou « Créer une option ».',
+}
+
+export function issueMessage(issue: Issue): string {
+  const p = issue.params ?? {}
+  switch (issue.code) {
+    case 'duplicateId':
+      return 'Identifiant en double.'
+    case 'multipleBalls':
+      return 'Plusieurs ballons dans la combinaison.'
+    case 'noRoot':
+      return 'Aucun temps de départ.'
+    case 'multipleRoots':
+      return 'Plusieurs temps de départ.'
+    case 'missingParent':
+      return 'Temps rattaché à un temps inexistant.'
+    case 'cycle':
+      return 'Boucle dans l’arbre des temps.'
+    case 'defaultCount':
+      return 'Il faut exactement une option par défaut.'
+    case 'missingEntity':
+      return 'Action liée à une joueuse supprimée.'
+    case 'runTargetNotPlayer':
+      return 'Une course ne concerne qu’une joueuse.'
+    case 'passEndpointNotPlayer':
+      return 'Une passe relie deux joueuses.'
+    case 'ballCarrierMissing':
+      return 'La porteuse du ballon au départ n’existe pas.'
+    case 'ballCarrierWithoutBall':
+      return 'Porteuse indiquée mais aucun ballon.'
+    case 'ballNotPlaced':
+      return 'Ballon sans porteuse au départ.'
+    case 'positionMissing':
+      return 'Joueuse sans placement de départ.'
+    case 'duplicateNumber':
+      return `Numéro ${p.number ?? ''} en double dans l’équipe ${p.team ?? ''}.`
+    case 'fieldOutOfRange':
+      return `Dimension hors de la Règle 1 (${p.min ?? ''} à ${p.max ?? ''} m).`
+    case 'instructionTooLong':
+      return `Consigne longue (${p.length ?? ''} caractères, ${p.max ?? ''} conseillés) : peu lisible sur un téléphone.`
+    case 'twoRunsSamePhase':
+      return 'Deux courses de la même joueuse dans ce temps : seule la première est jouée.'
+    case 'passToOpponent':
+      return 'Passe vers l’autre équipe.'
+    case 'passerWithoutBall':
+      return 'La passeuse n’a pas le ballon au moment du lâcher.'
+    case 'simultaneousPass':
+      return 'Deux passes du même ballon au même instant : seule la première est jouée.'
+    case 'unsupportedAction':
+      return 'Action d’un lot ultérieur, ignorée.'
+  }
+}
+
+export function readErrorMessage(error: ReadError): string {
+  switch (error.code) {
+    case 'json':
+      return 'Fichier illisible (JSON invalide).'
+    case 'notAnObject':
+      return 'Contenu inattendu.'
+    case 'missingVersion':
+      return 'Version du format absente.'
+    case 'futureVersion':
+      return 'Fichier créé par une version plus récente de l’outil : recharger la page.'
+    case 'unknownVersion':
+      return `Version du format inconnue (${error.version}).`
+    case 'invalid':
+      return `Contenu invalide : ${error.issues
+        .slice(0, 3)
+        .map((i) => i.path || 'racine')
+        .join(', ')}.`
+  }
+}
+
+export const TEXT = {
+  appTitle: 'Combinaisons rugby à 7',
+  degradedFirefox: 'Synchronisation par dossier disponible dans Chrome',
+  noFolderChrome: 'Aucun dossier choisi : la bibliothèque reste dans ce navigateur.',
+  chooseFolder: 'Choisir un dossier',
+  reauthorize: 'Réautoriser le dossier',
+  needsPermission: 'Le dossier n’est plus autorisé.',
+  reloaded: 'Combinaison rechargée depuis le dossier.',
+  saveError: 'Enregistrement impossible.',
+  invalidSettings:
+    'reglages.json est invalide : il ne sera pas modifié, valeurs par défaut utilisées.',
+  newPlay: 'Nouvelle combinaison',
+  imported: (n: number) => (n > 1 ? `${n} combinaisons importées.` : 'Combinaison importée.'),
+  importFailed: (n: number) =>
+    `${n} élément${n > 1 ? 's' : ''} invalide${n > 1 ? 's' : ''} ignoré${n > 1 ? 's' : ''}.`,
+  copied: (n: number) =>
+    `${n} combinaison${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} dans le dossier.`,
+  deleted: 'Combinaison déplacée dans la corbeille.',
+} as const

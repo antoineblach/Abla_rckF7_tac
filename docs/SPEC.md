@@ -1,6 +1,6 @@
 # Spécification : outil de combinaisons de rugby à 7 (Abla_rckF7_tac)
 
-Version 1.0 du 14 octobre 2026. Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
+Version 1.1 du 14 octobre 2026 (décisions du lot 1 intégrées, voir `docs/DECISIONS.md`, D-001 à D-045). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
 En cas de contradiction entre un prompt et ce document, ou entre deux sections de ce document : s'arrêter et demander, ne jamais trancher seul.
 
 ## 0. Conventions du document
@@ -53,14 +53,19 @@ src/
   io/                       LibraryStore, dossier, IndexedDB, fichiers
   export/                   (lot 2) gif/, pdf/
   ui/                       composants React
+  state/                    stores Zustand, session (D-027)
+  types/                    déclarations d'API du navigateur (D-027)
+  test/                     outils de test et fixtures, jamais importés par l'application (D-027)
 ```
+
+Les tests de bout en bout sont dans `e2e/`, à la racine du dépôt (D-027).
 
 ### 3.3 Principes d'architecture
 
-1. **Pureté.** `evaluate(play, branchPath, t, caches) -> SceneState` est une fonction pure : aucune lecture d'horloge, aucun aléa, aucun état global. Les caches sont passés en paramètre et indexés par un hachage du contenu.
-2. **Rendu unique.** `render(ctx, state, viewport, theme, layers)` dessine une image. `renderSchematic(ctx, play, branchPath, phaseId, viewport, theme)` dessine un temps à l'arrêt. Les deux fonctionnent sur un canvas affiché, sur un `OffscreenCanvas` et sur tout objet compatible avec le contexte 2D (jsPDF au lot 2).
+1. **Pureté.** `evaluate(play, branchPath, t, settings, caches) -> SceneState` est une fonction pure (`settings` : allures et vitesse de passe de `reglages.json`, D-003) : aucune lecture d'horloge, aucun aléa, aucun état global. Les caches sont passés en paramètre et indexés par un hachage du contenu.
+2. **Rendu unique.** `render(ctx, state, viewport, theme, layers)` dessine une image. `renderSchematic(ctx, play, branchPath, phaseId, viewport, theme, settings, caches)` dessine un temps à l'arrêt (D-003). Les deux fonctionnent sur un canvas affiché, sur un `OffscreenCanvas` et sur tout objet compatible avec le contexte 2D (jsPDF au lot 2).
 3. **Aplats uniquement.** Le rendu n'utilise ni dégradé, ni motif, ni flou d'ombre. Raison : le contexte 2D de jsPDF ne gère ni dégradés ni motifs en trait (établi), et les GIF sont limités à une palette.
-4. **Viewport.** Seule couche qui connaît les pixels. Il gère la conversion mètres vers pixels, le cadrage (terrain complet, demi-terrain, cadre libre, cadrage automatique) et l'orientation (paysage ; portrait avec rotation de 90° et attaque vers le haut de l'image ; carré).
+4. **Viewport.** Seule couche qui connaît les pixels. Il gère la conversion mètres vers pixels, le cadrage (terrain complet, demi-terrain, cadre libre, cadrage automatique) et l'orientation (paysage : terrain fixe, x vers la droite, sens d'attaque montré par des flèches sur la ligne d'avantage ; portrait avec rotation de 90° et attaque vers le haut de l'image ; carré comme le portrait). Une rotation supplémentaire de 180° existe : au lot 2, les GIF paysage attaquent toujours vers la droite (D-006).
 5. **Trajectoires précalculées.** `evaluate` sait échantillonner des trajectoires calculées à l'avance (défense simulée, lot 4), mises en cache par (combinaison, branche, réglages).
 6. **Déterminisme vérifié.** Mêmes entrées, mêmes pixels, mêmes octets d'export.
 7. **Séparation.** Aucune logique métier dans les composants React. React affiche ; Zustand porte l'état ; `model`, `engine`, `io` portent la logique.
@@ -70,11 +75,14 @@ src/
 - `base` de Vite = `/Abla_rckF7_tac/`, casse exacte.
 - Workflow GitHub Actions sur chaque push et chaque PR : `lint`, `typecheck`, `test`, `test:e2e`. Déploiement sur Pages depuis `main` uniquement si tout passe.
 - Une branche par lot (`lot-1`, `lot-2`...), fusion par PR.
+- `main` est protégée : le statut « checks » de la CI est obligatoire avant fusion, administrateurs compris, sans revue exigée (D-028).
 
 ### 3.5 Stockage navigateur
 
 - IndexedDB et localStorage sont partagés par toutes les pages de l'origine `<utilisateur>.github.io`. Toutes les clés sont préfixées par `abla-rck7:`.
-- IndexedDB contient uniquement : le handle du dossier choisi, un cache de lecture, le brouillon non enregistré, et la bibliothèque complète en mode dégradé (section 8.6).
+- IndexedDB contient uniquement : le handle du dossier choisi, un cache de lecture, le brouillon non enregistré et, en mode dégradé (section 8.6), la bibliothèque complète, sa corbeille et les réglages (D-021).
+- Brouillon : écrit à chaque modification, effacé après un enregistrement réussi ; au démarrage, s'il diffère de la version enregistrée, « Restaurer le brouillon » ou « Ignorer » sont proposés (D-025).
+- localStorage contient les préférences propres à chaque poste (calques, vitesse, boucle, pause entre les temps, « S'arrêter aux options », orientation, panneau replié), non synchronisées (D-026).
 
 ## 4. Modèle de données (schemaVersion 1)
 
@@ -133,6 +141,13 @@ type Action =
 
 Libellés d'interface des catégories : `scrum` mêlée, `lineout` touche, `restart` coup d'envoi/renvoi, `phasePlay` ruck/jeu courant, `drill` exercice.
 
+Les types marqués lot 3 à 5 sont déclarés dans le code et présents dans les unions, mais le schéma zod de la version 1 les rejette, comme `defenseSettings` : ils arriveront avec `schemaVersion 2` et sa migration. Le moteur les ignore en le signalant (D-004).
+
+Précisions :
+- `setup.positions` ne contient que les joueuses ; le ballon au départ est donné par `ballCarrierId` ou `ballPosition`. Au lot 1, `ballPosition` sans porteuse est accepté à la lecture mais pas éditable (ballon au sol : lot 3) (D-007).
+- `Phase.label` vide : libellé calculé ; non vide : libellé saisi (D-012).
+- `FieldView` `half` : `attack` est la moitié qui contient la ligne de but attaquée par l'équipe qui attaque, avec son en-but ; `defense` est l'autre (D-018).
+
 ### 4.2 Repère
 
 - Origine : intersection de la ligne de but de l'équipe A et de la ligne de touche gauche (vue depuis l'en-but de A).
@@ -148,16 +163,18 @@ Libellés d'interface des catégories : `scrum` mêlée, `lineout` touche, `rest
 - Exactement une racine. Tout `parentId` existe. Pas de cycle.
 - Parmi des phases sœurs, exactement une `isDefault` quand il y en a au moins deux.
 - Une action référence des entités existantes ; une course ne cible qu'une joueuse.
+- Numéros en double dans une équipe : avertissement, pas d'erreur (D-016). Dimensions du terrain hors des bornes de la Règle 1 : avertissement (D-017).
+- Repli du moteur : deux courses d'une joueuse dans un temps, seule la première s'applique ; passe vers l'autre équipe, exécutée et signalée ; passeuse sans ballon au lâcher, passe ignorée et signalée ; deux passes au même instant de lâcher, seule la première s'applique (D-013).
 - Les invalidités n'interrompent jamais le programme : elles sont listées et affichées sur l'élément concerné.
 
 ### 4.4 Fichiers
 
-- Combinaison : `combinaisons/<nom-court>--<id>.combi.json`. Le nom court est le nom en minuscules, sans accents, espaces remplacés par des tirets, 40 caractères au plus.
+- Combinaison : `combinaisons/<nom-court>--<id>.combi.json`. Le nom court est le nom en minuscules, sans accents, chaque suite de caractères autres que lettres et chiffres remplacée par un tiret, sans tiret au début ni à la fin, 40 caractères au plus ; un nom vide donne `sans-nom` (D-023).
 - Lot de combinaisons (import/export manuel) : `.combipack.json`, tableau de `Play`.
 - Modèle de placement (lot 3) : `modeles/<nom-court>--<id>.preset.json`.
-- Réglages : `reglages.json` à la racine du dossier, synchronisé entre les deux PC (allures, vitesse de passe, thème, préférences d'export, réglages de défense par défaut).
-- Lecture : validation zod, puis migrations successives jusqu'à la version courante. Un fichier invalide est signalé et n'est jamais modifié ni déplacé automatiquement.
-- Écriture : JSON indenté de 2 espaces, clés dans un ordre stable (différences lisibles dans l'historique Drive).
+- Réglages : `reglages.json` à la racine du dossier, synchronisé entre les deux PC (allures, vitesse de passe, thème, préférences d'export, réglages de défense par défaut). Au lot 1 : allures, vitesse de passe, thème (D-026). Un `reglages.json` invalide n'est jamais réécrit.
+- Lecture : validation zod, puis migrations successives jusqu'à la version courante. Un fichier invalide est signalé et n'est jamais modifié ni déplacé automatiquement. Un fichier qui contient une clé inconnue est invalide ; un fichier d'une version plus récente que l'application est signalé (« recharger la page ») et jamais modifié (D-024).
+- Écriture : JSON indenté de 2 espaces, clés dans un ordre stable, alphabétique (différences lisibles dans l'historique Drive, D-040).
 
 ### 4.5 Migrations
 
@@ -185,7 +202,7 @@ Libellés d'interface des catégories : `scrum` mêlée, `lineout` touche, `rest
 - Durée = longueur / allure, sauf `durationOverride`.
 - Allures par défaut : marche 2 m/s, trot 4 m/s, sprint 7 m/s (HYPOTHÈSE, réglables dans `reglages.json`).
 - Une entité sans action dans une phase reste immobile.
-- Deux courses de la même entité dans la même phase : invalide, signalé.
+- Deux courses de la même entité dans la même phase : invalide, signalé ; seule la première s'applique (D-013).
 
 ### 5.4 Ballon
 
@@ -194,17 +211,18 @@ Libellés d'interface des catégories : `scrum` mêlée, `lineout` touche, `rest
   - `inFlight(fromPos, releaseT, arrivalT, toId | toPos)` ;
   - `loose(pos)` : au sol (lot 3, après un jeu au pied sans receveuse) ;
   - `inBreakdown(pos)` : dans un regroupement (lot 3).
-- Passe : départ à la position de la passeuse à l'instant du lâcher ; arrivée à la position de la receveuse évaluée à `arrivalT`. Vol rectiligne à vitesse constante. `arrivalT = releaseT + distance / ballSpeed`, résolu par point fixe (3 à 5 itérations ; convergence tant que la receveuse est plus lente que le ballon). Vitesse de passe par défaut 12 m/s (HYPOTHÈSE).
-- Validations : passe vers l'autre équipe ; passeuse sans ballon au lâcher ; deux passes simultanées du même ballon. Chaque cas est signalé sur l'action.
+- Passe : départ à la position de la passeuse à l'instant du lâcher ; arrivée à la position de la receveuse évaluée à `arrivalT`. Vol rectiligne à vitesse constante. `arrivalT = releaseT + distance / ballSpeed`, résolu par point fixe (5 itérations, D-037 ; convergence tant que la receveuse est plus lente que le ballon ; le ballon finit toujours exactement sur la receveuse). Vitesse de passe par défaut 12 m/s (HYPOTHÈSE).
+- Validations : passe vers l'autre équipe ; passeuse sans ballon au lâcher ; deux passes simultanées du même ballon (même instant de lâcher). Chaque cas est signalé sur l'action ; repli du moteur : voir 4.3 (D-013).
 
 ### 5.5 Traces
 
 - Calculées depuis la géométrie : portion de trajectoire parcourue à l'instant `t`. Jamais accumulées image par image : une lecture continue et un saut direct à `t` donnent la même image.
-- Passes déjà effectuées tracées en pointillés.
+- Passes déjà effectuées tracées en pointillés ; pendant le vol, la portion parcourue aussi (D-019).
 
 ### 5.6 Ligne d'avantage
 
 - Ligne parallèle aux lignes de but, à l'abscisse du ballon à `t = 0`.
+- Des flèches sur la ligne d'avantage montrent le sens d'attaque ; elles s'inversent quand l'équipe qui attaque change (D-006).
 - Fixe pendant la lecture. Au lot 3, recalée à l'abscisse du point de regroupement à chaque formation de ruck ou de maul.
 
 ### 5.7 Contrôle d'en-avant (lot 3)
@@ -224,50 +242,56 @@ Libellés d'interface des catégories : `scrum` mêlée, `lineout` touche, `rest
 
 | Outil | Raccourci | Comportement |
 |---|---|---|
-| Sélection | V | Clic, multi-sélection au cadre, Maj+clic pour ajouter. Glisser pour déplacer. |
-| Placer joueuse A | A | Clic sur le terrain ; numéro suivant libre. |
+| Sélection | V | Clic, multi-sélection au cadre, Maj+clic pour ajouter. Glisser pour déplacer : placements de départ au temps 1, points de passage dans tout temps ; une position héritée d'un temps précédent ne se déplace pas (D-009). |
+| Placer joueuse A | A | Clic sur le terrain ; numéro suivant libre ; le clic fixe son placement de départ, quel que soit le temps affiché (D-009). |
 | Placer joueuse B | B | Idem pour B. |
-| Course | R | Clic sur une joueuse, puis un clic par point de passage ; Entrée ou double clic pour terminer ; Échap pour annuler. Points déplaçables ensuite ; clic droit sur un point pour le supprimer. |
-| Passe | P | Clic sur la passeuse, puis sur la receveuse. |
-| Supprimer | Suppr | Sur la sélection. |
+| Course | R | Clic sur une joueuse, puis un clic par point de passage ; Entrée ou double clic pour terminer ; Échap pour annuler. Points déplaçables ensuite ; clic droit sur un point pour le supprimer (supprimer le dernier point supprime la course). Sur une joueuse qui court déjà dans le temps, la course est prolongée (D-015). |
+| Passe | P | Clic sur la passeuse, puis sur la receveuse. Délai par défaut : instant où la passeuse obtient le ballon dans le temps (D-015). |
+| Supprimer | Suppr | Sur la sélection ; supprimer une joueuse supprime ses courses et les passes qui la concernent, dans tous les temps (D-014). |
 
-Autres raccourcis : Ctrl+D dupliquer ; flèches pour décaler de 0,5 m, Maj+flèches de 5 m ; L lecture/pause ; Ctrl+Z / Ctrl+Y ; Ctrl+S enregistrer ; molette pour zoomer ; Espace+glisser ou bouton du milieu pour se déplacer.
+Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suivant libre, décalage de 2 m, sans actions) ; flèches pour décaler de 0,5 m, Maj+flèches de 5 m, sans aimantation (D-015) ; L lecture/pause ; Ctrl+Z / Ctrl+Y ; Ctrl+S enregistrer ; molette pour zoomer ; Espace+glisser ou bouton du milieu pour se déplacer.
 
 ### 6.3 Comportements
 
-- Aimantation optionnelle sur une grille de 1 m.
-- La phase sélectionnée s'affiche avec les positions de début de phase en plein, et les trajectoires de ses phases ancêtres en grisé (mode schéma).
-- Annuler/rétablir par instantanés de la combinaison, 100 niveaux ; un geste terminé = une étape (pas une étape par mouvement de souris).
+- Aimantation optionnelle sur une grille de 1 m, activée par un bouton de la barre d'outils (D-015).
+- La phase sélectionnée s'affiche avec les positions de début de phase en plein, et les trajectoires de ses phases ancêtres en grisé (mode schéma). Le mode schéma est éditable ; pendant la lecture ou après un déplacement du curseur, la scène à `t` s'affiche et n'est pas éditable ; tout geste d'édition ramène au mode schéma du temps courant (D-010).
+- Annuler/rétablir par instantanés de la combinaison, 100 niveaux ; un geste terminé = une étape (pas une étape par mouvement de souris). Un rechargement depuis le dossier remet l'historique à zéro (D-044).
 - Numérotation : A et B de 1 à n ; numéros modifiables. Couleurs par défaut distinguables par les daltoniens (bleu pour A, orange pour B).
 - Le jeton n'affiche que le numéro.
 
 ### 6.4 Arbre des temps
 
 - Tronc horizontal ; les options s'empilent sous leur point d'option.
-- Actions : ajouter un temps, dupliquer, renommer, supprimer (descendants inclus, après confirmation), « Créer une option à partir d'ici », choisir l'option par défaut, saisir la condition et la consigne.
-- Libellés calculés : « Temps n » (n = profondeur depuis la racine, à partir de 1) ; « Temps n, option A », « B », « C » pour les sœurs, dans l'ordre de création.
+- Actions : ajouter un temps, insérer un temps après, dupliquer, renommer, supprimer (descendants inclus, après confirmation), « Créer une option à partir d'ici », choisir l'option par défaut, saisir la condition et la consigne (D-012) :
+  - « Ajouter un temps » : un enfant du temps sélectionné, qui doit être une feuille ;
+  - « Insérer un temps après » : un temps vide entre le temps sélectionné et ses enfants, qui lui sont rattachés ;
+  - « Créer une option à partir d'ici » : une sœur vide du temps sélectionné ; s'il était seul, il devient l'option A par défaut ; indisponible sur le premier temps ;
+  - « Dupliquer » : une sœur avec une copie des actions, sans les temps suivants ;
+  - le premier temps ne se supprime pas.
+- Libellés calculés : « Temps n » (n = profondeur depuis la racine, à partir de 1) ; « Temps n, option A », « B », « C » pour les sœurs, dans l'ordre de création. Un libellé saisi remplace le libellé calculé ; les lettres se recalculent après une suppression.
 - Consigne : avertissement au-delà de 60 caractères (HYPOTHÈSE, lisibilité des GIF sur téléphone).
 
 ### 6.5 Inspecteur
 
-- Joueuse : numéro, couleur, mode défense (manuel ; auto au lot 4).
+- Joueuse : numéro, couleur, mode défense (manuel ; auto au lot 4), porteuse du ballon au départ (D-007).
 - Course : allure, durée imposée, délai.
 - Passe : délai, vitesse de passe.
-- Combinaison : nom, catégorie, notes, équipe qui attaque, dimensions du terrain, vue.
+- Combinaison : nom (appliqué à la validation du champ, D-005), catégorie, notes, équipe qui attaque, ajout ou retrait du ballon (D-007), dimensions du terrain (bornées à la Règle 1, D-017), vue (cadre libre réglé par « Enregistrer la vue actuelle comme cadre » et des champs numériques, D-019).
+- Réglages de `reglages.json` (thème, allures, vitesse de passe), modifiables depuis l'inspecteur.
 
 ### 6.6 Départ d'une nouvelle combinaison
 
-- Deux placements fournis : équipe A seule en ligne ; 7 contre 7 en ligne.
+- Deux placements fournis : équipe A seule en ligne ; 7 contre 7 en ligne. A sur x = 40 m, n° 1 à 7 de y = 5 m à y = 65 m tous les 10 m ; en 7 contre 7, B en face sur x = 50 m ; ballon à A n° 4 ; A attaque ; nom « Nouvelle combinaison », catégorie ruck/jeu courant, vue terrain complet (D-008).
 - Au lot 3, s'y ajoutent les modèles de placement enregistrés.
 
 ## 7. Lecteur (lot 1)
 
 - Intégré à l'éditeur, avec un mode plein écran.
 - Commandes : lecture/pause, temps précédent/suivant, curseur temporel, vitesse 0,5x / 1x / 2x, boucle, pause automatique entre les temps.
-- Point d'option : en lecture manuelle, pause et un bouton par option, libellé par sa condition ; en lecture automatique, l'option par défaut ; un bouton revient au point d'option pour lire une autre option.
+- Point d'option : bascule « S'arrêter aux options », activée par défaut et indépendante de la pause entre les temps ; activée, pause et un bouton par option, libellé par sa condition ; désactivée, l'option par défaut ; un bouton revient au point d'option pour lire une autre option (D-011).
 - Calques activables séparément : traces (temps en cours appuyé, temps précédents estompés) ; consigne en bandeau ; ligne d'avantage en tirets fins. Lots suivants : indicateurs de défense, ligne de hors-jeu.
-- Cadrage automatique sur la zone utile (boîte englobante de toutes les positions de la ligne lue, plus 5 m de marge), avec bascule vers la vue enregistrée.
-- Aperçu d'orientation : paysage, portrait, carré (prépare les exports du lot 2).
+- Cadrage automatique sur la zone utile (boîte englobante de toutes les positions de la ligne lue, plus 5 m de marge), avec bascule vers la vue enregistrée. Il s'applique pendant la lecture ; en édition, l'affichage part de la vue enregistrée, puis zoom et déplacement libres (D-019).
+- Aperçu d'orientation : paysage, portrait, carré (prépare les exports du lot 2), disponible aussi en édition (D-019).
 - `requestAnimationFrame` uniquement pendant la lecture ; rendu à la demande sinon.
 
 ## 8. Stockage et synchronisation (lot 1)
@@ -286,6 +310,8 @@ interface LibraryStore {
 
 Deux implémentations : `FolderStore` (principale) et `IdbStore` (mode dégradé). Les modèles de placement (lot 3) et les réglages passent par la même couche.
 
+Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit), `resolveDuplicate(id, choix)`, `getSettings()` et `putSettings()`, `versionOf(id)`, `put(play, { expected, archivePrevious })` pour la concurrence optimiste et le remplacement à l'import. `stamp` est un compteur de relectures, pas une heure (les horloges des deux PC et les dates posées par Drive peuvent diverger) ; chaque `Change` porte son `stamp`.
+
 ### 8.2 Dossier
 
 - L'utilisateur choisit une fois un dossier avec `showDirectoryPicker` (Chrome). Le handle est conservé dans IndexedDB.
@@ -303,27 +329,27 @@ Deux implémentations : `FolderStore` (principale) et `IdbStore` (mode dégradé
 
 ### 8.3 Lecture, écriture, détection des changements
 
-- Relecture complète au démarrage, à chaque retour du focus sur la fenêtre, et toutes les 30 s tant que la fenêtre est visible (HYPOTHÈSE de période).
-- Un changement est détecté par la date de modification et la taille du fichier, puis confirmé par le contenu (`updatedAt`).
+- Relecture complète au démarrage, à chaque retour du focus sur la fenêtre, et toutes les 30 s tant que la fenêtre est visible (HYPOTHÈSE de période). La relecture prend tout fichier `*.json` de `combinaisons/`, copies de conflit comprises, et ignore les autres, dont les fichiers temporaires `.crswap` de Chrome (D-023).
+- Un changement est détecté par la date de modification et la taille du fichier, puis confirmé par le contenu (`updatedAt`). Avant d'écrire, l'outil vérifie que le fichier n'a pas changé depuis sa lecture ; sinon il propose les choix de 8.4 au lieu d'écraser (D-043).
 - Sauvegarde automatique 2 s après la dernière modification, plus Ctrl+S.
 - Écriture via `createWritable()` puis `close()`. HYPOTHÈSE à vérifier : l'écriture passe par un fichier temporaire et n'est validée qu'à la fermeture.
-- Renommer une combinaison renomme son fichier (écrire le nouveau, puis déplacer l'ancien en corbeille si le déplacement natif n'est pas disponible).
+- Renommer une combinaison renomme son fichier : écrire le nouveau, puis déplacer l'ancien en corbeille, toujours ; le renommage n'a lieu qu'à la validation du nom (D-005).
 
 ### 8.4 Conflits
 
 - **Modification extérieure sans modification locale en cours** : rechargement silencieux, notification discrète.
-- **Modification extérieure avec modification locale non enregistrée** : choix « Garder la version du dossier », « Garder la mienne », « Garder les deux ».
-- **Deux fichiers portant le même `id`** (copie de conflit créée par la synchronisation, établi pour Drive pour ordinateur) : signalement dans la bibliothèque, choix « Garder les deux » (nouvel `id` pour l'une, nom suffixé « (copie) ») ou « Choisir celle-ci ».
-- **Import d'un `id` déjà présent** : « Remplacer » ou « Garder les deux », dates affichées.
+- **Modification extérieure avec modification locale non enregistrée** : choix « Garder la version du dossier », « Garder la mienne », « Garder les deux ». « Garder les deux » : ma version reçoit un nouvel `id` et le suffixe « (copie) » (D-022).
+- **Deux fichiers portant le même `id`** (copie de conflit créée par la synchronisation, établi pour Drive pour ordinateur) : signalement dans la bibliothèque, choix « Garder les deux » (nouvel `id` pour l'une, nom suffixé « (copie) ») ou « Choisir celle-ci », qui déplace l'autre fichier en corbeille. Tant que le doublon n'est pas résolu, la combinaison est en lecture seule (D-022).
+- **Import d'un `id` déjà présent** : « Remplacer » ou « Garder les deux », dates affichées. « Remplacer » déplace d'abord l'ancienne version en corbeille (D-022).
 
 ### 8.5 Suppression
 
-- Jamais d'effacement définitif : déplacement dans `_corbeille/`, avec un horodatage dans le nom.
+- Jamais d'effacement définitif : déplacement dans `_corbeille/`, avec un horodatage en tête du nom : `AAAA-MM-JJ_HH-MM-SS--<nom d'origine>` (D-023). Le déplacement copie le fichier, vérifie la copie, puis retire l'original (D-043).
 
 ### 8.6 Mode dégradé (Firefox, ou aucun dossier choisi)
 
 - Bibliothèque dans IndexedDB ; import et export manuels `.combi.json` et `.combipack.json`.
-- Bandeau permanent : « Synchronisation par dossier disponible dans Chrome ».
+- Bandeau permanent : « Synchronisation par dossier disponible dans Chrome » (Firefox) ; dans Chrome sans dossier : « Aucun dossier choisi : la bibliothèque reste dans ce navigateur », avec un bouton « Choisir un dossier ». Au premier choix d'un dossier, l'outil propose d'y copier les combinaisons du navigateur (D-021).
 
 ### 8.7 Bibliothèque
 
@@ -351,7 +377,7 @@ Deux implémentations : `FolderStore` (principale) et `IdbStore` (mode dégradé
 
 ### 9.2 GIF
 
-- **Orientation** au choix : portrait (terrain vertical, attaque vers le haut), paysage, carré.
+- **Orientation** au choix : portrait (terrain vertical, attaque vers le haut), paysage (attaque toujours vers la droite : rotation de 180° quand B attaque), carré (attaque vers le haut) (D-006).
 - **Options** au choix :
   - un GIF par feuille de l'arbre ;
   - un GIF enchaîné : tronc, option A, carton « Option B : <condition> », reprise au point d'option, option B, et ainsi de suite.
@@ -573,9 +599,9 @@ Note : la position des équipements, zones et annotations est portée par l'enti
 
 - Aire de jeu : longueur 94 à 100 m, largeur 68 à 70 m ; en-but 6 à 22 m. Défaut de l'outil : 100 x 70 m, en-buts 10 m.
 - Lignes pleines : lignes de ballon mort, lignes de touche de but, lignes de but, lignes des 22 m, médiane, lignes de touche.
-- Lignes en tirets (tirets de 5 m) : à 5 m et à 15 m de chaque ligne de touche ; à 10 m de part et d'autre de la médiane ; à 5 m de chaque ligne de but.
-- Repère de 0,5 m au centre de la médiane. Poteaux.
-- Si la longueur est inférieure à 100 m, les distances des lignes de 10 m et 22 m sont réduites en proportion ; si la largeur est inférieure à 70 m, celle des lignes de 15 m aussi.
+- Lignes en tirets (tirets de 5 m, établi ; espacés de 5 m, HYPOTHÈSE, D-002) : à 5 m et à 15 m de chaque ligne de touche ; à 10 m de part et d'autre de la médiane ; à 5 m de chaque ligne de but.
+- Repère de 0,5 m au centre de la médiane. Poteaux (écartement de 5,6 m, HYPOTHÈSE, D-002).
+- Si la longueur est inférieure à 100 m, l'écart entre les lignes de 10 m et de 22 m est réduit d'autant : les lignes de 22 m restent à 22 m de la ligne de but, les lignes de 10 m à 10 m de la médiane. Si la largeur est inférieure à 70 m, l'écart entre les deux lignes de 15 m est réduit d'autant : elles restent à 15 m de la ligne de touche (Règle 1.3, établi).
 
 ### 13.2 Thèmes
 
@@ -598,6 +624,10 @@ Note : la position des équipements, zones et annotations est portée par l'enti
 | Paramètre | Valeur | Statut |
 |---|---|---|
 | Terrain | 100 x 70 m, en-buts 10 m | Établi (dans les limites de la Règle 1) |
+| Intervalle des tirets du terrain | 5 m | Hypothèse |
+| Écartement des poteaux | 5,6 m | Hypothèse |
+| Placements de départ | A sur x = 40 m, B sur x = 50 m, tous les 10 m depuis y = 5 m | Choix de l'utilisateur (D-008) |
+| Décalage de Ctrl+D | 2 m | Hypothèse |
 | Allures | 2 / 4 / 7 m/s | Hypothèse |
 | Vitesse de passe | 12 m/s | Hypothèse |
 | Seuil d'en-avant | 0,5 m/s | Hypothèse |
@@ -680,3 +710,4 @@ Technique :
 12. Défense simulée : « chacun le sien », 6+1 ou 7 en ligne au choix.
 13. Ateliers : plots, coupelles, boucliers, sacs, piquets, zones cotées ; un ballon ; pas de rotation.
 14. Terrain standard.
+15. Décisions prises pendant le lot 1 : `docs/DECISIONS.md`, entrées D-001 à D-045.

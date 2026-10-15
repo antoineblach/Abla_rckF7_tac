@@ -21,24 +21,26 @@
 ### Édition
 - [ ] Nouvelle combinaison depuis « 7 contre 7 en ligne » ; nom et catégorie saisis.
 - [ ] Placer, déplacer, supprimer des joueuses A et B ; numéros modifiés.
+- [ ] Au temps 2 ou 3, glisser une joueuse : refusé avec un message (position héritée) ; ses points de passage, eux, se déplacent.
 - [ ] Tracer une course de 4 points ; déplacer un point ; supprimer un point au clic droit.
 - [ ] Changer l'allure : la durée de la course change en conséquence.
 - [ ] Passe entre deux joueuses en mouvement : le ballon arrive bien sur la receveuse.
 - [ ] Passe vers l'équipe adverse : erreur affichée, rien ne plante.
 - [ ] Passe d'une joueuse sans ballon : erreur affichée.
-- [ ] Créer 3 temps ; au temps 3, deux options avec condition et consigne ; choisir l'option par défaut.
+- [ ] Porteuse du ballon au départ changée dans l'inspecteur ; ballon retiré puis ajouté.
+- [ ] Créer 3 temps ; au temps 3, deux options avec condition et consigne ; choisir l'option par défaut ; « Insérer un temps après » entre le temps 1 et le temps 2.
 - [ ] Consigne de plus de 60 caractères : avertissement affiché.
 - [ ] Retoucher une course du temps 1 : passes et temps suivants restent corrects, dans les deux options.
 - [ ] Annuler et rétablir 10 étapes de suite.
 - [ ] Raccourcis du tableau de la spécification (6.2) tous fonctionnels.
 - [ ] Grille d'aimantation activée et désactivée.
-- [ ] Équipe qui attaque passée à B : sens d'attaque et ligne d'avantage inversés.
+- [ ] Équipe qui attaque passée à B : les flèches de sens d'attaque de la ligne d'avantage s'inversent (paysage) ; en portrait et en carré, l'attaque reste vers le haut.
 - [ ] Atelier 4 contre 2 sans ballon : accepté, lisible.
 
 ### Lecture
 - [ ] Lecture, pause, temps précédent et suivant, curseur, vitesses 0,5x / 1x / 2x, boucle.
 - [ ] Pause automatique entre les temps.
-- [ ] Point d'option : pause, un bouton par option, retour au point d'option, lecture de l'autre option.
+- [ ] « S'arrêter aux options » activé : pause au point d'option, un bouton par option, retour au point d'option, lecture de l'autre option ; désactivé : l'option par défaut est lue sans pause.
 - [ ] Calques traces, consigne, ligne d'avantage activés et désactivés séparément.
 - [ ] Cadrage automatique et retour à la vue enregistrée.
 - [ ] Aperçu portrait, paysage, carré.
@@ -48,7 +50,7 @@
 ### Stockage et synchronisation
 - [ ] Ctrl+S : fichier `<nom-court>--<id>.combi.json` présent dans l'explorateur, dans `Rugby7/combinaisons/`.
 - [ ] Sauvegarde automatique après une modification (environ 2 s).
-- [ ] Renommer la combinaison : le fichier est renommé, l'ancien est en corbeille.
+- [ ] Renommer la combinaison (validation du nom par Entrée ou en quittant le champ) : le nouveau fichier est écrit, l'ancien est en corbeille.
 - [ ] PC 2 après synchronisation Drive : la combinaison apparaît et se lit à l'identique, options comprises.
 - [ ] Modifier sur PC 2 ; revenir sur la fenêtre du PC 1 : rechargement automatique.
 - [ ] Modifier sur PC 1 sans enregistrer, pendant qu'une version plus récente arrive : choix proposé (dossier, la mienne, les deux).
@@ -57,15 +59,18 @@
 - [ ] Fichier `.combi.json` corrompu à la main : signalé, ni modifié ni déplacé.
 - [ ] Export et import d'un `.combi.json` et d'un `.combipack.json`.
 - [ ] Firefox : mode dégradé, bandeau affiché, import et export fonctionnels.
+- [ ] Chrome sans dossier : bandeau « Aucun dossier choisi » ; en choisissant un dossier, copie des combinaisons du navigateur proposée.
+- [ ] Fermer l'onglet moins de 2 s après une modification, rouvrir : « Restaurer le brouillon » proposé.
 
 ### Déploiement
 - [ ] Une branche avec un test volontairement cassé : la CI échoue et rien n'est déployé.
+- [ ] PR avec la CI rouge : fusion impossible (protection de `main`).
 - [ ] Après fusion sur `main` : nouvelle version en ligne.
 
 ## Lot 2 : exports GIF et PDF
 
 ### GIF
-- [ ] Export portrait, paysage, carré : orientation correcte, attaque vers le haut en portrait.
+- [ ] Export portrait, paysage, carré : orientation correcte, attaque vers le haut en portrait et en carré, vers la droite en paysage (aussi quand B attaque).
 - [ ] Combinaison à 2 options : un GIF par option ; puis un GIF enchaîné avec cartons.
 - [ ] Ralenti puis vitesse réelle, pastilles visibles ; variantes 0,5x seul et 1x seul.
 - [ ] Carton titre, numéro du temps, consigne en bandeau, pause finale de 2 s.

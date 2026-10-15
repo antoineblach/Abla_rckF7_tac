@@ -9,6 +9,18 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 - `docs/ARCHITECTURE.md` : architecture effective, tenue à jour à la fin de chaque lot.
 - `docs/DECISIONS.md` : journal des décisions prises en cours de route (date, décision, raison).
 
+## Mémoire du projet
+
+La mémoire du projet vit dans le dépôt, jamais seulement dans la conversation ni dans la mémoire automatique (locale à une machine). État courant :
+
+@docs/ETAT.md
+
+- Au début de toute session et après tout compactage : relire `docs/ETAT.md`, le plan du lot en cours (`docs/plans/lot-N.md`), les dernières entrées de `docs/DECISIONS.md`, puis `git log -10` et `git status`. Signaler tout écart entre `ETAT.md` et l'état réel du dépôt avant de continuer.
+- Mettre à jour `docs/ETAT.md` (objectif indicatif de 60 lignes, réécrit et non allongé ; le dépasser plutôt que supprimer une information nécessaire) et le plan (case cochée avec le hash court du commit) dans le commit qui termine chaque étape, ainsi qu'avant toute pause, tout compactage ou toute question posée à l'utilisateur.
+- Toute décision va dans `docs/DECISIONS.md` au moment où elle est prise : entrée numérotée (D-001...), date, décision, raison, alternatives écartées, origine. Aucune entrée n'est effacée ; une décision remplacée reçoit une nouvelle entrée qui cite l'ancienne.
+- Une seule session active par branche. Une session parallèle travaille sur sa propre branche et s'inscrit dans la section « Chantiers en parallèle » de `docs/ETAT.md`.
+- Ne jamais importer `docs/SPEC.md` dans ce fichier : la lire à la demande.
+
 ## Règles de travail
 
 1. Un lot à la fois, dans l'ordre. Toujours commencer en mode plan ; attendre ma validation avant d'écrire du code.
@@ -31,6 +43,7 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 - Textes d'interface en français, sans tiret cadratin. Messages de commit en français.
 - Aucune logique métier dans les composants React : React affiche, Zustand porte l'état, `model/`, `engine/`, `io/` portent la logique.
 - Unités : mètres, secondes, m/s.
+- Réponds-moi toujours en français.
 
 ## Commandes npm attendues
 
