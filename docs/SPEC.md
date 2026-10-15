@@ -575,7 +575,7 @@ Note : la position des équipements, zones et annotations est portée par l'enti
 - Lignes pleines : lignes de ballon mort, lignes de touche de but, lignes de but, lignes des 22 m, médiane, lignes de touche.
 - Lignes en tirets (tirets de 5 m) : à 5 m et à 15 m de chaque ligne de touche ; à 10 m de part et d'autre de la médiane ; à 5 m de chaque ligne de but.
 - Repère de 0,5 m au centre de la médiane. Poteaux.
-- Si la longueur est inférieure à 100 m, les distances des lignes de 10 m et 22 m sont réduites en proportion ; si la largeur est inférieure à 70 m, celle des lignes de 15 m aussi.
+- Si la longueur est inférieure à 100 m, l'écart entre les lignes de 10 m et de 22 m est réduit d'autant : les lignes de 22 m restent à 22 m de la ligne de but, les lignes de 10 m à 10 m de la médiane. Si la largeur est inférieure à 70 m, l'écart entre les deux lignes de 15 m est réduit d'autant : elles restent à 15 m de la ligne de touche (Règle 1.3, établi).
 
 ### 13.2 Thèmes
 
