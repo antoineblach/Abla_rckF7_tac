@@ -32,6 +32,8 @@ export interface RunTrace {
   phaseId: Id
   /** True for the phase being played (drawn emphasised), false for previous phases (faded). */
   current: boolean
+  /** True when the run is finished (drawn with its arrow head). */
+  completed: boolean
   points: Vec2[]
 }
 

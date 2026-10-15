@@ -4,8 +4,12 @@ import { solvePassArrival } from './pass'
 import { distance } from './vec'
 
 /** Actual flight speed when the ball ends on the receiver at the computed arrival time. */
-const flightSpeed = (from: Vec2, releaseT: number, arrival: number, receiver: (t: number) => Vec2) =>
-  distance(from, receiver(arrival)) / (arrival - releaseT)
+const flightSpeed = (
+  from: Vec2,
+  releaseT: number,
+  arrival: number,
+  receiver: (t: number) => Vec2,
+) => distance(from, receiver(arrival)) / (arrival - releaseT)
 
 describe('pass arrival by fixed point (SPEC 5.4)', () => {
   it('meets a receiver running across the pass, flight speed within 1 %', () => {
@@ -21,7 +25,9 @@ describe('pass arrival by fixed point (SPEC 5.4)', () => {
     // Worst case of a 7 m/s receiver: convergence ratio 7/12 per iteration.
     const from = { x: 0, y: 0 }
     const receiver = (t: number) => ({ x: 0, y: 10 + 7 * t })
-    const residuals = [1, 2, 3, 4, 5].map((n) => Math.abs(solvePassArrival(from, 0, 12, receiver, n) - 2))
+    const residuals = [1, 2, 3, 4, 5].map((n) =>
+      Math.abs(solvePassArrival(from, 0, 12, receiver, n) - 2),
+    )
     for (let i = 1; i < residuals.length; i++) {
       expect(residuals[i]).toBeLessThan(residuals[i - 1] ?? Infinity)
     }

@@ -286,3 +286,17 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : ordre stable exigé par 4.4 ; continuité et vitesse constante (5.3) ; aplats pour les GIF et jsPDF.
 - Alternatives écartées : ordre des clés du schéma ; transparence pour l'estompage.
 - Origine : choix technique (plan, section 6).
+
+### D-041 : conventions de rendu du lot 1
+- Date : 2026-10-14
+- Décision : jetons et tailles en pixels CSS constants quel que soit le zoom ; ballon en ellipse plate dessinée contre le jeton de la porteuse, du côté de l'attaque ; passes en pointillés blancs (couleur du ballon), courses dans la couleur de la joueuse ; en lecture, la flèche d'une course terminée s'arrête au bord du jeton ; en mode schéma, les flèches finissent exactement aux points d'arrivée (aucun jeton n'y est dessiné) ; flèches de sens d'attaque de la ligne d'avantage à 12 % et 88 % de la largeur ; bandeau de consigne en haut, 2 lignes au plus avec points de suspension ; module `render/overlay.ts` ajouté pour la sélection, les poignées, le cadre de sélection et les aperçus d'outils ; `RunTrace.completed` ajouté à `SceneState`.
+- Raison : lisibilité à toutes les échelles ; 13.3 (course en trait plein fléché, passe en pointillés fléchés) ; D-006.
+- Alternatives écartées : jetons en mètres (illisibles en vue complète) ; flèches toujours reculées d'un rayon de jeton.
+- Origine : choix technique, vérifié sur les images de référence.
+
+### D-042 : comparaison des images de référence
+- Date : 2026-10-14
+- Décision : `pixelmatch` avec un seuil de 0,1 par pixel et au plus 0,5 % de pixels différents ; une image absente est écrite en local mais fait échouer la CI ; `UPDATE_SNAPSHOTS=1` régénère ; en cas d'échec, l'image obtenue et la différence sont écrites dans `src/test/image-snapshots/__diff__/` (artefact de CI).
+- Raison : tolérer les écarts d'anticrénelage entre Windows et Linux sans laisser passer un vrai changement.
+- Alternatives écartées : égalité stricte des octets (instable entre systèmes).
+- Origine : choix technique.

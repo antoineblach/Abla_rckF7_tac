@@ -150,7 +150,7 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 
 - [x] **Étape 2 : engine.** (commit `a6cdb3c`) Spline et abscisse curviligne, trajectoires, passes (point fixe), timeline et durées, possession du ballon, traces calculées, ligne d'avantage, validations et repli (Q13), caches, `evaluate` avec `settings` (Q3), données du mode schéma, boîte englobante. Tous les tests moteur obligatoires.
 
-- [ ] **Étape 3 : field, render et viewport.**
+- [x] **Étape 3 : field, render et viewport.** (commit « Rendu, terrain et viewport », hash reporté au commit suivant)
 - Géométrie et tracé du terrain : Règle 1, tirets de 5 m espacés de 5 m, poteaux à 5,6 m (HYPOTHÈSE).
 - Viewport :
   - cadrages : terrain complet, demi-terrain, cadre libre, cadrage automatique ;
@@ -420,4 +420,4 @@ Je ne modifie pas d'autres passages de la SPEC sans ton accord. En fin de lot, j
 ## 8. Compléments demandés en cours de lot
 
 - [ ] **Mise à jour de la SPEC et de la RECETTE (étape 7).** À l'étape 7, commit dédié « Mise à jour de la spécification selon les décisions du lot 1 » : docs/SPEC.md et docs/RECETTE.md mis à jour partout où Q1 à Q27 modifient ou complètent le texte, sans se limiter à 3.2, 3.3, 8.1, 8.3 et 8.6. Sections modifiées listées dans la description de la PR.
-- [x] **Mémoire de projet.** Commit dédié « Mémoire de projet » : ce fichier, `docs/ETAT.md` (60 lignes au plus, réécrit à chaque mise à jour), `docs/DECISIONS.md` en entrées numérotées D-001..., section « Mémoire du projet » de `CLAUDE.md` (avec `@docs/ETAT.md`), prompt « Reprise » de `docs/PROMPTS.md`. Tenus à jour jusqu'à la fin du lot. (commit « Mémoire de projet », hash reporté au commit suivant)
+- [x] **Mémoire de projet.** Commit dédié « Mémoire de projet » : ce fichier, `docs/ETAT.md` (60 lignes au plus, réécrit à chaque mise à jour), `docs/DECISIONS.md` en entrées numérotées D-001..., section « Mémoire du projet » de `CLAUDE.md` (avec `@docs/ETAT.md`), prompt « Reprise » de `docs/PROMPTS.md`. Tenus à jour jusqu'à la fin du lot. (commit `eb74c37`)

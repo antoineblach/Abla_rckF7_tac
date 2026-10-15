@@ -71,7 +71,14 @@ function runTrace(motion: RunMotion, phaseId: Id, current: boolean, t: number): 
   const progress = motion.duration > 0 ? Math.min(1, (t - motion.start) / motion.duration) : 1
   const points = pathUpToDistance(motion.spline, progress * motion.spline.length)
   if (points.length < 2) return null
-  return { actionId: motion.actionId, entityId: motion.entityId, phaseId, current, points }
+  return {
+    actionId: motion.actionId,
+    entityId: motion.entityId,
+    phaseId,
+    current,
+    completed: progress >= 1,
+    points,
+  }
 }
 
 /** Samples a compiled line at time t. */
