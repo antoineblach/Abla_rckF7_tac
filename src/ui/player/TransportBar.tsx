@@ -117,6 +117,53 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
         ) : null}
       </div>
       <div className="transport__options">
+        <button
+          type="button"
+          onClick={() => {
+            adjustViewTo('saved')
+          }}
+          title="Recadrer sur la vue enregistrée (F)"
+        >
+          Ajuster <kbd>F</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            adjustViewTo('useful')
+          }}
+          title="Recadrer sur toutes les positions de la ligne lue"
+        >
+          Zone utile
+        </button>
+        <label>
+          Orientation{' '}
+          <select
+            aria-label="Orientation"
+            value={orientation}
+            onChange={(e) => {
+              const value = ORIENTATIONS.find((o) => o === e.target.value)
+              if (value) setOrientation(value)
+            }}
+          >
+            {ORIENTATIONS.map((o) => (
+              <option key={o} value={o}>
+                {ORIENTATION_LABELS[o]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            const stage = stageRef.current
+            if (!stage) return
+            if (document.fullscreenElement) void document.exitFullscreen()
+            else void stage.requestFullscreen()
+          }}
+        >
+          Plein écran
+        </button>
+        <span className="transport__sep" />
         <label>
           Vitesse{' '}
           <select
@@ -176,53 +223,6 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
             setLayer('gainLine', v)
           }}
         />
-        <span className="transport__sep" />
-        <button
-          type="button"
-          onClick={() => {
-            adjustViewTo('saved')
-          }}
-          title="Recadrer sur la vue enregistrée (F)"
-        >
-          Ajuster <kbd>F</kbd>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            adjustViewTo('useful')
-          }}
-          title="Recadrer sur toutes les positions de la ligne lue"
-        >
-          Zone utile
-        </button>
-        <label>
-          Orientation{' '}
-          <select
-            aria-label="Orientation"
-            value={orientation}
-            onChange={(e) => {
-              const value = ORIENTATIONS.find((o) => o === e.target.value)
-              if (value) setOrientation(value)
-            }}
-          >
-            {ORIENTATIONS.map((o) => (
-              <option key={o} value={o}>
-                {ORIENTATION_LABELS[o]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            const stage = stageRef.current
-            if (!stage) return
-            if (document.fullscreenElement) void document.exitFullscreen()
-            else void stage.requestFullscreen()
-          }}
-        >
-          Plein écran
-        </button>
       </div>
     </div>
   )

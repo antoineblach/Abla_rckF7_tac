@@ -70,6 +70,8 @@ function update(
     transport: fn(state.transport, timing, play),
     ...(mode ? { mode } : {}),
   })
+  // Editing notices do not apply to playback.
+  if (mode === 'play' && useEditorStore.getState().notice) useEditorStore.setState({ notice: null })
 }
 
 /** Start time of a phase on a line. */

@@ -63,7 +63,7 @@ Pistes écartées par la mesure :
 - `.github/workflows/ci.yml` : `runs-on: ubuntu-24.04` pour les jobs `checks` et `deploy`.
 - Le nom du statut « checks » ne change pas, la protection de `main` reste valable.
 
-### [x] Étape 2 : vue indépendante du conteneur (D-048, D-049) (commit « Vue indépendante de la taille du terrain », hash reporté à l’étape suivante ; seuil de glisser de l’étape 4 inclus)
+### [x] Étape 2 : vue indépendante du conteneur (D-048, D-049) (`7a16e89`, seuil de glisser de l’étape 4 inclus)
 
 **`src/render/viewport.ts` (fonctions pures) :**
 - Type `ViewTransform { center: Vec2; scale: number }`, avec `scale` en pixels CSS par mètre.
@@ -115,7 +115,7 @@ Pistes écartées par la mesure :
 - La touche est libre ; c'est le raccourci « fit » usuel.
 - `editor/shortcuts.ts` reçoit une commande `{ kind: 'fit' }`, branchée dans `handleKey`.
 
-### [ ] Étape 3 : mise en page fixe (D-048, D-050)
+### [x] Étape 3 : mise en page fixe (D-048, D-050) (commit « Mise en page fixe autour du terrain », hash reporté à l’étape suivante ; en plus : message effacé au changement de temps et en lecture, commandes de vue en tête de la seconde rangée du transport)
 
 Fichiers touchés : `src/ui/global.css`, `App.tsx`, `StatusBanner.tsx`, `TransportBar.tsx`, `PhaseTree.tsx`.
 
@@ -139,7 +139,7 @@ Fichiers touchés : `src/ui/global.css`, `App.tsx`, `StatusBanner.tsx`, `Transpo
 
 Les hauteurs (`--toolbar-h`, `--transport-h`, `--tree-h`) sont des variables CSS en tête de `global.css`. Ce sont des dimensions d'interface, pas des valeurs du domaine.
 
-### [x] Étape 4 : seuil de glisser (D-051) (fait avec l’étape 2)
+### [x] Étape 4 : seuil de glisser (D-051) (fait avec l’étape 2, `7a16e89`)
 - `src/config/defaults.ts` : `DRAG_THRESHOLD_PX = 4`, marqué `HYPOTHÈSE`.
 - `FieldCanvas` publie les mètres par pixel CSS dans `useInteractionStore`.
 - Dans `editorActions`, le glisser d'une joueuse ou d'un point de passage ne commence qu'au-delà du seuil.

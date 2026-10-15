@@ -190,6 +190,13 @@ describe('field interactions (SPEC 6.2)', () => {
     expect(useEditorStore.getState().notice).toBe('inheritedPosition')
     key('ArrowRight')
     expect(current()).toBe(before)
+    // The notice goes away with the phase it was about, and during playback.
+    selectPhase(P.t1)
+    expect(useEditorStore.getState().notice).toBeNull()
+    useEditorStore.setState({ notice: 'inheritedPosition' })
+    key('l')
+    expect(useEditorStore.getState().notice).toBeNull()
+    playPause()
   })
 
   it('moves a waypoint by drag and removes it with a right click', () => {

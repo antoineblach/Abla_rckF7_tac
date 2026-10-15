@@ -194,7 +194,13 @@ export function reloadPlay(play: Play, version: VersionToken | null): void {
 }
 
 export function selectPhase(phaseId: Id): void {
-  useEditorStore.setState({ selectedPhaseId: phaseId, runDraft: null, passFromId: null })
+  // A notice about the previous phase no longer applies.
+  useEditorStore.setState({
+    selectedPhaseId: phaseId,
+    runDraft: null,
+    passFromId: null,
+    notice: null,
+  })
 }
 
 export function setTool(tool: ToolId): void {
