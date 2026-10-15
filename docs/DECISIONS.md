@@ -300,3 +300,10 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : tolérer les écarts d'anticrénelage entre Windows et Linux sans laisser passer un vrai changement.
 - Alternatives écartées : égalité stricte des octets (instable entre systèmes).
 - Origine : choix technique.
+
+### D-043 : détection et écriture dans le dossier
+- Date : 2026-10-14
+- Décision : une modification extérieure est détectée par la date et la taille, puis confirmée par le contenu complet (empreinte de la combinaison, `updatedAt` compris) ; à l'enregistrement, la concurrence optimiste compare la date et la taille connues, puis, si elles diffèrent, accepte d'écrire seulement si le fichier porte le même `updatedAt` que la version de départ ; un déplacement en corbeille écrit la copie, la relit et la compare avant de retirer l'original ; deux mises en corbeille du même fichier dans la même seconde reçoivent un préfixe `2-`, `3-`... ; en mode navigateur, la version d'une entrée est (`updatedAt`, longueur du texte).
+- Raison : 8.3 (date, taille, puis contenu) ; règle 9 (jamais de perte) ; un fichier seulement « touché » par Drive ne doit pas bloquer l'enregistrement.
+- Alternatives écartées : confirmation par `updatedAt` seul (manquerait une retouche à la main) ; suppression avant vérification de la copie.
+- Origine : choix technique, couvert par les tests de `FolderStore`.

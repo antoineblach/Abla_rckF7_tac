@@ -150,7 +150,7 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 
 - [x] **Étape 2 : engine.** (commit `a6cdb3c`) Spline et abscisse curviligne, trajectoires, passes (point fixe), timeline et durées, possession du ballon, traces calculées, ligne d'avantage, validations et repli (Q13), caches, `evaluate` avec `settings` (Q3), données du mode schéma, boîte englobante. Tous les tests moteur obligatoires.
 
-- [x] **Étape 3 : field, render et viewport.** (commit « Rendu, terrain et viewport », hash reporté au commit suivant)
+- [x] **Étape 3 : field, render et viewport.** (commit `1ff408b`)
 - Géométrie et tracé du terrain : Règle 1, tirets de 5 m espacés de 5 m, poteaux à 5,6 m (HYPOTHÈSE).
 - Viewport :
   - cadrages : terrain complet, demi-terrain, cadre libre, cadrage automatique ;
@@ -160,7 +160,7 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 - Thèmes, calques, primitives (dont la flèche de sens d'attaque sur la ligne d'avantage), `render`, `renderSchematic`.
 - Images de référence et contrôle des aplats.
 
-- [ ] **Étape 4 : io.**
+- [x] **Étape 4 : io.** (commit « Stockage et synchronisation », hash reporté au commit suivant)
 - Abstraction du système de fichiers et `memoryFs` ; `FolderStore` et `IdbStore` (interface étendue, Q20).
 - Accès au dossier et permission ; structure créée au premier usage (`reglages.json`, `combinaisons/`, `_corbeille/` seulement).
 - Réglages, lots de combinaisons, conflits (Q22), noms (Q23), fichiers inattendus (Q24).
