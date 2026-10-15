@@ -27,7 +27,7 @@ import {
   type Play,
   type RunAction,
 } from '../../model/types'
-import { commandContext } from '../../state/editorActions'
+import { adjustViewTo, commandContext } from '../../state/editorActions'
 import { applyEdit, setSelection, useEditorStore } from '../../state/editorStore'
 import {
   findAction,
@@ -337,7 +337,7 @@ function PlayInspector({ play, disabled }: { play: Play; disabled: boolean }) {
           { value: 'defense', label: 'Demi-terrain défendu' },
           { value: 'frame', label: 'Cadre libre' },
         ]}
-        onChange={(key) =>
+        onChange={(key) => {
           applyEdit((p) =>
             updateField(p, {
               view:
@@ -352,7 +352,9 @@ function PlayInspector({ play, disabled }: { play: Play; disabled: boolean }) {
                     : { kind: 'half', side: key },
             }),
           )
-        }
+          // Choosing the saved view is one of the actions that set the view (D-048).
+          adjustViewTo('saved')
+        }}
       />
       {view.kind === 'frame' ? (
         <>
@@ -373,36 +375,40 @@ function PlayInspector({ play, disabled }: { play: Play; disabled: boolean }) {
             unit="m"
             value={round(view.min.x)}
             disabled={disabled}
-            onCommit={(x) =>
+            onCommit={(x) => {
               applyEdit((p) => updateField(p, { view: { ...view, min: { ...view.min, x } } }))
-            }
+              adjustViewTo('saved')
+            }}
           />
           <NumberField
             label="y min"
             unit="m"
             value={round(view.min.y)}
             disabled={disabled}
-            onCommit={(y) =>
+            onCommit={(y) => {
               applyEdit((p) => updateField(p, { view: { ...view, min: { ...view.min, y } } }))
-            }
+              adjustViewTo('saved')
+            }}
           />
           <NumberField
             label="x max"
             unit="m"
             value={round(view.max.x)}
             disabled={disabled}
-            onCommit={(x) =>
+            onCommit={(x) => {
               applyEdit((p) => updateField(p, { view: { ...view, max: { ...view.max, x } } }))
-            }
+              adjustViewTo('saved')
+            }}
           />
           <NumberField
             label="y max"
             unit="m"
             value={round(view.max.y)}
             disabled={disabled}
-            onCommit={(y) =>
+            onCommit={(y) => {
               applyEdit((p) => updateField(p, { view: { ...view, max: { ...view.max, y } } }))
-            }
+              adjustViewTo('saved')
+            }}
           />
         </>
       ) : null}

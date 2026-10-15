@@ -59,11 +59,11 @@ Pistes écartées par la mesure :
 - Ajouter à `docs/DECISIONS.md` les décisions D-048 à D-054 (liste plus bas).
 - Commit « Plan de correction après recette du lot 1 ».
 
-### [x] Étape 1 : CI (commit « CI sur ubuntu-24.04 », hash reporté à l’étape suivante)
+### [x] Étape 1 : CI (`5b2de29`)
 - `.github/workflows/ci.yml` : `runs-on: ubuntu-24.04` pour les jobs `checks` et `deploy`.
 - Le nom du statut « checks » ne change pas, la protection de `main` reste valable.
 
-### [ ] Étape 2 : vue indépendante du conteneur (D-048, D-049)
+### [x] Étape 2 : vue indépendante du conteneur (D-048, D-049) (commit « Vue indépendante de la taille du terrain », hash reporté à l’étape suivante ; seuil de glisser de l’étape 4 inclus)
 
 **`src/render/viewport.ts` (fonctions pures) :**
 - Type `ViewTransform { center: Vec2; scale: number }`, avec `scale` en pixels CSS par mètre.
@@ -139,7 +139,7 @@ Fichiers touchés : `src/ui/global.css`, `App.tsx`, `StatusBanner.tsx`, `Transpo
 
 Les hauteurs (`--toolbar-h`, `--transport-h`, `--tree-h`) sont des variables CSS en tête de `global.css`. Ce sont des dimensions d'interface, pas des valeurs du domaine.
 
-### [ ] Étape 4 : seuil de glisser (D-051)
+### [x] Étape 4 : seuil de glisser (D-051) (fait avec l’étape 2)
 - `src/config/defaults.ts` : `DRAG_THRESHOLD_PX = 4`, marqué `HYPOTHÈSE`.
 - `FieldCanvas` publie les mètres par pixel CSS dans `useInteractionStore`.
 - Dans `editorActions`, le glisser d'une joueuse ou d'un point de passage ne commence qu'au-delà du seuil.

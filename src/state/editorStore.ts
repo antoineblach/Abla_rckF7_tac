@@ -8,6 +8,7 @@ import type { ToolId } from '../editor/tools/types'
 import type { VersionToken, PutResult } from '../io/LibraryStore'
 import { findPhase, rootPhase } from '../model/phaseTree'
 import type { Id, Play } from '../model/types'
+import { resetView } from './viewStore'
 
 export type EditorNotice = 'inheritedPosition' | 'readOnly' | 'rootOption' | 'notLeaf' | null
 
@@ -85,10 +86,13 @@ export function openPlay(
     dirty,
     selectedPhaseId: rootPhase(play)?.id ?? null,
   }))
+  // Opening a play is one of the actions that set the view (D-048).
+  resetView()
 }
 
 export function closePlay(): void {
   useEditorStore.setState((state) => ({ ...initial, tool: state.tool, snap: state.snap }))
+  resetView()
 }
 
 /** Applies one editing step (one undo step). Returns false when nothing changed. */

@@ -1,7 +1,7 @@
 // Interactions of the field canvas and keyboard shortcuts (SPEC 6.2, 6.3, D-009, D-010,
 // D-015). Positions arrive already converted to metres; the logic is delegated to editor/.
 import { create } from 'zustand'
-import { NUDGE_STEP, NUDGE_STEP_LARGE } from '../config/defaults'
+import { DRAG_THRESHOLD_PX, NUDGE_STEP, NUDGE_STEP_LARGE } from '../config/defaults'
 import type { Bounds } from '../engine/bounds'
 import { phaseSchematic, type PhaseSchematic } from '../engine/evaluate'
 import {
@@ -53,18 +53,22 @@ import {
   usePlayerStore,
 } from './playerStore'
 import { appCaches, currentEngineSettings } from './settingsStore'
+import { adjustView, type FitTarget } from './viewStore'
 
 export interface InteractionState {
   cursor: Vec2 | null
   selectionBox: Bounds | null
   /** Converts a screen-space nudge (arrow keys) to a field vector; set by the canvas. */
   screenToField: (dx: number, dy: number) => Vec2
+  /** Metres per CSS pixel of the canvas, for the drag threshold; set by the canvas. */
+  metersPerPx: number
 }
 
 export const useInteractionStore = create<InteractionState>(() => ({
   cursor: null,
   selectionBox: null,
   screenToField: (dx, dy) => ({ x: dx, y: dy }),
+  metersPerPx: 0,
 }))
 
 /** Called with the request to save now (Ctrl+S): set by the session. */
@@ -74,9 +78,11 @@ export function setSaveRequest(handler: () => void): void {
   saveRequest = handler
 }
 
+// `origin`: raw pointer position at the press; `started`: the pointer went past the drag
+// threshold (D-051).
 type Drag =
-  | { kind: 'players'; ids: Id[]; grab: Vec2; origin: Vec2 }
-  | { kind: 'waypoint'; actionId: Id; index: number }
+  | { kind: 'players'; ids: Id[]; grab: Vec2; origin: Vec2; started: boolean }
+  | { kind: 'waypoint'; actionId: Id; index: number; origin: Vec2; started: boolean }
   | { kind: 'box'; origin: Vec2; additive: boolean }
   | null
 
@@ -177,7 +183,13 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
       actions: [hit.actionId],
       waypoint: { actionId: hit.actionId, index: hit.index },
     })
-    drag = { kind: 'waypoint', actionId: hit.actionId, index: hit.index }
+    drag = {
+      kind: 'waypoint',
+      actionId: hit.actionId,
+      index: hit.index,
+      origin: input.pos,
+      started: false,
+    }
     beginGesture()
     return
   }
@@ -193,7 +205,7 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     }
     const grab = play.setup.positions[hit.id]
     if (!grab) return
-    drag = { kind: 'players', ids: next.players, grab, origin: input.pos }
+    drag = { kind: 'players', ids: next.players, grab, origin: input.pos, started: false }
     beginGesture()
     return
   }
@@ -211,6 +223,12 @@ export function editorPointerMove(raw: Vec2): void {
   useInteractionStore.setState({ cursor: maybeSnap(raw, snap) })
   if (!drag) return
   const current = drag
+  if (current.kind !== 'box' && !current.started) {
+    // A click shaking by a pixel or two must not move anything (D-051).
+    const threshold = DRAG_THRESHOLD_PX * useInteractionStore.getState().metersPerPx
+    if (Math.hypot(raw.x - current.origin.x, raw.y - current.origin.y) < threshold) return
+    current.started = true
+  }
   if (current.kind === 'players') {
     const target = maybeSnap(
       {
@@ -309,6 +327,14 @@ function nudge(dx: number, dy: number): void {
   applyEdit((p) => moveSetupPositions(p, selection.players, delta))
 }
 
+/** « Ajuster » (F) and « Zone utile »: fit the view on the saved view or the line (D-049). */
+export function adjustViewTo(target: FitTarget): void {
+  const play = useEditorStore.getState().play
+  if (!play) return
+  const { orientation, transport } = usePlayerStore.getState()
+  adjustView(play, target, orientation, transport.line)
+}
+
 /** Keyboard shortcuts of SPEC 6.2. Returns true when the key was handled. */
 export function handleKey(input: KeyInput): boolean {
   const command = shortcutFor(input, NUDGE_STEP, NUDGE_STEP_LARGE)
@@ -348,6 +374,9 @@ export function handleKey(input: KeyInput): boolean {
       return true
     case 'finish':
       finishRun()
+      return true
+    case 'fit':
+      adjustViewTo('saved')
       return true
     case 'cancel':
       cancelGesture()

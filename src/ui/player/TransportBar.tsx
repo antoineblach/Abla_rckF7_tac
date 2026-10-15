@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import { childrenOf, isBranchPoint } from '../../model/phaseTree'
 import { PLAYBACK_SPEEDS, phaseIndexAtTime, type PlaybackSpeed } from '../../player/transport'
 import { ORIENTATIONS, type Orientation } from '../../render/viewport'
+import { adjustViewTo } from '../../state/editorActions'
 import { useEditorStore } from '../../state/editorStore'
 import {
   backToBranchPointInPlayer,
@@ -10,7 +11,6 @@ import {
   playPause,
   previousPhaseInPlayer,
   seekPlayer,
-  setFraming,
   setLayer,
   setOrientation,
   setSpeed,
@@ -62,7 +62,6 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
   const transport = usePlayerStore((s) => s.transport)
   const layers = usePlayerStore((s) => s.layers)
   const orientation = usePlayerStore((s) => s.orientation)
-  const framing = usePlayerStore((s) => s.framing)
   const mode = usePlayerStore((s) => s.mode)
   if (!play) return null
   const timing = timingOf(play, transport.line)
@@ -178,19 +177,24 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
           }}
         />
         <span className="transport__sep" />
-        <label>
-          Cadrage{' '}
-          <select
-            aria-label="Cadrage"
-            value={framing}
-            onChange={(e) => {
-              setFraming(e.target.value === 'saved' ? 'saved' : 'auto')
-            }}
-          >
-            <option value="auto">Automatique</option>
-            <option value="saved">Vue enregistrée</option>
-          </select>
-        </label>
+        <button
+          type="button"
+          onClick={() => {
+            adjustViewTo('saved')
+          }}
+          title="Recadrer sur la vue enregistrée (F)"
+        >
+          Ajuster <kbd>F</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            adjustViewTo('useful')
+          }}
+          title="Recadrer sur toutes les positions de la ligne lue"
+        >
+          Zone utile
+        </button>
         <label>
           Orientation{' '}
           <select

@@ -1,5 +1,6 @@
 // Player state (Zustand): transport, edit or playback mode (D-010), layers, orientation,
-// framing, full screen. The transport logic lives in player/transport.ts.
+// full screen. The transport logic lives in player/transport.ts. The displayed area is the same
+// in both modes (viewStore, D-049).
 import { create } from 'zustand'
 import { compileLine } from '../engine/timeline'
 import { defaultLineThrough } from '../model/phaseTree'
@@ -11,16 +12,15 @@ import type { Orientation } from '../render/viewport'
 import { useEditorStore } from './editorStore'
 import { loadPrefs, savePrefs, type Prefs } from './prefs'
 import { appCaches, currentEngineSettings } from './settingsStore'
+import { resetView } from './viewStore'
 
 export type ViewMode = 'edit' | 'play'
-export type Framing = 'auto' | 'saved'
 
 export interface PlayerState {
   transport: TransportState
   mode: ViewMode
   layers: Layers
   orientation: Orientation
-  framing: Framing
   fullscreen: boolean
 }
 
@@ -37,7 +37,6 @@ export const usePlayerStore = create<PlayerState>(() => ({
   mode: 'edit',
   layers: prefs.layers,
   orientation: prefs.orientation,
-  framing: 'auto',
   fullscreen: false,
 }))
 
@@ -153,10 +152,8 @@ export function setLayer(layer: 'traces' | 'instruction' | 'gainLine', value: bo
 export function setOrientation(orientation: Orientation): void {
   usePlayerStore.setState({ orientation })
   persist({ orientation })
-}
-
-export function setFraming(framing: Framing): void {
-  usePlayerStore.setState({ framing })
+  // The canvas shape changes: fit the saved view again (D-048).
+  resetView()
 }
 
 export function setFullscreen(fullscreen: boolean): void {
