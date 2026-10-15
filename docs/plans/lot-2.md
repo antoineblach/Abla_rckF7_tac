@@ -105,6 +105,39 @@ Repli : images à 300 dpi, si l'étape 0 révèle une limite bloquante. Le ballo
   - images et fichiers dans le dossier temporaire de la session, chemins donnés ;
   - vectoriel retenu si les quatre points de 1.3 sont confirmés ; arrêt seulement sur une limite bloquante (D-057).
 
+### 1.5 Résultats de l'étape 0 (15 octobre 2026)
+
+Prototypes compilés par rolldown à partir des sources du dépôt (lecture seule), exécutés sous Node 24 avec `@napi-rs/canvas`, et dans de vrais Workers sous Chromium 156 et Firefox 157 (Playwright). Fichiers et images dans le dossier temporaire de la session (`proto/results/`), non versionnés.
+
+**Les quatre points de 1.3 sont confirmés : vectoriel retenu (D-057, D-071).**
+
+| Point | Résultat |
+|---|---|
+| 1. Ballon, découpe, pointillés | Avec le `drawBall` actuel, le défaut prévu se produit : ballon absent et dernier jeton dessiné repeint en blanc (le `fill` tombe sur le chemin extérieur). Avec le ballon en 4 courbes de Bézier : correct. Découpe par `clip()` correcte ; pointillés des passes (tiret de 0,1 et bouts ronds) corrects. |
+| 2. Police et texte | Atkinson Hyperlegible embarquée **réduite aux glyphes utilisés** (environ 6 Ko compressés par graisse), avec `/ToUnicode`. Texte extrait par pdf.js : « Défense montée », « l’option », « « défense » », « Œil » retrouvés. Numéros des jetons centrés ; taille visée 7,05 pt (jsPDF arrondit à l'entier inférieur). |
+| 3. jsPDF dans un Worker | Fonctionne sous Chromium et Firefox, lien interne et signet compris. Police chargée dans le Worker (`self.fonts`) et utilisée par `OffscreenCanvas` dans les deux navigateurs. gifenc fonctionne dans le Worker. |
+| 4. Poids mesurés | Page A4 de la fixture (4 vignettes de 87 mm), polices comprises : **vectoriel 63 Ko**, 25 à 50 ms ; images à 300 dpi 160 à 210 Ko, 250 à 300 ms. Rapport mesuré : 2,6 à 3,3 (estimé 5 à 8). Deux exécutions : PDF identiques octet pour octet (date et identifiant fixés). |
+
+Poids mesurés des GIF (enchaînés, deux vitesses, Contraste fort, carton titre, maintiens de 1 s et pause finale), ramenés à 20 s :
+
+| Combinaison | Format | Sans optimisation | Avec pixels inchangés transparents | Rapport |
+|---|---|---|---|---|
+| Fixture (1 ou 2 joueuses bougent à la fois) | standard 540 × 960, 12 i/s | 3,9 Mo (21 Ko par image) | **0,54 Mo** (3 Ko par image) | 7 |
+| Fixture | haute qualité 720 × 1280, 15 i/s | 6,6 Mo | 0,89 Mo | 7 |
+| Dense (14 joueuses bougent à chaque temps) | standard | 4,5 Mo (25 Ko par image) | **1,5 Mo** (8,5 Ko par image) | 3 |
+| Dense | haute qualité | 7,5 Mo | 2,7 Mo | 3 |
+
+- Estimation du plan : 6,5 Mo sans, 0,9 Mo avec ; la mesure est en dessous dans les deux cas.
+- Images composées (décodées par omggif) **identiques au pixel près** avec et sans optimisation, à mi-parcours et à la fin ; délais 8 centièmes (12 i/s), `dispose` 1, boucle infinie ; deux encodages identiques octet pour octet.
+- Temps sous Node : 7 à 13 ms par image (rendu 3 à 5, palette 3 à 5, écriture 1 à 2), palette sur échantillon 75 à 130 ms : environ 2 s pour un GIF standard de 20 s.
+
+Limites rencontrées, aucune bloquante :
+- `drawBall` doit passer en courbes de Bézier sans transformation (étape 2).
+- gifenc : avec la transparence, le mode de remplacement par défaut est 2 (zone remise à vide), qui annulerait l'optimisation : passer `dispose: 1`. `quantize` et `applyPalette` lisent tout le tampon sous-jacent : leur passer des tableaux autonomes.
+- jsPDF importe dynamiquement html2canvas, dompurify et canvg : rolldown en fait des morceaux chargés à la demande (environ 740 Ko jamais utilisés) ; à remplacer par des modules vides dans la configuration de Vite (étape 5).
+- Le même GIF diffère entre Chromium et Firefox (rendu du texte) : le déterminisme vaut pour un même navigateur sur un même poste.
+- En portrait, une combinaison large (70 m de largeur utile) laisse du terrain vide au-dessus et au-dessous : l'échelle est fixée par la largeur ; comportement attendu de l'attaque vers le haut (D-061).
+
 ## 2. Poids d'un GIF portrait standard de 20 s
 
 Hypothèses :
@@ -226,7 +259,7 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
 
 ## 5. Étapes (chacune finit sur lint, typecheck et test verts, un commit, ETAT.md et la case du plan à jour)
 
-- [ ] **Étape 0 : branche, plan, prototypes, ton choix.**
+- [x] **Étape 0 : branche, plan, prototypes, ton choix.** (commits `1a41e1f` et « Résultats de l'étape 0 » ; vectoriel confirmé, section 1.5)
   - Branche `lot-2` ; `docs/plans/lot-2.md` ; ETAT.md réécrit (écart corrigé) ; décisions D-057 et suivantes.
   - Installation de gifenc, jspdf, pdfjs-dist, omggif.
   - Prototypes P1 à P4 (section 1.4), non versionnés ; chiffres et limites dans le plan.

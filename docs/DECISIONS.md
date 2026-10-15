@@ -411,6 +411,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 5 à 8 fois plus léger que des images à 300 dpi (estimation), net à tout zoom et à l'impression ; les limites du contexte de jsPDF relevées dans son code source sont contournables.
 - Alternatives écartées : images PNG à 300 dpi (repli si limite bloquante).
 - Origine : réponse de l'utilisateur (Q1), sur évaluation documentaire du plan.
+- Confirmée par l'étape 0 (D-071).
 
 ### D-058 : GIF enchaîné
 - Date : 2026-10-15
@@ -502,3 +503,10 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : le mode plan interdit d'installer ou d'exécuter ; vérifier les fichiers réellement produits plutôt que des appels.
 - Alternatives écartées : prototypes pendant le mode plan, hors dépôt ; évaluation documentaire seule ; analyseurs écrits à la main.
 - Origine : réponse de l'utilisateur (méthode des prototypes) ; dépendances validées avec le plan.
+
+### D-071 : résultats de l'étape 0, vectoriel confirmé
+- Date : 2026-10-15
+- Décision : les quatre conditions de D-057 sont remplies ; le PDF est vectoriel. Conséquences techniques retenues pour les étapes suivantes : ballon dessiné par 4 courbes de Bézier en pixels, sans transformation (`bezierCurveTo` ajouté à `Ctx2D`) ; vignette découpée par `clip()` (ajouté à `Ctx2D`) et placée par `translate()` ; aucun `scale()` dans le rendu ; tailles de police visées un peu au-dessus d'un entier de points (7,05 pt) ; GIF avec palette globale de 255 couleurs plus un indice transparent, `dispose: 1` explicite, tableaux autonomes passés à `quantize` et `applyPalette` ; dépendances optionnelles de jsPDF (html2canvas, dompurify, canvg) remplacées par des modules vides dans le build.
+- Raison : mesures de l'étape 0 (plan, section 1.5) : PDF vectoriel de 63 Ko la page contre 160 à 210 Ko en images, texte et police corrects, jsPDF, gifenc et police fonctionnels dans un Worker sous Chromium et Firefox ; le `drawBall` actuel n'est pas dessiné par jsPDF et repeint le dernier jeton ; gifenc passe en mode 2 avec la transparence sans `dispose` explicite ; GIF de 20 s : 0,54 à 1,5 Mo avec l'optimisation, 3,9 à 4,5 Mo sans, images composées identiques au pixel près.
+- Alternatives écartées : images à 300 dpi ; ballon dessiné par transformation d'un `arc`.
+- Origine : essai (prototypes P1 à P4 de l'étape 0).
