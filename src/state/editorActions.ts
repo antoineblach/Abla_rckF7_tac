@@ -322,10 +322,10 @@ export function handleKey(input: KeyInput): boolean {
       return true
     case 'duplicate': {
       const { selection } = useEditorStore.getState()
-      let created: Id[] = []
+      const created: Id[] = []
       applyEdit((p) => {
         const result = duplicatePlayers(p, selection.players, commandContext())
-        created = result.ids
+        created.push(...result.ids)
         return result.play
       })
       if (created.length > 0) setSelection({ players: created, actions: [], waypoint: null })

@@ -23,6 +23,7 @@ export type LibraryDialog =
   | { kind: 'import'; candidate: ImportCandidate; existingUpdatedAt: string }
   | { kind: 'copyBrowserPlays'; count: number }
   | { kind: 'confirmDelete'; id: string; name: string }
+  | { kind: 'confirmDeletePhase'; phaseId: string; label: string; descendants: number }
   | { kind: 'newPlay' }
 
 export interface LibraryState {
@@ -54,10 +55,14 @@ export const useLibraryState = create<LibraryState>(() => ({
 }))
 
 let nextToastId = 1
+const TOAST_DURATION_MS = 6000
 
 export function notify(message: string, kind: Toast['kind'] = 'info'): void {
   const toast = { id: nextToastId++, kind, message }
   useLibraryState.setState((s) => ({ toasts: [...s.toasts, toast].slice(-4) }))
+  setTimeout(() => {
+    dismissToast(toast.id)
+  }, TOAST_DURATION_MS)
 }
 
 export function dismissToast(id: number): void {

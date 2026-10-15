@@ -197,7 +197,11 @@ async function offerDraft(): Promise<void> {
 }
 
 /** Start-up (SPEC 8.2, 8.6). */
+let started = false
+
 export async function startSession(): Promise<void> {
+  if (started) return
+  started = true
   attachListeners()
   const supported = isFolderAccessSupported()
   useLibraryState.setState({ folderSupported: supported })

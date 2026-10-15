@@ -314,3 +314,10 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : séparation 3.3.7 (React affiche, Zustand porte l'état, `model`, `engine`, `io` et `editor` portent la logique) ; un retour arrière après un rechargement réécrirait la version de l'autre PC ; éviter un renommage de fichier à chaque frappe.
 - Alternatives écartées : historique conservé après rechargement ; logique dans les composants React.
 - Origine : choix technique.
+
+### D-045 : interface du lot 1
+- Date : 2026-10-14
+- Décision : une feuille de style globale (`ui/global.css`, jetons de couleur en variables) plutôt qu'un fichier CSS par composant ; inspecteur en sections (joueuse, course, passe, temps, combinaison, alertes, réglages de `reglages.json` repliés) ; suppression d'un temps confirmée par un dialogue (Ctrl+Z annule) ; notifications effacées après 6 s ; au démarrage, aucune combinaison n'est ouverte ; vignettes de la bibliothèque dessinées par `renderSchematic` du premier temps, en vue enregistrée ; le canevas expose sa transformation (`data-viewport`) et son mode (`data-mode`) pour les tests de bout en bout ; mise en page par une fonction pure `editor/phaseLayout.ts` pour l'arbre des temps ; plein écran sur la zone terrain et lecture.
+- Raison : 6.1, 6.4, 6.5, 7, 8.7 ; tests de bout en bout sans code propre aux tests.
+- Alternatives écartées : bibliothèque de composants ; CSS modules (peu de composants, une seule page).
+- Origine : choix technique.

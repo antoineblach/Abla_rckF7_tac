@@ -169,7 +169,7 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 - Brouillon (Q25), cache de lecture.
 - Tests contre `memoryFs` et `memoryKv`.
 
-- [x] **Étape 5 : editor, player et stores.** (commit « Éditeur, lecteur et état », hash reporté au commit suivant)
+- [x] **Étape 5 : editor, player et stores.** (commit `434ac77`)
 - Commandes pures, y compris « Insérer un temps après » et la suppression en cascade (Q14).
 - Historique, sélection, hit test, aimantation.
 - Outils : machines d'état sur des événements déjà convertis en mètres.
@@ -179,7 +179,7 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 - Stores Zustand qui relient l'éditeur, le lecteur et io.
 - Tests.
 
-- [ ] **Étape 6 : interface.**
+- [x] **Étape 6 : interface.** (commit « Interface et tests de bout en bout », hash reporté au commit suivant)
 - Disposition 6.1, canevas : rendu à la demande, `requestAnimationFrame` seulement pendant la lecture.
 - Barre d'outils, bibliothèque (vignettes, recherche, filtre, tri, dupliquer, supprimer, exporter, importer), inspecteur, arbre des temps, transport, choix d'option.
 - Plein écran, aperçu d'orientation, bandeaux (mode dégradé, « Réautoriser le dossier »), notifications, dialogues de conflit.
