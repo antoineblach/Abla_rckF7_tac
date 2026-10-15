@@ -400,3 +400,105 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : après un clic sur « Porteuse du ballon au départ », la touche R ne choisissait plus l'outil Course ; défaut révélé par les tests de bout en bout ajoutés selon D-054.
 - Alternatives écartées : tout élément `input` bloque les raccourcis (lot 1).
 - Origine : constaté pendant la correction (tests de bout en bout).
+
+## Lot 2 : exports GIF et PDF
+
+Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du plan du lot 2 (`docs/plans/lot-2.md`, section 9) et son complément (section 11).
+
+### D-057 : PDF vectoriel
+- Date : 2026-10-15
+- Décision : les vignettes du PDF sont dessinées par `renderSchematic` sur le contexte 2D de jsPDF (vectoriel). Le choix est acquis si l'étape 0 confirme quatre points : ballon en courbes de Bézier, découpe et pointillés corrects ; police, accents, apostrophe typographique et guillemets ; jsPDF dans un Worker ; poids mesurés. Arrêt et nouvelle question seulement si une limite bloquante apparaît.
+- Raison : 5 à 8 fois plus léger que des images à 300 dpi (estimation), net à tout zoom et à l'impression ; les limites du contexte de jsPDF relevées dans son code source sont contournables.
+- Alternatives écartées : images PNG à 300 dpi (repli si limite bloquante).
+- Origine : réponse de l'utilisateur (Q1), sur évaluation documentaire du plan.
+
+### D-058 : GIF enchaîné
+- Date : 2026-10-15
+- Décision : carton titre ; passage ralenti complet (tronc, option A, carton « Option B : <condition> », reprise au point d'option, option B, et ainsi de suite) ; carton « Vitesse réelle » ; passage complet à vitesse réelle ; pause finale. Les feuilles se suivent dans l'ordre de l'arbre ; chaque option reprend au point d'option où elle diverge de la précédente ; le carton est préfixé de « Temps n, » quand la combinaison a plusieurs points d'option ; une condition vide donne « Option B ».
+- Raison : 9.2 ne fixait ni l'ordre des vitesses dans un GIF enchaîné ni le cas de plusieurs points d'option.
+- Alternatives écartées : chaque option jouée au ralenti puis à vitesse réelle ; reprise toujours au premier point d'option.
+- Origine : réponse de l'utilisateur (Q2, Q3).
+
+### D-059 : durées des cartons et maintiens
+- Date : 2026-10-15
+- Décision : carton titre 1,5 s (SPEC) ; carton d'option 2 s et carton de vitesse 1 s (HYPOTHÈSES) ; la dernière image de chaque option est tenue 1 s avant le carton suivant ; pause finale de 2 s (SPEC) ; un carton ou une image tenue est une seule image GIF de longue durée.
+- Raison : voir le placement final de chaque option ; poids (une image au lieu de 12 à 30).
+- Alternatives écartées : aucun maintien avant les cartons (proposition initiale).
+- Origine : réponse de l'utilisateur (Q4, avec l'ajout du maintien de 1 s).
+
+### D-060 : habillage des exports
+- Date : 2026-10-15
+- Décision : la scène est toujours dessinée par `render` ou `renderSchematic` ; cartons, en-tête et pastille sont dessinés par des fonctions pures de `render/captions.ts` avec les mêmes primitives ; les textes des pages PDF (titres, notes, consignes, sommaire) passent par l'API texte de jsPDF. Image du GIF : en-tête en haut (numéro du temps à gauche, pastille à droite), consigne en bandeau juste dessous, toujours présente même si le calque « consigne » du lecteur est éteint, terrain cadré dans la zone restante. Pastille « Ralenti » à 0,5x et « Vitesse réelle » à 1x, dans tous les modes de vitesse ; carton titre : nom de la combinaison, et l'option en sous-titre pour un GIF par option.
+- Raison : 9.1 interdit un rendu propre aux exports ; l'habillage n'est pas une scène.
+- Alternatives écartées : consigne en bas de l'image ; pastille seulement en mode deux vitesses.
+- Origine : réponse de l'utilisateur (Q5, Q6).
+
+### D-061 : lisibilité sur téléphone
+- Date : 2026-10-15
+- Décision : téléphone de 6 pouces au format 19,5:9, soit 64 mm de large ; texte d'au moins 2,5 mm de corps ; le plus petit texte (numéros des jetons) mesure au moins largeur de l'image × 2,5 / 64 (21 px à 540 px), et toutes les tailles du thème suivent. En paysage, le téléphone est tourné : la largeur d'écran retenue est son long côté (environ 139 mm). Valeurs en HYPOTHÈSE dans `defaults.ts`.
+- Raison : 9.2 demande une taille minimale garantissant la lecture quand le GIF occupe la largeur de l'écran ; sans téléphone tourné, les jetons d'un GIF paysage auraient un rayon d'environ 4,5 m.
+- Alternatives écartées : largeur de 64 mm aussi en paysage.
+- Origine : réponse de l'utilisateur (Q7).
+
+### D-062 : thèmes des exports
+- Date : 2026-10-15
+- Décision : GIF : Contraste fort par défaut, au choix parmi Écran, Contraste fort et Impression N&B. PDF « Couleur » : nouveau thème « Impression couleur » (fond blanc ou très clair, lignes du terrain grises, couleurs d'équipe conservées). PDF « Noir et blanc » : thème « Impression N&B » : jetons A pleins noirs à numéro blanc, jetons B creux (fond blanc, contour et numéro noirs) quelle que soit la couleur de la joueuse, courses noires en trait plein, passes en pointillés, temps précédents en gris clair, terrain blanc à lignes gris moyen, en-buts gris très clair, ligne d'avantage en tirets noirs fins. Les deux thèmes d'impression ne sont pas proposés comme thème de l'éditeur.
+- Raison : le fond vert foncé du Contraste fort consomme trop d'encre à l'impression couleur ; 9.3 fixe les conventions du noir et blanc.
+- Alternatives écartées : PDF couleur en Contraste fort (proposition initiale).
+- Origine : réponse de l'utilisateur (Q8, Q9).
+
+### D-063 : vignettes et mise en page du PDF
+- Date : 2026-10-15
+- Décision : un même cadrage pour toutes les vignettes d'une combinaison : boîte englobante de toutes ses lignes plus 5 m (pas la vue enregistrée), attaque vers le haut, rapport hauteur sur largeur de la boîte borné entre 0,45 et 1 (HYPOTHÈSE). Impression (A4 paysage) : en-tête (titre, catégorie, notes) ; rangée du tronc jusqu'au premier point d'option compris ; puis une rangée par option, titrée « Option A : <condition> », dans l'ordre de l'arbre, en pleine largeur et sans retrait ; libellé et consigne sous chaque vignette ; une rangée trop longue passe à la ligne ; vignettes de 90 mm au plus réduites jusqu'à 60 mm (HYPOTHÈSES) ; une rangée n'est jamais coupée entre deux pages ; suite avec rappel du titre. Téléphone : page de 100 mm de large (HYPOTHÈSE), hauteur ajustée au contenu, une vignette pleine largeur par ligne, sections d'options empilées, textes dimensionnés selon D-061.
+- Raison : 9.3 ne précisait ni le cadrage ni l'orientation des vignettes ni la disposition exacte des rangées.
+- Alternatives écartées : vue enregistrée de la combinaison ; rangées d'options en retrait sous leur point d'option.
+- Origine : réponse de l'utilisateur (Q10, Q11).
+
+### D-064 : cahier de jeu
+- Date : 2026-10-15
+- Décision : dialogue avec un titre saisi (par défaut « Cahier de jeu », ou le nom de la catégorie choisie), des cases à cocher par combinaison et le choix rapide d'une catégorie ; ordre = tri courant de la bibliothèque ; page de titre : titre, catégorie ou « Sélection », nombre de combinaisons et date, la plus récente des dates de modification des combinaisons incluses ; sommaire : nom, catégorie, numéro de page et lien ; numéro de page en pied de chaque page sauf la page de titre ; signets PDF en plus. Un PDF d'une seule combinaison n'a ni page de titre ni sommaire. La date de création inscrite dans le PDF est la plus récente des dates de modification des combinaisons incluses (déterminisme).
+- Raison : 9.3 ne précisait ni la sélection ni le contenu de la page de titre.
+- Alternatives écartées : page de titre sans date ; date de l'export (non déterministe).
+- Origine : réponse de l'utilisateur (Q12, avec l'ajout de la date).
+
+### D-065 : export déjà présent, échec d'écriture
+- Date : 2026-10-15
+- Décision : existence vérifiée avant l'encodage, puis de nouveau à l'écriture. « Remplacer » déplace d'abord l'ancien fichier dans `_corbeille/` (copie vérifiée, D-043) ; « Garder les deux » ajoute « -2 », « -3 » au nom ; « Annuler » arrête l'export. « Un GIF par option » : tout ou rien, tous les fichiers écrits à la fin. Si l'écriture échoue, le fichier vide que l'export vient de créer est retiré, seulement s'il n'existait pas avant et qu'il est toujours vide.
+- Raison : 9.1 (jamais écrasé sans confirmation) et règle 9 (jamais d'effacement définitif), comme D-022 pour l'import ; le fichier vide n'a jamais contenu de données.
+- Alternatives écartées : écrasement après confirmation ; laisser le fichier vide après un échec.
+- Origine : réponse de l'utilisateur (Q13).
+
+### D-066 : noms des exports
+- Date : 2026-10-15
+- Décision : GIF : `<nom-court>--<orientation>[-hd][-enchaine | -option-b | -option-a-b][-ralenti | -reel].gif`, orientation `portrait`, `paysage` ou `carre` ; lignes : `-enchaine`, ou les lettres des options choisies depuis la racine, rien quand la combinaison n'a qu'une ligne ; vitesse : rien pour les deux vitesses. PDF : `<nom-court>--impression[-nb].pdf` ou `--telephone[-nb].pdf` ; cahier : `<nom-court du titre>--cahier-impression[-nb].pdf` (ou `-telephone`).
+- Raison : 9.1 (`<nom-court>--<variante>.<ext>`) sans liste des variantes ; deux variantes différentes ne doivent jamais porter le même nom.
+- Alternatives écartées : aucune proposée.
+- Origine : réponse de l'utilisateur (Q14).
+
+### D-067 : version allégée d'un GIF
+- Date : 2026-10-15
+- Décision : au-delà de 8 Mo, l'outil propose une version allégée : même contenu, résolution standard si l'export était en haute qualité, cadence ramenée à 8 images/s (HYPOTHÈSE) ; un clic relance l'export.
+- Raison : 9.2 ne définissait pas la version allégée.
+- Alternatives écartées : une seule vitesse ; palette réduite.
+- Origine : réponse de l'utilisateur (Q15).
+
+### D-068 : préférences d'export
+- Date : 2026-10-15
+- Décision : les préférences d'export sont dans `reglages.json` (SPEC 4.4), qui passe en version 2 avec migration, fixture et test (règle 6). Défauts : GIF portrait, enchaîné, deux vitesses, standard, Contraste fort, optimisation activée ; PDF impression, couleur. Les calques restent ceux du lecteur, par poste (D-026), repris tels quels dans le GIF. Le modèle `Play` ne change pas.
+- Raison : 4.4 range les préférences d'export dans `reglages.json`, synchronisé entre les deux PC.
+- Alternatives écartées : préférences d'export par poste dans localStorage.
+- Origine : réponse de l'utilisateur (Q16).
+
+### D-069 : optimisation des GIF désactivable
+- Date : 2026-10-15
+- Décision : un réglage d'export désactive la transparence des pixels inchangés des GIF ; activée par défaut. Contrôlé à la vérification manuelle WhatsApp (un envoi avec, un sans).
+- Raison : la conversion GIF vers MP4 de WhatsApp pourrait mal rendre la transparence.
+- Alternatives écartées : optimisation toujours active.
+- Origine : demande de l'utilisateur à la validation du plan.
+
+### D-070 : prototypes et dépendances de test
+- Date : 2026-10-15
+- Décision : les prototypes demandés par le prompt du lot 2 (PDF vectoriel ou images, poids d'un GIF, Worker) forment l'étape 0, après validation du plan ; le plan n'en contenait qu'une évaluation documentaire. Dépendances de développement ajoutées : `pdfjs-dist` (lecture des PDF produits dans les tests : pages, liens, signets, texte, trame d'une vignette) et `omggif` avec `@types/omggif` (décodage des GIF produits dans les tests).
+- Raison : le mode plan interdit d'installer ou d'exécuter ; vérifier les fichiers réellement produits plutôt que des appels.
+- Alternatives écartées : prototypes pendant le mode plan, hors dépôt ; évaluation documentaire seule ; analyseurs écrits à la main.
+- Origine : réponse de l'utilisateur (méthode des prototypes) ; dépendances validées avec le plan.
