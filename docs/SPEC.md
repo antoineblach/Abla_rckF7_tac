@@ -1,6 +1,6 @@
 # Spécification : outil de combinaisons de rugby à 7 (Abla_rckF7_tac)
 
-Version 1.1 du 14 octobre 2026 (décisions du lot 1 intégrées, voir `docs/DECISIONS.md`, D-001 à D-045). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
+Version 1.2 du 15 octobre 2026 (décisions du lot 1 et de sa correction après recette intégrées, voir `docs/DECISIONS.md`, D-001 à D-056). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
 En cas de contradiction entre un prompt et ce document, ou entre deux sections de ce document : s'arrêter et demander, ne jamais trancher seul.
 
 ## 0. Conventions du document
@@ -236,20 +236,22 @@ Précisions :
 ### 6.1 Disposition de l'écran
 
 - Barre d'outils en haut ; bibliothèque repliable à gauche ; terrain au centre ; inspecteur à droite ; arbre des temps et commandes de lecture en bas.
+- La zone du terrain ne dépend pas du contenu des autres panneaux : barre d'outils, commandes de lecture et arbre des temps ont une hauteur fixe (défilement interne si la place manque) ; bibliothèque et inspecteur ont une largeur fixe avec défilement interne ; bandeau, messages et boutons d'option s'affichent en surimpression du terrain (D-048, D-050).
+- L'échelle et le cadrage du terrain ne changent que par une action volontaire : molette, Espace + glisser ou bouton du milieu, choix de la vue enregistrée, orientation, ouverture d'une combinaison, « Ajuster », « Zone utile ». Quand la zone du terrain change de taille (fenêtre redimensionnée, bibliothèque repliée, plein écran), l'échelle et le point central sont conservés (D-048).
 - PC uniquement : souris et clavier. Aucune contrainte tactile.
 
 ### 6.2 Outils
 
 | Outil | Raccourci | Comportement |
 |---|---|---|
-| Sélection | V | Clic, multi-sélection au cadre, Maj+clic pour ajouter. Glisser pour déplacer : placements de départ au temps 1, points de passage dans tout temps ; une position héritée d'un temps précédent ne se déplace pas (D-009). |
+| Sélection | V | Clic, multi-sélection au cadre, Maj+clic pour ajouter. Glisser pour déplacer : placements de départ au temps 1, points de passage dans tout temps ; une position héritée d'un temps précédent ne se déplace pas (D-009). Un mouvement de moins de 4 px entre l'appui et le relâchement n'est pas un glisser : le clic sélectionne sans rien déplacer (D-051). |
 | Placer joueuse A | A | Clic sur le terrain ; numéro suivant libre ; le clic fixe son placement de départ, quel que soit le temps affiché (D-009). |
 | Placer joueuse B | B | Idem pour B. |
 | Course | R | Clic sur une joueuse, puis un clic par point de passage ; Entrée ou double clic pour terminer ; Échap pour annuler. Points déplaçables ensuite ; clic droit sur un point pour le supprimer (supprimer le dernier point supprime la course). Sur une joueuse qui court déjà dans le temps, la course est prolongée (D-015). |
 | Passe | P | Clic sur la passeuse, puis sur la receveuse. Délai par défaut : instant où la passeuse obtient le ballon dans le temps (D-015). |
 | Supprimer | Suppr | Sur la sélection ; supprimer une joueuse supprime ses courses et les passes qui la concernent, dans tous les temps (D-014). |
 
-Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suivant libre, décalage de 2 m, sans actions) ; flèches pour décaler de 0,5 m, Maj+flèches de 5 m, sans aimantation (D-015) ; L lecture/pause ; Ctrl+Z / Ctrl+Y ; Ctrl+S enregistrer ; molette pour zoomer ; Espace+glisser ou bouton du milieu pour se déplacer.
+Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suivant libre, décalage de 2 m, sans actions) ; flèches pour décaler de 0,5 m, Maj+flèches de 5 m, sans aimantation (D-015) ; L lecture/pause ; F ajuster sur la vue enregistrée (D-049) ; Ctrl+Z / Ctrl+Y ; Ctrl+S enregistrer ; molette pour zoomer ; Espace+glisser ou bouton du milieu pour se déplacer. Les raccourcis restent actifs quand le focus est sur une case à cocher ou un bouton ; ils sont ignorés dans les champs de texte, les listes et le curseur temporel (D-056).
 
 ### 6.3 Comportements
 
@@ -273,10 +275,10 @@ Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suiva
 
 ### 6.5 Inspecteur
 
+- Combinaison, en tête, toujours affichée et repliable (état replié mémorisé par poste, D-052) : nom (appliqué à la validation du champ, D-005), catégorie, notes, équipe qui attaque, ajout ou retrait du ballon (D-007), dimensions du terrain (bornées à la Règle 1, D-017), vue (cadre libre réglé par « Enregistrer la vue actuelle comme cadre » et des champs numériques, D-019). Choisir la vue enregistrée recadre le terrain sur elle.
 - Joueuse : numéro, couleur, mode défense (manuel ; auto au lot 4), porteuse du ballon au départ (D-007).
 - Course : allure, durée imposée, délai.
 - Passe : délai, vitesse de passe.
-- Combinaison : nom (appliqué à la validation du champ, D-005), catégorie, notes, équipe qui attaque, ajout ou retrait du ballon (D-007), dimensions du terrain (bornées à la Règle 1, D-017), vue (cadre libre réglé par « Enregistrer la vue actuelle comme cadre » et des champs numériques, D-019).
 - Réglages de `reglages.json` (thème, allures, vitesse de passe), modifiables depuis l'inspecteur.
 
 ### 6.6 Départ d'une nouvelle combinaison
@@ -290,7 +292,7 @@ Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suiva
 - Commandes : lecture/pause, temps précédent/suivant, curseur temporel, vitesse 0,5x / 1x / 2x, boucle, pause automatique entre les temps.
 - Point d'option : bascule « S'arrêter aux options », activée par défaut et indépendante de la pause entre les temps ; activée, pause et un bouton par option, libellé par sa condition ; désactivée, l'option par défaut ; un bouton revient au point d'option pour lire une autre option (D-011).
 - Calques activables séparément : traces (temps en cours appuyé, temps précédents estompés) ; consigne en bandeau ; ligne d'avantage en tirets fins. Lots suivants : indicateurs de défense, ligne de hors-jeu.
-- Cadrage automatique sur la zone utile (boîte englobante de toutes les positions de la ligne lue, plus 5 m de marge), avec bascule vers la vue enregistrée. Il s'applique pendant la lecture ; en édition, l'affichage part de la vue enregistrée, puis zoom et déplacement libres (D-019).
+- Une seule vue (centre et échelle) pour l'édition et la lecture : lancer la lecture, choisir une option ou revenir à l'édition ne la change pas. À l'ouverture d'une combinaison, la vue enregistrée ; puis zoom et déplacement libres, en édition comme en lecture. « Ajuster » (F) recadre sur la vue enregistrée ; « Zone utile » recadre sur la boîte englobante de toutes les positions de la ligne lue, plus 5 m de marge (D-049, remplace la partie cadrage de D-019).
 - Aperçu d'orientation : paysage, portrait, carré (prépare les exports du lot 2), disponible aussi en édition (D-019).
 - `requestAnimationFrame` uniquement pendant la lecture ; rendu à la demande sinon.
 
@@ -332,7 +334,7 @@ Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit)
 - Relecture complète au démarrage, à chaque retour du focus sur la fenêtre, et toutes les 30 s tant que la fenêtre est visible (HYPOTHÈSE de période). La relecture prend tout fichier `*.json` de `combinaisons/`, copies de conflit comprises, et ignore les autres, dont les fichiers temporaires `.crswap` de Chrome (D-023).
 - Un changement est détecté par la date de modification et la taille du fichier, puis confirmé par le contenu (`updatedAt`). Avant d'écrire, l'outil vérifie que le fichier n'a pas changé depuis sa lecture ; sinon il propose les choix de 8.4 au lieu d'écraser (D-043).
 - Sauvegarde automatique 2 s après la dernière modification, plus Ctrl+S.
-- Écriture via `createWritable()` puis `close()`. HYPOTHÈSE à vérifier : l'écriture passe par un fichier temporaire et n'est validée qu'à la fermeture.
+- Écriture via `createWritable()` puis `close()` : l'écriture passe par un fichier temporaire (`.crswap`) et n'est validée qu'à la fermeture (vérifié en recette le 15/10/2026 sur le lecteur Drive : aucun `.crswap` résiduel).
 - Renommer une combinaison renomme son fichier : écrire le nouveau, puis déplacer l'ancien en corbeille, toujours ; le renommage n'a lieu qu'à la validation du nom (D-005).
 
 ### 8.4 Conflits
@@ -349,7 +351,7 @@ Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit)
 ### 8.6 Mode dégradé (Firefox, ou aucun dossier choisi)
 
 - Bibliothèque dans IndexedDB ; import et export manuels `.combi.json` et `.combipack.json`.
-- Bandeau permanent : « Synchronisation par dossier disponible dans Chrome » (Firefox) ; dans Chrome sans dossier : « Aucun dossier choisi : la bibliothèque reste dans ce navigateur », avec un bouton « Choisir un dossier ». Au premier choix d'un dossier, l'outil propose d'y copier les combinaisons du navigateur (D-021).
+- Bandeau permanent, en surimpression du haut du terrain (D-050) : « Synchronisation par dossier disponible dans Chrome » (Firefox) ; dans Chrome sans dossier : « Aucun dossier choisi : la bibliothèque reste dans ce navigateur », avec un bouton « Choisir un dossier ». Au premier choix d'un dossier, l'outil propose d'y copier les combinaisons du navigateur (D-021).
 
 ### 8.7 Bibliothèque
 
@@ -361,7 +363,7 @@ Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit)
 
 - Installer Google Drive pour ordinateur sur les deux PC.
 - Choisir un dossier dans « Mon Drive », par exemple `Mon Drive/Rugby7`.
-- Mode **miroir** recommandé : fichiers sur le disque et dans le cloud, disponibles hors connexion (établi). En mode **diffusion**, les fichiers ne sont en local qu'à l'usage (établi) : marquer alors le dossier « disponible hors connexion ». HYPOTHÈSE à vérifier : la File System Access API fonctionne sur le lecteur virtuel du mode diffusion.
+- Mode **miroir** recommandé : fichiers sur le disque et dans le cloud, disponibles hors connexion (établi). En mode **diffusion**, les fichiers ne sont en local qu'à l'usage (établi) : marquer alors le dossier « disponible hors connexion ». La File System Access API fonctionne sur le lecteur virtuel du mode diffusion (vérifié en recette le 15/10/2026, dossier `G:\Mon Drive\Rugby7` : choix, structure, écriture, sauvegarde automatique).
 - Historique : Drive conserve les versions d'un fichier jusqu'à 30 jours ou 100 versions, sauf « Conserver indéfiniment » (établi).
 - Bonne pratique : attendre la fin de la synchronisation avant de passer d'un PC à l'autre.
 
@@ -711,3 +713,4 @@ Technique :
 13. Ateliers : plots, coupelles, boucliers, sacs, piquets, zones cotées ; un ballon ; pas de rotation.
 14. Terrain standard.
 15. Décisions prises pendant le lot 1 : `docs/DECISIONS.md`, entrées D-001 à D-045.
+16. Décisions prises après le lot 1 et pendant sa correction après recette (15 octobre 2026) : entrées D-046 à D-056 (terrain stable, vue unique, bandeau en surimpression, seuil de glisser, inspecteur, CI, règle de recette, raccourcis).

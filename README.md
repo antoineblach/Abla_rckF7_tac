@@ -23,7 +23,7 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 
 1. Installer Google Drive pour ordinateur sur les deux PC et se connecter au même compte.
 2. Créer un dossier dans « Mon Drive », par exemple `Mon Drive/Rugby7`.
-3. Mode recommandé : **miroir** (fichiers sur le disque et dans le cloud, disponibles hors connexion). En mode **diffusion**, marquer le dossier « Disponible hors connexion » (le bon fonctionnement de l'accès au dossier en mode diffusion reste à vérifier en recette).
+3. Mode recommandé : **miroir** (fichiers sur le disque et dans le cloud, disponibles hors connexion). Le mode **diffusion** fonctionne aussi : l'accès au dossier, l'écriture et la sauvegarde automatique y ont été vérifiés en recette le 15/10/2026.
 4. Historique : Drive garde les versions d'un fichier 30 jours ou 100 versions (sauf « Conserver indéfiniment ») ; clic droit sur un fichier, « Gérer les versions ».
 5. Bonne pratique : attendre la fin de la synchronisation (icône Drive) avant de passer d'un PC à l'autre. Si Drive crée une copie de conflit, l'outil la signale dans la bibliothèque (« Garder les deux » ou « Choisir celle-ci »).
 
@@ -55,5 +55,5 @@ npm run preview            # prévisualisation du build : http://localhost:4173/
 - Réglage du dépôt (une fois) : Settings, Pages, source « GitHub Actions ».
 - Le workflow `.github/workflows/ci.yml` lance, à chaque push et chaque PR : lint, typecheck, tests unitaires, tests de bout en bout et build. Sur `main`, et seulement si tout passe, il publie `dist/` sur Pages.
 - `main` est protégée : une PR ne peut être fusionnée que si le statut « checks » est vert. Pas de push direct sur `main`.
-- Travail par lot : une branche `lot-N`, une PR vers `main`, fusion après la recette du lot (`docs/RECETTE.md`).
+- Travail par lot : une branche `lot-N`, une PR vers `main`, fusion après la recette du lot (`docs/RECETTE.md` : tests automatisés, au plus 5 vérifications manuelles, séance d'usage libre).
 - La base de Vite est `/Abla_rckF7_tac/` (casse exacte) : la changer seulement si le dépôt est renommé.
