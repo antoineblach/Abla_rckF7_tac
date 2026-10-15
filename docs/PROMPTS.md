@@ -145,7 +145,7 @@ Livrables : code, mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, rec
 ### Reprise d'une session interrompue
 
 ```
-Lis CLAUDE.md, docs/SPEC.md, docs/ARCHITECTURE.md et docs/DECISIONS.md, puis l'état de la branche en cours (git log, git status, PR ouverte). Résume en dix lignes au plus où en est le lot en cours, ce qui reste à faire et ce qui bloque. Propose la suite en mode plan et attends ma validation.
+Lis CLAUDE.md (qui charge docs/ETAT.md), puis le plan du lot en cours (docs/plans/lot-N.md), les dernières entrées de docs/DECISIONS.md et docs/ARCHITECTURE.md ; lis docs/SPEC.md à la demande. Vérifie l'état réel du dépôt (git log -10, git status, branche, PR ouverte, CI) et signale tout écart avec docs/ETAT.md et les cases du plan. Résume en dix lignes au plus où en est le lot en cours, l'action suivante, ce qui reste à faire, les questions ouvertes et ce qui bloque. Propose la suite en mode plan et attends ma validation.
 ```
 
 ### Correction après recette
