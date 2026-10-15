@@ -34,7 +34,7 @@ La mémoire du projet vit dans le dépôt, jamais seulement dans la conversation
 9. Dossier de l'utilisateur : jamais d'effacement définitif. Supprimer = déplacer dans `_corbeille/`. Un fichier invalide n'est jamais modifié ni déplacé automatiquement.
 10. Chaque fonctionnalité arrive avec ses tests. Pas de fusion si la CI est rouge.
 11. Une branche par lot (`lot-1`, `lot-2`...), une PR vers `main`. `main` est déployé sur GitHub Pages.
-12. Fin de lot : mettre à jour `docs/ARCHITECTURE.md` et `docs/DECISIONS.md`, exécuter la recette automatisable, me lister la recette manuelle restante (section du lot dans `docs/RECETTE.md`).
+12. Fin de lot : mettre à jour `docs/ARCHITECTURE.md` et `docs/DECISIONS.md`, exécuter la recette automatisable. Tout ce qui est automatisable est couvert par les tests. Me lister au plus 5 vérifications manuelles, seulement celles qui sont à la fois indispensables et impossibles à automatiser (section du lot dans `docs/RECETTE.md`) ; le reste de la recette est une séance d'usage libre, dont je te fais un retour.
 
 ## Conventions
 

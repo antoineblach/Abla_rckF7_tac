@@ -77,6 +77,10 @@ export const SNAP_GRID_STEP = 1
 export const NUDGE_STEP = 0.5
 export const NUDGE_STEP_LARGE = 5
 
+/** HYPOTHÈSE: pointer movement, in CSS pixels, before a press on a player or a waypoint becomes a
+ * drag; below it, a click selects without moving anything (D-051). */
+export const DRAG_THRESHOLD_PX = 4
+
 /** HYPOTHÈSE: lateral offset of players duplicated with Ctrl+D, in metres (DECISIONS Q15). */
 export const DUPLICATE_OFFSET = 2
 

@@ -3,13 +3,18 @@ import { EMPTY_SELECTION } from '../editor/selection'
 import type { Hit } from '../editor/hitTest'
 import { isPlayer, type Play, type RunAction } from '../model/types'
 import { P, sevenVsSevenWithOptions, uuid } from '../test/builders'
+import { compileLine } from '../engine/timeline'
+import { autoFrame } from '../player/framing'
+import { fitView } from '../render/viewport'
 import {
+  adjustViewTo,
   editorContextMenu,
   editorDoubleClick,
   editorPointerDown,
   editorPointerMove,
   editorPointerUp,
   handleKey,
+  useInteractionStore,
 } from './editorActions'
 import {
   applyEdit,
@@ -25,7 +30,9 @@ import {
   useEditorStore,
 } from './editorStore'
 import { visibleSummaries } from './libraryState'
-import { playPause, showPhaseInPlayer, usePlayerStore } from './playerStore'
+import { playPause, setOrientation, showPhaseInPlayer, usePlayerStore } from './playerStore'
+import { appCaches, currentEngineSettings } from './settingsStore'
+import { savedFrame, setCanvasSize, setView, useViewStore } from './viewStore'
 
 const key = (k: string, ctrl = false, shift = false) =>
   handleKey({ key: k, ctrl, shift, alt: false })
@@ -47,7 +54,8 @@ beforeEach(() => {
   })
   openPlay(sevenVsSevenWithOptions(), null, false)
   setTool('select')
-  usePlayerStore.setState({ mode: 'edit' })
+  usePlayerStore.setState({ mode: 'edit', orientation: 'landscape' })
+  useInteractionStore.setState({ metersPerPx: 0 })
 })
 
 describe('editor store (SPEC 6.3)', () => {
@@ -182,6 +190,13 @@ describe('field interactions (SPEC 6.2)', () => {
     expect(useEditorStore.getState().notice).toBe('inheritedPosition')
     key('ArrowRight')
     expect(current()).toBe(before)
+    // The notice goes away with the phase it was about, and during playback.
+    selectPhase(P.t1)
+    expect(useEditorStore.getState().notice).toBeNull()
+    useEditorStore.setState({ notice: 'inheritedPosition' })
+    key('l')
+    expect(useEditorStore.getState().notice).toBeNull()
+    playPause()
   })
 
   it('moves a waypoint by drag and removes it with a right click', () => {
@@ -218,6 +233,95 @@ describe('field interactions (SPEC 6.2)', () => {
     expect(current().entities.filter(isPlayer)).toHaveLength(14)
     key('y', true)
     expect(current().entities.filter(isPlayer)).toHaveLength(15)
+  })
+})
+
+describe('click threshold (D-051)', () => {
+  it('a click shaking by one pixel selects a player without moving it', () => {
+    // 10 px per metre: the 4 px threshold is 0.4 m.
+    useInteractionStore.setState({ metersPerPx: 0.1 })
+    const before = current()
+    down({ x: 40, y: 5 }, { kind: 'player', id: P.A(1) })
+    editorPointerMove({ x: 40.1, y: 5 })
+    editorPointerUp()
+    expect(current()).toBe(before)
+    expect(useEditorStore.getState()).toMatchObject({ dirty: false })
+    expect(useEditorStore.getState().history.past).toHaveLength(0)
+    expect(useEditorStore.getState().selection.players).toEqual([P.A(1)])
+    // Past the threshold, the drag moves the player, from the press position.
+    down({ x: 40, y: 5 }, { kind: 'player', id: P.A(1) })
+    editorPointerMove({ x: 40.3, y: 5 })
+    editorPointerMove({ x: 41, y: 6 })
+    editorPointerUp()
+    expect(current().setup.positions[P.A(1)]).toEqual({ x: 41, y: 6 })
+    expect(useEditorStore.getState().history.past).toHaveLength(1)
+  })
+
+  it('a click on a waypoint does not move it either', () => {
+    useInteractionStore.setState({ metersPerPx: 0.1 })
+    const before = current()
+    down({ x: 44, y: 36 }, { kind: 'waypoint', actionId: uuid(200), index: 0 })
+    editorPointerMove({ x: 44.2, y: 36.1 })
+    editorPointerUp()
+    expect(current()).toBe(before)
+    expect(useEditorStore.getState().history.past).toHaveLength(0)
+  })
+})
+
+describe('view (D-048, D-049)', () => {
+  const size = { width: 960, height: 540 }
+  const fit = (play: Play) => fitView(savedFrame(play), 960, 540, 'landscape', play.attackingTeam)
+
+  it('keeps the scale and the centre when the canvas changes size', () => {
+    setCanvasSize(size)
+    adjustViewTo('saved')
+    const view = useViewStore.getState().view
+    expect(view).toEqual(fit(current()))
+    setCanvasSize({ width: 700, height: 400 })
+    setCanvasSize({ width: 1400, height: 900 })
+    expect(useViewStore.getState().view).toBe(view)
+  })
+
+  it('« Ajuster » (F) fits the saved view again; « Zone utile » fits the line being played', () => {
+    setCanvasSize(size)
+    setView({ center: { x: 3, y: 4 }, scale: 30 })
+    key('f')
+    expect(useViewStore.getState().view).toEqual(fit(current()))
+    showPhaseInPlayer(P.t3b)
+    adjustViewTo('useful')
+    const line = usePlayerStore.getState().transport.line
+    const frame = autoFrame(compileLine(current(), line, currentEngineSettings(), appCaches))
+    expect(frame).not.toBeNull()
+    if (frame)
+      expect(useViewStore.getState().view).toEqual(
+        fitView(frame, 960, 540, 'landscape', current().attackingTeam),
+      )
+  })
+
+  it('opening a play and changing the orientation reset the view; a silent reload does not', () => {
+    const view = { center: { x: 3, y: 4 }, scale: 30 }
+    setView(view)
+    reloadPlay({ ...current(), notes: 'autre PC' }, null)
+    expect(useViewStore.getState().view).toBe(view)
+    setOrientation('portrait')
+    expect(useViewStore.getState().view).toBeNull()
+    setView(view)
+    openPlay(sevenVsSevenWithOptions(), null, false)
+    expect(useViewStore.getState().view).toBeNull()
+  })
+
+  it('playback, a chosen option and the way back to editing leave the view as it is', () => {
+    const view = { center: { x: 3, y: 4 }, scale: 30 }
+    setView(view)
+    showPhaseInPlayer(P.t1)
+    key('l')
+    expect(usePlayerStore.getState().mode).toBe('play')
+    playPause()
+    showPhaseInPlayer(P.t3b)
+    usePlayerStore.setState({ mode: 'play' })
+    down({ x: 10, y: 10 })
+    expect(usePlayerStore.getState().mode).toBe('edit')
+    expect(useViewStore.getState().view).toBe(view)
   })
 })
 

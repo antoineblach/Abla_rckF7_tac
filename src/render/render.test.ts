@@ -11,10 +11,10 @@ import { createRecordingContext } from '../test/recordingCtx'
 import type { Ctx2D } from './ctx2d'
 import { DEFAULT_LAYERS, type Layers } from './layers'
 import { EMPTY_OVERLAY, renderOverlay } from './overlay'
-import { render } from './render'
+import { drawGainLine, render } from './render'
 import { renderSchematic } from './renderSchematic'
 import { mixColors, readableTextColor, THEMES } from './themes'
-import { createViewport, ORIENTATIONS, type Orientation } from './viewport'
+import { createViewport, ORIENTATIONS, toPx, type Orientation } from './viewport'
 
 const settings = engineSettingsOf(defaultSettings())
 const A1 = uuid(1)
@@ -201,6 +201,43 @@ describe('render: flat colours and determinism (SPEC 3.3.3, 3.3.6)', () => {
       selectionBox: { min: { x: 2, y: 2 }, max: { x: 8, y: 6 } },
     })
     expect(recording.calls.filter((c) => c.name === 'stroke').length).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('render: attack direction (SPEC 5.6, DECISIONS Q6)', () => {
+  it('points the gain line arrows to the right or left in landscape, upwards in portrait and square', () => {
+    const cases: [Orientation, 'A' | 'B', 'right' | 'left' | 'up'][] = [
+      ['landscape', 'A', 'right'],
+      ['landscape', 'B', 'left'],
+      ['portrait', 'A', 'up'],
+      ['portrait', 'B', 'up'],
+      ['square', 'A', 'up'],
+      ['square', 'B', 'up'],
+    ]
+    for (const [orientation, team, expected] of cases) {
+      const [widthPx, heightPx] = sizes[orientation]
+      const viewport = createViewport({
+        widthPx,
+        heightPx,
+        pixelRatio: 1,
+        frame: { min: { x: -10, y: 0 }, max: { x: 110, y: 70 } },
+        orientation,
+        attackingTeam: team,
+      })
+      const { ctx, calls } = createRecordingContext()
+      drawGainLine(ctx, viewport, THEMES.screen, 50, { width: 70 }, team)
+      const start = toPx(viewport, { x: 50, y: 70 * 0.12 })
+      const near = (args: unknown[], p: { x: number; y: number }) =>
+        Math.abs((args[0] as number) - p.x) < 0.01 && Math.abs((args[1] as number) - p.y) < 0.01
+      const from = calls.findIndex((c) => c.name === 'moveTo' && near(c.args, start))
+      const tip = calls.slice(from + 1).find((c) => c.name === 'lineTo')
+      expect(from, `${orientation} ${team}`).toBeGreaterThanOrEqual(0)
+      const dx = (tip?.args[0] as number) - start.x
+      const dy = (tip?.args[1] as number) - start.y
+      const direction =
+        Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy < 0 ? 'up' : 'down'
+      expect(direction, `${orientation} ${team}`).toBe(expected)
+    }
   })
 })
 

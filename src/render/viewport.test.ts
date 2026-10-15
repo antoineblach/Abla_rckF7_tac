@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest'
 import type { Team } from '../model/types'
 import {
   createViewport,
+  fitView,
   frameForView,
   ORIENTATIONS,
-  panFrame,
+  panView,
   toMeters,
   toPx,
+  viewportFromView,
   visibleBounds,
-  zoomFrame,
+  zoomView,
   type Orientation,
 } from './viewport'
 
@@ -100,12 +102,75 @@ describe('viewport (SPEC 3.3.4, DECISIONS Q6)', () => {
     })
   })
 
-  it('zooms around a point and pans', () => {
-    const zoomed = zoomFrame({ min: { x: 0, y: 0 }, max: { x: 100, y: 50 } }, { x: 50, y: 25 }, 2)
-    expect(zoomed).toEqual({ min: { x: 25, y: 12.5 }, max: { x: 75, y: 37.5 } })
-    expect(panFrame(zoomed, { x: 5, y: -2.5 })).toEqual({
-      min: { x: 30, y: 10 },
-      max: { x: 80, y: 35 },
+  it('builds the same viewport from a fitted view as from the frame, at any pixel ratio', () => {
+    for (const orientation of ORIENTATIONS) {
+      for (const team of ['A', 'B'] as const) {
+        for (const rotate180 of [false, true]) {
+          const fromFrame = make(orientation, team, rotate180)
+          const { widthPx, heightPx } = fromFrame
+          const view = fitView(frame, widthPx, heightPx, orientation, team, rotate180)
+          const fromView = viewportFromView({
+            widthPx: widthPx * 2,
+            heightPx: heightPx * 2,
+            pixelRatio: 2,
+            view,
+            orientation,
+            attackingTeam: team,
+            rotate180,
+          })
+          expect(fromView.scale).toBeCloseTo(fromFrame.scale * 2, 9)
+          expect(fromView.origin.x).toBeCloseTo(fromFrame.origin.x * 2, 9)
+          expect(fromView.origin.y).toBeCloseTo(fromFrame.origin.y * 2, 9)
+          expect(fromView.ex).toEqual(fromFrame.ex)
+        }
+      }
+    }
+  })
+
+  it('keeps the scale and the centre when the canvas is resized (D-048)', () => {
+    const view = fitView(frame, 960, 540, 'landscape', 'A')
+    for (const [widthPx, heightPx] of [
+      [960, 540],
+      [700, 540],
+      [960, 300],
+      [1400, 800],
+    ] as const) {
+      const viewport = viewportFromView({
+        widthPx,
+        heightPx,
+        pixelRatio: 1,
+        view,
+        orientation: 'landscape',
+        attackingTeam: 'A',
+      })
+      expect(viewport.scale).toBe(view.scale)
+      const centre = toPx(viewport, view.center)
+      expect(centre.x).toBeCloseTo(widthPx / 2, 9)
+      expect(centre.y).toBeCloseTo(heightPx / 2, 9)
+    }
+  })
+
+  it('zooms around a point, which stays in place, and pans', () => {
+    const view = { center: { x: 50, y: 35 }, scale: 8 }
+    const make1 = (v: typeof view) =>
+      viewportFromView({
+        widthPx: 960,
+        heightPx: 540,
+        pixelRatio: 1,
+        view: v,
+        orientation: 'portrait',
+        attackingTeam: 'B',
+      })
+    const at = { x: 70, y: 20 }
+    const zoomed = zoomView(view, at, 2)
+    expect(zoomed.scale).toBe(16)
+    const before = toPx(make1(view), at)
+    const after = toPx(make1(zoomed), at)
+    expect(after.x).toBeCloseTo(before.x, 9)
+    expect(after.y).toBeCloseTo(before.y, 9)
+    expect(panView(zoomed, { x: 5, y: -2.5 })).toEqual({
+      center: { x: zoomed.center.x + 5, y: zoomed.center.y - 2.5 },
+      scale: 16,
     })
   })
 })

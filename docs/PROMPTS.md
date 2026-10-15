@@ -6,7 +6,7 @@
 2. Cloner le dépôt sur le PC de développement.
 3. Copier `CLAUDE.md` à la racine du dépôt, `SPEC.md` et `RECETTE.md` dans `docs/`. Commit sur `main`.
 4. Lancer Claude Code à la racine du dépôt et coller le prompt du lot 1.
-5. Valider le plan (ou le corriger), laisser implémenter, relire la PR, dérouler la recette du lot, fusionner.
+5. Valider le plan (ou le corriger), laisser implémenter, relire la PR, faire les vérifications manuelles listées (au plus 5) et une séance d'usage libre, fusionner.
 6. Passer au lot suivant avec son prompt. Ne jamais lancer deux lots à la fois.
 
 Une session interrompue se reprend avec le prompt « Reprise » en fin de fichier.
@@ -66,7 +66,7 @@ Critères d'acceptation :
 
 Hors périmètre : tout ce qui relève des lots 3 à 5. Les exports doivent cependant accepter, sans modification future de leur structure, les calques et éléments à venir (jeu au pied, regroupements, défense simulée, matériel).
 
-Livrables : code, mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, recette manuelle restante.
+Livrables : code et tests (tout ce qui est automatisable est testé), mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, au plus 5 vérifications manuelles indispensables et impossibles à automatiser (D-054).
 ```
 
 ## Lot 3 : mise en place
@@ -89,7 +89,7 @@ Tests obligatoires :
 
 Hors périmètre : défense simulée (lot 4), ateliers (lot 5). Les rôles de défense des regroupements (plaqueur, gratteur ou garde) sont seulement enregistrés, pas simulés.
 
-Livrables : code, mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, recette manuelle restante.
+Livrables : code et tests (tout ce qui est automatisable est testé), mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, au plus 5 vérifications manuelles indispensables et impossibles à automatiser (D-054).
 ```
 
 ## Lot 4 : défense simulée
@@ -117,7 +117,7 @@ Tests obligatoires :
 
 Hors périmètre : ateliers (lot 5) ; réaction au jeu au pied ; coups d'envoi.
 
-Livrables : code, mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, recette manuelle restante.
+Livrables : code et tests (tout ce qui est automatisable est testé), mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, au plus 5 vérifications manuelles indispensables et impossibles à automatiser (D-054).
 ```
 
 ## Lot 5 : ateliers
@@ -137,7 +137,7 @@ Tests obligatoires :
 - images de référence du matériel dans les trois thèmes ;
 - exports GIF et PDF d'un atelier complet.
 
-Livrables : code, mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, recette manuelle restante.
+Livrables : code et tests (tout ce qui est automatisable est testé), mise à jour de docs/ARCHITECTURE.md et docs/DECISIONS.md, au plus 5 vérifications manuelles indispensables et impossibles à automatiser (D-054).
 ```
 
 ## Prompts utilitaires
@@ -151,7 +151,7 @@ Lis CLAUDE.md (qui charge docs/ETAT.md), puis le plan du lot en cours (docs/plan
 ### Correction après recette
 
 ```
-Recette du lot N : voici les cases non validées et ce que j'ai constaté :
+Recette du lot N (vérifications manuelles et séance d'usage libre) : voici ce que j'ai constaté :
 <coller la liste>
 Pour chaque point : identifie la cause, propose la correction en mode plan, avec le test qui aurait dû l'attraper. Attends ma validation avant de corriger.
 ```

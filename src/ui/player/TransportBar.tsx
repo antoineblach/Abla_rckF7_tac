@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import { childrenOf, isBranchPoint } from '../../model/phaseTree'
 import { PLAYBACK_SPEEDS, phaseIndexAtTime, type PlaybackSpeed } from '../../player/transport'
 import { ORIENTATIONS, type Orientation } from '../../render/viewport'
+import { adjustViewTo } from '../../state/editorActions'
 import { useEditorStore } from '../../state/editorStore'
 import {
   backToBranchPointInPlayer,
@@ -10,7 +11,6 @@ import {
   playPause,
   previousPhaseInPlayer,
   seekPlayer,
-  setFraming,
   setLayer,
   setOrientation,
   setSpeed,
@@ -62,12 +62,13 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
   const transport = usePlayerStore((s) => s.transport)
   const layers = usePlayerStore((s) => s.layers)
   const orientation = usePlayerStore((s) => s.orientation)
-  const framing = usePlayerStore((s) => s.framing)
   const mode = usePlayerStore((s) => s.mode)
+  const selectedPhaseId = useEditorStore((s) => s.selectedPhaseId)
   if (!play) return null
   const timing = timingOf(play, transport.line)
   const index = phaseIndexAtTime(timing, transport.t)
-  const currentId = timing.phaseIds[index]
+  // In edit mode, the phase being edited (empty phases share their start instant with others).
+  const currentId = mode === 'edit' && selectedPhaseId ? selectedPhaseId : timing.phaseIds[index]
   const passedBranch = timing.phaseIds.some(
     (id, i) =>
       i < timing.phaseIds.length - 1 &&
@@ -118,6 +119,53 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
         ) : null}
       </div>
       <div className="transport__options">
+        <button
+          type="button"
+          onClick={() => {
+            adjustViewTo('saved')
+          }}
+          title="Recadrer sur la vue enregistrée (F)"
+        >
+          Ajuster <kbd>F</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            adjustViewTo('useful')
+          }}
+          title="Recadrer sur toutes les positions de la ligne lue"
+        >
+          Zone utile
+        </button>
+        <label>
+          Orientation{' '}
+          <select
+            aria-label="Orientation"
+            value={orientation}
+            onChange={(e) => {
+              const value = ORIENTATIONS.find((o) => o === e.target.value)
+              if (value) setOrientation(value)
+            }}
+          >
+            {ORIENTATIONS.map((o) => (
+              <option key={o} value={o}>
+                {ORIENTATION_LABELS[o]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            const stage = stageRef.current
+            if (!stage) return
+            if (document.fullscreenElement) void document.exitFullscreen()
+            else void stage.requestFullscreen()
+          }}
+        >
+          Plein écran
+        </button>
+        <span className="transport__sep" />
         <label>
           Vitesse{' '}
           <select
@@ -177,48 +225,6 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
             setLayer('gainLine', v)
           }}
         />
-        <span className="transport__sep" />
-        <label>
-          Cadrage{' '}
-          <select
-            aria-label="Cadrage"
-            value={framing}
-            onChange={(e) => {
-              setFraming(e.target.value === 'saved' ? 'saved' : 'auto')
-            }}
-          >
-            <option value="auto">Automatique</option>
-            <option value="saved">Vue enregistrée</option>
-          </select>
-        </label>
-        <label>
-          Orientation{' '}
-          <select
-            aria-label="Orientation"
-            value={orientation}
-            onChange={(e) => {
-              const value = ORIENTATIONS.find((o) => o === e.target.value)
-              if (value) setOrientation(value)
-            }}
-          >
-            {ORIENTATIONS.map((o) => (
-              <option key={o} value={o}>
-                {ORIENTATION_LABELS[o]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            const stage = stageRef.current
-            if (!stage) return
-            if (document.fullscreenElement) void document.exitFullscreen()
-            else void stage.requestFullscreen()
-          }}
-        >
-          Plein écran
-        </button>
       </div>
     </div>
   )

@@ -27,6 +27,13 @@
   --error: #b3261e;
   --error-bg: #fde7e5;
   --stage: #24502c;
+  /* Fixed sizes around the field: its area never depends on the other panels (D-048). */
+  --toolbar-h: 44px;
+  --tree-h: 176px;
+  --transport-h: 84px;
+  --library-w: 280px;
+  --library-collapsed-w: 44px;
+  --inspector-w: 320px;
   font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
   font-size: 14px;
   color: var(--text);
@@ -108,28 +115,54 @@ kbd {
   color: var(--muted);
 }
 
+/* No auto track anywhere around the field: in Chrome, an auto row next to a 1fr row follows the
+   height of the other cells (the inspector), which resized the field on every selection. */
 .app {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: var(--toolbar-h) minmax(0, 1fr) var(--tree-h);
   height: 100vh;
   overflow: hidden;
 }
 
 .app__main {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 320px;
+  grid-template-columns: auto minmax(0, 1fr) var(--inspector-w);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
-/* Toolbar */
+/* Toolbar: one line of fixed height, scrolling sideways when the window is too narrow. */
 .toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 12px;
-  padding: 6px 10px;
+  height: var(--toolbar-h);
+  padding: 0 10px;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
+}
+
+.toolbar > * {
+  flex: none;
+}
+
+.toolbar__folder {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+@media (max-width: 1500px) {
+  .toolbar kbd {
+    display: none;
+  }
 }
 
 .toolbar__title {
@@ -158,14 +191,20 @@ kbd {
   border-color: var(--accent);
 }
 
-/* Banners and notices */
-.banner {
+/* Banners, notices and option buttons: cards over the field (D-048, D-050). */
+.banner,
+.notice,
+.option-chooser {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.banner {
   background: var(--accent-soft);
-  border-bottom: 1px solid var(--border);
 }
 
 .banner--warning,
@@ -174,17 +213,9 @@ kbd {
   border-color: var(--warning-border);
 }
 
-.notice {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--warning-border);
-}
-
 /* Library */
 .library {
-  width: 280px;
+  width: var(--library-w);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -195,7 +226,9 @@ kbd {
 }
 
 .library--collapsed {
-  width: auto;
+  width: var(--library-collapsed-w);
+  padding: 8px 4px;
+  align-items: center;
 }
 
 .library__header {
@@ -296,18 +329,52 @@ kbd {
   color: var(--muted);
 }
 
-/* Stage: field and playback */
+/* Stage: field and playback. The field takes all the room left by the fixed transport bar;
+   banners, notices and option buttons float over it. */
 .stage {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) var(--transport-h);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: var(--stage);
 }
 
+.stage__field {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.stage__overlay {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.stage__overlay > * {
+  max-width: 100%;
+  pointer-events: auto;
+}
+
+.stage__overlay--top {
+  top: 10px;
+}
+
+.stage__overlay--bottom {
+  bottom: 10px;
+}
+
 .field {
   flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -337,29 +404,41 @@ kbd {
 }
 
 .option-chooser {
-  display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  justify-content: center;
   background: var(--warning-bg);
+  border-color: var(--warning-border);
 }
 
+/* Transport: two rows of fixed height, scrolling sideways when the stage is too narrow. */
 .transport {
+  height: var(--transport-h);
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 10px;
+  overflow: hidden;
   background: var(--panel);
   border-top: 1px solid var(--border);
-  padding: 6px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .transport__main,
 .transport__options {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.transport__main > *,
+.transport__options > * {
+  flex: none;
 }
 
 .transport__play {
@@ -367,7 +446,8 @@ kbd {
 }
 
 .transport__slider {
-  flex: 1 1 200px;
+  flex: 1 1 160px;
+  min-width: 80px;
 }
 
 .transport__time {
@@ -414,6 +494,11 @@ kbd {
 .inspector__section h4 {
   margin: 0;
   font-size: 14px;
+}
+
+.inspector__summary {
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .inspector__info {
@@ -486,20 +571,34 @@ kbd {
   background: var(--warning-bg);
 }
 
-/* Phase tree */
+/* Phase tree: fixed height; the action row stays, the drawing of the phases scrolls. */
 .phase-tree {
+  height: var(--tree-h);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px 10px;
+  overflow: hidden;
   background: var(--panel);
   border-top: 1px solid var(--border);
-  padding: 6px 10px;
-  max-height: 210px;
-  overflow: auto;
 }
 
 .phase-tree__actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
-  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.phase-tree__actions > * {
+  flex: none;
+}
+
+.phase-tree__scroll {
+  min-height: 0;
+  overflow: auto;
 }
 
 .phase-tree__canvas {

@@ -403,6 +403,7 @@ describe('tools (SPEC 6.2)', () => {
     expect(k('ArrowLeft')).toEqual({ kind: 'nudge', dx: -0.5, dy: 0 })
     expect(k('ArrowDown', false, true)).toEqual({ kind: 'nudge', dx: 0, dy: 5 })
     expect(k('l')).toEqual({ kind: 'playPause' })
+    expect(k('f')).toEqual({ kind: 'fit' })
     expect(k('z', true)).toEqual({ kind: 'undo' })
     expect(k('y', true)).toEqual({ kind: 'redo' })
     expect(k('s', true)).toEqual({ kind: 'save' })

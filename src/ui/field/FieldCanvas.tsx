@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { ORIENTATION_ASPECT } from '../../config/defaults'
 import { evaluate, phaseSchematic } from '../../engine/evaluate'
 import { hitTest, type Hit } from '../../editor/hitTest'
@@ -9,11 +15,12 @@ import { render } from '../../render/render'
 import { drawSchematic } from '../../render/renderSchematic'
 import { THEMES } from '../../render/themes'
 import {
-  createViewport,
-  panFrame,
+  fitView,
+  panView,
   toMeters,
+  viewportFromView,
   visibleBounds,
-  zoomFrame,
+  zoomView,
   type Viewport,
 } from '../../render/viewport'
 import {
@@ -29,13 +36,21 @@ import { useEditorStore } from '../../state/editorStore'
 import { buildOverlay } from '../../state/overlay'
 import { usePlayerStore } from '../../state/playerStore'
 import { appCaches, useSettingsStore } from '../../state/settingsStore'
-import { displayFrame, setEditFrame, setVisibleArea, useViewStore } from '../../state/viewStore'
+import {
+  savedFrame,
+  setCanvasSize,
+  setView,
+  setVisibleArea,
+  useViewStore,
+} from '../../state/viewStore'
 import { useElementSize } from '../hooks/useElementSize'
+import { isTypingTarget } from '../hooks/typing'
 import { useFieldFont } from '../hooks/useFieldFont'
 
 const ZOOM_STEP = 1.15
 
-/** The field: schematic of the selected phase in edit mode, scene at t during playback (D-010). */
+/** The field: schematic of the selected phase in edit mode, scene at t during playback (D-010).
+ * The displayed area is the view of viewStore: the canvas size never changes it (D-048). */
 export function FieldCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -52,11 +67,10 @@ export function FieldCanvas() {
   const transport = usePlayerStore((s) => s.transport)
   const layers = usePlayerStore((s) => s.layers)
   const orientation = usePlayerStore((s) => s.orientation)
-  const framing = usePlayerStore((s) => s.framing)
   const settings = useSettingsStore((s) => s.settings)
   const cursor = useInteractionStore((s) => s.cursor)
   const selectionBox = useInteractionStore((s) => s.selectionBox)
-  const editFrame = useViewStore((s) => s.editFrame)
+  const storedView = useViewStore((s) => s.view)
 
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
   const aspect = ORIENTATION_ASPECT[orientation]
@@ -67,20 +81,32 @@ export function FieldCanvas() {
     else cssHeight = Math.floor(cssWidth / aspect)
   }
 
-  const viewport = useMemo<Viewport | null>(() => {
+  // Fit of the saved view, used until a view is stored (opening, orientation, D-048).
+  const fitted = useMemo(() => {
     if (!play || cssWidth <= 0 || cssHeight <= 0) return null
-    const frame = displayFrame(play, { mode, framing, transport }, editFrame)
-    return createViewport({
+    return fitView(savedFrame(play), cssWidth, cssHeight, orientation, play.attackingTeam)
+  }, [play, cssWidth, cssHeight, orientation])
+  const view = storedView ?? fitted
+
+  useLayoutEffect(() => {
+    if (cssWidth > 0 && cssHeight > 0) setCanvasSize({ width: cssWidth, height: cssHeight })
+  }, [cssWidth, cssHeight])
+  useLayoutEffect(() => {
+    if (!storedView && fitted) setView(fitted)
+  }, [storedView, fitted])
+
+  const attackingTeam = play?.attackingTeam
+  const viewport = useMemo<Viewport | null>(() => {
+    if (!view || !attackingTeam || cssWidth <= 0 || cssHeight <= 0) return null
+    return viewportFromView({
       widthPx: Math.round(cssWidth * dpr),
       heightPx: Math.round(cssHeight * dpr),
       pixelRatio: dpr,
-      frame,
+      view,
       orientation,
-      attackingTeam: play.attackingTeam,
+      attackingTeam,
     })
-    // The line matters for the automatic framing; the time does not.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [play, cssWidth, cssHeight, dpr, mode, framing, transport.line, editFrame, orientation])
+  }, [view, attackingTeam, cssWidth, cssHeight, dpr, orientation])
 
   // Viewport-dependent helpers for the interactions.
   useEffect(() => {
@@ -89,6 +115,7 @@ export function FieldCanvas() {
     const { ex, ey } = viewport
     useInteractionStore.setState({
       screenToField: (dx, dy) => ({ x: dx * ex.x + dy * ex.y, y: dx * ey.x + dy * ey.y }),
+      metersPerPx: viewport.pixelRatio / viewport.scale,
     })
   }, [viewport])
 
@@ -144,10 +171,8 @@ export function FieldCanvas() {
   const spaceRef = useRef(false)
 
   useEffect(() => {
-    const isTyping = (t: EventTarget | null) =>
-      t instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)
     const down = (e: KeyboardEvent) => {
-      if (e.key === ' ' && !isTyping(e.target)) {
+      if (e.key === ' ' && !isTypingTarget(e.target)) {
         spaceRef.current = true
         e.preventDefault()
       }
@@ -184,26 +209,26 @@ export function FieldCanvas() {
     })
   }
 
-  // Wheel zoom around the cursor (non passive listener to prevent page scrolling).
+  // Wheel zoom around the cursor, in edit mode and during playback (non passive listener to
+  // prevent page scrolling, D-049).
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !viewport) return
+    if (!canvas || !viewport || !view) return
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
-      if (usePlayerStore.getState().mode !== 'edit') return
       const rect = canvas.getBoundingClientRect()
       const at = toMeters(viewport, {
         x: (event.clientX - rect.left) * dpr,
         y: (event.clientY - rect.top) * dpr,
       })
       const factor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
-      setEditFrame(zoomFrame(visibleBounds(viewport), at, factor))
+      setView(zoomView(view, at, factor))
     }
     canvas.addEventListener('wheel', onWheel, { passive: false })
     return () => {
       canvas.removeEventListener('wheel', onWheel)
     }
-  }, [viewport, dpr])
+  }, [viewport, view, dpr])
 
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const pos = toFieldPoint(event)
@@ -223,9 +248,8 @@ export function FieldCanvas() {
     if (!pos || !viewport) return
     const pan = panRef.current
     if (pan) {
-      if (usePlayerStore.getState().mode !== 'edit') return
-      const visible = visibleBounds(viewport)
-      setEditFrame(panFrame(visible, { x: pan.last.x - pos.x, y: pan.last.y - pos.y }))
+      // The grabbed point stays under the pointer.
+      if (view) setView(panView(view, { x: pan.last.x - pos.x, y: pan.last.y - pos.y }))
       return
     }
     editorPointerMove(pos)

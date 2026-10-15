@@ -10,6 +10,7 @@ export type ShortcutCommand =
   | { kind: 'save' }
   | { kind: 'finish' }
   | { kind: 'cancel' }
+  | { kind: 'fit' }
 
 export interface KeyInput {
   key: string
@@ -47,6 +48,8 @@ export function shortcutFor(
       return { kind: 'tool', tool: 'pass' }
     case 'l':
       return { kind: 'playPause' }
+    case 'f':
+      return { kind: 'fit' }
     case 'Delete':
       return { kind: 'delete' }
     case 'Enter':

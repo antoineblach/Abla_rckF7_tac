@@ -75,7 +75,9 @@ export function Toolbar() {
       </div>
       <div className="toolbar__group toolbar__storage">
         {status === 'folder' ? (
-          <span title="Dossier synchronisé">Dossier : {folderName}</span>
+          <span className="toolbar__folder" title={`Dossier synchronisé : ${folderName ?? ''}`}>
+            Dossier : {folderName}
+          </span>
         ) : null}
         {folderSupported ? (
           <button type="button" onClick={() => void chooseFolder()}>

@@ -99,56 +99,58 @@ export function PhaseTree() {
           Supprimer
         </button>
       </div>
-      <div className="phase-tree__canvas" style={{ width, height }}>
-        <svg className="phase-tree__links" width={width} height={height} aria-hidden="true">
+      <div className="phase-tree__scroll">
+        <div className="phase-tree__canvas" style={{ width, height }}>
+          <svg className="phase-tree__links" width={width} height={height} aria-hidden="true">
+            {layout.nodes.map((node) => {
+              const parent = node.parentId ? byId.get(node.parentId) : undefined
+              if (!parent) return null
+              const x1 = parent.column * (NODE_W + GAP_X) + NODE_W
+              const y1 = parent.row * (NODE_H + GAP_Y) + NODE_H / 2
+              const x2 = node.column * (NODE_W + GAP_X)
+              const y2 = node.row * (NODE_H + GAP_Y) + NODE_H / 2
+              const mid = x1 + GAP_X / 2
+              return (
+                <polyline
+                  key={node.id}
+                  points={`${x1},${y1} ${mid},${y1} ${mid},${y2} ${x2},${y2}`}
+                />
+              )
+            })}
+          </svg>
           {layout.nodes.map((node) => {
-            const parent = node.parentId ? byId.get(node.parentId) : undefined
-            if (!parent) return null
-            const x1 = parent.column * (NODE_W + GAP_X) + NODE_W
-            const y1 = parent.row * (NODE_H + GAP_Y) + NODE_H / 2
-            const x2 = node.column * (NODE_W + GAP_X)
-            const y2 = node.row * (NODE_H + GAP_Y) + NODE_H / 2
-            const mid = x1 + GAP_X / 2
+            const phase = findPhase(play, node.id)
+            if (!phase) return null
+            const label = phaseLabel(labelParts(play, node.id))
+            const classes = ['phase-node']
+            if (node.id === selectedId) classes.push('phase-node--selected')
+            if (phase.isDefault && labelParts(play, node.id).option)
+              classes.push('phase-node--default')
             return (
-              <polyline
+              <button
                 key={node.id}
-                points={`${x1},${y1} ${mid},${y1} ${mid},${y2} ${x2},${y2}`}
-              />
+                type="button"
+                className={classes.join(' ')}
+                style={{
+                  left: node.column * (NODE_W + GAP_X),
+                  top: node.row * (NODE_H + GAP_Y),
+                  width: NODE_W,
+                  height: NODE_H,
+                }}
+                aria-pressed={node.id === selectedId}
+                title={phase.condition || label}
+                onClick={() => {
+                  selectPhase(node.id)
+                }}
+              >
+                <span className="phase-node__label">{label}</span>
+                {phase.condition ? (
+                  <span className="phase-node__condition">{phase.condition}</span>
+                ) : null}
+              </button>
             )
           })}
-        </svg>
-        {layout.nodes.map((node) => {
-          const phase = findPhase(play, node.id)
-          if (!phase) return null
-          const label = phaseLabel(labelParts(play, node.id))
-          const classes = ['phase-node']
-          if (node.id === selectedId) classes.push('phase-node--selected')
-          if (phase.isDefault && labelParts(play, node.id).option)
-            classes.push('phase-node--default')
-          return (
-            <button
-              key={node.id}
-              type="button"
-              className={classes.join(' ')}
-              style={{
-                left: node.column * (NODE_W + GAP_X),
-                top: node.row * (NODE_H + GAP_Y),
-                width: NODE_W,
-                height: NODE_H,
-              }}
-              aria-pressed={node.id === selectedId}
-              title={phase.condition || label}
-              onClick={() => {
-                selectPhase(node.id)
-              }}
-            >
-              <span className="phase-node__label">{label}</span>
-              {phase.condition ? (
-                <span className="phase-node__condition">{phase.condition}</span>
-              ) : null}
-            </button>
-          )
-        })}
+        </div>
       </div>
     </section>
   )

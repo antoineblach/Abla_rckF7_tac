@@ -33,7 +33,8 @@ function EditorNotice() {
 }
 
 /** Screen layout (SPEC 6.1): toolbar on top, library on the left, field in the centre,
- * inspector on the right, phase tree and playback controls at the bottom. */
+ * inspector on the right, phase tree and playback controls at the bottom. Every bar has a fixed
+ * size; banner, notices and option buttons float over the field (D-048, D-050). */
 export function App() {
   const stageRef = useRef<HTMLElement>(null)
   useKeyboardShortcuts()
@@ -44,13 +45,19 @@ export function App() {
   return (
     <div className="app">
       <Toolbar />
-      <StatusBanner />
       <main className="app__main">
         <LibraryPanel />
         <section className="stage" ref={stageRef} aria-label="Terrain">
-          <EditorNotice />
-          <FieldCanvas />
-          <OptionChooser />
+          <div className="stage__field">
+            <FieldCanvas />
+            <div className="stage__overlay stage__overlay--top">
+              <StatusBanner />
+              <EditorNotice />
+            </div>
+            <div className="stage__overlay stage__overlay--bottom">
+              <OptionChooser />
+            </div>
+          </div>
           <TransportBar stageRef={stageRef} />
         </section>
         <Inspector />

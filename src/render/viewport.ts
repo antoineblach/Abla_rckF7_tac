@@ -2,6 +2,8 @@
 // frame, and orients the field: landscape keeps x to the right; portrait and square put the
 // attack towards the top of the image (DECISIONS Q6). An optional extra rotation of 180° exists
 // for lot 2 (landscape GIFs always attacking to the right); it is unused in lot 1.
+// On screen, the displayed area is a view (centre and scale) that does not depend on the canvas
+// size: resizing the canvas keeps the scale and the centre (D-048).
 import { FULL_VIEW_MARGIN } from '../config/defaults'
 import type { Bounds } from '../engine/bounds'
 import type { FieldView, Team, Vec2 } from '../model/types'
@@ -65,32 +67,110 @@ export function axesFor(
   return { ex, ey }
 }
 
-export function createViewport(options: ViewportOptions): Viewport {
-  const { widthPx, heightPx, frame, orientation, attackingTeam } = options
-  const { ex, ey } = axesFor(orientation, attackingTeam, options.rotate180 ?? false)
+/** Centre and scale of the displayed field, independent of the canvas size (D-048). */
+export interface ViewTransform {
+  /** Field point shown at the centre of the canvas, in metres. */
+  readonly center: Vec2
+  /** Pixels per metre before the pixel ratio (CSS pixels on screen). */
+  readonly scale: number
+}
+
+/** View that shows the whole frame in a canvas of `width` by `height` pixels, centred. */
+export function fitView(
+  frame: Bounds,
+  width: number,
+  height: number,
+  orientation: Orientation,
+  attackingTeam: Team,
+  rotate180 = false,
+): ViewTransform {
+  const { ex, ey } = axesFor(orientation, attackingTeam, rotate180)
   const dx = Math.max(1e-6, frame.max.x - frame.min.x)
   const dy = Math.max(1e-6, frame.max.y - frame.min.y)
   // Extent of the frame on screen, per unit of scale.
   const neededW = Math.abs(ex.x) * dx + Math.abs(ey.x) * dy
   const neededH = Math.abs(ex.y) * dx + Math.abs(ey.y) * dy
-  const scale = Math.max(1e-6, Math.min(widthPx / neededW, heightPx / neededH))
-  const cx = (frame.min.x + frame.max.x) / 2
-  const cy = (frame.min.y + frame.max.y) / 2
-  const origin = {
-    x: widthPx / 2 - scale * (ex.x * cx + ey.x * cy),
-    y: heightPx / 2 - scale * (ex.y * cx + ey.y * cy),
-  }
   return {
+    center: { x: (frame.min.x + frame.max.x) / 2, y: (frame.min.y + frame.max.y) / 2 },
+    scale: Math.max(1e-6, Math.min(width / neededW, height / neededH)),
+  }
+}
+
+export interface ViewViewportOptions {
+  /** Canvas size in device pixels. */
+  widthPx: number
+  heightPx: number
+  pixelRatio: number
+  view: ViewTransform
+  orientation: Orientation
+  attackingTeam: Team
+  rotate180?: boolean
+}
+
+function buildViewport(
+  widthPx: number,
+  heightPx: number,
+  pixelRatio: number,
+  center: Vec2,
+  scale: number,
+  orientation: Orientation,
+  attackingTeam: Team,
+  rotate180: boolean,
+): Viewport {
+  const { ex, ey } = axesFor(orientation, attackingTeam, rotate180)
+  const origin = {
+    x: widthPx / 2 - scale * (ex.x * center.x + ey.x * center.y),
+    y: heightPx / 2 - scale * (ex.y * center.x + ey.y * center.y),
+  }
+  return { widthPx, heightPx, pixelRatio, scale, ex, ey, origin, orientation, attackingTeam }
+}
+
+/** Viewport of a view: its centre at the centre of the canvas, its scale times the pixel ratio. */
+export function viewportFromView(options: ViewViewportOptions): Viewport {
+  const { view, pixelRatio } = options
+  return buildViewport(
+    options.widthPx,
+    options.heightPx,
+    pixelRatio,
+    view.center,
+    Math.max(1e-6, view.scale * pixelRatio),
+    options.orientation,
+    options.attackingTeam,
+    options.rotate180 ?? false,
+  )
+}
+
+/** Viewport that fits a frame (exports, thumbnails, reference images). */
+export function createViewport(options: ViewportOptions): Viewport {
+  const { widthPx, heightPx, frame, orientation, attackingTeam } = options
+  const rotate180 = options.rotate180 ?? false
+  const fit = fitView(frame, widthPx, heightPx, orientation, attackingTeam, rotate180)
+  return buildViewport(
     widthPx,
     heightPx,
-    pixelRatio: options.pixelRatio,
-    scale,
-    ex,
-    ey,
-    origin,
+    options.pixelRatio,
+    fit.center,
+    fit.scale,
     orientation,
     attackingTeam,
+    rotate180,
+  )
+}
+
+/** View zoomed by `factor` (> 1 zooms in); the point `around` (metres) stays where it is. */
+export function zoomView(view: ViewTransform, around: Vec2, factor: number): ViewTransform {
+  return {
+    center: {
+      x: around.x + (view.center.x - around.x) / factor,
+      y: around.y + (view.center.y - around.y) / factor,
+    },
+    scale: Math.max(1e-6, view.scale * factor),
   }
+}
+
+/** View shifted by a vector in metres. */
+export function panView(view: ViewTransform, delta: Vec2): ViewTransform {
+  return { center: { x: view.center.x + delta.x, y: view.center.y + delta.y }, scale: view.scale }
 }
 
 export function toPx(viewport: Viewport, p: Vec2): Vec2 {
@@ -166,22 +246,5 @@ export function frameForView(view: FieldView, field: FieldSize, attackingTeam: T
         min: { x: Math.min(view.min.x, view.max.x), y: Math.min(view.min.y, view.max.y) },
         max: { x: Math.max(view.min.x, view.max.x), y: Math.max(view.min.y, view.max.y) },
       }
-  }
-}
-
-/** Frame zoomed by `factor` (> 1 zooms in) around a point in metres. */
-export function zoomFrame(frame: Bounds, around: Vec2, factor: number): Bounds {
-  const k = 1 / factor
-  return {
-    min: { x: around.x + (frame.min.x - around.x) * k, y: around.y + (frame.min.y - around.y) * k },
-    max: { x: around.x + (frame.max.x - around.x) * k, y: around.y + (frame.max.y - around.y) * k },
-  }
-}
-
-/** Frame shifted by a vector in metres. */
-export function panFrame(frame: Bounds, delta: Vec2): Bounds {
-  return {
-    min: { x: frame.min.x + delta.x, y: frame.min.y + delta.y },
-    max: { x: frame.max.x + delta.x, y: frame.max.y + delta.y },
   }
 }

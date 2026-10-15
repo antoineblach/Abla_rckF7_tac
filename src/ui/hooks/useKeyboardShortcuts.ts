@@ -1,11 +1,6 @@
 import { useEffect } from 'react'
 import { handleKey } from '../../state/editorActions'
-
-function isTyping(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  const tag = target.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
-}
+import { isTypingTarget } from './typing'
 
 /** Shortcuts of SPEC 6.2; ignored while typing in a field, except Ctrl+S. */
 export function useKeyboardShortcuts(): void {
@@ -13,7 +8,7 @@ export function useKeyboardShortcuts(): void {
     const onKeyDown = (event: KeyboardEvent) => {
       const ctrl = event.ctrlKey || event.metaKey
       const saving = ctrl && event.key.toLowerCase() === 's'
-      if (isTyping(event.target) && !saving) return
+      if (isTypingTarget(event.target) && !saving) return
       if (isDialogOpen()) return
       if (handleKey({ key: event.key, ctrl, shift: event.shiftKey, alt: event.altKey })) {
         event.preventDefault()
