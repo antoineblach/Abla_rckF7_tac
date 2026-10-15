@@ -1,7 +1,8 @@
 # État du projet
 
-- Mise à jour : 2026-10-15
-- Branche : `lot-1`, PR vers `main` ouverte (voir `gh pr list`) ; dernier commit : « Convention : réponses en français » (D-046)
+- Mise à jour : 2026-10-15 07:43
+- Branche : `lot-1` ; PR #1 vers `main` ouverte, fusionnable, CI verte sur `ff85ea0` (https://github.com/antoineblach/Abla_rckF7_tac/pull/1)
+- Dernier commit : « Mise à jour de l'état du projet » (ce fichier), après `ff85ea0` « Convention : réponses en français »
 - `main` protégée : statut CI « checks » obligatoire (D-028)
 
 ## En cours
@@ -19,7 +20,8 @@
 - Étape 4 : stockage dossier et navigateur, import et export, conflits, synchronisation (`ade4e5b`).
 - Étape 5 : édition, historique, outils, transport, stores, session (`434ac77`).
 - Étape 6 : interface React, 8 tests e2e (`087856d`).
-- Étape 7 : README et ARCHITECTURE (`b5cc10d`), SPEC et RECETTE mises à jour (`e69ebcb`), recette automatisable verte (lint, typecheck, 183 tests unitaires, 8 e2e, build), PR.
+- Étape 7 : README et ARCHITECTURE (`b5cc10d`), SPEC et RECETTE mises à jour (`e69ebcb`), recette automatisable verte (lint, typecheck, 183 tests unitaires, 8 e2e, build), PR #1.
+- Après le lot : convention « Réponds-moi toujours en français » dans `CLAUDE.md` (`ff85ea0`, D-046).
 
 ## Reste à faire
 
