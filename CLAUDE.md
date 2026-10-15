@@ -16,7 +16,7 @@ La mémoire du projet vit dans le dépôt, jamais seulement dans la conversation
 @docs/ETAT.md
 
 - Au début de toute session et après tout compactage : relire `docs/ETAT.md`, le plan du lot en cours (`docs/plans/lot-N.md`), les dernières entrées de `docs/DECISIONS.md`, puis `git log -10` et `git status`. Signaler tout écart entre `ETAT.md` et l'état réel du dépôt avant de continuer.
-- Mettre à jour `docs/ETAT.md` (60 lignes au plus, réécrit et non allongé) et le plan (case cochée avec le hash court du commit) dans le commit qui termine chaque étape, ainsi qu'avant toute pause, tout compactage ou toute question posée à l'utilisateur.
+- Mettre à jour `docs/ETAT.md` (objectif indicatif de 60 lignes, réécrit et non allongé ; le dépasser plutôt que supprimer une information nécessaire) et le plan (case cochée avec le hash court du commit) dans le commit qui termine chaque étape, ainsi qu'avant toute pause, tout compactage ou toute question posée à l'utilisateur.
 - Toute décision va dans `docs/DECISIONS.md` au moment où elle est prise : entrée numérotée (D-001...), date, décision, raison, alternatives écartées, origine. Aucune entrée n'est effacée ; une décision remplacée reçoit une nouvelle entrée qui cite l'ancienne.
 - Une seule session active par branche. Une session parallèle travaille sur sa propre branche et s'inscrit dans la section « Chantiers en parallèle » de `docs/ETAT.md`.
 - Ne jamais importer `docs/SPEC.md` dans ce fichier : la lire à la demande.

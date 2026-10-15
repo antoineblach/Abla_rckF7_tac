@@ -216,6 +216,7 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : contexte compacté, sessions interrompues et sessions sur deux PC ; la mémoire automatique est locale à une machine.
 - Alternatives écartées : mémoire dans la conversation ou dans la mémoire automatique seulement.
 - Origine : demande de l'utilisateur en cours de lot.
+- Précisée par D-047 (longueur de `docs/ETAT.md`).
 
 ### D-031 : TypeScript 6.0
 - Date : 2026-10-14
@@ -327,4 +328,11 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Décision : Claude répond toujours en français ; consigne ajoutée à `CLAUDE.md`, section « Conventions ».
 - Raison : langue de travail de l'utilisateur.
 - Alternatives écartées : aucune.
+- Origine : demande de l'utilisateur.
+
+### D-047 : longueur de ETAT.md
+- Date : 2026-10-15
+- Décision : les 60 lignes de `docs/ETAT.md` sont un objectif indicatif, pas une limite stricte ; s'il faut plus de place, dépasser plutôt que supprimer une information nécessaire. Précise D-030 ; règle reportée dans `CLAUDE.md`, section « Mémoire du projet ».
+- Raison : ne jamais perdre une information utile à la reprise pour tenir un plafond de longueur.
+- Alternatives écartées : plafond strict de 60 lignes.
 - Origine : demande de l'utilisateur.
