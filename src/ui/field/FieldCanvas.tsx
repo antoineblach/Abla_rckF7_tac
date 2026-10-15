@@ -44,6 +44,7 @@ import {
   useViewStore,
 } from '../../state/viewStore'
 import { useElementSize } from '../hooks/useElementSize'
+import { isTypingTarget } from '../hooks/typing'
 import { useFieldFont } from '../hooks/useFieldFont'
 
 const ZOOM_STEP = 1.15
@@ -170,10 +171,8 @@ export function FieldCanvas() {
   const spaceRef = useRef(false)
 
   useEffect(() => {
-    const isTyping = (t: EventTarget | null) =>
-      t instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)
     const down = (e: KeyboardEvent) => {
-      if (e.key === ' ' && !isTyping(e.target)) {
+      if (e.key === ' ' && !isTypingTarget(e.target)) {
         spaceRef.current = true
         e.preventDefault()
       }

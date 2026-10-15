@@ -393,3 +393,10 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : vérification exacte et sans bruit dans l'historique.
 - Alternatives écartées : branche avec un test cassé (point de la recette du lot 1).
 - Origine : demande de l'utilisateur.
+
+### D-056 : raccourcis et focus des contrôles
+- Date : 2026-10-15
+- Décision : les raccourcis clavier (et Espace pour se déplacer) restent actifs quand le focus est sur une case à cocher, un bouton ou un sélecteur de couleur ; seuls les champs de texte, les listes (recherche par lettre) et le curseur temporel (flèches) gardent les touches pour eux. Module `ui/hooks/typing.ts`.
+- Raison : après un clic sur « Porteuse du ballon au départ », la touche R ne choisissait plus l'outil Course ; défaut révélé par les tests de bout en bout ajoutés selon D-054.
+- Alternatives écartées : tout élément `input` bloque les raccourcis (lot 1).
+- Origine : constaté pendant la correction (tests de bout en bout).

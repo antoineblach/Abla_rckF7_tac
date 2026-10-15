@@ -145,12 +145,12 @@ Les hauteurs (`--toolbar-h`, `--transport-h`, `--tree-h`) sont des variables CSS
 - Dans `editorActions`, le glisser d'une joueuse ou d'un point de passage ne commence qu'au-delà du seuil.
 - En deçà, rien ne bouge : pas d'étape d'annulation, pas de « Modifications en cours ».
 
-### [x] Étape 5 : inspecteur (D-052) (commit « Section Combinaison en tête de l’inspecteur », hash reporté à l’étape suivante ; en plus : le repli de la bibliothèque, prévu par D-026 mais non branché, est désormais mémorisé ; store `state/panelsStore.ts`)
+### [x] Étape 5 : inspecteur (D-052) (`51c3610` ; en plus : le repli de la bibliothèque, prévu par D-026 mais non branché, est désormais mémorisé ; store `state/panelsStore.ts`)
 - `src/ui/inspector/Inspector.tsx` : « Combinaison » passe en tête, toujours affichée, dans un `<details>` repliable.
 - Ordre ensuite : joueuse, course ou passe, temps, alertes, réglages.
 - `src/state/prefs.ts` : ajout de `playSectionCollapsed` (faux par défaut), mémorisé par poste comme les autres préférences (D-026).
 
-### [ ] Étape 6 : tests
+### [x] Étape 6 : tests (commit « Tests de stabilité du terrain et de l’interface », hash reporté à l’étape suivante ; 193 tests unitaires, 17 de bout en bout ; le test de stabilité échoue sur le code de `main` dès la sélection d’une joueuse ; défauts révélés et corrigés : raccourcis inactifs après un clic sur une case à cocher (D-056), étiquette du transport en édition qui ne suivait pas le temps sélectionné quand des temps vides partagent le même instant)
 
 **Unitaires :**
 - `viewport.test.ts` :

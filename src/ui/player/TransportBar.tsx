@@ -63,10 +63,12 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
   const layers = usePlayerStore((s) => s.layers)
   const orientation = usePlayerStore((s) => s.orientation)
   const mode = usePlayerStore((s) => s.mode)
+  const selectedPhaseId = useEditorStore((s) => s.selectedPhaseId)
   if (!play) return null
   const timing = timingOf(play, transport.line)
   const index = phaseIndexAtTime(timing, transport.t)
-  const currentId = timing.phaseIds[index]
+  // In edit mode, the phase being edited (empty phases share their start instant with others).
+  const currentId = mode === 'edit' && selectedPhaseId ? selectedPhaseId : timing.phaseIds[index]
   const passedBranch = timing.phaseIds.some(
     (id, i) =>
       i < timing.phaseIds.length - 1 &&

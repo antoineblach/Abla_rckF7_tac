@@ -147,3 +147,53 @@ export async function save(page: Page): Promise<void> {
   await page.keyboard.press('Control+s')
   await expect(page.getByTestId('save-status')).toHaveText('Enregistré')
 }
+
+/** Click as a hand does: the pointer shakes by one pixel between the press and the release. */
+export async function shakyClickField(page: Page, x: number, y: number): Promise<void> {
+  const p = await fieldToClient(page, x, y)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.down()
+  await page.mouse.move(p.x + 1, p.y)
+  await page.mouse.up()
+}
+
+/** Waits two frames: resize observers and redraws have run. */
+export async function settle(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve()
+          })
+        })
+      }),
+  )
+}
+
+export interface FieldState {
+  viewport: ViewportData
+  box: { x: number; y: number; width: number; height: number }
+}
+
+/** Transform of the field and position of its canvas on the page. */
+export async function fieldState(page: Page): Promise<FieldState> {
+  await settle(page)
+  const element = canvas(page)
+  const viewport = JSON.parse((await element.getAttribute('data-viewport')) ?? '{}') as ViewportData
+  const box = await element.boundingBox()
+  if (!box) throw new Error('canvas not visible')
+  return { viewport, box }
+}
+
+/** Field point (metres) under a client position, from the transform exposed by the canvas. */
+export async function clientToField(
+  page: Page,
+  clientX: number,
+  clientY: number,
+): Promise<{ x: number; y: number }> {
+  const { viewport: v, box } = await fieldState(page)
+  const dx = (clientX - box.x - v.originX) / v.scale
+  const dy = (clientY - box.y - v.originY) / v.scale
+  return { x: dx * v.ex.x + dy * v.ex.y, y: dx * v.ey.x + dy * v.ey.y }
+}
