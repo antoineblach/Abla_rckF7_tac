@@ -145,7 +145,10 @@ export function setTransportFlag(
   persist({ [flag]: value })
 }
 
-export function setLayer(layer: 'traces' | 'instruction' | 'gainLine', value: boolean): void {
+export function setLayer(
+  layer: 'traces' | 'instruction' | 'gainLine' | 'forwardPass',
+  value: boolean,
+): void {
   const layers = { ...usePlayerStore.getState().layers, [layer]: value }
   usePlayerStore.setState({ layers })
   persist({ layers })

@@ -333,7 +333,7 @@ Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la 
 - [x] **Étape 5 : io.** (commit « Étape 5 : stockage des modèles de placement », après `9a5d846`)
   - Collection générique, `modeles/` dans `FolderStore` et `IdbStore`, cache, copie vers le dossier.
   - Tests contre `memoryFs` : ceux du lot 1 inchangés, plus ceux des modèles.
-- [ ] **Étape 6 : éditeur et interface, regroupement et jeu au pied.**
+- [x] **Étape 6 : éditeur et interface, regroupement et jeu au pied.** (commit « Étape 6 : interface du jeu au pied et des regroupements », après `edc52c2` ; D-095)
   - Outils, propositions, ballon au sol, inspecteur, calque dans la barre de lecture, suppression étendue.
   - Tests unitaires et de bout en bout.
 - [ ] **Étape 7 : éditeur et interface, modèles et combinaison entière.**

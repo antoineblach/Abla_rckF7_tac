@@ -5,7 +5,15 @@ import { issueKey, type Issue } from '../model/issues'
 import { childrenOf, findPhase, phaseLabelParts, type PhaseLabelParts } from '../model/phaseTree'
 import type { Settings } from '../model/settings'
 import { engineSettingsOf } from '../model/settings'
-import type { Action, Id, Phase, Play } from '../model/types'
+import {
+  isPlayer,
+  type Action,
+  type Id,
+  type Phase,
+  type Play,
+  type PlayerEntity,
+  type Vec2,
+} from '../model/types'
 import { validatePlay } from '../model/validate'
 import { appCaches } from './settingsStore'
 
@@ -57,4 +65,30 @@ export function siblingsOf(play: Play, phaseId: Id): Phase[] {
 export function phaseDurationAt(play: Play, phaseId: Id, settings: Settings): number {
   const schematic = phaseSchematic(play, phaseId, engineSettingsOf(settings), appCaches)
   return schematic ? schematic.phaseEnd - schematic.phaseStart : 0
+}
+
+/** Landing point of a kick (receiver position at arrival, or its target point), or null. */
+export function kickLanding(
+  play: Play,
+  phaseId: Id,
+  actionId: Id,
+  settings: Settings,
+): Vec2 | null {
+  const schematic = phaseSchematic(play, phaseId, engineSettingsOf(settings), appCaches)
+  return schematic?.kicks.find((k) => k.actionId === actionId)?.to ?? null
+}
+
+/** Players of the same team as `id`, without her, for the lists of the inspector (lot 3). */
+export function teammatesOf(play: Play, id: Id): PlayerEntity[] {
+  const player = play.entities.find((e) => e.id === id)
+  if (!isPlayer(player)) return []
+  return play.entities.filter(
+    (e): e is PlayerEntity => isPlayer(e) && e.team === player.team && e.id !== id,
+  )
+}
+
+/** « A 4 »: team and number of a player, or « ? ». */
+export function playerName(play: Play, id: Id): string {
+  const player = play.entities.find((e) => e.id === id)
+  return isPlayer(player) ? `${player.team} ${String(player.number)}` : '?'
 }

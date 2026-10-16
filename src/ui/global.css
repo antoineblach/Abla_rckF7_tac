@@ -168,6 +168,15 @@ kbd {
   .toolbar__title {
     display: none;
   }
+
+  /* Room for the kick and breakdown tools (lot 3): tighter buttons. */
+  .toolbar {
+    gap: 8px;
+  }
+
+  .toolbar button {
+    padding: 4px 5px;
+  }
 }
 
 .toolbar__title {

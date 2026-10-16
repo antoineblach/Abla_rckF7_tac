@@ -5,6 +5,8 @@ import { DRAG_THRESHOLD_PX, NUDGE_STEP, NUDGE_STEP_LARGE } from '../config/defau
 import type { Bounds } from '../engine/bounds'
 import { phaseSchematic, type PhaseSchematic } from '../engine/evaluate'
 import {
+  addBreakdown,
+  addKick,
   addPass,
   addPlayer,
   addRun,
@@ -12,6 +14,8 @@ import {
   deletePlayers,
   deleteWaypoint,
   duplicatePlayers,
+  moveBallPosition,
+  moveKickTarget,
   moveSetupPositions,
   moveWaypoint,
   type CommandContext,
@@ -25,6 +29,7 @@ import {
 } from '../editor/selection'
 import { shortcutFor, type KeyInput } from '../editor/shortcuts'
 import { maybeSnap } from '../editor/snap'
+import { kickToolClick } from '../editor/tools/kickTool'
 import { passToolClick } from '../editor/tools/passTool'
 import { runToolClick, runToolFinish } from '../editor/tools/runTool'
 import { randomIds } from '../model/ids'
@@ -83,6 +88,8 @@ export function setSaveRequest(handler: () => void): void {
 type Drag =
   | { kind: 'players'; ids: Id[]; grab: Vec2; origin: Vec2; started: boolean }
   | { kind: 'waypoint'; actionId: Id; index: number; origin: Vec2; started: boolean }
+  | { kind: 'kickTarget'; actionId: Id; origin: Vec2; started: boolean }
+  | { kind: 'ball'; origin: Vec2; started: boolean }
   | { kind: 'box'; origin: Vec2; additive: boolean }
   | null
 
@@ -169,6 +176,40 @@ export function editorPointerDown(input: PointerInput): void {
         )
       return
     }
+    case 'kick': {
+      const result = kickToolClick(state.kickFromId, input.hit, pos)
+      useEditorStore.setState({ kickFromId: result.kickerId })
+      const commit = result.commit
+      if (commit) {
+        const added = addKick(
+          play,
+          selectedPhaseId,
+          commit.kickerId,
+          commit.target,
+          commandContext(),
+        )
+        const actionId = added.actionId
+        if (actionId !== null) {
+          applyEdit(() => added.play)
+          setSelection({ players: [], actions: [actionId], waypoint: null })
+        }
+      }
+      return
+    }
+    case 'breakdown': {
+      // The marker is laid on the carrier; support and relayer are proposed (D-081).
+      if (input.hit?.kind !== 'player') return
+      const tackledId = input.hit.id
+      const result = addBreakdown(play, selectedPhaseId, tackledId, commandContext())
+      if (result.refused === 'noBall') setNotice('breakdownNoBall')
+      else if (result.refused === 'teammates') setNotice('breakdownTeammates')
+      const actionId = result.actionId
+      if (actionId !== null) {
+        applyEdit(() => result.play)
+        setSelection({ players: [], actions: [actionId], waypoint: null })
+      }
+      return
+    }
     case 'select':
       selectPointerDown(play, selectedPhaseId, input, pos)
   }
@@ -193,6 +234,22 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     beginGesture()
     return
   }
+  if (hit?.kind === 'kickTarget') {
+    setSelection({ players: [], actions: [hit.actionId], waypoint: null })
+    drag = { kind: 'kickTarget', actionId: hit.actionId, origin: input.pos, started: false }
+    beginGesture()
+    return
+  }
+  if (hit?.kind === 'ball') {
+    // The ball on the ground at the start moves like a starting placement (D-009, D-083).
+    if (!isRootSelected(play, phaseId)) {
+      setNotice('inheritedPosition')
+      return
+    }
+    drag = { kind: 'ball', origin: input.pos, started: false }
+    beginGesture()
+    return
+  }
   if (hit?.kind === 'player') {
     const keep = !input.shift && selection.players.includes(hit.id)
     const next = keep ? selection : selectPlayer(selection, hit.id, input.shift)
@@ -209,7 +266,12 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     beginGesture()
     return
   }
-  if (hit?.kind === 'run' || hit?.kind === 'pass') {
+  if (
+    hit?.kind === 'run' ||
+    hit?.kind === 'pass' ||
+    hit?.kind === 'kick' ||
+    hit?.kind === 'breakdown'
+  ) {
     setSelection(selectAction(selection, hit.actionId, input.shift))
     return
   }
@@ -243,6 +305,10 @@ export function editorPointerMove(raw: Vec2): void {
     previewGesture((start) =>
       moveWaypoint(start, current.actionId, current.index, maybeSnap(raw, snap)),
     )
+  } else if (current.kind === 'kickTarget') {
+    previewGesture((start) => moveKickTarget(start, current.actionId, maybeSnap(raw, snap)))
+  } else if (current.kind === 'ball') {
+    previewGesture((start) => moveBallPosition(start, maybeSnap(raw, snap)))
   } else {
     useInteractionStore.setState({ selectionBox: { min: current.origin, max: raw } })
   }
@@ -381,7 +447,7 @@ export function handleKey(input: KeyInput): boolean {
     case 'cancel':
       cancelGesture()
       drag = null
-      useEditorStore.setState({ runDraft: null, passFromId: null })
+      useEditorStore.setState({ runDraft: null, passFromId: null, kickFromId: null })
       useInteractionStore.setState({ selectionBox: null })
       setSelection(EMPTY_SELECTION)
       return true

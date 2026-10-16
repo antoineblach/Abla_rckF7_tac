@@ -2,7 +2,7 @@
 
 - Mise à jour : 2026-10-16
 - Branche : `lot-3` (depuis `main` à `855a804`), pas encore poussée
-- Dernier commit : « Étape 5 : stockage des modèles de placement » (après `9a5d846`)
+- Dernier commit : « Étape 6 : interface du jeu au pied et des regroupements » (après `edc52c2`)
 - `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 - Écart constaté au démarrage du lot 3 : `ETAT.md` indiquait la PR #3 ouverte ; elle est fusionnée (16/10). Corrigé ici.
 
@@ -10,7 +10,7 @@
 
 - Lot 3 (mise en place) : plan validé (`docs/plans/lot-3.md`), réponses Q1 à Q19, décisions D-078 à D-094.
 - Consigne de l'utilisateur : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
-- Prochaine action : étape 6 (éditeur et interface : outils Jeu au pied (J) et Regroupement (G), propositions, ballon au sol, inspecteur, calque « En-avant », suppression étendue).
+- Prochaine action : étape 7 (onglet Modèles, enregistrer, appliquer avec bandeau et côté ouvert, gérer, nouvelle combinaison depuis un modèle, déplacer, retourner).
 
 ## Fait
 
@@ -24,9 +24,11 @@
 
 - Lot 3, étape 5 : `io/collection.ts` (index générique extrait de `FolderStore`), `modeles/` créé avec la structure, méthodes `listPresets`, `getPreset`, `putPreset`, `removePreset`, `presetIssues`, `resolvePresetDuplicate`, `presetVersionOf` (dossier et IndexedDB), `Change.collection`, `ConflictError<T>`, cache de lecture préfixé `modeles/`, copie navigateur vers dossier avec les modèles ; tests `io/presets.test.ts`.
 
+- Lot 3, étape 6 : outils Jeu au pied (J, `tools/kickTool.ts`) et Regroupement (G, proposition `proposeBreakdown`), commandes `addKick`, `updateKick`, `moveKickTarget`, `addBreakdown`, `updateBreakdown`, `setBallOnGround`, `moveBallPosition`, suppression étendue ; test d'atteinte (point visé, ballon au sol, jeu au pied, anneau, relais) ; inspecteur (`ui/inspector/SetPieceInspectors.tsx`) ; calque « En-avant » ; barre d'outils resserrée sous 1500 px (D-095) ; e2e `breakdown-kick.chromium.spec.ts` ; 26 tests de bout en bout verts.
+
 ## Reste à faire
 
-- Lot 3 : étapes 6 à 8 du plan. Calque « En-avant » pas encore dans la barre de lecture ni `setLayer` (étape 6) ; la suppression d'une joueuse ne retire pas encore ses jeux au pied ni ses regroupements (étape 6).
+- Lot 3 : étapes 7 et 8 du plan.
 - Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
 - Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
 

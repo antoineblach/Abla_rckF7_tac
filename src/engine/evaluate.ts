@@ -403,6 +403,18 @@ export function positionsAtPhaseStart(
   return result
 }
 
+/** Compiled phase reached by the path from the root to `phaseId` (editing commands), or null. */
+export function compiledPhaseOf(
+  play: Play,
+  phaseId: Id,
+  settings: EngineSettings,
+  caches: EvalCaches,
+): CompiledPhase | null {
+  const compiled = compileLine(play, pathToPhase(play, phaseId), settings, caches)
+  const phase = compiled.phases[compiled.phases.length - 1]
+  return phase?.phaseId === phaseId ? phase : null
+}
+
 /**
  * Instant at which an entity obtains the ball in a phase, relative to the phase start, or null:
  * it carries it at the start, or receives it by a pass or a kick, a breakdown exit or a pickup.

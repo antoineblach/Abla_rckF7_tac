@@ -1,18 +1,24 @@
 // Editing commands: pure transformations of a play (SPEC 6, DECISIONS Q7 to Q15).
 // Each command returns a new play (never mutates its input); an impossible command returns
 // the play unchanged and the caller may tell the user why.
-import { DUPLICATE_OFFSET, TEAM_COLORS } from '../config/defaults'
+import { BREAKDOWN_DURATION_DEFAULT, DUPLICATE_OFFSET, TEAM_COLORS } from '../config/defaults'
 import type { EvalCaches } from '../engine/caches'
-import { ballObtainedAt } from '../engine/evaluate'
+import { ballObtainedAt, compiledPhaseOf } from '../engine/evaluate'
+import { motionEnd, positionInPhase } from '../engine/timeline'
 import type { IdFactory } from '../model/ids'
 import { childrenOf, descendantsOf, findPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
 import {
   isPlayer,
+  isReceiverTarget,
   type Action,
+  type BreakdownContest,
+  type BreakdownKind,
   type DefenseMode,
   type FieldView,
   type Id,
+  type KickKind,
+  type KickTarget,
   type Pace,
   type Phase,
   type Play,
@@ -107,7 +113,10 @@ export function setSetupPosition(play: Play, id: Id, pos: Vec2): Play {
   }
 }
 
-/** Deletes players with their runs and the passes involving them, in every phase (D-014). */
+/**
+ * Deletes players with their runs and the passes, kicks and breakdowns involving them, in every
+ * phase (D-014, lot 3).
+ */
 export function deletePlayers(play: Play, ids: readonly Id[]): Play {
   const gone = new Set(ids)
   if (gone.size === 0) return play
@@ -117,6 +126,17 @@ export function deletePlayers(play: Play, ids: readonly Id[]): Play {
   const cleaned = mapActions(play, (action) => {
     if (action.type === 'run' && gone.has(action.entityId)) return null
     if (action.type === 'pass' && (gone.has(action.fromId) || gone.has(action.toId))) return null
+    if (
+      action.type === 'kick' &&
+      (gone.has(action.kickerId) ||
+        (isReceiverTarget(action.target) && gone.has(action.target.receiverId)))
+    )
+      return null
+    if (
+      action.type === 'breakdown' &&
+      [action.tackledId, action.supportId, action.relayerId].some((id) => gone.has(id))
+    )
+      return null
     return action
   })
   return {
@@ -190,6 +210,21 @@ export function setBallCarrier(play: Play, id: Id | null, ctx: Pick<CommandConte
   if (!isPlayer(play.entities.find((e) => e.id === id))) return play
   const withBall = addBall(play, ctx)
   return { ...withBall, setup: { ...withBall.setup, ballCarrierId: id, ballPosition: null } }
+}
+
+/** « Poser le ballon au sol »: ball on the ground at the start (lot 3, D-083). */
+export function setBallOnGround(play: Play, pos: Vec2, ctx: Pick<CommandContext, 'ids'>): Play {
+  const withBall = addBall(play, ctx)
+  return {
+    ...withBall,
+    setup: { ...withBall.setup, ballCarrierId: null, ballPosition: { x: pos.x, y: pos.y } },
+  }
+}
+
+/** Moves the ball on the ground at the start (root phase only, like the placements, D-009). */
+export function moveBallPosition(play: Play, pos: Vec2): Play {
+  if (!play.setup.ballPosition || play.setup.ballCarrierId !== null) return play
+  return { ...play, setup: { ...play.setup, ballPosition: { x: pos.x, y: pos.y } } }
 }
 
 // ---------------------------------------------------------------------------
@@ -329,6 +364,180 @@ export function updatePass(play: Play, actionId: Id, patch: PassPatch): Play {
 export function deleteActions(play: Play, ids: readonly Id[]): Play {
   const gone = new Set(ids)
   return mapActions(play, (action) => (gone.has(action.id) ? null : action))
+}
+
+// ---------------------------------------------------------------------------
+// Kicks (SPEC 10.4)
+
+function appendAction(play: Play, phaseId: Id, action: Action): Play {
+  return mapPhases(play, (p) => (p.id === phaseId ? { ...p, actions: [...p.actions, action] } : p))
+}
+
+/**
+ * Adds a kick to a receiver or to a point; its delay is the instant the kicker obtains the ball;
+ * a restart in a play of category restart, a long kick otherwise (D-093 tools, SPEC 10.4).
+ */
+export function addKick(
+  play: Play,
+  phaseId: Id,
+  kickerId: Id,
+  target: KickTarget,
+  ctx: CommandContext,
+): { play: Play; actionId: Id | null } {
+  const phase = findPhase(play, phaseId)
+  const kicker = play.entities.find((e) => e.id === kickerId)
+  if (!phase || !isPlayer(kicker)) return { play, actionId: null }
+  if (isReceiverTarget(target)) {
+    const receiver = play.entities.find((e) => e.id === target.receiverId)
+    if (!isPlayer(receiver) || receiver.id === kickerId) return { play, actionId: null }
+  }
+  const delay = ballObtainedAt(play, phaseId, kickerId, ctx.settings, ctx.caches) ?? 0
+  const actionId = ctx.ids()
+  const kind: KickKind = play.category === 'restart' ? 'restart' : 'long'
+  const copy: KickTarget = isReceiverTarget(target)
+    ? { receiverId: target.receiverId }
+    : { point: { x: target.point.x, y: target.point.y } }
+  return {
+    actionId,
+    play: appendAction(play, phaseId, {
+      id: actionId,
+      type: 'kick',
+      kickerId,
+      kind,
+      target: copy,
+      delay: Math.max(0, delay),
+    }),
+  }
+}
+
+export interface KickPatch {
+  kind?: KickKind
+  delay?: number
+  /** null returns to the default flight time of the kind. */
+  flightTime?: number | null
+  target?: KickTarget
+}
+
+export function updateKick(play: Play, actionId: Id, patch: KickPatch): Play {
+  return mapActions(play, (action) => {
+    if (action.id !== actionId || action.type !== 'kick') return action
+    const next = { ...action }
+    if (patch.kind !== undefined) next.kind = patch.kind
+    if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
+    if (patch.flightTime === null) delete next.flightTime
+    else if (patch.flightTime !== undefined && patch.flightTime > 0)
+      next.flightTime = patch.flightTime
+    if (patch.target !== undefined) {
+      const target = patch.target
+      if (isReceiverTarget(target)) {
+        if (target.receiverId !== action.kickerId) next.target = { receiverId: target.receiverId }
+      } else {
+        next.target = { point: { x: target.point.x, y: target.point.y } }
+      }
+    }
+    return next
+  })
+}
+
+/** Moves the target point of a kick to a point (drag in the editor). */
+export function moveKickTarget(play: Play, actionId: Id, pos: Vec2): Play {
+  return mapActions(play, (action) =>
+    action.id === actionId && action.type === 'kick' && !isReceiverTarget(action.target)
+      ? { ...action, target: { point: { x: pos.x, y: pos.y } } }
+      : action,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Breakdowns (SPEC 10.3)
+
+export type BreakdownProposal =
+  | { ok: true; delay: number; supportId: Id; relayerId: Id }
+  | { ok: false; reason: 'noBall' | 'teammates' }
+
+/**
+ * Proposal when a breakdown is laid on a player (D-081): formation at the end of her run in the
+ * phase, or when she receives the ball if later; support = the closest teammate at that instant,
+ * relayer = the second closest. Refused when she has no ball in the phase or fewer than two
+ * teammates.
+ */
+export function proposeBreakdown(
+  play: Play,
+  phaseId: Id,
+  tackledId: Id,
+  ctx: CommandContext,
+): BreakdownProposal {
+  const tackled = play.entities.find((e) => e.id === tackledId)
+  const phase = compiledPhaseOf(play, phaseId, ctx.settings, ctx.caches)
+  if (!isPlayer(tackled) || !phase) return { ok: false, reason: 'noBall' }
+  const obtained = ballObtainedAt(play, phaseId, tackledId, ctx.settings, ctx.caches)
+  if (obtained === null) return { ok: false, reason: 'noBall' }
+  const run = phase.motions.find((m) => m.entityId === tackledId && m.source === 'run')
+  const delay = Math.max(obtained, run ? motionEnd(run) - phase.start : 0)
+  const t = phase.start + delay
+  const at = positionInPhase(phase, tackledId, t)
+  if (!at) return { ok: false, reason: 'noBall' }
+  const mates = play.entities
+    .filter((e): e is PlayerEntity => isPlayer(e) && e.team === tackled.team && e.id !== tackledId)
+    .flatMap((e) => {
+      const pos = positionInPhase(phase, e.id, t)
+      return pos ? [{ id: e.id, d: Math.hypot(pos.x - at.x, pos.y - at.y) }] : []
+    })
+    .sort((a, b) => a.d - b.d)
+  const [support, relayer] = mates
+  if (!support || !relayer) return { ok: false, reason: 'teammates' }
+  return { ok: true, delay, supportId: support.id, relayerId: relayer.id }
+}
+
+/** Lays a ruck on a player with the proposed support and relayer (D-081). */
+export function addBreakdown(
+  play: Play,
+  phaseId: Id,
+  tackledId: Id,
+  ctx: CommandContext,
+): { play: Play; actionId: Id | null; refused: 'noBall' | 'teammates' | null } {
+  const proposal = proposeBreakdown(play, phaseId, tackledId, ctx)
+  if (!proposal.ok) return { play, actionId: null, refused: proposal.reason }
+  const actionId = ctx.ids()
+  return {
+    actionId,
+    refused: null,
+    play: appendAction(play, phaseId, {
+      id: actionId,
+      type: 'breakdown',
+      kind: 'ruck',
+      tackledId,
+      supportId: proposal.supportId,
+      relayerId: proposal.relayerId,
+      delay: proposal.delay,
+      duration: BREAKDOWN_DURATION_DEFAULT,
+    }),
+  }
+}
+
+export interface BreakdownPatch {
+  kind?: BreakdownKind
+  supportId?: Id
+  relayerId?: Id
+  delay?: number
+  duration?: number
+  /** null returns to the defence setting (« Par défaut », D-078). */
+  contest?: BreakdownContest | null
+}
+
+export function updateBreakdown(play: Play, actionId: Id, patch: BreakdownPatch): Play {
+  return mapActions(play, (action) => {
+    if (action.id !== actionId || action.type !== 'breakdown') return action
+    const next = { ...action }
+    if (patch.kind !== undefined) next.kind = patch.kind
+    if (patch.supportId !== undefined) next.supportId = patch.supportId
+    if (patch.relayerId !== undefined) next.relayerId = patch.relayerId
+    if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
+    if (patch.duration !== undefined && patch.duration > 0) next.duration = patch.duration
+    if (patch.contest === null) delete next.contest
+    else if (patch.contest !== undefined) next.contest = patch.contest
+    return next
+  })
 }
 
 // ---------------------------------------------------------------------------

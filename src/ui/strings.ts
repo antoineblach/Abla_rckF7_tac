@@ -15,6 +15,8 @@ export const TOOL_LABELS: Record<ToolId, { label: string; key: string }> = {
   placeB: { label: 'Placer B', key: 'B' },
   run: { label: 'Course', key: 'R' },
   pass: { label: 'Passe', key: 'P' },
+  kick: { label: 'Jeu au pied', key: 'J' },
+  breakdown: { label: 'Regroupement', key: 'G' },
 }
 
 export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
@@ -24,6 +26,9 @@ export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
   rootOption: 'Le premier temps ne peut pas avoir d’option.',
   notLeaf:
     'Ce temps a déjà une suite : utilisez « Insérer un temps après » ou « Créer une option ».',
+  breakdownNoBall:
+    'Regroupement : cliquez une joueuse qui a le ballon dans ce temps (la porteuse plaquée).',
+  breakdownTeammates: 'Regroupement : il faut deux coéquipières pour le soutien et le relayeur.',
 }
 
 export function issueMessage(issue: Issue): string {

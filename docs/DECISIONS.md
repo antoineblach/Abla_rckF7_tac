@@ -676,3 +676,10 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : règle 6 de `CLAUDE.md` ; D-004 ; un regroupement valide exige que la plaquée tienne le ballon, donc aucun vol en cours : l'ordre chronologique suffit, sans itération, et le moteur reste pur.
 - Alternatives écartées : réécrire les fichiers v1 dès la lecture ; résolution itérative.
 - Origine : plan du lot 3 (sections 1 et 2), validé par l'utilisateur.
+
+### D-095 : interface du jeu au pied et des regroupements (étape 6)
+- Date : 2026-10-16
+- Décision : l'outil « Jeu au pied » (J) choisit la frappeuse puis une joueuse (receveuse) ou un point du terrain, et sélectionne le jeu au pied créé ; l'outil « Regroupement » (G) pose un ruck sur la joueuse cliquée avec la proposition de D-081, ou affiche un message (« cliquez une joueuse qui a le ballon dans ce temps », « il faut deux coéquipières »). Inspecteur : section « Jeu au pied » (type, cible « Point du terrain » ou une joueuse, x et y visés, délai, temps de vol propre ou défaut du type) ; section « Regroupement » (type, soutien et relayeur parmi les coéquipières de la plaquée, instant de formation, durée, défense au regroupement) ; dans « Combinaison », la porteuse au départ ou le ballon au sol, avec « Poser le ballon au sol » qui le pose à la place de la porteuse. Le point visé d'un jeu au pied et le ballon au sol au départ se déplacent à la souris (le ballon au temps 1 seulement, D-009) ; cliquer le trajet du relayeur sélectionne son regroupement. Calque « En-avant » dans la barre de lecture. Sous 1500 px de large, les boutons de la barre d'outils sont resserrés (marge de 5 px, écart de 8 px) : toute la barre reste visible à 1440 px avec les deux outils de plus.
+- Raison : SPEC 10.3, 10.4, D-078 à D-085, D-093 ; mesure à 1440 px : la barre débordait de 92 px.
+- Alternatives écartées : libellés abrégés des outils ; dossier masqué dans la barre.
+- Origine : choix technique (étape 6).

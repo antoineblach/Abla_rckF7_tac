@@ -43,6 +43,7 @@ import { useSettingsStore } from '../../state/settingsStore'
 import { useViewStore } from '../../state/viewStore'
 import { CheckboxField, CommitTextField, NumberField, SelectField } from '../common/fields'
 import { CATEGORY_LABELS, issueMessage, PACE_LABELS, phaseLabel } from '../strings'
+import { BallAtStart, BreakdownInspector, KickInspector } from './SetPieceInspectors'
 
 const fmt = (seconds: number) => `${seconds.toFixed(1).replace('.', ',')} s`
 
@@ -306,6 +307,7 @@ function PlayInspector({ play, disabled }: { play: Play; disabled: boolean }) {
           </button>
         )}
       </div>
+      {hasBall ? <BallAtStart play={play} disabled={disabled} /> : null}
       <h4>Terrain</h4>
       <NumberField
         label="Longueur"
@@ -571,6 +573,18 @@ export function Inspector() {
       ) : null}
       {found?.action.type === 'pass' ? (
         <PassInspector pass={found.action} settings={settings} disabled={readOnly} />
+      ) : null}
+      {found?.action.type === 'kick' ? (
+        <KickInspector
+          play={play}
+          kick={found.action}
+          phaseId={found.phase.id}
+          settings={settings}
+          disabled={readOnly}
+        />
+      ) : null}
+      {found?.action.type === 'breakdown' ? (
+        <BreakdownInspector play={play} breakdown={found.action} disabled={readOnly} />
       ) : null}
       {found ? (
         <>

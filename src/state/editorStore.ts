@@ -10,7 +10,15 @@ import { findPhase, rootPhase } from '../model/phaseTree'
 import type { Id, Play } from '../model/types'
 import { resetView } from './viewStore'
 
-export type EditorNotice = 'inheritedPosition' | 'readOnly' | 'rootOption' | 'notLeaf' | null
+export type EditorNotice =
+  | 'inheritedPosition'
+  | 'readOnly'
+  | 'rootOption'
+  | 'notLeaf'
+  // Breakdown tool (D-081): no ball in the phase, fewer than two teammates.
+  | 'breakdownNoBall'
+  | 'breakdownTeammates'
+  | null
 
 export interface EditorState {
   play: Play | null
@@ -25,6 +33,8 @@ export interface EditorState {
   tool: ToolId
   runDraft: RunDraft | null
   passFromId: Id | null
+  /** Kicker chosen by the kick tool, waiting for the receiver or the point (lot 3). */
+  kickFromId: Id | null
   snap: boolean
   notice: EditorNotice
 }
@@ -41,6 +51,7 @@ const initial: EditorState = {
   tool: 'select',
   runDraft: null,
   passFromId: null,
+  kickFromId: null,
   snap: false,
   notice: null,
 }
@@ -199,12 +210,19 @@ export function selectPhase(phaseId: Id): void {
     selectedPhaseId: phaseId,
     runDraft: null,
     passFromId: null,
+    kickFromId: null,
     notice: null,
   })
 }
 
 export function setTool(tool: ToolId): void {
-  useEditorStore.setState({ tool, runDraft: null, passFromId: null, notice: null })
+  useEditorStore.setState({
+    tool,
+    runDraft: null,
+    passFromId: null,
+    kickFromId: null,
+    notice: null,
+  })
 }
 
 export function setSelection(selection: Selection): void {
