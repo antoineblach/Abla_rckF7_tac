@@ -9,6 +9,9 @@ import type { ExportJob } from '../jobs'
 import type { ExportProgress } from '../types'
 import { isFromWorker, isToWorker } from './protocol'
 
+/** Real encodings: several seconds on the CI runner, slower than a desktop computer. */
+const ENCODING_TIMEOUT_MS = 60_000
+
 const settings = engineSettingsOf(defaultSettings())
 const fixture = loadOptionsFixture()
 
@@ -36,7 +39,7 @@ const PDF_JOB: ExportJob = {
   book: { title: 'Cahier de jeu', subtitle: 'Sélection' },
 }
 
-describe('worker protocol', () => {
+describe('worker protocol', { timeout: ENCODING_TIMEOUT_MS }, () => {
   it('accepts well-formed messages only', () => {
     expect(isToWorker({ type: 'start', jobId: 1, job: GIF_JOB })).toBe(true)
     expect(isToWorker({ type: 'start', jobId: 1, job: PDF_JOB })).toBe(true)

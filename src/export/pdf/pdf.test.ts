@@ -40,6 +40,9 @@ import { createPdfDoc, pdfContext, pdfMeasure } from './pdfCtx'
 import { drawThumbnail, thumbMmPerPx } from './thumbnail'
 import { pdfExport } from './write'
 
+/** Real encodings: several seconds on the CI runner, slower than a desktop computer. */
+const ENCODING_TIMEOUT_MS = 60_000
+
 const settings = engineSettingsOf(defaultSettings())
 const fonts = loadPdfFonts()
 const measure = pdfMeasure(fonts)
@@ -219,7 +222,7 @@ describe('PDF phone layout (SPEC 9.3, D-061, D-063)', () => {
   })
 })
 
-describe('PDF files (SPEC 9.3, D-064, D-071)', () => {
+describe('PDF files (SPEC 9.3, D-064, D-071)', { timeout: ENCODING_TIMEOUT_MS }, () => {
   it('writes the same vector PDF twice, with its texts and the embedded font', async () => {
     const first = runPdf([fixture], PRINT)
     const second = runPdf([fixture], PRINT)
@@ -331,7 +334,7 @@ describe('PDF files (SPEC 9.3, D-064, D-071)', () => {
   })
 })
 
-describe('PDF thumbnail reference images (D-062, D-071)', () => {
+describe('PDF thumbnail reference images (D-062, D-071)', { timeout: ENCODING_TIMEOUT_MS }, () => {
   for (const themeId of ['highContrast', 'printColor', 'printBw'] as const) {
     it(`rasterises a vector thumbnail of option B in theme ${themeId}`, async () => {
       const frame = frameOf(fixture)

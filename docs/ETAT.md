@@ -2,7 +2,7 @@
 
 - Mise à jour : 2026-10-15
 - Branche : `lot-2` (depuis `main` à `9a2c379`), poussée ; PR `lot-2` vers `main` ouverte (voir `gh pr list`), CI à vérifier
-- Dernier commit : « Clôture du lot 2 » (après `262f378`)
+- Dernier commit : « Délais des tests d'encodage pour la CI » (après `abe4424`, clôture du lot 2)
 - `main` : lot 1 et sa correction fusionnés (PR #1 `d37f3f6`, PR #2 `9a2c379`), déployés sur Pages ; protection vérifiée par `gh api` (D-055)
 - Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter (`c6fa414`).
 
@@ -52,6 +52,7 @@
 - gifenc : avec `transparent`, `dispose` vaut 2 par défaut : toujours `dispose: 1` ; `quantize` et `applyPalette` lisent tout `t.buffer` : tableaux autonomes.
 - pdf.js renvoie `null` (et non `[]`) pour un PDF sans signets. Une liste de `combinaisons/` pendant une écriture contient le `.crswap` de Chrome : filtrer sur `.combi.json`.
 - Le morceau principal ne doit importer ni `export/jobSteps.ts` ni les encodeurs : `export/jobs.ts` reste léger (contrôlé par `bundle.chromium.spec.ts`).
+- Vitest coupe un test à 5 s par défaut ; le runner de la CI encode 2 à 3 fois moins vite que ce poste : les groupes de tests qui encodent réellement ont un délai explicite (`ENCODING_TIMEOUT_MS`).
 - Vérifier qu'un test attrape un défaut : arbre de travail temporaire sur `main` avec une jonction vers `node_modules` ; supprimer la jonction (`rmdir`) avant `git worktree remove`.
 
 ## Chantiers en parallèle

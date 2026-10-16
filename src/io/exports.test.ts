@@ -12,6 +12,9 @@ import { runExport, type ExistingDecision, type ExportRunDeps } from './exportRu
 import { ExportExistsError, existingExports, writeExports } from './exportsFolder'
 import { moveToTrash } from './trash'
 
+/** Real encodings: several seconds on the CI runner, slower than a desktop computer. */
+const ENCODING_TIMEOUT_MS = 60_000
+
 const NOW = new Date(2026, 9, 15, 21, 30, 5)
 const STAMP = '2026-10-15_21-30-05'
 const settings = engineSettingsOf(defaultSettings())
@@ -166,7 +169,7 @@ describe('exports/ (SPEC 9.1, D-065)', () => {
   })
 })
 
-describe('export run (SPEC 9.1, D-065)', () => {
+describe('export run (SPEC 9.1, D-065)', { timeout: ENCODING_TIMEOUT_MS }, () => {
   it('encodes in the engine, then writes the file in exports/', async () => {
     const progress: ExportProgress[] = []
     const onSaving = vi.fn()

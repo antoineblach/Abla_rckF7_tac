@@ -31,6 +31,9 @@ import { linesFrame } from '../framing'
 import { drawGifItem, gifFormat, gifLayout } from './frame'
 import { gifTargets, gifTimeline, type GifTarget } from './timeline'
 
+/** Real encodings: several seconds on the CI runner, slower than a desktop computer. */
+const ENCODING_TIMEOUT_MS = 60_000
+
 const settings = engineSettingsOf(defaultSettings())
 const fixture = loadOptionsFixture()
 
@@ -67,7 +70,7 @@ const onlyFile = (files: ExportFile[]): ExportFile => {
   return files[0] as ExportFile
 }
 
-describe('GIF layout (SPEC 9.2, D-060, D-061)', () => {
+describe('GIF layout (SPEC 9.2, D-060, D-061)', { timeout: ENCODING_TIMEOUT_MS }, () => {
   it('frames every exported line plus 5 m, once for the whole GIF, under the dressing', () => {
     const caches = createCaches()
     let union: Bounds | null = null
@@ -187,7 +190,7 @@ describe('GIF layout (SPEC 9.2, D-060, D-061)', () => {
   })
 })
 
-describe('GIF encoding (SPEC 9.2, D-069, D-071)', () => {
+describe('GIF encoding (SPEC 9.2, D-069, D-071)', { timeout: ENCODING_TIMEOUT_MS }, () => {
   it('produces the same bytes for two successive exports', () => {
     const first = onlyFile(runExport(OPTIONS).files)
     const second = onlyFile(runExport(OPTIONS).files)
@@ -262,7 +265,7 @@ describe('GIF encoding (SPEC 9.2, D-069, D-071)', () => {
   })
 })
 
-describe('GIF reference images (SPEC 9.2, D-062)', () => {
+describe('GIF reference images (SPEC 9.2, D-062)', { timeout: ENCODING_TIMEOUT_MS }, () => {
   for (const theme of ['highContrast', 'printBw'] as const) {
     it(`decodes an image of option B in theme ${theme}`, async () => {
       const options = { ...OPTIONS, theme }

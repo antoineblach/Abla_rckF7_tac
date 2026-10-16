@@ -24,6 +24,9 @@ import {
 import { useExportStore } from './exportStore'
 import { useLibraryState } from './libraryState'
 
+/** Real encodings: several seconds on the CI runner, slower than a desktop computer. */
+const ENCODING_TIMEOUT_MS = 60_000
+
 const NOW = new Date(2026, 9, 15, 22, 0, 0)
 const fixture = loadOptionsFixture()
 const PREFS = { ...defaultSettings().export.gif, speed: 'real' as const }
@@ -46,7 +49,7 @@ beforeEach(() => {
 
 let engine = createInlineEngine()
 
-describe('export session (SPEC 9.1, 9.2)', () => {
+describe('export session (SPEC 9.1, 9.2)', { timeout: ENCODING_TIMEOUT_MS }, () => {
   it('exports the open play and shows the files with their size', async () => {
     engine = createInlineEngine()
     await exportGif(PREFS)
