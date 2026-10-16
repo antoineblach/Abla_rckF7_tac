@@ -343,6 +343,31 @@ kbd {
   color: var(--muted);
 }
 
+/* Tabs of the library: plays and placement presets (lot 3). */
+.library__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.library__tab {
+  flex: 1 1 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background: transparent;
+}
+
+.library__tab--active {
+  background: var(--panel-alt);
+  border-color: var(--border);
+  font-weight: 700;
+}
+
+.library__item-actions--wrap {
+  flex-wrap: wrap;
+}
+
 /* Stage: field and playback. The field takes all the room left by the fixed transport bar;
    banners, notices and option buttons float over it. */
 .stage {
@@ -407,9 +432,32 @@ kbd {
 
 .field__canvas--run,
 .field__canvas--pass,
+.field__canvas--kick,
+.field__canvas--breakdown,
 .field__canvas--placeA,
-.field__canvas--placeB {
+.field__canvas--placeB,
+.field__canvas--placement {
   cursor: crosshair;
+}
+
+/* Banner of a placement (lot 3, D-096): over the top of the field. */
+.placement-banner {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.placement-banner__sides {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.placement-banner__refused {
+  color: var(--error);
+}
+
+.placement-banner__hint {
+  color: var(--muted);
 }
 
 .field__empty {
@@ -696,6 +744,24 @@ kbd {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.modal__actions--wrap {
+  justify-content: flex-start;
+}
+
+.form-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-row--buttons {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .toasts {

@@ -27,7 +27,12 @@ import {
   type Play,
   type RunAction,
 } from '../../model/types'
-import { adjustViewTo, commandContext } from '../../state/editorActions'
+import {
+  adjustViewTo,
+  commandContext,
+  flipWholePlay,
+  startMovePlay,
+} from '../../state/editorActions'
 import { applyEdit, setSelection, useEditorStore } from '../../state/editorStore'
 import {
   findAction,
@@ -308,6 +313,24 @@ function PlayInspector({ play, disabled }: { play: Play; disabled: boolean }) {
         )}
       </div>
       {hasBall ? <BallAtStart play={play} disabled={disabled} /> : null}
+      <div className="form-row form-row--buttons">
+        <button
+          type="button"
+          disabled={disabled}
+          title="Deux clics sur le terrain : point de départ, puis point d’arrivée"
+          onClick={startMovePlay}
+        >
+          Déplacer la combinaison
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          title="Symétrie gauche-droite par rapport à l’axe du terrain"
+          onClick={flipWholePlay}
+        >
+          Retourner
+        </button>
+      </div>
       <h4>Terrain</h4>
       <NumberField
         label="Longueur"

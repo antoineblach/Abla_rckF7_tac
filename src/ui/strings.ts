@@ -153,7 +153,27 @@ export const TEXT = {
       ? `${n} combinaison${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} dans le dossier.`
       : `${n} combinaison${n > 1 ? 's' : ''} et ${presets} modèle${presets > 1 ? 's' : ''} copiés dans le dossier.`,
   deleted: 'Combinaison déplacée dans la corbeille.',
+  // Placement presets and placements (lot 3, D-092, D-096).
+  presetSaved: (name: string) => `Modèle « ${name} » enregistré.`,
+  presetUpdated: (name: string) => `Modèle « ${name} » mis à jour.`,
+  presetDuplicated: 'Modèle dupliqué.',
+  presetRenamed: 'Modèle renommé.',
+  presetDeleted: 'Modèle déplacé dans la corbeille.',
+  presetChanged:
+    'Ce modèle a été modifié ou retiré sur l’autre ordinateur : la liste est relue, recommencez.',
+  presetReadOnly: 'Ce modèle est en lecture seule : résolvez d’abord la copie de conflit.',
+  presetError: 'Action impossible sur le modèle.',
+  placementApply: (name: string) => `Modèle « ${name} » : cliquez le point d’ancrage.`,
+  placementSave: (name: string) => `Enregistrer « ${name} » : cliquez le point d’ancrage.`,
+  placementAxes: 'Flèches : avant, côté ouvert.',
+  placementMoveStart: 'Déplacer la combinaison : cliquez le point de départ.',
+  placementMoveEnd: 'Déplacer la combinaison : cliquez le point d’arrivée.',
+  placementRefused: 'Marque de touche à moins de 5 m d’une ligne de but : refusée.',
+  placementEscape: 'Échap pour annuler.',
 } as const
+
+/** « Côté ouvert » of a preset, seen by the attacking team facing the opposing goal (D-088). */
+export const OPEN_SIDE_LABELS = { auto: 'Auto', left: 'Gauche', right: 'Droite' } as const
 
 /** File size as Windows shows it, in French (D-072): « 850 Ko », « 1,2 Mo ». */
 export function formatSize(bytes: number): string {

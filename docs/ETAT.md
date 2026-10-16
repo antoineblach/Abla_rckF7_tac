@@ -2,33 +2,30 @@
 
 - Mise à jour : 2026-10-16
 - Branche : `lot-3` (depuis `main` à `855a804`), pas encore poussée
-- Dernier commit : « Étape 6 : interface du jeu au pied et des regroupements » (après `edc52c2`)
+- Dernier commit : « Étape 7 : interface des modèles et de la combinaison entière » (après `f44ee27`)
 - `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
-- Écart constaté au démarrage du lot 3 : `ETAT.md` indiquait la PR #3 ouverte ; elle est fusionnée (16/10). Corrigé ici.
+- Reprise du 16/10 après une limite d'usage (juste après `f44ee27`) : aucun écart entre ce fichier et le dépôt.
 
 ## En cours
 
-- Lot 3 (mise en place) : plan validé (`docs/plans/lot-3.md`), réponses Q1 à Q19, décisions D-078 à D-094.
+- Lot 3 (mise en place) : plan validé (`docs/plans/lot-3.md`), réponses Q1 à Q19, décisions D-078 à D-096.
 - Consigne de l'utilisateur : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
-- Prochaine action : étape 7 (onglet Modèles, enregistrer, appliquer avec bandeau et côté ouvert, gérer, nouvelle combinaison depuis un modèle, déplacer, retourner).
+- Prochaine action : étape 8 (aucune icône d'en-avant dans le GIF ni le PDF, tests d'exports du lot 3, SPEC 1.4, ARCHITECTURE, RECETTE, README, recette automatisable, push, PR).
 
 ## Fait
 
-- Lot 1 : PR #1 et correction après recette PR #2, fusionnées.
-- Lot 2 : PR #3 fusionnée (exports GIF et PDF ; D-057 à D-077).
-- Lot 3 : étape 0 (`ef574cf`) ; étape 1 : `Play` v2 (schéma v1 figé dans `schemaV1.ts`, migration), `model/preset.ts`, alertes et validation des jeux au pied et regroupements, fixtures `play-v2-lot3.json` et `preset-v1-touche.json` (figées, issues de `setPiecesPlay()` et `lineoutPreset()`).
-- Lot 3, étape 2 : `engine/timeline.ts` (courses arrêtées `until`, relais, boucle d'événements, segments du ballon, `gainLine`), `engine/ballEvents.ts` (ramassage, en-avant, vol au pied), `SceneState` et `PhaseSchematic` enrichis ; tests `breakdown`, `kick`, `forwardPass`, continuité et déterminisme du lot 3.
-- Constat : le scénario de référence du lot 1 contient une passe en avant au sens de 5.7 (option B, `uuid(231)`) ; les tests l'attendent désormais. Tests de bout en bout toujours verts après l'étape 2 (23).
-- Lot 3, étape 3 : `editor/presets.ts` (repère local, aimantation de l'ancre, enregistrer, appliquer, catégorie, vignette) et `editor/transform.ts` (déplacer, retourner), avec leurs tests.
-- Lot 3, étape 4 : clés de thème du lot 3 (4 thèmes), tirets longs, ombre et grossissement, anneau et libellé du regroupement, partie ignorée en rouge, pastille d'en-avant (calque `forwardPass` requis dans `Layers`, option de `drawSchematic` : éditeur oui, PDF et vignettes non ; GIF forcé à non) ; surcouche : fantômes et ancre ; 5 images de référence vérifiées à l'œil (`render/setPieces.test.ts`).
-
-- Lot 3, étape 5 : `io/collection.ts` (index générique extrait de `FolderStore`), `modeles/` créé avec la structure, méthodes `listPresets`, `getPreset`, `putPreset`, `removePreset`, `presetIssues`, `resolvePresetDuplicate`, `presetVersionOf` (dossier et IndexedDB), `Change.collection`, `ConflictError<T>`, cache de lecture préfixé `modeles/`, copie navigateur vers dossier avec les modèles ; tests `io/presets.test.ts`.
-
-- Lot 3, étape 6 : outils Jeu au pied (J, `tools/kickTool.ts`) et Regroupement (G, proposition `proposeBreakdown`), commandes `addKick`, `updateKick`, `moveKickTarget`, `addBreakdown`, `updateBreakdown`, `setBallOnGround`, `moveBallPosition`, suppression étendue ; test d'atteinte (point visé, ballon au sol, jeu au pied, anneau, relais) ; inspecteur (`ui/inspector/SetPieceInspectors.tsx`) ; calque « En-avant » ; barre d'outils resserrée sous 1500 px (D-095) ; e2e `breakdown-kick.chromium.spec.ts` ; 26 tests de bout en bout verts.
+- Lots 1 et 2 : PR #1, #2 et #3 fusionnées.
+- Lot 3, étapes 0 à 2 : plan ; `Play` v2 (schéma v1 figé, migration), `model/preset.ts`, fixtures figées `play-v2-lot3.json` et `preset-v1-touche.json` ; moteur (`engine/timeline.ts`, `engine/ballEvents.ts` : courses arrêtées, relais, boucle d'événements, ramassage, en-avant, ligne d'avantage).
+- Constat : le scénario de référence du lot 1 contient une passe en avant au sens de 5.7 (option B, `uuid(231)`) ; les tests l'attendent désormais.
+- Lot 3, étape 3 : `editor/presets.ts` (repère local, ancre, enregistrer, appliquer, catégorie, vignette), `editor/transform.ts` (déplacer, retourner).
+- Lot 3, étape 4 : rendu (tirets longs, ombre, grossissement, regroupement, pastille d'en-avant : éditeur oui, PDF et vignettes non, GIF forcé à non), surcouche (fantômes, ancre), 5 images de référence.
+- Lot 3, étape 5 : `io/collection.ts`, `modeles/`, méthodes des modèles dans `FolderStore` et `IdbStore`, copie navigateur vers dossier.
+- Lot 3, étape 6 : outils J et G, inspecteur (`SetPieceInspectors.tsx`), ballon au sol, calque « En-avant », barre d'outils resserrée (D-095).
+- Lot 3, étape 7 (D-096) : `editor/placementMode.ts` (aperçu et clic des poses : appliquer, enregistrer, déplacer), `placement` dans `editorStore`, `state/presetSession.ts` (enregistrer, mettre à jour, appliquer, renommer, dupliquer, supprimer, nouvelle combinaison depuis un modèle ; relecture avant action, refus si changé ailleurs), onglets de la bibliothèque (`PresetPanel.tsx`), dialogues (`PresetDialogs.tsx`), bandeau de pose (`PlacementBanner.tsx`), « Déplacer la combinaison » et « Retourner » ; tests `placementMode`, `state/placement`, `state/presetSession` ; e2e `placement.chromium` (4) et `presets.firefox` ; 433 tests unitaires et 31 de bout en bout verts.
 
 ## Reste à faire
 
-- Lot 3 : étapes 7 et 8 du plan.
+- Lot 3 : étape 8 du plan.
 - Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
 - Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
 

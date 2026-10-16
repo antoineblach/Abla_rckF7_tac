@@ -336,7 +336,7 @@ Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la 
 - [x] **Étape 6 : éditeur et interface, regroupement et jeu au pied.** (commit « Étape 6 : interface du jeu au pied et des regroupements », après `edc52c2` ; D-095)
   - Outils, propositions, ballon au sol, inspecteur, calque dans la barre de lecture, suppression étendue.
   - Tests unitaires et de bout en bout.
-- [ ] **Étape 7 : éditeur et interface, modèles et combinaison entière.**
+- [x] **Étape 7 : éditeur et interface, modèles et combinaison entière.** (commit « Étape 7 : interface des modèles et de la combinaison entière », après `f44ee27` ; D-096)
   - Onglet Modèles, enregistrer, appliquer (bandeau, côté ouvert), gérer, nouvelle combinaison depuis un modèle, déplacer, retourner, catégorie.
   - Tests unitaires et de bout en bout.
 - [ ] **Étape 8 : exports et clôture.**

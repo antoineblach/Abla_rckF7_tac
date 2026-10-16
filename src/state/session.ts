@@ -82,9 +82,23 @@ function reportError(error: unknown): void {
   notify(`${TEXT.saveError} ${error instanceof Error ? error.message : ''}`, 'error')
 }
 
+/** Reads the plays and the placement presets of a store into the library state. */
+export async function loadLibraryFrom(target: LibraryStore): Promise<void> {
+  useLibraryState.setState({
+    summaries: await target.list(),
+    issues: await target.issues(),
+    presets: await target.listPresets(),
+    presetIssues: await target.presetIssues(),
+  })
+}
+
 export async function refreshLibrary(): Promise<void> {
-  if (!store) return
-  useLibraryState.setState({ summaries: await store.list(), issues: await store.issues() })
+  if (store) await loadLibraryFrom(store)
+}
+
+/** Full rescan now, serialised with the saves (SPEC 8.3): before acting on a preset (D-092). */
+export function rescanNow(): Promise<void> {
+  return sync?.rescan() ?? Promise.resolve()
 }
 
 function scheduleDraft(): void {

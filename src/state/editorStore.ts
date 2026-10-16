@@ -2,6 +2,8 @@
 // Logic lives in editor/ and model/; this store only holds state and applies commands.
 import { create } from 'zustand'
 import { EMPTY_HISTORY, record, redo, undo, type History } from '../editor/history'
+import type { PlacementMode } from '../editor/placementMode'
+import type { OpenSideChoice } from '../editor/presets'
 import { EMPTY_SELECTION, pruneSelection, type Selection } from '../editor/selection'
 import type { RunDraft } from '../editor/tools/runTool'
 import type { ToolId } from '../editor/tools/types'
@@ -35,6 +37,8 @@ export interface EditorState {
   passFromId: Id | null
   /** Kicker chosen by the kick tool, waiting for the receiver or the point (lot 3). */
   kickFromId: Id | null
+  /** Placement in progress: preset applied or saved, play moved (lot 3, D-096). */
+  placement: PlacementMode | null
   snap: boolean
   notice: EditorNotice
 }
@@ -52,6 +56,7 @@ const initial: EditorState = {
   runDraft: null,
   passFromId: null,
   kickFromId: null,
+  placement: null,
   snap: false,
   notice: null,
 }
@@ -221,8 +226,28 @@ export function setTool(tool: ToolId): void {
     runDraft: null,
     passFromId: null,
     kickFromId: null,
+    placement: null,
     notice: null,
   })
+}
+
+/** Starts or ends a placement (D-096); the tool drafts in progress are dropped. */
+export function setPlacement(placement: PlacementMode | null): void {
+  useEditorStore.setState({
+    placement,
+    runDraft: null,
+    passFromId: null,
+    kickFromId: null,
+    notice: null,
+  })
+}
+
+/** « Côté ouvert : Auto | Gauche | Droite » of the banner (D-088). */
+export function setPlacementOpenSide(openSide: OpenSideChoice): void {
+  const placement = useEditorStore.getState().placement
+  if (placement && placement.kind !== 'movePlay') {
+    useEditorStore.setState({ placement: { ...placement, openSide } })
+  }
 }
 
 export function setSelection(selection: Selection): void {

@@ -64,6 +64,7 @@ export function FieldCanvas() {
   const runDraft = useEditorStore((s) => s.runDraft)
   const passFromId = useEditorStore((s) => s.passFromId)
   const kickFromId = useEditorStore((s) => s.kickFromId)
+  const placement = useEditorStore((s) => s.placement)
   const mode = usePlayerStore((s) => s.mode)
   const transport = usePlayerStore((s) => s.transport)
   const layers = usePlayerStore((s) => s.layers)
@@ -148,12 +149,14 @@ export function FieldCanvas() {
         viewport,
         theme,
         buildOverlay({
+          play,
           schematic,
           selection,
           tool,
           runDraft,
           passFromId,
           kickFromId,
+          placement,
           cursor,
           selectionBox,
         }),
@@ -173,6 +176,7 @@ export function FieldCanvas() {
     runDraft,
     passFromId,
     kickFromId,
+    placement,
     cursor,
     selectionBox,
     fontReady,
@@ -290,7 +294,7 @@ export function FieldCanvas() {
       {play ? (
         <canvas
           ref={canvasRef}
-          className={`field__canvas field__canvas--${tool}`}
+          className={`field__canvas field__canvas--${placement ? 'placement' : tool}`}
           data-testid="field-canvas"
           data-viewport={viewportData}
           data-mode={mode}

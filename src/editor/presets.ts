@@ -1,12 +1,14 @@
 // Placement presets (SPEC 10.1, D-087 to D-089): local frame at an anchor, anchor snapping by
 // type, saving a placement, applying a preset. Pure: identifiers come from an IdFactory.
 import {
+  AUTO_FRAME_MARGIN,
   FIELD_DEFAULTS,
   FIELD_MARKINGS,
   PRESET_ANCHOR,
   SNAP_GRID_STEP,
   TEAM_COLORS,
 } from '../config/defaults'
+import type { Bounds } from '../engine/bounds'
 import type { IdFactory } from '../model/ids'
 import type {
   PlacementPreset,
@@ -27,6 +29,7 @@ import {
   type Team,
   type Vec2,
 } from '../model/types'
+import { createPlayForPreset } from './placements'
 import { snapToGrid } from './snap'
 
 /** Choice of the open side (D-088): the widest side, or left or right of the attacking team. */
@@ -311,4 +314,31 @@ export function presetPreviewPlay(preset: PlacementPreset, base: Play, ids: IdFa
   }
   const frame = presetFrame(preset.type, previewAnchor(preset.type), FIELD_DEFAULTS, 'A', 'auto')
   return applyPreset(empty, preset, frame, ids).play
+}
+
+/**
+ * Thumbnail of a preset in the library (SPEC 10.1): the preset alone on a default field, A
+ * attacking, framed on its tokens with the margin of the automatic framing.
+ */
+export function presetThumbnail(preset: PlacementPreset): { play: Play; frame: Bounds } {
+  let next = 0
+  const ids: IdFactory = () => `preview-${String(next++)}`
+  const play = presetPreviewPlay(preset, createPlayForPreset(false, ids, new Date(0)), ids)
+  const points = Object.values(play.setup.positions)
+  if (play.setup.ballPosition) points.push(play.setup.ballPosition)
+  if (points.length === 0) {
+    return {
+      play,
+      frame: { min: { x: 0, y: 0 }, max: { x: play.field.length, y: play.field.width } },
+    }
+  }
+  const xs = points.map((p) => p.x)
+  const ys = points.map((p) => p.y)
+  return {
+    play,
+    frame: {
+      min: { x: Math.min(...xs) - AUTO_FRAME_MARGIN, y: Math.min(...ys) - AUTO_FRAME_MARGIN },
+      max: { x: Math.max(...xs) + AUTO_FRAME_MARGIN, y: Math.max(...ys) + AUTO_FRAME_MARGIN },
+    },
+  }
 }

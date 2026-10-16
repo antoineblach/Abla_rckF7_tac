@@ -5,6 +5,7 @@ import { Dialogs } from './dialogs/Dialogs'
 import { ExportWindows } from './export/ExportProgress'
 import { StatusBanner, Toasts } from './feedback/StatusBanner'
 import { FieldCanvas } from './field/FieldCanvas'
+import { PlacementBanner } from './field/PlacementBanner'
 import { useAnimationLoop } from './hooks/useAnimationLoop'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { Inspector } from './inspector/Inspector'
@@ -53,6 +54,7 @@ export function App() {
             <FieldCanvas />
             <div className="stage__overlay stage__overlay--top">
               <StatusBanner />
+              <PlacementBanner />
               <EditorNotice />
             </div>
             <div className="stage__overlay stage__overlay--bottom">

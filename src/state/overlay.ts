@@ -1,19 +1,22 @@
 // Builds the editor overlay (selection, handles, previews) from the editor state.
 import type { Bounds } from '../engine/bounds'
 import type { PhaseSchematic } from '../engine/evaluate'
+import { placementPreview, type PlacementMode } from '../editor/placementMode'
 import type { Selection } from '../editor/selection'
 import { runToolPreview, type RunDraft } from '../editor/tools/runTool'
 import type { ToolId } from '../editor/tools/types'
-import type { Id, Vec2 } from '../model/types'
+import type { Id, Play, Vec2 } from '../model/types'
 import type { EditorOverlay } from '../render/overlay'
 
 export interface OverlayInput {
+  play: Play
   schematic: PhaseSchematic
   selection: Selection
   tool: ToolId
   runDraft: RunDraft | null
   passFromId: Id | null
   kickFromId: Id | null
+  placement: PlacementMode | null
   cursor: Vec2 | null
   selectionBox: Bounds | null
 }
@@ -34,6 +37,19 @@ export function buildOverlay(input: OverlayInput): EditorOverlay {
     ...schematic.passes.filter((p) => selected(p.actionId)).map((p) => [p.from, p.to]),
     ...schematic.kicks.filter((k) => selected(k.actionId)).map((k) => [k.from, k.to]),
   ]
+  if (input.placement) {
+    // A placement shows its ghost tokens and its anchor, nothing of the tools (D-096).
+    const placed = placementPreview(input.placement, input.play, cursor)
+    return {
+      selectedPlayers,
+      selectedPaths,
+      handles: [],
+      selectionBox: null,
+      preview: placed.path,
+      ghosts: placed.ghosts.map((g) => ({ pos: g.pos, team: g.team, label: String(g.number) })),
+      anchor: placed.anchor,
+    }
+  }
   const handles =
     tool === 'select'
       ? [

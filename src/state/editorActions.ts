@@ -21,6 +21,7 @@ import {
   type CommandContext,
 } from '../editor/commands'
 import { playersInBox, type Hit } from '../editor/hitTest'
+import { placementClick, type PlacementMode, type SavePresetRequest } from '../editor/placementMode'
 import {
   selectAction,
   selectPlayer,
@@ -32,8 +33,10 @@ import { maybeSnap } from '../editor/snap'
 import { kickToolClick } from '../editor/tools/kickTool'
 import { passToolClick } from '../editor/tools/passTool'
 import { runToolClick, runToolFinish } from '../editor/tools/runTool'
+import { mirrorPlay } from '../editor/transform'
 import { randomIds } from '../model/ids'
-import { findPhase } from '../model/phaseTree'
+import { findPhase, rootPhase } from '../model/phaseTree'
+import type { PlacementPreset } from '../model/preset'
 import { phaseIndexAtTime } from '../player/transport'
 import type { Id, Play, Vec2 } from '../model/types'
 import {
@@ -45,6 +48,7 @@ import {
   redoEdit,
   selectPhase,
   setNotice,
+  setPlacement,
   setSelection,
   setTool,
   undoEdit,
@@ -81,6 +85,18 @@ let saveRequest: () => void = () => undefined
 
 export function setSaveRequest(handler: () => void): void {
   saveRequest = handler
+}
+
+type PresetAnchorHandler = (
+  request: SavePresetRequest,
+  content: Pick<PlacementPreset, 'positions' | 'ball'>,
+) => void
+
+/** Called with the content of a preset when its anchor is clicked: set by the preset session. */
+let presetAnchorHandler: PresetAnchorHandler = () => undefined
+
+export function setPresetAnchorHandler(handler: PresetAnchorHandler): void {
+  presetAnchorHandler = handler
 }
 
 // `origin`: raw pointer position at the press; `started`: the pointer went past the drag
@@ -149,6 +165,10 @@ export function editorPointerDown(input: PointerInput): void {
   const { play, selectedPhaseId, tool, snap } = state
   if (!play || !selectedPhaseId) return
   const pos = maybeSnap(input.pos, snap)
+  if (state.placement) {
+    placementPointerDown(play, state.placement, pos)
+    return
+  }
   switch (tool) {
     case 'placeA':
     case 'placeB': {
@@ -213,6 +233,60 @@ export function editorPointerDown(input: PointerInput): void {
     case 'select':
       selectPointerDown(play, selectedPhaseId, input, pos)
   }
+}
+
+/** Shows the first phase in edit mode: a placement concerns the starting positions. */
+function showRootPhase(play: Play): void {
+  const root = rootPhase(play)
+  if (!root) return
+  selectPhase(root.id)
+  showPhaseInPlayer(root.id)
+}
+
+/** Starts a placement on the first phase, the selection tool active (D-096). */
+export function startPlacement(mode: PlacementMode): void {
+  const play = useEditorStore.getState().play
+  if (!play) return
+  setTool('select')
+  showRootPhase(play)
+  setPlacement(mode)
+}
+
+/** Click during a placement: anchor of a preset, or start and end of a move (D-088, D-090). */
+function placementPointerDown(play: Play, mode: PlacementMode, pos: Vec2): void {
+  const step = placementClick(mode, play, pos, commandContext().ids)
+  switch (step.kind) {
+    case 'refused':
+      return
+    case 'continue':
+      setPlacement(step.mode)
+      return
+    case 'edit':
+      setPlacement(null)
+      applyEdit(() => step.play)
+      if (mode.kind === 'applyPreset') showRootPhase(play)
+      return
+    case 'save':
+      if (mode.kind !== 'savePreset') return
+      setPlacement(null)
+      presetAnchorHandler(mode.request, step.content)
+  }
+}
+
+/** « Déplacer la combinaison »: two clicks, start then end (D-090). */
+export function startMovePlay(): void {
+  const { play, readOnly } = useEditorStore.getState()
+  if (!play) return
+  if (readOnly) {
+    setNotice('readOnly')
+    return
+  }
+  startPlacement({ kind: 'movePlay', from: null })
+}
+
+/** « Retourner »: left-right symmetry of the whole play, one undo step (D-090). */
+export function flipWholePlay(): void {
+  applyEdit(mirrorPlay)
 }
 
 function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Vec2): void {
@@ -447,7 +521,12 @@ export function handleKey(input: KeyInput): boolean {
     case 'cancel':
       cancelGesture()
       drag = null
-      useEditorStore.setState({ runDraft: null, passFromId: null, kickFromId: null })
+      useEditorStore.setState({
+        runDraft: null,
+        passFromId: null,
+        kickFromId: null,
+        placement: null,
+      })
       useInteractionStore.setState({ selectionBox: null })
       setSelection(EMPTY_SELECTION)
       return true
