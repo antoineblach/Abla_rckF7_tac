@@ -10,6 +10,7 @@ import {
   phase,
   player,
   run,
+  setPiecesPlay,
   sevenVsSevenWithOptions,
   uuid,
 } from '../test/builders'
@@ -94,7 +95,12 @@ describe('evaluation of every leaf', () => {
     expect(lines).toHaveLength(2)
     for (const line of lines) {
       const compiled = compileLine(play, line, settings, caches)
-      expect(compiled.issues).toEqual([])
+      // Only the pass of option B is forward in the passer frame (SPEC 5.7): A6, still, gives to
+      // A5 who arrives at full speed ahead of her.
+      expect(compiled.issues.filter((i) => i.code !== 'forwardPass')).toEqual([])
+      expect(compiled.issues.filter((i) => i.code === 'forwardPass').map((i) => i.target)).toEqual(
+        line[2] === P.t3b ? [{ kind: 'action', id: uuid(231), phaseId: P.t3b }] : [],
+      )
       expect(compiled.duration).toBeGreaterThan(0)
       for (let t = 0; t <= compiled.duration + 0.5; t += 0.1) {
         const state = evaluate(play, line, t, settings, caches)
@@ -296,7 +302,7 @@ describe('attacking team and squads', () => {
       phases: [
         phase(uuid(10), null, [
           run(uuid(20), b1, [{ x: 55, y: 32 }]),
-          run(uuid(21), b2, [{ x: 54, y: 42 }], { pace: 'sprint' }),
+          run(uuid(21), b2, [{ x: 58, y: 42 }], { pace: 'sprint' }),
           pass(uuid(22), b1, b2, 0.5),
         ]),
       ],
@@ -308,10 +314,11 @@ describe('attacking team and squads', () => {
     expect(end.attackingTeam).toBe('B')
     expect(end.gainLineX).toBe(60)
     expect(end.ball?.kind === 'carried' && end.ball.carrierId).toBe(b2)
-    // A pass from B to A is a pass to the other team.
+    // A pass from B to A is a pass to the other team, and forward for B (towards -x).
     const toA = { ...play, phases: [phase(uuid(10), null, [pass(uuid(22), b1, a1, 0)])] }
     expect(compileLine(toA, [uuid(10)], settings, caches).issues.map((i) => i.code)).toEqual([
       'passToOpponent',
+      'forwardPass',
     ])
   })
 
@@ -386,7 +393,7 @@ describe('editing a phase-1 run (acceptance criterion 3)', () => {
     for (const line of allLines(edited)) {
       const before = compileLine(original, line, settings, caches)
       const after = compileLine(edited, line, settings, caches)
-      expect(after.issues).toEqual([])
+      expect(after.issues.filter((i) => i.code !== 'forwardPass')).toEqual([])
       for (let i = 1; i < after.phases.length; i++) {
         const ph = after.phases[i]
         const ref = before.phases[i]
@@ -417,8 +424,9 @@ describe('engine validations and fallbacks (SPEC 5.3, 5.4, DECISIONS Q13)', () =
     compileLine(play, [P.t1], settings, createCaches()).issues.map((i) => i.code)
 
   it('executes a pass to the other team and signals it', () => {
+    // B4 stands straight ahead of A4: the pass is also forward.
     const play = withT1([pass(uuid(500), P.A(4), P.B(4), 0)])
-    expect(issueCodes(play)).toEqual(['passToOpponent'])
+    expect(issueCodes(play)).toEqual(['passToOpponent', 'forwardPass'])
     const end = evaluate(play, [P.t1], 10, settings, createCaches())
     expect(end.ball?.kind === 'carried' && end.ball.carrierId).toBe(P.B(4))
   })
@@ -457,21 +465,21 @@ describe('engine validations and fallbacks (SPEC 5.3, 5.4, DECISIONS Q13)', () =
   })
 
   it('ignores actions of later lots with a warning', () => {
-    const kick = {
+    const groupRun = {
       id: uuid(500),
-      type: 'kick' as const,
-      kickerId: P.A(4),
-      kind: 'long' as const,
-      target: { point: { x: 80, y: 30 } },
+      type: 'groupRun' as const,
+      entityIds: [P.A(1), P.A(2)],
+      waypoints: [{ x: 50, y: 10 }],
+      pace: 'jog' as const,
       delay: 0,
     }
-    const issues = compileLine(withT1([kick]), [P.t1], settings, createCaches()).issues
+    const issues = compileLine(withT1([groupRun]), [P.t1], settings, createCaches()).issues
     expect(issues).toEqual([
       {
         code: 'unsupportedAction',
         severity: 'warning',
         target: { kind: 'action', id: uuid(500), phaseId: P.t1 },
-        params: { type: 'kick' },
+        params: { type: 'groupRun' },
       },
     ])
   })
@@ -482,6 +490,92 @@ describe('engine validations and fallbacks (SPEC 5.3, 5.4, DECISIONS Q13)', () =
       pass(uuid(501), uuid(778), P.A(4), 0),
     ])
     expect(() => evaluate(play, [P.t1], 1, settings, createCaches())).not.toThrow()
+  })
+})
+
+describe('set pieces of lot 3: continuity and determinism (D-094)', () => {
+  const play = setPiecesPlay()
+  const lines = allLines(play)
+
+  it('chains the phases of every line, breakdowns and kicks included', () => {
+    expect(lines).toHaveLength(2)
+    for (const line of lines) {
+      const compiled = compileLine(play, line, settings, createCaches())
+      for (let i = 1; i < compiled.phases.length; i++) {
+        const previous = compiled.phases[i - 1]
+        const next = compiled.phases[i]
+        expect(next?.startPositions).toEqual(previous?.endPositions)
+        expect(next?.holderAtStart).toEqual(previous?.holderAtEnd)
+        expect(next?.start).toBe(previous?.end)
+        // Positions are continuous across the phase change.
+        const t = next?.start ?? NaN
+        const before = evaluate(play, line, t - 1e-7, settings, createCaches())
+        const after = evaluate(play, line, t, settings, createCaches())
+        for (const p of after.players) {
+          const q = before.players.find((x) => x.id === p.id)
+          expect(distance(p.pos, q?.pos ?? { x: NaN, y: NaN })).toBeLessThan(1e-3)
+        }
+      }
+    }
+  })
+
+  it('keeps the trunk identical in every option, ruck included', () => {
+    const caches = createCaches()
+    const [lineA, lineB] = lines as [string[], string[]]
+    const trunkEnd = compileLine(play, lineA, settings, caches).phases[1]?.end ?? 0
+    expect(trunkEnd).toBeGreaterThan(4.5)
+    for (let t = 0; t < trunkEnd; t += 0.05) {
+      const a = evaluate(play, lineA, t, settings, caches)
+      const b = evaluate(play, lineB, t, settings, caches)
+      expect({ ...drawable(a), k: a.kickTraces, r: a.breakdowns }).toEqual({
+        ...drawable(b),
+        k: b.kickTraces,
+        r: b.breakdowns,
+      })
+    }
+  })
+
+  it('gives the same image in continuous playback and after a direct jump', () => {
+    for (const line of lines) {
+      const shared = createCaches()
+      const duration = compileLine(play, line, settings, shared).duration
+      let t = 0
+      for (const target of [0.7, 2, duration / 2, duration - 0.2, duration]) {
+        while (t < target) {
+          evaluate(play, line, t, settings, shared)
+          t += 1 / 24
+        }
+        const continuous = evaluate(play, line, target, settings, shared)
+        const jump = evaluate(structuredClone(play), line, target, settings, createCaches())
+        expect(JSON.stringify(continuous)).toBe(JSON.stringify(jump))
+      }
+    }
+  })
+
+  it('plays the fixture as described: pickup, ruck, forward pass, kick, maul', () => {
+    const caches = createCaches()
+    const [lineA, lineB] = lines as [string[], string[]]
+    const a = compileLine(play, lineA, settings, caches)
+    expect(a.phases[0]?.ball.map((s) => s.kind)).toEqual([
+      'loose',
+      'carried',
+      'breakdown',
+      'carried',
+    ])
+    expect(a.gainLine).toEqual([
+      { t: 0, x: 40.5 },
+      { t: 1.5, x: 46 },
+    ])
+    expect(a.phases[1]?.passes[0]?.forward).toBe(true)
+    expect(evaluate(play, lineA, 1e9, settings, caches).ball).toEqual({
+      kind: 'loose',
+      pos: { x: 75, y: 12 },
+    })
+    const b = compileLine(play, lineB, settings, caches)
+    expect(b.phases[2]?.breakdowns[0]).toMatchObject({ kind: 'maul', applied: true })
+    expect(b.gainLine.at(-1)?.x).toBe(50)
+    const end = evaluate(play, lineB, 1e9, settings, caches).ball
+    expect(end?.kind === 'carried' && end.carrierId).toBe(P.B(7))
   })
 })
 

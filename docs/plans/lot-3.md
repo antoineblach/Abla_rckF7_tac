@@ -321,7 +321,7 @@ Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la 
 - [x] **Étape 1 : modèle.** (commit « Étape 1 : modèle v2 et modèles de placement », après `ef574cf`)
   - Schéma v2, schéma v1 figé, migration, fixtures, `PlacementPreset`, validation, libellés, valeurs de `defaults.ts`.
   - Tests : migration, schéma, aller-retour du modèle, validation.
-- [ ] **Étape 2 : moteur.**
+- [x] **Étape 2 : moteur.** (commit « Étape 2 : moteur des regroupements, du jeu au pied et de l'en-avant », après `8b38617`)
   - Mouvements arrêtés et relais, boucle d'événements, jeu au pied, regroupement, ramassage, ligne d'avantage, en-avant, schéma, boîte englobante.
   - Tests obligatoires du moteur, déterminisme et continuité ; tests du lot 1 inchangés.
 - [ ] **Étape 3 : géométrie de mise en place.**

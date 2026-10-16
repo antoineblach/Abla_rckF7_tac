@@ -142,6 +142,18 @@ export function pathUpToDistance(spline: Spline, s: number): Vec2[] {
   return result
 }
 
+/** Polyline of the curve from arc length s to its end (at least the point at s). */
+export function pathFromDistance(spline: Spline, s: number): Vec2[] {
+  if (spline.samples.length === 0) return []
+  const result: Vec2[] = [pointAtDistance(spline, Math.max(0, s))]
+  for (let k = 0; k < spline.samples.length; k++) {
+    if ((spline.cumulative[k] as number) <= s) continue
+    const p = spline.samples[k] as Vec2
+    result.push({ x: p.x, y: p.y })
+  }
+  return result
+}
+
 /** Unit tangent direction at the end of the curve, for arrow heads; null when degenerate. */
 export function endDirection(spline: Spline): Vec2 | null {
   const n = spline.samples.length

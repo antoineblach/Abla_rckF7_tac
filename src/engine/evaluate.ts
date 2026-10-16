@@ -3,14 +3,27 @@
 // never accumulated frame by frame (SPEC 5.5).
 import { pathToPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
-import type { Id, Play, Vec2 } from '../model/types'
+import type { BreakdownKind, Id, Play, Vec2 } from '../model/types'
+import { kickLift } from './ballEvents'
 import type { EvalCaches } from './caches'
-import type { BallState, PassTrace, RunTrace, ScenePlayer, SceneState } from './sceneState'
-import { pathUpToDistance } from './spline'
+import type {
+  BallState,
+  KickTrace,
+  PassTrace,
+  RunTrace,
+  SceneBreakdown,
+  ScenePlayer,
+  SceneState,
+} from './sceneState'
+import { pathFromDistance, pathUpToDistance } from './spline'
 import {
   compileLine,
+  gainLineAt,
+  motionEnd,
   motionPosition,
+  motionProgress,
   positionInPhase,
+  type BallSegment,
   type CompiledLine,
   type CompiledPhase,
   type RunMotion,
@@ -31,44 +44,53 @@ function clampTime(compiled: CompiledLine, t: number): number {
   return Math.min(t, compiled.duration)
 }
 
+/** Ball segment of a phase at t: the last one started at or before t. */
+function segmentAt(phase: CompiledPhase, t: number): BallSegment | undefined {
+  let segment = phase.ball[0]
+  for (const s of phase.ball) if (s.start <= t) segment = s
+  return segment
+}
+
 function ballAt(
   compiled: CompiledLine,
   phase: CompiledPhase | undefined,
   t: number,
 ): BallState | null {
   if (!compiled.hasBall || !phase) return null
-  // Last applied pass released at or before t.
-  const applied = phase.passes.filter((p) => p.applied && p.releaseT <= t)
-  const last = applied[applied.length - 1]
-  if (last) {
-    if (t < last.arrivalT) {
-      const span = last.arrivalT - last.releaseT
-      const k = span > 0 ? (t - last.releaseT) / span : 1
+  const segment = segmentAt(phase, t)
+  if (!segment) return null
+  switch (segment.kind) {
+    case 'carried': {
+      const pos = positionInPhase(phase, segment.carrierId, t)
+      return pos ? { kind: 'carried', carrierId: segment.carrierId, pos } : null
+    }
+    case 'flight': {
+      const span = segment.end - segment.start
+      const k = span > 0 ? Math.min(1, Math.max(0, (t - segment.start) / span)) : 1
       return {
         kind: 'inFlight',
-        from: copy(last.from),
-        to: copy(last.to),
-        releaseT: last.releaseT,
-        arrivalT: last.arrivalT,
-        toId: last.toId,
-        pos: lerp(last.from, last.to, k),
+        from: copy(segment.from),
+        to: copy(segment.to),
+        releaseT: segment.start,
+        arrivalT: segment.end,
+        toId: segment.toId,
+        pos: lerp(segment.from, segment.to, k),
+        via: segment.via,
+        lift: segment.via === 'kick' ? kickLift(k) : 0,
       }
     }
-    const pos = positionInPhase(phase, last.toId, t)
-    return pos ? { kind: 'carried', carrierId: last.toId, pos } : null
+    case 'loose':
+      return { kind: 'loose', pos: copy(segment.pos) }
+    case 'breakdown':
+      return { kind: 'inBreakdown', pos: copy(segment.pos) }
+    case 'none':
+      return null
   }
-  const holder = phase.holderAtStart
-  if (holder.kind === 'carried') {
-    const pos = positionInPhase(phase, holder.carrierId, t)
-    return pos ? { kind: 'carried', carrierId: holder.carrierId, pos } : null
-  }
-  if (holder.kind === 'loose') return { kind: 'loose', pos: copy(holder.pos) }
-  return null
 }
 
 function runTrace(motion: RunMotion, phaseId: Id, current: boolean, t: number): RunTrace | null {
   if (t < motion.start) return null
-  const progress = motion.duration > 0 ? Math.min(1, (t - motion.start) / motion.duration) : 1
+  const progress = motionProgress(motion, t)
   const points = pathUpToDistance(motion.spline, progress * motion.spline.length)
   if (points.length < 2) return null
   return {
@@ -76,7 +98,7 @@ function runTrace(motion: RunMotion, phaseId: Id, current: boolean, t: number): 
     entityId: motion.entityId,
     phaseId,
     current,
-    completed: progress >= 1,
+    completed: t >= motionEnd(motion),
     points,
   }
 }
@@ -93,6 +115,7 @@ export function sampleLine(compiled: CompiledLine, rawT: number): SceneState {
   }
   const traces: RunTrace[] = []
   const passTraces: PassTrace[] = []
+  const kickTraces: KickTrace[] = []
   for (let i = 0; i <= index; i++) {
     const ph = compiled.phases[i] as CompiledPhase
     const current = i === index
@@ -112,7 +135,30 @@ export function sampleLine(compiled: CompiledLine, rawT: number): SceneState {
         from: copy(p.from),
         to,
         completed,
+        forward: p.forward,
       })
+    }
+    for (const k of ph.kicks) {
+      if (!k.applied || k.releaseT > t) continue
+      const completed = t >= k.arrivalT
+      const span = k.arrivalT - k.releaseT
+      const to = completed || span <= 0 ? copy(k.to) : lerp(k.from, k.to, (t - k.releaseT) / span)
+      kickTraces.push({
+        actionId: k.actionId,
+        phaseId: ph.phaseId,
+        current,
+        from: copy(k.from),
+        to,
+        target: copy(k.to),
+        toPoint: k.receiverId === null,
+        completed,
+      })
+    }
+  }
+  const breakdowns: SceneBreakdown[] = []
+  for (const b of phase?.breakdowns ?? []) {
+    if (b.applied && b.start <= t && t < b.end) {
+      breakdowns.push({ actionId: b.actionId, kind: b.kind, pos: copy(b.pos) })
     }
   }
   return {
@@ -130,7 +176,9 @@ export function sampleLine(compiled: CompiledLine, rawT: number): SceneState {
     ball: ballAt(compiled, phase, t),
     traces,
     passTraces,
-    gainLineX: compiled.gainLineX,
+    kickTraces,
+    breakdowns,
+    gainLineX: gainLineAt(compiled, t),
     issues: [...compiled.issues],
   }
 }
@@ -152,8 +200,10 @@ export interface SchematicRun {
   actionId: Id
   entityId: Id
   phaseId: Id
-  /** Sampled curve from the start position through the waypoints. */
+  /** Sampled curve from the start position through the waypoints, up to where it is applied. */
   points: Vec2[]
+  /** Part of the curve ignored after a breakdown formation (D-079), empty otherwise. */
+  ignoredPoints: Vec2[]
   /** Stored waypoints (the start point is not stored, SPEC 5.2). */
   waypoints: Vec2[]
   duration: number
@@ -167,6 +217,30 @@ export interface SchematicPass {
   from: Vec2
   to: Vec2
   applied: boolean
+  forward: boolean
+}
+
+export interface SchematicKick {
+  actionId: Id
+  phaseId: Id
+  kickerId: Id
+  /** Receiver, or null for a kick to a point. */
+  receiverId: Id | null
+  from: Vec2
+  to: Vec2
+  applied: boolean
+}
+
+export interface SchematicBreakdown {
+  actionId: Id
+  phaseId: Id
+  kind: BreakdownKind
+  tackledId: Id
+  supportId: Id
+  relayerId: Id
+  /** Point of the tackled player at formation. */
+  pos: Vec2
+  applied: boolean
 }
 
 export interface PhaseSchematic {
@@ -176,10 +250,19 @@ export interface PhaseSchematic {
   players: ScenePlayer[]
   /** Ball at the start of the phase. */
   ball: BallState | null
+  /** Runs drawn by the user (with their ignored part after a breakdown). */
   runs: SchematicRun[]
+  /** Relayers joining a breakdown (generated, not editable). */
+  relays: SchematicRun[]
   passes: SchematicPass[]
+  kicks: SchematicKick[]
+  breakdowns: SchematicBreakdown[]
+  /** Applied runs and relays of the ancestors (applied parts only). */
   ancestorRuns: SchematicRun[]
   ancestorPasses: SchematicPass[]
+  ancestorKicks: SchematicKick[]
+  ancestorBreakdowns: SchematicBreakdown[]
+  /** Gain line in force at the start of the phase (D-082). */
   gainLineX: number | null
   attackingTeam: SceneState['attackingTeam']
   field: SceneState['field']
@@ -188,15 +271,30 @@ export interface PhaseSchematic {
   instruction: string
 }
 
+function schematicRun(motion: RunMotion, phaseId: Id): SchematicRun {
+  const s = motionProgress(motion, Infinity) * motion.spline.length
+  const cut = motion.until !== null && s < motion.spline.length
+  return {
+    actionId: motion.actionId,
+    entityId: motion.entityId,
+    phaseId,
+    points: cut ? pathUpToDistance(motion.spline, s) : motion.spline.samples.map(copy),
+    ignoredPoints: cut ? pathFromDistance(motion.spline, s) : [],
+    waypoints: motion.waypoints.map(copy),
+    duration: motion.duration,
+  }
+}
+
 function schematicRuns(phase: CompiledPhase): SchematicRun[] {
-  return phase.motions.map((m) => ({
-    actionId: m.actionId,
-    entityId: m.entityId,
-    phaseId: phase.phaseId,
-    points: m.spline.samples.map(copy),
-    waypoints: m.waypoints.map(copy),
-    duration: m.duration,
-  }))
+  return [...phase.motions.filter((m) => m.source === 'run'), ...phase.ignoredRuns].map((m) =>
+    schematicRun(m, phase.phaseId),
+  )
+}
+
+function schematicRelays(phase: CompiledPhase): SchematicRun[] {
+  return phase.motions
+    .filter((m) => m.source === 'relay')
+    .map((m) => schematicRun(m, phase.phaseId))
 }
 
 function schematicPasses(phase: CompiledPhase): SchematicPass[] {
@@ -208,6 +306,32 @@ function schematicPasses(phase: CompiledPhase): SchematicPass[] {
     from: copy(p.from),
     to: copy(p.to),
     applied: p.applied,
+    forward: p.forward,
+  }))
+}
+
+function schematicKicks(phase: CompiledPhase): SchematicKick[] {
+  return phase.kicks.map((k) => ({
+    actionId: k.actionId,
+    phaseId: phase.phaseId,
+    kickerId: k.kickerId,
+    receiverId: k.receiverId,
+    from: copy(k.from),
+    to: copy(k.to),
+    applied: k.applied,
+  }))
+}
+
+function schematicBreakdowns(phase: CompiledPhase): SchematicBreakdown[] {
+  return phase.breakdowns.map((b) => ({
+    actionId: b.actionId,
+    phaseId: phase.phaseId,
+    kind: b.kind,
+    tackledId: b.tackledId,
+    supportId: b.supportId,
+    relayerId: b.relayerId,
+    pos: copy(b.pos),
+    applied: b.applied,
   }))
 }
 
@@ -246,10 +370,17 @@ export function phaseSchematic(
     players,
     ball,
     runs: schematicRuns(phase),
+    relays: schematicRelays(phase),
     passes: schematicPasses(phase),
-    ancestorRuns: ancestors.flatMap(schematicRuns),
+    kicks: schematicKicks(phase),
+    breakdowns: schematicBreakdowns(phase),
+    ancestorRuns: ancestors.flatMap((a) =>
+      a.motions.map((m) => ({ ...schematicRun(m, a.phaseId), ignoredPoints: [] })),
+    ),
     ancestorPasses: ancestors.flatMap((a) => schematicPasses(a).filter((p) => p.applied)),
-    gainLineX: compiled.gainLineX,
+    ancestorKicks: ancestors.flatMap((a) => schematicKicks(a).filter((k) => k.applied)),
+    ancestorBreakdowns: ancestors.flatMap((a) => schematicBreakdowns(a).filter((b) => b.applied)),
+    gainLineX: gainLineAt(compiled, phase.start),
     attackingTeam: compiled.attackingTeam,
     field: { ...compiled.field },
     phaseStart: phase.start,
@@ -271,7 +402,10 @@ export function positionsAtPhaseStart(
   return result
 }
 
-/** Instant at which an entity obtains the ball in a phase, relative to the phase start, or null. */
+/**
+ * Instant at which an entity obtains the ball in a phase, relative to the phase start, or null:
+ * it carries it at the start, or receives it by a pass or a kick, a breakdown exit or a pickup.
+ */
 export function ballObtainedAt(
   play: Play,
   phaseId: Id,
@@ -283,9 +417,8 @@ export function ballObtainedAt(
   const compiled = compileLine(play, path, settings, caches)
   const phase = compiled.phases[compiled.phases.length - 1]
   if (!phase || phase.phaseId !== phaseId) return null
-  if (phase.holderAtStart.kind === 'carried' && phase.holderAtStart.carrierId === entityId) return 0
-  const incoming = phase.passes.find((p) => p.applied && p.toId === entityId)
-  return incoming ? incoming.arrivalT - phase.start : null
+  const obtained = phase.ball.find((s) => s.kind === 'carried' && s.carrierId === entityId)
+  return obtained ? obtained.start - phase.start : null
 }
 
 export { motionPosition }
