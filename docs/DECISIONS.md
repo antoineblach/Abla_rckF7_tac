@@ -538,3 +538,10 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : D-063, D-064 et D-061 précisés là où ils ne fixaient pas le détail ; déterminisme (même PDF octet pour octet).
 - Alternatives écartées : rangées d'options en retrait ; numéros de page aussi dans le PDF d'une combinaison.
 - Origine : choix technique (étape 4).
+
+### D-076 : io des exports et Worker (étape 5)
+- Date : 2026-10-15
+- Décision : le gestionnaire de messages du Worker (`export/worker/handler.ts`) ne dépend pas de la portée du Worker ; les tests l'exécutent sous Node derrière le même client que le navigateur (moteur « en ligne », messages clonés et octets transférés). Une décision « Remplacer » ou « Garder les deux » vaut pour chaque nom présenté ; un export apparu pendant l'encodage déclenche une nouvelle question avant toute écriture. « Tout ou rien » : si un fichier d'un même export échoue, ceux déjà écrits par cet export partent en corbeille. Un résultat arrivé après « Annuler » est ignoré. La mise en corbeille par copie vérifiée travaille en octets (`io/trash.ts`) pour les combinaisons comme pour les exports ; `exports/` est créé avec la structure du dossier. Sans dossier (mode navigateur ou Firefox), les exports sont téléchargés. La police est chargée par le Worker sous `BASE_URL` (une fois, `FontFace`), les mêmes octets servent à jsPDF.
+- Raison : D-065 (jamais d'écrasement sans décision, rien de partiel), règle 9, plan section 3.
+- Alternatives écartées : décision globale appliquée aussi aux fichiers apparus ensuite ; logique du Worker testée seulement de bout en bout.
+- Origine : choix technique (étape 5).

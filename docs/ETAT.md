@@ -2,15 +2,15 @@
 
 - Mise à jour : 2026-10-15
 - Branche : `lot-2` (depuis `main` à `9a2c379`) ; pas encore poussée, pas de PR
-- Dernier commit : « Étape 4 : export PDF » (après `38e7ba6`)
+- Dernier commit : « Étape 5 : io des exports et Worker » (après `d74dd14`)
 - `main` : lot 1 et sa correction fusionnés (PR #1 `d37f3f6`, PR #2 `9a2c379`), déployés sur Pages ; protection vérifiée par `gh api` (D-055)
 - Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter.
 
 ## En cours
 
-- Lot 2 (exports GIF et PDF), plan validé : `docs/plans/lot-2.md` ; réponses Q1 à Q16 et complément : D-057 à D-070 ; étape 0 : D-071 (PDF vectoriel) ; étape 1 : D-072 ; étape 2 : D-073 ; étape 3 : D-074 ; étape 4 : D-075.
+- Lot 2 (exports GIF et PDF), plan validé : `docs/plans/lot-2.md` ; réponses Q1 à Q16 et complément : D-057 à D-070 ; étape 0 : D-071 (PDF vectoriel) ; étape 1 : D-072 ; étape 2 : D-073 ; étape 3 : D-074 ; étape 4 : D-075 ; étape 5 : D-076.
 - Consigne de l'utilisateur : enchaîner les étapes 2 à 7 sans attendre, arrêt seulement sur une question bloquante.
-- Action suivante : étape 5 (io et Worker : fichiers binaires, `trash.ts`, `exports/`, existence et confirmation, téléchargement, protocole, Worker, moteurs, `exportRun` avec annulation).
+- Action suivante : étape 6 (state et interface : stores et session d'export, dialogues GIF, PDF et cahier, progression, Annuler, taille, alerte de 8 Mo et version allégée, préférences dans `reglages.json`, tests de bout en bout dont le Worker réel).
 
 ## Fait
 
@@ -19,7 +19,8 @@
 - Lot 2, étape 1 : `defaults.ts` (formats et cadences GIF, durées, lisibilité, mise en page PDF, seuils) ; `model/labels.ts` et `model/shortName.ts` (réexportés par `ui/strings.ts` et `io/fileNames.ts`) ; `reglages.json` v2 (préférences d'export), migration, fixture `reglages-v1.json`, version future jamais réécrite ; `export/names.ts`, `legibility.ts`, `text.ts` ; ESLint : pureté et aplats étendus à `src/export/` (hors `worker/`) (`c6fa414`).
 - Lot 2, étape 2 : thèmes `printColor` et `printBw` ; jeton, course et passe selon le thème ; `render/captions.ts` (cartons, en-tête, pastille, bandeau de hauteur fixe) ; `insets` du viewport ; ballon en Bézier ; `clip` et `bezierCurveTo` dans `Ctx2D` ; `paintEvents` dans le contexte enregistreur (`0fe6ebc`).
 - Lot 2, étape 3 : `export/gif/` (plan des images, image, palette, transparence, `gifExport` pas à pas), `export/types.ts`, `types/gifenc.d.ts` ; outils de test `exportFixtures.ts`, `gifInspect.ts` ; images `gif-frame-{highContrast,printBw}.png` (`38e7ba6`).
-- Lot 2, étape 4 : `export/framing.ts` ; `export/pdf/` (rangées, mise en page impression et téléphone, cahier, vignette vectorielle, contexte jsPDF, `pdfExport` pas à pas) ; outil de test `pdfInspect.ts` (pdf.js) ; images `pdf-thumbnail-{highContrast,printColor,printBw}.png`. 263 tests verts.
+- Lot 2, étape 4 : `export/framing.ts` ; `export/pdf/` (rangées, mise en page impression et téléphone, cahier, vignette vectorielle, contexte jsPDF, `pdfExport` pas à pas) ; outil de test `pdfInspect.ts` (pdf.js) ; images `pdf-thumbnail-{highContrast,printColor,printBw}.png` (`d74dd14`).
+- Lot 2, étape 5 : fichiers binaires (`fs/types.ts`, `memoryFs`), `io/trash.ts`, `io/exportsFolder.ts`, `io/exportRun.ts`, `downloadBytes` ; `export/jobs.ts` ; `export/worker/` (protocole, gestionnaire, client, Worker, module vide) ; Vite : Worker ES et alias des dépendances optionnelles de jsPDF ; outil de test `inlineEngine.ts`. 282 tests verts. Worker réel pas encore exercé (étape 6, bout en bout).
 
 ## Reste à faire (lot 2)
 

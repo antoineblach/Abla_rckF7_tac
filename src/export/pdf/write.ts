@@ -126,7 +126,11 @@ export function* pdfExport(
       : layoutPlayPhone(play, i, frame, measure, footer).pages
   })
   const creationDate = latestDate(plays.map((p) => p.updatedAt))
-  const title = book ? book.title : (plays[0]?.name ?? '')
+  const title = book
+    ? book.title.trim() === ''
+      ? EXPORT_TEXT.defaultBookTitle
+      : book.title
+    : (plays[0]?.name ?? '')
   const laidOut = book
     ? layoutBook(
         plays.map((play, i) => ({
@@ -135,7 +139,7 @@ export function* pdfExport(
           pages: playPages[i] ?? [],
         })),
         {
-          title: book.title.trim() === '' ? EXPORT_TEXT.defaultBookTitle : book.title,
+          title,
           subtitle: book.subtitle,
           date: frenchDate(creationDate),
         },
@@ -163,7 +167,7 @@ export function* pdfExport(
   }
   return [
     {
-      fileName: pdfFileName(book ? title : title, {
+      fileName: pdfFileName(title, {
         layout: options.layout,
         color: options.color,
         book: book !== null,

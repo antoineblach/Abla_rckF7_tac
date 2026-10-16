@@ -276,10 +276,10 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
 - [x] **Étape 3 : GIF.** (commit `38e7ba6` ; D-074)
   - Plan des images, dessin d'une image, palette, transparence, délais, encodage pas à pas.
   - Tests : déterminisme, nombre d'images, délais, cadrage fixe, orientation, images de référence.
-- [x] **Étape 4 : PDF.** (commit « Étape 4 : export PDF », après `38e7ba6` ; D-075)
+- [x] **Étape 4 : PDF.** (commit `d74dd14` ; D-075)
   - Mise en page téléphone et impression, débordement, vignettes (mode choisi), cahier, sommaire, liens, signets, polices, métadonnées déterministes.
   - Tests avec pdf.js.
-- [ ] **Étape 5 : io et Worker.**
+- [x] **Étape 5 : io et Worker.** (commit « Étape 5 : io des exports et Worker », après `d74dd14` ; D-076)
   - Fichiers binaires, `trash.ts`, `exports/`, existence et confirmation, téléchargement.
   - Protocole, Worker, moteur Worker et moteur en ligne, `exportRun` avec annulation.
   - Tests contre `memoryFs`.

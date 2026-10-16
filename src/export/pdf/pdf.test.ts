@@ -357,4 +357,3 @@ describe('PDF thumbnail reference images (D-062, D-071)', () => {
     })
   }
 })
-

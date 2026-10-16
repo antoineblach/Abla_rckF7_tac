@@ -5,10 +5,12 @@ export interface FsFileSnapshot {
   readonly lastModified: number
   readonly size: number
   text(): Promise<string>
+  /** Binary content (exports, D-043 copies to the trash). */
+  arrayBuffer(): Promise<ArrayBuffer>
 }
 
 export interface FsWritable {
-  write(data: string): Promise<void>
+  write(data: string | Uint8Array<ArrayBuffer>): Promise<void>
   /** The content becomes visible only when the stream is closed (SPEC 8.3). */
   close(): Promise<void>
   abort(): Promise<void>
@@ -49,20 +51,40 @@ export async function tryGetFile(
   }
 }
 
-/** Writes a whole text file through a writable stream, closed only on success. */
-export async function writeTextFile(
+/** Writes a whole file through a writable stream, closed only on success. */
+export async function writeWholeFile(
   dir: FsDirectoryHandle,
   name: string,
-  text: string,
+  data: string | Uint8Array<ArrayBuffer>,
 ): Promise<FsFileHandle> {
   const handle = await dir.getFileHandle(name, { create: true })
   const writable = await handle.createWritable()
   try {
-    await writable.write(text)
+    await writable.write(data)
     await writable.close()
   } catch (error) {
     await writable.abort().catch(() => undefined)
     throw error
   }
   return handle
+}
+
+/** Writes a whole text file through a writable stream, closed only on success. */
+export function writeTextFile(
+  dir: FsDirectoryHandle,
+  name: string,
+  text: string,
+): Promise<FsFileHandle> {
+  return writeWholeFile(dir, name, text)
+}
+
+/** Reads the bytes of a file. */
+export async function readBytes(handle: FsFileHandle): Promise<Uint8Array> {
+  return new Uint8Array(await (await handle.getFile()).arrayBuffer())
+}
+
+export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
 }

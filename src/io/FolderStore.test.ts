@@ -21,9 +21,9 @@ beforeEach(() => {
 })
 
 describe('folder structure (SPEC 8.2)', () => {
-  it('creates combinaisons/, _corbeille/ and reglages.json on first use, and nothing else', async () => {
+  it('creates combinaisons/, exports/, _corbeille/ and reglages.json on first use, and nothing else', async () => {
     await open()
-    expect(fs.list()).toEqual(['_corbeille', 'combinaisons', 'reglages.json'])
+    expect(fs.list()).toEqual(['_corbeille', 'combinaisons', 'exports', 'reglages.json'])
     expect(JSON.parse(fs.read('reglages.json') ?? '')).toEqual(defaultSettings())
   })
 
