@@ -1,32 +1,27 @@
 # État du projet
 
 - Mise à jour : 2026-10-15
-- Branche : `lot-2` (depuis `main` à `9a2c379`) ; pas encore poussée, pas de PR
-- Dernier commit : « Étape 6 : interface des exports » (après `56abc6f`)
+- Branche : `lot-2` (depuis `main` à `9a2c379`), poussée ; PR `lot-2` vers `main` ouverte (voir `gh pr list`), CI à vérifier
+- Dernier commit : « Clôture du lot 2 » (après `262f378`)
 - `main` : lot 1 et sa correction fusionnés (PR #1 `d37f3f6`, PR #2 `9a2c379`), déployés sur Pages ; protection vérifiée par `gh api` (D-055)
-- Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter.
+- Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter (`c6fa414`).
 
 ## En cours
 
-- Lot 2 (exports GIF et PDF), plan validé : `docs/plans/lot-2.md` ; réponses Q1 à Q16 et complément : D-057 à D-070 ; étape 0 : D-071 (PDF vectoriel) ; étape 1 : D-072 ; étape 2 : D-073 ; étape 3 : D-074 ; étape 4 : D-075 ; étape 5 : D-076 ; étape 6 : D-077.
-- Consigne de l'utilisateur : enchaîner les étapes 2 à 7 sans attendre, arrêt seulement sur une question bloquante.
-- Action suivante : étape 7 (clôture : ARCHITECTURE, SPEC, RECETTE, README, recette automatisable complète, push, PR).
+- Lot 2 (exports GIF et PDF) terminé : étapes 0 à 7 cochées dans `docs/plans/lot-2.md` ; décisions D-057 à D-077.
+- En attente de l'utilisateur : CI verte de la PR puis fusion ; les 3 vérifications manuelles du lot 2 (`docs/RECETTE.md`, section « Lot 2 ») et la séance d'usage libre.
 
 ## Fait
 
 - Lot 1 : étapes 0 à 7 (`docs/plans/lot-1.md`), PR #1 fusionnée ; correction après recette (`docs/plans/lot-1-corrections.md`), PR #2 fusionnée.
-- Lot 2, étape 0 : plan, décisions, dépendances (gifenc 1.0.3, jspdf 4.2.1 ; dev : pdfjs-dist 6.4.299, omggif 1.0.10, @types/omggif) (`1a41e1f`) ; prototypes P1 à P4, résultats en section 1.5 du plan (`50ee9e7`).
-- Lot 2, étape 1 : `defaults.ts` (formats et cadences GIF, durées, lisibilité, mise en page PDF, seuils) ; `model/labels.ts` et `model/shortName.ts` (réexportés par `ui/strings.ts` et `io/fileNames.ts`) ; `reglages.json` v2 (préférences d'export), migration, fixture `reglages-v1.json`, version future jamais réécrite ; `export/names.ts`, `legibility.ts`, `text.ts` ; ESLint : pureté et aplats étendus à `src/export/` (hors `worker/`) (`c6fa414`).
-- Lot 2, étape 2 : thèmes `printColor` et `printBw` ; jeton, course et passe selon le thème ; `render/captions.ts` (cartons, en-tête, pastille, bandeau de hauteur fixe) ; `insets` du viewport ; ballon en Bézier ; `clip` et `bezierCurveTo` dans `Ctx2D` ; `paintEvents` dans le contexte enregistreur (`0fe6ebc`).
-- Lot 2, étape 3 : `export/gif/` (plan des images, image, palette, transparence, `gifExport` pas à pas), `export/types.ts`, `types/gifenc.d.ts` ; outils de test `exportFixtures.ts`, `gifInspect.ts` ; images `gif-frame-{highContrast,printBw}.png` (`38e7ba6`).
-- Lot 2, étape 4 : `export/framing.ts` ; `export/pdf/` (rangées, mise en page impression et téléphone, cahier, vignette vectorielle, contexte jsPDF, `pdfExport` pas à pas) ; outil de test `pdfInspect.ts` (pdf.js) ; images `pdf-thumbnail-{highContrast,printColor,printBw}.png` (`d74dd14`).
-- Lot 2, étape 5 : fichiers binaires (`fs/types.ts`, `memoryFs`), `io/trash.ts`, `io/exportsFolder.ts`, `io/exportRun.ts`, `downloadBytes` ; `export/jobs.ts` ; `export/worker/` (protocole, gestionnaire, client, Worker, module vide) ; Vite : Worker ES et alias des dépendances optionnelles de jsPDF ; outil de test `inlineEngine.ts`. 282 tests verts. (`56abc6f`).
-- Lot 2, étape 6 : `state/exportStore.ts`, `state/exportSession.ts` ; `ui/export/` (dialogues GIF, PDF, cahier ; progression, « Export déjà présent », résultat, version allégée) ; `ui/common/Modal.tsx` ; boutons de la barre d'outils et de la bibliothèque ; `export/jobSteps.ts` (encodeurs hors du morceau principal) ; bout en bout : `export-gif.chromium`, `export-pdf.chromium`, `export.firefox`, `bundle.chromium` (Worker réel, 23 tests verts). 289 tests unitaires verts.
+- Lot 2 : plan et prototypes (`1a41e1f`, `50ee9e7`) ; réglages v2, noms, lisibilité (`c6fa414`) ; thèmes d'impression, habillage, ballon en Bézier (`0fe6ebc`) ; GIF (`38e7ba6`) ; PDF vectoriel et cahier (`d74dd14`) ; io des exports et Worker (`56abc6f`) ; interface des exports et bout en bout (`262f378`) ; clôture : SPEC 1.3 (3.1, 3.2, 3.3, 4.4, 8.2, 8.5, 9, 13.2, 14, 16), ARCHITECTURE, RECETTE, README.
+- Recette automatisable complète en local : lint, typecheck, 289 tests unitaires, 23 tests de bout en bout (Chromium et Firefox, vrai Worker), build, format.
 
-## Reste à faire (lot 2)
+## Reste à faire
 
-- Étapes 2 à 7 du plan : render, GIF, PDF, io et Worker, interface, clôture.
+- Lot 2 : fusion par l'utilisateur ; vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre.
 - Lot 1, toujours en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel (« Garder les deux »), séance d'usage libre.
+- Lot 3 (mise en place) : pas commencé ; commencer en mode plan.
 
 ## Questions ouvertes
 
@@ -35,31 +30,29 @@
 ## Écarts connus
 
 - Aucun test désactivé.
-- Fixture figée `src/test/fixtures/play-v1-7v7-options.json` : ne plus la modifier (migration v1 vers v2 du lot 3) ; les tests du lot 2 la lisent seulement.
+- Fixture figée `src/test/fixtures/play-v1-7v7-options.json` : ne plus la modifier (migration v1 vers v2 du lot 3).
 - Le seuil « traits >= 3 px » du thème Contraste fort est testé sur `render`, pas sur la surcouche d'édition (jamais exportée).
-- À 1280 px de large, la seconde rangée du transport défile horizontalement.
+- À 1280 px de large, la seconde rangée du transport défile horizontalement ; sous 1500 px, le titre de l'application est masqué (D-077).
+- En portrait, une combinaison large laisse du terrain vide au-dessus et au-dessous dans les GIF (échelle fixée par la largeur, attaque vers le haut, D-061).
+- Le même GIF diffère entre Chromium et Firefox (rendu du texte) : le déterminisme vaut pour un même navigateur.
 
 ## Pièges rencontrés
 
-- Le lint strict vaut aussi pour les tests : ni `!` non nul ni condition inutile ; passer par de petites fonctions qui lèvent une erreur.
 - `typescript-eslint` refuse TypeScript 7 : rester en 6.0 (D-031). TS 6 : `types` vaut `[]` par défaut.
+- Le lint strict vaut aussi pour les tests : ni `!` non nul ni condition inutile ; passer par de petites fonctions qui lèvent une erreur.
 - `no-restricted-properties` sur `filter` bloquerait `Array.filter` : viser l'affectation.
-- Point fixe de passe à 5 itérations : tolérance de quelques pour cent sur la vitesse de vol (D-037).
 - `prettier --write` reformate les fichiers : relire avant un Edit ou un Write.
-- L'outil Bash échoue sur les longs heredocs : écrire les gros fichiers avec l'outil Write ou Edit, et les scripts dans un fichier.
+- L'outil Bash échoue sur les longs heredocs, et une commande qui lit l'entrée standard (`cat > fichier` sans heredoc) bloque : écrire les gros fichiers avec Write ou Edit, les scripts dans un fichier.
 - Caractères invisibles ou combinants (U+0300 à U+036F, U+202F) : jamais bruts ni en échappement dans le source ; `/\p{Mn}/gu` ou `String.fromCharCode` (ESLint `no-irregular-whitespace`).
 - La règle ESLint des hooks React prend toute fonction `useXxx` pour un hook.
-- Playwright refuse `fill` sur un curseur hors pas : utiliser la touche End.
-- Grille CSS : une piste `auto` voisine d'une piste `1fr` voit sa hauteur suivre le contenu des autres cellules en Chrome ; n'utiliser que des tailles fixes autour du terrain.
-- Le canevas centré peut se décaler sans que `data-viewport` change : les tests de stabilité comparent aussi sa boîte.
-- Playwright : `selectOption` ne donne pas le focus à la liste ; les coordonnées de souris sont arrondies au pixel ; un clic à moins d'un rayon de jeton d'une joueuse la sélectionne avant la course.
-- Vérifier qu'un test attrape un défaut : arbre de travail temporaire sur `main` avec une jonction vers `node_modules` ; supprimer la jonction (`rmdir`) avant `git worktree remove`.
-- Contexte 2D de jsPDF (lu dans son code source) : transformations appliquées à l'ajout des points, chemin perdu entre `save` et `restore`, tirets non mis à l'échelle, taille de police arrondie à l'entier inférieur en points.
-- La police Atkinson Hyperlegible couvre le français sauf l'espace fine insécable U+202F (remplacée par U+00A0, `export/text.ts`).
-- gifenc : avec `transparent`, `dispose` vaut 2 par défaut (annule l'optimisation) : toujours `dispose: 1`. `quantize` et `applyPalette` lisent tout `t.buffer` : leur passer des tableaux autonomes, jamais une vue.
+- Playwright : `fill` refusé sur un curseur hors pas (touche End) ; `selectOption` ne donne pas le focus ; coordonnées de souris arrondies au pixel ; un clic à moins d'un rayon de jeton sélectionne la joueuse.
+- Grille CSS : une piste `auto` voisine d'une piste `1fr` suit le contenu des autres cellules en Chrome ; tailles fixes autour du terrain.
+- Contexte 2D de jsPDF : transformations appliquées à l'ajout des points, chemin perdu entre `save` et `restore`, tirets non mis à l'échelle, taille de police arrondie à l'entier inférieur en points, `measureText` renvoie un objet malgré ses types.
+- La police Atkinson Hyperlegible couvre le français sauf U+202F (remplacée par U+00A0, `export/text.ts`) ; son zéro est barré.
+- gifenc : avec `transparent`, `dispose` vaut 2 par défaut : toujours `dispose: 1` ; `quantize` et `applyPalette` lisent tout `t.buffer` : tableaux autonomes.
 - pdf.js renvoie `null` (et non `[]`) pour un PDF sans signets. Une liste de `combinaisons/` pendant une écriture contient le `.crswap` de Chrome : filtrer sur `.combi.json`.
 - Le morceau principal ne doit importer ni `export/jobSteps.ts` ni les encodeurs : `export/jobs.ts` reste léger (contrôlé par `bundle.chromium.spec.ts`).
-- Prototypes de l'étape 0 (hors dépôt, réutilisables) : `C:\Users\antoi\AppData\Local\Temp\claude\c--Dev-Abla-rckF7-tac\a955686d-a4c3-4ad2-b0c4-f945e4f85b97\scratchpad\proto\` (p1 PDF, p3 GIF, p4 Worker) ; rolldown (`npx rolldown -c <config>` depuis le dépôt).
+- Vérifier qu'un test attrape un défaut : arbre de travail temporaire sur `main` avec une jonction vers `node_modules` ; supprimer la jonction (`rmdir`) avant `git worktree remove`.
 
 ## Chantiers en parallèle
 

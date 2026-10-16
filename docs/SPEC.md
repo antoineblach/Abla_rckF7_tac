@@ -1,6 +1,6 @@
 # Spécification : outil de combinaisons de rugby à 7 (Abla_rckF7_tac)
 
-Version 1.2 du 15 octobre 2026 (décisions du lot 1 et de sa correction après recette intégrées, voir `docs/DECISIONS.md`, D-001 à D-056). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
+Version 1.3 du 15 octobre 2026 (décisions du lot 1, de sa correction après recette et du lot 2 intégrées, voir `docs/DECISIONS.md`, D-001 à D-077). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
 En cas de contradiction entre un prompt et ce document, ou entre deux sections de ce document : s'arrêter et demander, ne jamais trancher seul.
 
 ## 0. Conventions du document
@@ -34,8 +34,8 @@ En cas de contradiction entre un prompt et ce document, ou entre deux sections d
 ### 3.1 Pile
 
 - TypeScript en mode strict, Vite, React (interface uniquement), Zustand (état), zod (validation), idb-keyval (IndexedDB).
-- Lot 2 : gifenc (encodage GIF), jsPDF (PDF).
-- Tests : Vitest (unitaires), Playwright (bout en bout, Chromium et Firefox).
+- Lot 2 : gifenc (encodage GIF), jsPDF (PDF), chargés seulement dans le Web Worker d'export (D-076, D-077).
+- Tests : Vitest (unitaires), Playwright (bout en bout, Chromium et Firefox) ; pdf.js (`pdfjs-dist`) et omggif relisent les PDF et GIF produits (D-070).
 - Toute autre dépendance est justifiée dans le plan du lot concerné.
 
 ### 3.2 Arborescence cible de `src/`
@@ -51,10 +51,10 @@ src/
   editor/                   outils, sélection, commandes, annuler/rétablir
   player/                   lecture, transport, options
   io/                       LibraryStore, dossier, IndexedDB, fichiers
-  export/                   (lot 2) gif/, pdf/
+  export/                   (lot 2) noms, lisibilité, cadrage ; gif/, pdf/, worker/ (protocole, Worker)
   ui/                       composants React
   state/                    stores Zustand, session (D-027)
-  types/                    déclarations d'API du navigateur (D-027)
+  types/                    déclarations d'API du navigateur et de gifenc (D-027)
   test/                     outils de test et fixtures, jamais importés par l'application (D-027)
 ```
 
@@ -63,9 +63,9 @@ Les tests de bout en bout sont dans `e2e/`, à la racine du dépôt (D-027).
 ### 3.3 Principes d'architecture
 
 1. **Pureté.** `evaluate(play, branchPath, t, settings, caches) -> SceneState` est une fonction pure (`settings` : allures et vitesse de passe de `reglages.json`, D-003) : aucune lecture d'horloge, aucun aléa, aucun état global. Les caches sont passés en paramètre et indexés par un hachage du contenu.
-2. **Rendu unique.** `render(ctx, state, viewport, theme, layers)` dessine une image. `renderSchematic(ctx, play, branchPath, phaseId, viewport, theme, settings, caches)` dessine un temps à l'arrêt (D-003). Les deux fonctionnent sur un canvas affiché, sur un `OffscreenCanvas` et sur tout objet compatible avec le contexte 2D (jsPDF au lot 2).
+2. **Rendu unique.** `render(ctx, state, viewport, theme, layers)` dessine une image. `renderSchematic(ctx, play, branchPath, phaseId, viewport, theme, settings, caches)` dessine un temps à l'arrêt (D-003). Les deux fonctionnent sur un canvas affiché, sur un `OffscreenCanvas` et sur tout objet compatible avec le contexte 2D, dont celui de jsPDF : aucun chemin n'y est construit sous une transformation (ballon en courbes de Bézier) et les vignettes y sont découpées explicitement (D-071).
 3. **Aplats uniquement.** Le rendu n'utilise ni dégradé, ni motif, ni flou d'ombre. Raison : le contexte 2D de jsPDF ne gère ni dégradés ni motifs en trait (établi), et les GIF sont limités à une palette.
-4. **Viewport.** Seule couche qui connaît les pixels. Il gère la conversion mètres vers pixels, le cadrage (terrain complet, demi-terrain, cadre libre, cadrage automatique) et l'orientation (paysage : terrain fixe, x vers la droite, sens d'attaque montré par des flèches sur la ligne d'avantage ; portrait avec rotation de 90° et attaque vers le haut de l'image ; carré comme le portrait). Une rotation supplémentaire de 180° existe : au lot 2, les GIF paysage attaquent toujours vers la droite (D-006).
+4. **Viewport.** Seule couche qui connaît les pixels. Il gère la conversion mètres vers pixels, le cadrage (terrain complet, demi-terrain, cadre libre, cadrage automatique) et l'orientation (paysage : terrain fixe, x vers la droite, sens d'attaque montré par des flèches sur la ligne d'avantage ; portrait avec rotation de 90° et attaque vers le haut de l'image ; carré comme le portrait). Une rotation supplémentaire de 180° existe : les GIF paysage attaquent toujours vers la droite (D-006). Des marges intérieures cadrent le terrain d'un GIF sous son en-tête et son bandeau (D-073).
 5. **Trajectoires précalculées.** `evaluate` sait échantillonner des trajectoires calculées à l'avance (défense simulée, lot 4), mises en cache par (combinaison, branche, réglages).
 6. **Déterminisme vérifié.** Mêmes entrées, mêmes pixels, mêmes octets d'export.
 7. **Séparation.** Aucune logique métier dans les composants React. React affiche ; Zustand porte l'état ; `model`, `engine`, `io` portent la logique.
@@ -172,7 +172,7 @@ Précisions :
 - Combinaison : `combinaisons/<nom-court>--<id>.combi.json`. Le nom court est le nom en minuscules, sans accents, chaque suite de caractères autres que lettres et chiffres remplacée par un tiret, sans tiret au début ni à la fin, 40 caractères au plus ; un nom vide donne `sans-nom` (D-023).
 - Lot de combinaisons (import/export manuel) : `.combipack.json`, tableau de `Play`.
 - Modèle de placement (lot 3) : `modeles/<nom-court>--<id>.preset.json`.
-- Réglages : `reglages.json` à la racine du dossier, synchronisé entre les deux PC (allures, vitesse de passe, thème, préférences d'export, réglages de défense par défaut). Au lot 1 : allures, vitesse de passe, thème (D-026). Un `reglages.json` invalide n'est jamais réécrit.
+- Réglages : `reglages.json` à la racine du dossier, synchronisé entre les deux PC (allures, vitesse de passe, thème, préférences d'export, réglages de défense par défaut). Version 1 (lot 1) : allures, vitesse de passe, thème (D-026). Version 2 (lot 2) : plus les préférences d'export (GIF : orientation, options, vitesse, qualité, thème, allègement ; PDF : mise en page, couleur) ; un fichier en version 1 est migré en mémoire à la lecture et réécrit en version 2 au prochain enregistrement des réglages (D-068, D-072). Un `reglages.json` invalide ou d'une version plus récente n'est jamais réécrit.
 - Lecture : validation zod, puis migrations successives jusqu'à la version courante. Un fichier invalide est signalé et n'est jamais modifié ni déplacé automatiquement. Un fichier qui contient une clé inconnue est invalide ; un fichier d'une version plus récente que l'application est signalé (« recharger la page ») et jamais modifié (D-024).
 - Écriture : JSON indenté de 2 espaces, clés dans un ordre stable, alphabétique (différences lisibles dans l'historique Drive, D-040).
 
@@ -318,7 +318,7 @@ Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit)
 
 - L'utilisateur choisit une fois un dossier avec `showDirectoryPicker` (Chrome). Le handle est conservé dans IndexedDB.
 - Au démarrage, si la permission n'est plus accordée, un bouton « Réautoriser le dossier » la redemande en un clic. Chrome (version 122 et suivantes) propose « Autoriser à chaque visite » (« Allow on every visit »), qui rend l'accès permanent (établi).
-- Structure créée au premier usage :
+- Structure créée au premier usage (`exports/` depuis le lot 2, D-076) :
 
 ```
 <dossier choisi>/
@@ -346,7 +346,7 @@ Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit)
 
 ### 8.5 Suppression
 
-- Jamais d'effacement définitif : déplacement dans `_corbeille/`, avec un horodatage en tête du nom : `AAAA-MM-JJ_HH-MM-SS--<nom d'origine>` (D-023). Le déplacement copie le fichier, vérifie la copie, puis retire l'original (D-043).
+- Jamais d'effacement définitif : déplacement dans `_corbeille/`, avec un horodatage en tête du nom : `AAAA-MM-JJ_HH-MM-SS--<nom d'origine>` (D-023). Le déplacement copie le fichier octet par octet, vérifie la copie, puis retire l'original (D-043) ; il sert aussi aux exports remplacés (D-065).
 
 ### 8.6 Mode dégradé (Firefox, ou aucun dossier choisi)
 
@@ -371,39 +371,51 @@ Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit)
 
 ### 9.1 Principes
 
-- Les exports utilisent exclusivement `evaluate`, `render` et `renderSchematic` sur canvas hors écran. Aucun rendu propre aux exports.
-- Thème « contraste fort » par défaut ; thème « impression N&B » pour les PDF en noir et blanc.
-- Encodage dans un Web Worker, barre de progression, bouton Annuler. L'interface ne gèle jamais.
-- Enregistrement dans `exports/` du dossier (donc accessible depuis l'app Google Drive du téléphone si elle y est installée, d'où l'envoi WhatsApp) ; repli : téléchargement.
-- Nom : `<nom-court>--<variante>.<ext>`, variante = orientation, option ou mise en page. Un export existant n'est jamais écrasé sans confirmation.
+- Les exports utilisent exclusivement `evaluate`, `render` et `renderSchematic` : sur un `OffscreenCanvas` pour les GIF, sur le contexte 2D de jsPDF pour les vignettes des PDF. Cartons, en-tête et pastille sont dessinés par des fonctions pures de `render/captions.ts` avec les mêmes primitives ; les textes des pages PDF (titres, notes, consignes, sommaire) passent par l'API texte de jsPDF (D-060).
+- Thèmes : GIF en « Contraste fort » par défaut, au choix « Écran » ou « Impression N&B » ; PDF « Couleur » en « Impression couleur », « Noir et blanc » en « Impression N&B » (D-062, 13.2).
+- Encodage dans un Web Worker (module) réutilisé d'un export à l'autre, une image ou une page par pas : barre de progression (un message toutes les 50 ms au plus) et bouton Annuler ; sans réponse à l'annulation dans la seconde, le Worker est arrêté et recréé. L'interface ne gèle jamais : aucune tâche de la page au-delà de 200 ms pendant un export (mesuré en test) (D-076, D-077).
+- Enregistrement dans `exports/` du dossier (donc accessible depuis l'app Google Drive du téléphone si elle y est installée, d'où l'envoi WhatsApp) ; repli : téléchargement (mode navigateur, Firefox). Seule la page écrit, après la fin de l'encodage : une annulation ne laisse jamais de fichier ; l'écriture finale (moins d'une seconde) n'est pas annulable (« Enregistrement… ») ; les fichiers d'un même export (un GIF par option) sont écrits ensemble, tout ou rien (D-065, D-076).
+- Nom : `<nom-court>--<variante>.<ext>` (variantes en 9.2 et 9.3, D-066 ; deux variantes différentes ne portent jamais le même nom). Un export existant n'est jamais écrasé sans décision : existence vérifiée avant l'encodage, puis de nouveau à l'écriture ; « Remplacer » déplace d'abord l'ancien fichier dans `_corbeille/` (copie vérifiée) ; « Garder les deux » ajoute « -2 », « -3 »... ; « Annuler » arrête l'export. Si l'écriture échoue, le fichier vide créé par la tentative est retiré (il n'a jamais contenu de données) (D-065).
+- Taille de chaque fichier affichée après l'export, en Ko ou en Mo de 1 024 × 1 024 octets (D-072).
+- Préférences d'export lues dans `reglages.json` et écrites au lancement d'un export quand elles ont changé (D-068, 4.4).
 
 ### 9.2 GIF
 
 - **Orientation** au choix : portrait (terrain vertical, attaque vers le haut), paysage (attaque toujours vers la droite : rotation de 180° quand B attaque), carré (attaque vers le haut) (D-006).
 - **Options** au choix :
-  - un GIF par feuille de l'arbre ;
-  - un GIF enchaîné : tronc, option A, carton « Option B : <condition> », reprise au point d'option, option B, et ainsi de suite.
-- **Vitesse** : par défaut, deux passages dans le même GIF : ralenti 0,5x (pastille « Ralenti »), carton court, puis vitesse réelle (pastille « Vitesse réelle »). Autres choix : 0,5x seul, 1x seul.
-- **Habillage** : carton titre 1,5 s (nom de la combinaison) ; numéro du temps en haut (« Temps 2 », « Temps 3, option B ») ; consigne en bandeau ; image finale figée 2 s avant la boucle. Calques traces, ligne d'avantage et indicateurs selon les réglages du lecteur.
-- **Cadrage** : boîte englobante de toutes les lignes exportées dans le fichier, fixe pendant tout le GIF.
-- **Lisibilité** : taille de texte minimale garantissant la lecture sur un téléphone de 6 pouces quand le GIF occupe la largeur de l'écran ; jetons et numéros dimensionnés de même.
-- **Résolution et cadence** (HYPOTHÈSES) : standard 540 x 960 (portrait), 960 x 540 (paysage), 720 x 720 (carré), 12 images/s ; « haute qualité » 720 x 1280, 1280 x 720, 960 x 960, 15 images/s.
-- **Encodage** : gifenc (`quantize`, `applyPalette`, `GIFEncoder`, `writeFrame`) ; palette globale calculée sur un échantillon d'images (pas de scintillement) ; boucle infinie. Optimisation à évaluer : pixels inchangés d'une image à l'autre codés en couleur transparente pour réduire le poids.
-- **Poids** : taille affichée après export ; avertissement au-delà de 8 Mo (HYPOTHÈSE) avec proposition d'une version allégée.
-- **WhatsApp** : établi, WhatsApp ré-encode les GIF en MP4 pour les animer. Côté plateforme WhatsApp Business, un MP4 de plus de 3,5 Mo s'affiche comme une vidéo avec bouton lecture au lieu d'une boucle automatique (établi pour l'API Business, non vérifié pour l'application grand public). À vérifier en recette.
+  - un GIF par feuille de l'arbre (le carton titre porte en sous-titre les options de la ligne) ;
+  - un GIF enchaîné : tronc, option A, carton « Option B : <condition> », reprise au point d'option où l'option quitte la précédente, option B, et ainsi de suite, dans l'ordre de l'arbre ; le carton est préfixé de « Temps n, » quand la combinaison a plusieurs points d'option ; une condition vide donne « Option B » (D-058).
+- **Vitesse** : par défaut, deux passages complets dans le même GIF : ralenti 0,5x, carton « Vitesse réelle » (1 s), puis vitesse réelle. Autres choix : 0,5x seul, 1x seul. Pastille « Ralenti » ou « Vitesse réelle » dans l'en-tête, dans tous les modes (D-058, D-060).
+- **Habillage** : carton titre 1,5 s (nom de la combinaison) ; carton d'option 2 s ; en haut de chaque image, un en-tête (« Temps 2 », « Temps 3, option B » à gauche, pastille à droite) et, juste dessous, la consigne en bandeau, toujours présente et de hauteur fixe pendant tout le GIF ; la dernière image de chaque ligne tenue 1 s avant le carton suivant ; image finale figée 2 s avant la boucle ; un carton ou une image tenue est une seule image du GIF. Calques traces, ligne d'avantage et indicateurs selon les réglages du lecteur (D-059, D-060, D-073, D-074).
+- **Cadrage** : boîte englobante de toutes les lignes exportées dans le fichier, plus 5 m, fixe pendant tout le GIF, sous l'en-tête et le bandeau.
+- **Lisibilité** : téléphone de 6 pouces au format 19,5:9, soit 64 mm de large (138 mm, son long côté, pour un GIF paysage : téléphone tourné) ; quand le GIF occupe la largeur de l'écran, le plus petit texte (numéros des jetons) mesure au moins 2,5 mm, soit largeur × 2,5 / 64 (21 px à 540 px) ; jetons et toutes les tailles du thème suivent (D-061).
+- **Résolution et cadence** (HYPOTHÈSES) : standard 540 x 960 (portrait), 960 x 540 (paysage), 720 x 720 (carré), 12 images/s ; « haute qualité » 720 x 1280, 1280 x 720, 960 x 960, 15 images/s. Délais en centièmes de seconde arrondis en cumulé (12 images/s : 8, 9, 8...) ; un segment de durée D joué à la vitesse s compte ⌈D·f/s⌉ + 1 images (D-074).
+- **Encodage** : gifenc (`quantize`, `applyPalette`, `GIFEncoder`, `writeFrame`) ; palette globale de 255 couleurs calculée sur le premier carton de chaque sorte et 12 images de scène réparties (pas de scintillement), plus un indice transparent ; pixels inchangés d'une image à l'autre codés en transparent, avec `dispose: 1` (3 à 7 fois plus léger, mesuré : environ 0,5 à 1,5 Mo pour 20 s en standard), désactivable dans le dialogue (D-069, D-071) ; boucle infinie.
+- **Poids** : taille affichée après export ; au-delà de 8 Mo (HYPOTHÈSE), alerte et « Exporter une version allégée » : même contenu, résolution standard, 8 images/s (HYPOTHÈSE) (D-067).
+- **Noms** : `<nom-court>--<orientation>[-hd][-enchaine | -option-b | -option-a-b][-ralenti | -reel][-allege].gif`, orientation `portrait`, `paysage` ou `carre` ; rien pour les lignes quand la combinaison n'en a qu'une ; rien pour les deux vitesses (D-066, D-074).
+- **WhatsApp** : établi, WhatsApp ré-encode les GIF en MP4 pour les animer. Côté plateforme WhatsApp Business, un MP4 de plus de 3,5 Mo s'affiche comme une vidéo avec bouton lecture au lieu d'une boucle automatique (établi pour l'API Business, non vérifié pour l'application grand public). À vérifier en recette, avec et sans l'allègement.
 
 ### 9.3 PDF
 
 - **Deux mises en page** à l'export :
-  - « Téléphone » : une page haute par combinaison, largeur fixe, lue en défilant ;
+  - « Téléphone » : pages de 100 mm de large (HYPOTHÈSE), aussi hautes que leur contenu (suite sur une nouvelle page au-delà de 5 m), lues en défilant ; une vignette pleine largeur par ligne, sections d'options empilées ; textes d'au moins 11,1 pt, numéros des jetons à 12 pt (règle de lisibilité de 9.2 appliquée à la page) (D-063, D-075) ;
   - « Impression » : A4 paysage.
-- **Couleur ou noir et blanc** au choix. En noir et blanc : équipes en jetons pleins (A) et creux (B), courses en trait plein, passes en pointillés, jeu au pied en tirets longs.
-- **Contenu d'une combinaison** : titre, catégorie, notes du coach ; une vignette par temps en mode schéma ; sous chaque vignette, son libellé et sa consigne.
-- **Options** : toutes sur la même page, en arbre de vignettes : le tronc, puis une rangée par option sous son point d'option, chaque rangée titrée par sa condition. En mise en page téléphone, les rangées d'options s'empilent verticalement.
-- **Débordement** : si une combinaison ne tient pas sur un A4, réduire les vignettes jusqu'à un minimum lisible (HYPOTHÈSE : 60 mm de large), puis continuer sur la page suivante avec rappel du titre.
-- **Cahier de jeu** : sélection de plusieurs combinaisons ou d'une catégorie, un seul PDF ; page de titre ; sommaire avec numéros de page et liens internes ; chaque combinaison commence sur une nouvelle page.
-- **Vectoriel ou image** : rendu vectoriel si `renderSchematic` fonctionne sur le contexte 2D de jsPDF (qui imite le contexte 2D de Canvas, établi) ; sinon images à 300 dpi. Évaluation à présenter en mode plan.
-- **Police** embarquée couvrant le français : accents, apostrophe typographique, guillemets.
+- **Couleur ou noir et blanc** au choix (D-062) :
+  - « Couleur » : thème « Impression couleur » (fond blanc, lignes du terrain grises, couleurs d'équipe conservées, passes noires) ;
+  - « Noir et blanc » : thème « Impression N&B », gris seulement : équipes en jetons pleins noirs à numéro blanc (A) et creux à contour et numéro noirs (B), quelle que soit la couleur de la joueuse ; courses noires en trait plein ; passes en pointillés ; temps précédents en gris clair ; terrain blanc à lignes gris moyen, en-buts gris très clair, ligne d'avantage en tirets noirs fins ; jeu au pied en tirets longs (lot 3).
+- **Contenu d'une combinaison** : titre, catégorie, notes du coach ; une vignette par temps en mode schéma ; sous chaque vignette, son libellé et sa consigne (3 lignes au plus, HYPOTHÈSE).
+- **Vignettes** : un même cadrage pour toutes les vignettes d'une combinaison : boîte englobante de toutes ses lignes plus 5 m (pas la vue enregistrée), attaque vers le haut, rapport hauteur sur largeur borné entre 0,45 et 1 (HYPOTHÈSE) ; cadre gris fin (D-063, D-075).
+- **Options** : toutes sur la même page, en arbre de vignettes : une rangée pour le tronc jusqu'au premier point d'option compris, puis une rangée par option, dans l'ordre de l'arbre, en pleine largeur et sans retrait, titrée « Option A : <condition> » (préfixée de « Temps n, » quand la combinaison a plusieurs points d'option) ; une option contient ses temps jusqu'au point d'option suivant compris ; une rangée trop longue passe à la ligne. En mise en page téléphone, les rangées d'options s'empilent verticalement (D-063, D-075).
+- **Débordement** : si une combinaison ne tient pas sur un A4, réduire les vignettes de 90 mm jusqu'à un minimum lisible (HYPOTHÈSES : 90 mm au plus, 60 mm au moins), par pas de 1 mm, puis continuer sur la page suivante avec rappel du titre ; une rangée n'est jamais coupée entre deux pages, sauf si elle dépasse à elle seule une page entière (coupure entre deux lignes de vignettes) (D-075).
+- **Cahier de jeu** (D-064, D-077) :
+  - dialogue : titre (« Cahier de jeu » par défaut, ou le nom de la catégorie choisie), cases à cocher par combinaison dans l'ordre du tri courant de la bibliothèque (toutes cochées au départ), choix rapide d'une catégorie ;
+  - un seul PDF ; page de titre : titre, catégorie (quand la sélection est exactement une catégorie) ou « Sélection », nombre de combinaisons, date la plus récente de modification des combinaisons incluses ;
+  - sommaire : nom, catégorie, numéro de page et lien interne ; chaque combinaison commence sur une nouvelle page ; numéro de page en pied de chaque page sauf la page de titre ; un signet par combinaison ;
+  - un PDF d'une seule combinaison n'a ni page de titre, ni sommaire, ni numéros de page.
+- **Noms** : `<nom-court>--impression[-nb].pdf` ou `--telephone[-nb].pdf` ; cahier : `<nom-court du titre>--cahier-impression[-nb].pdf` ou `--cahier-telephone[-nb].pdf` (D-066).
+- **Vectoriel** : `renderSchematic` dessine les vignettes sur le contexte 2D de jsPDF ; chaque vignette est découpée par `clip()` et placée par translation, sans mise à l'échelle (le viewport travaille en millimètres). Mesuré : 63 Ko pour la page A4 d'une combinaison à 2 options, contre 160 à 210 Ko en images à 300 dpi (D-057, D-071).
+- **Police** embarquée couvrant le français : Atkinson Hyperlegible, réduite aux glyphes utilisés, avec table `/ToUnicode` (texte sélectionnable et retrouvé par la recherche) : accents, apostrophe typographique, guillemets ; l'espace fine insécable, absente de la police, devient une espace insécable (D-071).
+- **Déterminisme** : date de création = date de modification la plus récente des combinaisons incluses ; identifiant du fichier tiré de son contenu : deux exports identiques donnent le même PDF octet pour octet (D-064, D-075).
 
 ## 10. Mise en place (lot 3)
 
@@ -607,7 +619,8 @@ Note : la position des équipements, zones et annotations est portée par l'enti
 
 ### 13.2 Thèmes
 
-- « Écran » (défaut) ; « Contraste fort » (aplats saturés, traits d'au moins 3 px à l'échelle 1, aucune texture : base des exports) ; « Impression N&B » (lot 2).
+- Thèmes de l'éditeur : « Écran » (défaut) ; « Contraste fort » (aplats saturés, traits d'au moins 3 px à l'échelle 1, aucune texture : thème par défaut des GIF).
+- Thèmes des exports seulement (D-062) : « Impression couleur » (PDF en couleur) ; « Impression N&B » (PDF en noir et blanc, et GIF au choix) : gris seulement, conventions de 9.3.
 - Couleurs d'équipe par défaut : bleu (A), orange (B).
 
 ### 13.3 Conventions de tracé
@@ -644,7 +657,17 @@ Note : la position des équipements, zones et annotations est portée par l'enti
 | GIF standard | 540 px de petit côté, 12 images/s | Hypothèse |
 | GIF haute qualité | 720 px de petit côté, 15 images/s | Hypothèse |
 | Alerte de poids GIF | 8 Mo | Hypothèse |
+| Carton d'option, carton de vitesse | 2 s, 1 s | Hypothèse |
+| Maintien de la dernière image d'une option | 1 s | Choix de l'utilisateur (D-059) |
+| Palette des GIF | 255 couleurs, échantillon de 12 images | Hypothèse |
+| Version allégée d'un GIF | 8 images/s | Hypothèse |
+| Téléphone de lecture | 6 pouces 19,5:9 : 64 mm de large, 138 mm tourné ; texte de 2,5 mm au moins | Hypothèse |
+| Page PDF téléphone | 100 mm de large | Hypothèse |
+| Vignette PDF | 90 mm au plus, rapport hauteur sur largeur de 0,45 à 1 | Hypothèse |
 | Vignette PDF minimale | 60 mm | Hypothèse |
+| Consigne sous une vignette PDF | 3 lignes | Hypothèse |
+| Arrêt du Worker sans réponse à l'annulation | 1 s | Hypothèse |
+| Messages de progression d'un export | un toutes les 50 ms au plus | Hypothèse |
 | Défense : montée, accélération | 6 m/s, 4 m/s² | Hypothèse |
 | Défense : tolérance de ligne | 1,5 m | Hypothèse |
 | Défense : profondeur d'alignement | 1 m | Hypothèse |
@@ -714,3 +737,4 @@ Technique :
 14. Terrain standard.
 15. Décisions prises pendant le lot 1 : `docs/DECISIONS.md`, entrées D-001 à D-045.
 16. Décisions prises après le lot 1 et pendant sa correction après recette (15 octobre 2026) : entrées D-046 à D-056 (terrain stable, vue unique, bandeau en surimpression, seuil de glisser, inspecteur, CI, règle de recette, raccourcis).
+17. Décisions prises pendant le lot 2 (15 octobre 2026) : entrées D-057 à D-077 (PDF vectoriel, GIF enchaîné, cartons et maintiens, habillage, lisibilité sur téléphone, thèmes d'impression, mise en page et cahier de jeu, exports déjà présents, noms, version allégée, préférences d'export dans `reglages.json`, Worker).

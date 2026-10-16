@@ -283,11 +283,11 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
   - Fichiers binaires, `trash.ts`, `exports/`, existence et confirmation, téléchargement.
   - Protocole, Worker, moteur Worker et moteur en ligne, `exportRun` avec annulation.
   - Tests contre `memoryFs`.
-- [x] **Étape 6 : state et interface.** (commit « Étape 6 : interface des exports », après `56abc6f` ; D-077)
+- [x] **Étape 6 : state et interface.** (commit `262f378` ; D-077)
   - Stores et session d'export, dialogues GIF, PDF et cahier, progression, Annuler, taille, alerte de 8 Mo et version allégée.
   - Préférences relues et écrites dans `reglages.json`.
   - Tests de bout en bout.
-- [ ] **Étape 7 : clôture.**
+- [x] **Étape 7 : clôture.** (commit « Clôture du lot 2 », après `262f378` ; SPEC 1.3, ARCHITECTURE, RECETTE, README ; branche poussée, PR `lot-2` vers `main`)
   - ARCHITECTURE, DECISIONS ; SPEC mise à jour selon tes réponses (3.1, 3.2, 4.4, 8.2, 9, 13.2, 14, 16), sections listées dans la PR.
   - RECETTE : tableau « comportement → tests » du lot 2 et vérifications manuelles ; README (exports, récupération sur le téléphone).
   - Recette automatisable complète ; push ; PR `lot-2` vers `main`. Tu fusionnes.

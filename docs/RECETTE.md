@@ -75,29 +75,47 @@ Se servir de l'outil normalement sur les deux PC (préparer, lire, ranger quelqu
 
 ## Lot 2 : exports GIF et PDF
 
-Comportements attendus, à couvrir par les tests (D-054). Les vérifications manuelles (au plus 5) et la séance d'usage libre seront précisées en fin de lot.
+### Comportements couverts par les tests
 
-### GIF
-- Export portrait, paysage, carré : orientation correcte, attaque vers le haut en portrait et en carré, vers la droite en paysage (aussi quand B attaque).
-- Combinaison à 2 options : un GIF par option ; puis un GIF enchaîné avec cartons.
-- Ralenti puis vitesse réelle, pastilles visibles ; variantes 0,5x seul et 1x seul.
-- Carton titre, numéro du temps, consigne en bandeau, pause finale de 2 s.
-- Cadrage fixe pendant tout le GIF (aucun saut entre options).
-- Taille du fichier affichée ; version allégée proposée au-delà du seuil.
-- Annuler un export long : l'interface répond, aucun fichier partiel laissé.
-- Deux exports successifs identiques (même taille).
-- Fichier présent dans `Rugby7/exports/`, accessible depuis l'app Google Drive du téléphone.
-- Envoi WhatsApp depuis le téléphone : noter si le GIF arrive en boucle automatique ou en vidéo avec bouton lecture, et sa netteté.
-- Lecture sur téléphone en extérieur, en plein soleil : numéros et consignes lisibles.
+Tests unitaires dans `src/` (Vitest), tests de bout en bout dans `e2e/` (Playwright, sur le build de production, avec le vrai Web Worker).
 
-### PDF
-- Mise en page téléphone : page haute, lisible en défilant sur le téléphone.
-- Mise en page impression A4 paysage, en couleur.
-- Même PDF en noir et blanc sur imprimante laser : équipes distinguables (plein / creux), passes et courses distinguables.
-- Combinaison à 3 options : arbre de vignettes sur une page, rangées titrées par condition.
-- Combinaison trop longue pour un A4 : suite sur la page suivante avec rappel du titre.
-- Cahier de jeu de 5 combinaisons : page de titre, sommaire avec numéros, liens internes cliquables sur téléphone.
-- Accents, apostrophes et guillemets corrects.
+| Comportement | Tests |
+|---|---|
+| Orientation : attaque vers le haut en portrait et en carré, vers la droite en paysage, aussi quand B attaque | `export/gif/gif.test.ts`, `render/viewport.test.ts` |
+| Un GIF par option ; GIF enchaîné avec cartons d'option, reprise au point d'option, « Temps n, » quand il y a plusieurs points d'option | `export/gif/timeline.test.ts`, `export/gif/gif.test.ts` ; `export-gif.chromium.spec.ts` |
+| Ralenti puis vitesse réelle, pastilles ; 0,5x seul et 1x seul | `export/gif/timeline.test.ts`, `export/gif/gif.test.ts` |
+| Carton titre 1,5 s, cartons d'option 2 s et de vitesse 1 s, maintien de 1 s, numéro du temps, consigne en bandeau même sans le calque, pause finale de 2 s, boucle infinie | `export/gif/timeline.test.ts`, `export/gif/gif.test.ts`, `render/captions.test.ts` ; `export-gif.chromium.spec.ts` (images et délais relus par omggif) |
+| Nombre d'images conforme au calcul (⌈D·f/s⌉ + 1 par segment, cartons) | `export/gif/timeline.test.ts` ; `export-gif.chromium.spec.ts` |
+| Cadrage fixe : toutes les lignes du fichier plus 5 m, sous l'en-tête et le bandeau | `export/gif/gif.test.ts`, `render/viewport.test.ts` |
+| Lisibilité : plus petit texte d'au moins 2,5 mm sur un téléphone de 6 pouces, dans chaque format, qualité et thème ; PDF téléphone d'au moins 11,1 pt | `export/gif/gif.test.ts`, `export/names.test.ts`, `export/pdf/pdf.test.ts` |
+| Palette globale, pixels inchangés transparents (désactivable) : mêmes images décodées avec et sans | `export/gif/gif.test.ts` |
+| Deux exports successifs identiques octet pour octet (GIF et PDF) | `export/gif/gif.test.ts`, `export/pdf/pdf.test.ts`, `export/worker/worker.test.ts` ; `export-gif.chromium.spec.ts` (second export par « Remplacer ») |
+| Taille affichée ; au-delà de 8 Mo, alerte et version allégée (standard, 8 images/s, `-allege`) | `state/exportSession.test.ts` (seuil injecté), `export/gif/gif.test.ts` ; `export-gif.chromium.spec.ts` |
+| Annuler un export long : aucun fichier écrit, Worker qui ne répond pas arrêté | `io/exports.test.ts`, `state/exportSession.test.ts` ; `export-gif.chromium.spec.ts` |
+| L'interface ne gèle pas pendant l'encodage (aucune tâche de la page au-delà de 200 ms) | `export-gif.chromium.spec.ts` |
+| `exports/` créé ; export existant : question, « Remplacer » (ancien en corbeille), « Garder les deux » (-2, -3), « Annuler » ; nouvelle question si un fichier apparaît pendant l'encodage ; tout ou rien ; fichier vide retiré après un échec d'écriture | `io/exports.test.ts`, `io/FolderStore.test.ts`, `state/exportSession.test.ts` ; `export-gif.chromium.spec.ts`, `folder.chromium.spec.ts` |
+| Noms des variantes (D-066, D-074) | `export/names.test.ts` ; `export-gif.chromium.spec.ts`, `export-pdf.chromium.spec.ts` |
+| Préférences d'export relues et écrites dans `reglages.json` v2 ; migration de la v1 ; version future jamais réécrite | `model/settings.test.ts`, `io/FolderStore.test.ts`, `io/io.test.ts` ; `export-gif.chromium.spec.ts` |
+| Thème Impression N&B : gris seulement, A plein, B creux, courses pleines, passes en pointillés, temps précédents gris clair ; Impression couleur ; aplats pour tous les thèmes | `render/printThemes.test.ts` |
+| Images de référence : une image de GIF en Contraste fort et en N&B, une vignette PDF en Contraste fort, Impression couleur et N&B | `export/gif/gif.test.ts`, `export/pdf/pdf.test.ts` |
+| PDF vectoriel (aucune image), police embarquée réduite avec `/ToUnicode` ; accents, apostrophe typographique, guillemets retrouvés | `export/pdf/pdf.test.ts` ; `export-pdf.chromium.spec.ts` |
+| Mise en page impression : tronc puis une rangée titrée par option, libellé et consigne sous chaque vignette, réduction de 90 à 60 mm, suite avec rappel du titre, rangée jamais coupée | `export/pdf/pdf.test.ts` |
+| Mise en page téléphone : pages de 100 mm, une colonne, hauteur ajustée | `export/pdf/pdf.test.ts` ; `export-pdf.chromium.spec.ts` |
+| Cahier de jeu de 5 combinaisons dont une à 3 options : page de titre datée, sommaire avec numéros et liens vers la bonne page, numéros de page, signets | `export/pdf/pdf.test.ts` ; `export-pdf.chromium.spec.ts` (combinaisons importées d'un `.combipack.json`) |
+| Choix du cahier : ordre du tri de la bibliothèque, catégorie ou « Sélection » | `state/exportSession.test.ts` |
+| Firefox (mode dégradé) : GIF et PDF téléchargés et valides (Worker, OffscreenCanvas et police) | `export.firefox.spec.ts` |
+| jsPDF et gifenc seulement dans le morceau du Worker, sans html2canvas, dompurify ni canvg | `bundle.chromium.spec.ts` |
+
+### Vérifications manuelles
+
+Indispensables et impossibles à automatiser (téléphone, WhatsApp, imprimante) :
+- [ ] GIF portrait enchaîné de la combinaison à 2 options : récupéré par l'app Google Drive du téléphone dans `Rugby7/exports/` ; envoyé sur WhatsApp une fois avec « Alléger le fichier » et une fois sans : noter s'il arrive en boucle automatique ou en vidéo à lancer, et si le rendu est identique ; lisible en extérieur (numéros, consignes).
+- [ ] PDF « Impression » en noir et blanc sur l'imprimante laser : équipes (plein et creux), courses et passes distinguables, texte lisible.
+- [ ] Cahier de jeu de 5 combinaisons ouvert sur le téléphone : sommaire cliquable, lecture en défilant.
+
+### Séance d'usage libre
+
+Exporter normalement quelques combinaisons (GIF et PDF, cahier de jeu) sur les deux PC, les envoyer aux joueuses, puis faire un retour avec le prompt « Correction après recette ».
 
 ## Lot 3 : mise en place
 
