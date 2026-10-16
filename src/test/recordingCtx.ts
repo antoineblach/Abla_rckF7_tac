@@ -17,6 +17,8 @@ const ALLOWED_METHODS = new Set([
   'closePath',
   'moveTo',
   'lineTo',
+  'bezierCurveTo',
+  'clip',
   'arc',
   'rect',
   'fill',
@@ -35,6 +37,79 @@ export interface RecordingContext {
   calls: RecordedCall[]
   /** Property names written at least once. */
   writtenProperties: Set<string>
+}
+
+/** A painting operation with the style in force and the path it paints. */
+export interface PaintEvent {
+  kind: 'fill' | 'stroke' | 'fillRect' | 'fillText'
+  /** fillStyle for fills and texts, strokeStyle for strokes. */
+  color: unknown
+  lineWidth: number
+  dash: number[]
+  font: unknown
+  /** Path calls since the last beginPath (fill and stroke). */
+  path: RecordedCall[]
+  args: unknown[]
+}
+
+interface PaintState {
+  fillStyle: unknown
+  strokeStyle: unknown
+  lineWidth: number
+  dash: number[]
+  font: unknown
+}
+
+const PATH_CALLS = new Set(['moveTo', 'lineTo', 'bezierCurveTo', 'arc', 'rect', 'closePath'])
+
+/** Replays a recording: every fill, stroke, rectangle and text with its style (save/restore aware). */
+export function paintEvents(calls: readonly RecordedCall[]): PaintEvent[] {
+  let state: PaintState = { fillStyle: null, strokeStyle: null, lineWidth: 1, dash: [], font: null }
+  const stack: PaintState[] = []
+  let path: RecordedCall[] = []
+  const events: PaintEvent[] = []
+  for (const call of calls) {
+    if (call.kind === 'set') {
+      if (call.name === 'fillStyle') state = { ...state, fillStyle: call.args[0] }
+      if (call.name === 'strokeStyle') state = { ...state, strokeStyle: call.args[0] }
+      if (call.name === 'lineWidth') state = { ...state, lineWidth: call.args[0] as number }
+      if (call.name === 'font') state = { ...state, font: call.args[0] }
+      continue
+    }
+    switch (call.name) {
+      case 'save':
+        stack.push(state)
+        break
+      case 'restore':
+        state = stack.pop() ?? state
+        break
+      case 'setLineDash':
+        state = { ...state, dash: [...(call.args[0] as number[])] }
+        break
+      case 'beginPath':
+        path = []
+        break
+      case 'fill':
+      case 'stroke':
+      case 'fillRect':
+      case 'fillText': {
+        const stroke = call.name === 'stroke'
+        events.push({
+          kind: call.name,
+          color: stroke ? state.strokeStyle : state.fillStyle,
+          lineWidth: state.lineWidth,
+          dash: state.dash,
+          font: state.font,
+          path: [...path],
+          args: call.args,
+        })
+        break
+      }
+      default:
+        if (PATH_CALLS.has(call.name)) path.push(call)
+    }
+  }
+  return events
 }
 
 const round = (value: unknown): unknown =>

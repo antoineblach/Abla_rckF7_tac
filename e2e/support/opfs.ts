@@ -43,3 +43,21 @@ export function focusWindow(page: Page): Promise<void> {
     window.dispatchEvent(new Event('focus'))
   })
 }
+
+/** Bytes of a file of the stubbed folder (exports are binary). */
+export async function readFolderBytes(page: Page, path: string): Promise<Buffer> {
+  const base64 = await page.evaluate(async (filePath) => {
+    const parts = filePath.split('/')
+    const name = parts.pop() ?? ''
+    let dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('Rugby7')
+    for (const part of parts) dir = await dir.getDirectoryHandle(part)
+    const file = await (await dir.getFileHandle(name)).getFile()
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    let binary = ''
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+    }
+    return btoa(binary)
+  }, path)
+  return Buffer.from(base64, 'base64')
+}

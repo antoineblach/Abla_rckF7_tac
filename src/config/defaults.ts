@@ -116,7 +116,8 @@ export const ORIENTATION_ASPECT = {
 /**
  * Graphic themes (SPEC 13.2). Sizes in CSS pixels at scale 1; flat colours only.
  * HYPOTHÈSE: every colour and size below. « Contraste fort »: saturated flat colours and every
- * stroke at least 3 px at scale 1 (SPEC 13.2).
+ * stroke at least 3 px at scale 1 (SPEC 13.2). The two print themes are export themes only
+ * (D-062). A `null` colour stands for the colour of the player.
  */
 export const THEME_VALUES = {
   screen: {
@@ -157,6 +158,12 @@ export const THEME_VALUES = {
     handleRadius: 5,
     handleFill: '#ffffff',
     handleStroke: '#1b1b1b',
+    passColor: '#ffffff',
+    runColor: null,
+    tokenFillA: null,
+    tokenFillB: null,
+    badgeBackground: '#ffe36e',
+    badgeText: '#000000',
   },
   highContrast: {
     background: '#002b0b',
@@ -196,5 +203,253 @@ export const THEME_VALUES = {
     handleRadius: 6,
     handleFill: '#ffffff',
     handleStroke: '#000000',
+    passColor: '#ffffff',
+    runColor: null,
+    tokenFillA: null,
+    tokenFillB: null,
+    badgeBackground: '#ffeb3b',
+    badgeText: '#000000',
+  },
+  // « Impression couleur » (D-062): white background, grey field lines, team colours kept.
+  printColor: {
+    background: '#ffffff',
+    grass: '#ffffff',
+    inGoal: '#eef3ee',
+    fieldLine: '#9e9e9e',
+    fieldLineWidth: 2,
+    postRadius: 3.5,
+    tokenRadius: 13,
+    tokenStroke: '#000000',
+    tokenStrokeWidth: 2,
+    font: '"Atkinson Hyperlegible", sans-serif',
+    tokenFontSize: 14,
+    runWidth: 3,
+    passWidth: 3,
+    passDash: [0.1, 6],
+    arrowSize: 11,
+    fadeTowardsGrass: 0.6,
+    ghost: '#c4c4c4',
+    ghostWidth: 2,
+    error: '#d7191c',
+    ballFill: '#ffffff',
+    ballStroke: '#000000',
+    ballStrokeWidth: 2,
+    ballLength: 13,
+    ballWidth: 9,
+    gainLine: '#555555',
+    gainLineWidth: 1.5,
+    gainLineDash: [6, 5],
+    gainArrowSize: 9,
+    bannerBackground: '#000000',
+    bannerText: '#ffffff',
+    bannerFontSize: 17,
+    bannerPadding: 9,
+    selection: '#000000',
+    selectionWidth: 3,
+    handleRadius: 6,
+    handleFill: '#ffffff',
+    handleStroke: '#000000',
+    passColor: '#000000',
+    runColor: null,
+    tokenFillA: null,
+    tokenFillB: null,
+    badgeBackground: '#ffffff',
+    badgeText: '#000000',
+  },
+  // « Impression N&B » (SPEC 9.3, D-062): greys only; team A filled black, team B hollow
+  // whatever the player colour; black solid runs, dotted passes, previous phases light grey;
+  // white field with mid grey lines, very light grey in-goals, thin black dashed gain line.
+  printBw: {
+    background: '#ffffff',
+    grass: '#ffffff',
+    inGoal: '#efefef',
+    fieldLine: '#8c8c8c',
+    fieldLineWidth: 2,
+    postRadius: 3.5,
+    tokenRadius: 13,
+    tokenStroke: '#000000',
+    tokenStrokeWidth: 2,
+    font: '"Atkinson Hyperlegible", sans-serif',
+    tokenFontSize: 14,
+    runWidth: 3,
+    passWidth: 3,
+    passDash: [0.1, 6],
+    arrowSize: 11,
+    fadeTowardsGrass: 0.7,
+    ghost: '#c8c8c8',
+    ghostWidth: 2,
+    error: '#6e6e6e',
+    ballFill: '#ffffff',
+    ballStroke: '#000000',
+    ballStrokeWidth: 2,
+    ballLength: 13,
+    ballWidth: 9,
+    gainLine: '#000000',
+    gainLineWidth: 1.5,
+    gainLineDash: [6, 5],
+    gainArrowSize: 9,
+    bannerBackground: '#000000',
+    bannerText: '#ffffff',
+    bannerFontSize: 17,
+    bannerPadding: 9,
+    selection: '#000000',
+    selectionWidth: 3,
+    handleRadius: 6,
+    handleFill: '#ffffff',
+    handleStroke: '#000000',
+    passColor: '#000000',
+    runColor: '#000000',
+    tokenFillA: '#000000',
+    tokenFillB: '#ffffff',
+    badgeBackground: '#ffffff',
+    badgeText: '#000000',
   },
 } as const
+
+/**
+ * HYPOTHÈSE: sizes of the export dressing (cards, header, badge; D-060), in CSS pixels at scale 1,
+ * scaled like the theme sizes.
+ */
+export const CAPTION_SIZES = {
+  headerHeight: 30,
+  headerFontSize: 17,
+  badgeFontSize: 14,
+  badgeHeight: 21,
+  badgePaddingX: 7,
+  sideMargin: 10,
+  cardTitleFontSize: 26,
+  cardSubtitleFontSize: 18,
+  cardMaxLines: 4,
+} as const
+
+// ---------------------------------------------------------------------------
+// Exports (lot 2, SPEC 9).
+
+/** Default export preferences of reglages.json. Choice of the user (D-068, D-069). */
+export const EXPORT_PREFS_DEFAULT = {
+  gif: {
+    orientation: 'portrait',
+    lines: 'chained',
+    speed: 'both',
+    quality: 'standard',
+    theme: 'highContrast',
+    optimizeUnchanged: true,
+  },
+  pdf: { layout: 'print', color: 'color' },
+} as const
+
+/**
+ * GIF sizes in pixels and frame rates (SPEC 9.2). HYPOTHÈSE: standard 540 px on the short side at
+ * 12 frames per second; « haute qualité » 720 px at 15 frames per second.
+ */
+export const GIF_FORMATS = {
+  standard: {
+    portrait: { width: 540, height: 960 },
+    landscape: { width: 960, height: 540 },
+    square: { width: 720, height: 720 },
+    fps: 12,
+  },
+  high: {
+    portrait: { width: 720, height: 1280 },
+    landscape: { width: 1280, height: 720 },
+    square: { width: 960, height: 960 },
+    fps: 15,
+  },
+} as const
+
+/** Slow speed of GIFs (SPEC 9.2: ralenti 0,5x). */
+export const GIF_SLOW_SPEED = 0.5
+
+/** Durations in seconds of the GIF dressing (SPEC 9.2, D-059). */
+export const GIF_DURATIONS = {
+  // Title card: SPEC 9.2.
+  titleCard: 1.5,
+  // HYPOTHÈSE: option card « Option B : <condition> » (D-059).
+  optionCard: 2,
+  // HYPOTHÈSE: short card between the slow and the real speed passes (D-059).
+  speedCard: 1,
+  // Choice of the user: last image of each option held before the next card (D-059).
+  optionEndHold: 1,
+  // Final image held before the loop: SPEC 9.2.
+  finalHold: 2,
+} as const
+
+/** HYPOTHÈSE: number of scene images sampled, with every card, to compute the GIF palette. */
+export const GIF_PALETTE_SAMPLE_FRAMES = 12
+
+/** HYPOTHÈSE: frame rate of the « version allégée » of a GIF above the weight warning (D-067). */
+export const GIF_LIGHT_FPS = 8
+
+/**
+ * HYPOTHÈSE: weight above which a GIF triggers a warning and the offer of a lighter version
+ * (SPEC 9.2: 8 Mo). Mo counted as 1024 x 1024 bytes, as Windows displays file sizes.
+ */
+export const GIF_WEIGHT_WARNING_BYTES = 8 * 1024 * 1024
+
+/**
+ * Legibility on a 6 inch phone (SPEC 9.2, D-061). HYPOTHÈSE: 19.5:9 screen, so 64 mm wide in
+ * portrait and 138 mm along its long side (phone turned for landscape images); text at least
+ * 2.5 mm high (body size).
+ */
+export const LEGIBILITY = {
+  phoneWidthMm: 64,
+  phoneLongSideMm: 138,
+  minTextMm: 2.5,
+} as const
+
+/** PDF page layout in millimetres (SPEC 9.3, D-063, D-064). */
+export const PDF_LAYOUT = {
+  // A4 landscape (« Impression »).
+  print: { width: 297, height: 210 },
+  // HYPOTHÈSE: width of the « Téléphone » pages; their height follows the content.
+  phoneWidth: 100,
+  // HYPOTHÈSE: page margins.
+  margin: 10,
+  phoneMargin: 5,
+  // HYPOTHÈSE: largest thumbnail width; SPEC 9.3 (HYPOTHÈSE): smallest legible width, 60 mm.
+  thumbMax: 90,
+  thumbMin: 60,
+  // HYPOTHÈSE: gap between thumbnails.
+  thumbGap: 6,
+  // HYPOTHÈSE: bounds of the height / width ratio of the thumbnails (D-063).
+  thumbRatio: { min: 0.45, max: 1 },
+  // HYPOTHÈSE: largest phone page height before continuing on a new page (PDF limit 5 m).
+  phoneMaxHeight: 5000,
+  // HYPOTHÈSE: lines of an instruction under a thumbnail (ellipsis beyond).
+  instructionMaxLines: 3,
+} as const
+
+/**
+ * Text sizes of the PDF pages in points. HYPOTHÈSE: print sizes. Phone sizes follow the
+ * legibility rule (D-061): a 100 mm page read across 64 mm needs 2.5 × 100 / 64 = 3.9 mm, that is
+ * 11.1 pt at least. Token numbers of the thumbnails are just above an integer number of points,
+ * as the jsPDF context floors font sizes (D-071): 7 pt in print, 12 pt on the phone.
+ */
+export const PDF_TEXT = {
+  print: {
+    title: 16,
+    subtitle: 10,
+    body: 9,
+    rowTitle: 10,
+    footer: 8,
+    thumbTokenNumber: 7.05,
+    bookTitle: 28,
+    bookSubtitle: 14,
+  },
+  phone: {
+    title: 18,
+    subtitle: 13,
+    body: 11.5,
+    rowTitle: 13,
+    footer: 11.5,
+    thumbTokenNumber: 12.05,
+    bookTitle: 22,
+    bookSubtitle: 14,
+  },
+} as const
+
+/** HYPOTHÈSE: delay before a worker that does not acknowledge a cancellation is terminated. */
+export const EXPORT_CANCEL_TIMEOUT_MS = 1000
+
+/** HYPOTHÈSE: smallest interval between two progress messages of the export worker. */
+export const EXPORT_PROGRESS_INTERVAL_MS = 50

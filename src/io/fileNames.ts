@@ -1,29 +1,15 @@
-// File names (SPEC 4.4, 8.5, DECISIONS Q23).
+// File names (SPEC 4.4, 8.5, 9.1, DECISIONS Q23).
+import { shortName } from '../model/shortName'
 import type { Play } from '../model/types'
+
+export { EMPTY_SHORT_NAME, SHORT_NAME_MAX, shortName } from '../model/shortName'
 
 export const PLAYS_DIR = 'combinaisons'
 export const TRASH_DIR = '_corbeille'
+export const EXPORTS_DIR = 'exports'
 export const SETTINGS_FILE = 'reglages.json'
 export const PLAY_EXTENSION = '.combi.json'
 export const PACK_EXTENSION = '.combipack.json'
-export const SHORT_NAME_MAX = 40
-export const EMPTY_SHORT_NAME = 'sans-nom'
-
-const LIGATURES: Record<string, string> = { œ: 'oe', æ: 'ae', ß: 'ss' }
-
-/** Lower case, no accents, every other character replaced by '-', at most 40 characters. */
-export function shortName(name: string): string {
-  const base = name
-    .toLowerCase()
-    .replace(/[œæß]/g, (c) => LIGATURES[c] ?? c)
-    .normalize('NFD')
-    .replace(/\p{Mn}/gu, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, SHORT_NAME_MAX)
-    .replace(/-+$/g, '')
-  return base === '' ? EMPTY_SHORT_NAME : base
-}
 
 export function playFileName(play: Pick<Play, 'name' | 'id'>): string {
   return `${shortName(play.name)}--${play.id}${PLAY_EXTENSION}`

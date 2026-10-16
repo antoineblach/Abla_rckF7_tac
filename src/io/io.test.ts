@@ -9,6 +9,7 @@ import { clearDraft, draftDiffers, loadDraft, saveDraft } from './draft'
 import { isScannedPlayFile, playFileName, shortName, trashFileName } from './fileNames'
 import { FolderStore } from './FolderStore'
 import { IdbStore } from './IdbStore'
+import { kvKey } from './kv'
 import { ConflictError } from './LibraryStore'
 import {
   applyImport,
@@ -84,6 +85,24 @@ describe('browser library, degraded mode (SPEC 8.6)', () => {
     expect((await store.getSettings()).settings).toEqual(defaultSettings())
     await store.putSettings({ ...defaultSettings(), passSpeed: 9 })
     expect((await store.getSettings()).settings.passSpeed).toBe(9)
+  })
+
+  it('migrates version 1 settings and never rewrites invalid or newer ones (D-024, D-068)', async () => {
+    const kv = createMemoryKv()
+    const store = await IdbStore.open(kv, () => NOW)
+    await kv.set(
+      kvKey('settings'),
+      '{"paces":{"jog":4,"sprint":7,"walk":2},"passSpeed":10,"schemaVersion":1,"theme":"screen"}',
+    )
+    const migrated = await store.getSettings()
+    expect(migrated.ok).toBe(true)
+    expect(migrated.settings.passSpeed).toBe(10)
+    expect(migrated.settings.export).toEqual(defaultSettings().export)
+    const future = JSON.stringify({ ...defaultSettings(), schemaVersion: 3 })
+    await kv.set(kvKey('settings'), future)
+    expect(await store.getSettings()).toMatchObject({ ok: false, future: true })
+    await expect(store.putSettings(defaultSettings())).rejects.toThrow()
+    expect(await kv.get(kvKey('settings'))).toBe(future)
   })
 })
 

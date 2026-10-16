@@ -2,7 +2,7 @@
 // Same rules as the folder: removing moves to a trash, an invalid entry is never modified,
 // settings and trash live in IndexedDB too (DECISIONS Q21 / D-021).
 import { contentHash } from '../model/canonical'
-import { defaultSettings, settingsSchema, type Settings } from '../model/settings'
+import { defaultSettings, readSettings, type Settings } from '../model/settings'
 import type { Id, Play } from '../model/types'
 import { kvKey, type KeyValueStore } from './kv'
 import {
@@ -15,11 +15,12 @@ import {
   type PlaySummary,
   type PutOptions,
   type PutResult,
+  settingsResult,
   type SettingsResult,
   type VersionToken,
 } from './LibraryStore'
 import { readPlayText, type ReadPlayResult } from './readPlay'
-import { serialize } from './serialize'
+import { parseJson, serialize } from './serialize'
 
 const PLAY_PREFIX = kvKey('play:')
 const TRASH_PREFIX = kvKey('trash:')
@@ -193,17 +194,15 @@ export class IdbStore implements LibraryStore {
   async getSettings(): Promise<SettingsResult> {
     const value = await this.kv.get(SETTINGS_KEY)
     if (value === undefined) return { ok: true, settings: defaultSettings() }
-    const result = settingsSchema.safeParse(typeof value === 'string' ? JSON.parse(value) : value)
-    if (!result.success)
-      return {
-        ok: false,
-        settings: defaultSettings(),
-        message: result.error.issues[0]?.message ?? '',
-      }
-    return { ok: true, settings: result.data }
+    if (typeof value !== 'string') return settingsResult(readSettings(value))
+    const parsed = parseJson(value)
+    if (!parsed.ok) return { ok: false, settings: defaultSettings(), message: parsed.message }
+    return settingsResult(readSettings(parsed.value))
   }
 
   async putSettings(settings: Settings): Promise<void> {
+    // Invalid or newer settings are never overwritten (SPEC 4.4, D-024).
+    if (!(await this.getSettings()).ok) throw new Error('Stored settings are never overwritten')
     await this.kv.set(SETTINGS_KEY, serialize(settings))
   }
 

@@ -1,6 +1,6 @@
 # Abla_rckF7_tac
 
-Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur PC (Chrome), animation, et (au lot 2) exports GIF et PDF. Un seul utilisateur, deux ordinateurs, données dans un dossier Google Drive.
+Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur PC (Chrome), animation, exports GIF et PDF. Un seul utilisateur, deux ordinateurs, données dans un dossier Google Drive.
 
 - Application en ligne : https://antoineblach.github.io/Abla_rckF7_tac/ (la casse de l'adresse compte).
 - Spécification : [docs/SPEC.md](docs/SPEC.md). Recette : [docs/RECETTE.md](docs/RECETTE.md). Architecture : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Décisions : [docs/DECISIONS.md](docs/DECISIONS.md). État du projet : [docs/ETAT.md](docs/ETAT.md).
@@ -10,8 +10,25 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 1. Ouvrir l'application dans Chrome depuis le favori.
 2. Au premier usage, cliquer sur « Choisir un dossier » et désigner le dossier Drive (par exemple `Mon Drive/Rugby7`). Chrome demande l'autorisation : choisir **« Autoriser à chaque visite »** (« Allow on every visit », Chrome 122 et suivants). L'accès reste alors permanent et l'outil rouvre le dossier sans rien demander.
 3. Si Chrome a oublié l'autorisation, un bandeau propose « Réautoriser le dossier » : un clic suffit.
-4. L'outil crée dans le dossier `reglages.json`, `combinaisons/` et `_corbeille/`. Chaque combinaison est un fichier `combinaisons/<nom-court>--<id>.combi.json`. Rien n'est jamais effacé : supprimer une combinaison la déplace dans `_corbeille/`.
+4. L'outil crée dans le dossier `reglages.json`, `combinaisons/`, `exports/` et `_corbeille/`. Chaque combinaison est un fichier `combinaisons/<nom-court>--<id>.combi.json`. Rien n'est jamais effacé : supprimer une combinaison la déplace dans `_corbeille/`.
 5. Enregistrement automatique 2 s après la dernière modification, ou Ctrl+S. L'outil relit le dossier au retour sur la fenêtre et toutes les 30 s : une combinaison modifiée sur l'autre PC est rechargée (ou un choix est proposé si vous étiez en train de la modifier).
+
+### Exports GIF et PDF
+
+- **GIF** (« Exporter GIF », combinaison ouverte) : orientation (portrait, paysage, carré), un GIF enchaîné ou un GIF par option, ralenti puis vitesse réelle (ou une seule vitesse), qualité standard ou haute, thème (Contraste fort par défaut). La case « Alléger le fichier » (cochée par défaut) rend le GIF 3 à 7 fois plus léger ; la décocher si WhatsApp le rend mal.
+- **PDF** (« Exporter PDF ») : mise en page « Impression » (A4 paysage) ou « Téléphone » (pages de 100 mm lues en défilant), en couleur ou en noir et blanc.
+- **Cahier de jeu** (bouton de la bibliothèque) : plusieurs combinaisons ou une catégorie dans un seul PDF, avec page de titre, sommaire cliquable et numéros de page.
+- L'encodage se fait en arrière-plan : une barre de progression et « Annuler » ; une annulation ne laisse aucun fichier. À la fin, l'outil affiche le nom et la taille de chaque fichier ; au-delà de 8 Mo, il propose une version allégée.
+- Les fichiers vont dans `exports/` du dossier : `<nom-court>--<variante>.gif` ou `.pdf` (par exemple `croisee-au-centre--portrait-enchaine.gif`, `croisee-au-centre--impression-nb.pdf`). Un export déjà présent n'est jamais écrasé sans votre accord : « Remplacer » met d'abord l'ancien dans `_corbeille/`, « Garder les deux » numérote le nouveau (`-2`, `-3`...).
+- Sans dossier (Firefox, ou Chrome avant le choix d'un dossier), les fichiers sont téléchargés.
+- Les choix des dialogues sont mémorisés dans `reglages.json` (communs aux deux PC).
+
+### Récupérer un export sur le téléphone
+
+1. Attendre que Drive pour ordinateur ait synchronisé le dossier (icône Drive).
+2. Sur le téléphone, ouvrir l'app Google Drive, dossier `Rugby7/exports/`.
+3. GIF : menu « ⋮ », « Envoyer une copie », puis WhatsApp. PDF : ouvrir pour lire, ou envoyer de la même façon.
+4. WhatsApp convertit les GIF en courtes vidéos ; un fichier lourd peut arriver comme une vidéo à lancer : utiliser alors la version allégée.
 
 ### Mode dégradé
 
@@ -43,7 +60,7 @@ npm run preview            # prévisualisation du build : http://localhost:4173/
 | ------------------- | ----------------------------------------------------------------------------------------- |
 | `npm run lint`      | ESLint (dont les règles de pureté du moteur et du rendu, et les aplats)                   |
 | `npm run typecheck` | `tsc --noEmit`                                                                            |
-| `npm test`          | Vitest (tests unitaires, images de référence du rendu)                                    |
+| `npm test`          | Vitest (tests unitaires, images de référence du rendu et des exports)                     |
 | `npm run test:e2e`  | Playwright, Chromium (mode dossier) et Firefox (mode dégradé), sur le build de production |
 | `npm run format`    | Prettier                                                                                  |
 

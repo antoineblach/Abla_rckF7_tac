@@ -3,16 +3,16 @@
 // modified nor moved, a write never overwrites a version changed by the other computer.
 import { contentHash } from '../model/canonical'
 import type { IdFactory } from '../model/ids'
-import { defaultSettings, settingsSchema, type Settings } from '../model/settings'
+import { defaultSettings, readSettings, type Settings } from '../model/settings'
 import type { Id, Play } from '../model/types'
 import { keepBothCopy } from './conflicts'
 import {
+  EXPORTS_DIR,
   PLAYS_DIR,
   SETTINGS_FILE,
   TRASH_DIR,
   isScannedPlayFile,
   playFileName,
-  trashFileName,
 } from './fileNames'
 import { tryGetFile, writeTextFile, type FsDirectoryHandle } from './fs/types'
 import {
@@ -26,11 +26,13 @@ import {
   type PlaySummary,
   type PutOptions,
   type PutResult,
+  settingsResult,
   type SettingsResult,
   type VersionToken,
 } from './LibraryStore'
 import { readPlayText, type ReadPlayResult } from './readPlay'
 import { parseJson, serialize } from './serialize'
+import { moveToTrash } from './trash'
 
 type ChangeWithoutStamp =
   { kind: 'added' | 'modified' | 'removed'; id: Id; fileName: string | null } | { kind: 'issues' }
@@ -59,9 +61,10 @@ export interface FolderStoreOptions {
   cache?: ReadCacheData
 }
 
-/** Creates the folder structure on first use (SPEC 8.2): lot 1 creates only these entries. */
+/** Creates the folder structure on first use (SPEC 8.2); exports/ arrives with lot 2. */
 export async function ensureFolderStructure(root: FsDirectoryHandle): Promise<void> {
   await root.getDirectoryHandle(PLAYS_DIR, { create: true })
+  await root.getDirectoryHandle(EXPORTS_DIR, { create: true })
   await root.getDirectoryHandle(TRASH_DIR, { create: true })
   if (!(await tryGetFile(root, SETTINGS_FILE))) {
     await writeTextFile(root, SETTINGS_FILE, serialize(defaultSettings()))
@@ -91,6 +94,11 @@ export class FolderStore implements LibraryStore {
 
   get stamp(): number {
     return this.currentStamp
+  }
+
+  /** The chosen folder: exports are written in its exports/ (SPEC 9.1). */
+  get rootHandle(): FsDirectoryHandle {
+    return this.root
   }
 
   private playsDir(): Promise<FsDirectoryHandle> {
@@ -235,18 +243,7 @@ export class FolderStore implements LibraryStore {
   }
 
   private async moveToTrash(fileName: string): Promise<void> {
-    const dir = await this.playsDir()
-    const trash = await this.trashDir()
-    const handle = await dir.getFileHandle(fileName)
-    const text = await (await handle.getFile()).text()
-    let target = trashFileName(fileName, this.options.now())
-    for (let n = 2; await tryGetFile(trash, target); n++) {
-      target = trashFileName(`${n}-${fileName}`, this.options.now())
-    }
-    await writeTextFile(trash, target, text)
-    const check = await (await (await trash.getFileHandle(target)).getFile()).text()
-    if (check !== text) throw new Error(`Copy to the trash failed for ${fileName}`)
-    await dir.removeEntry(fileName)
+    await moveToTrash(await this.playsDir(), fileName, await this.trashDir(), this.options.now())
     this.entries.delete(fileName)
   }
 
@@ -339,15 +336,7 @@ export class FolderStore implements LibraryStore {
     if (!handle) return { ok: true, settings: defaultSettings() }
     const parsed = parseJson(await (await handle.getFile()).text())
     if (!parsed.ok) return { ok: false, settings: defaultSettings(), message: parsed.message }
-    const result = settingsSchema.safeParse(parsed.value)
-    if (!result.success) {
-      return {
-        ok: false,
-        settings: defaultSettings(),
-        message: result.error.issues[0]?.message ?? '',
-      }
-    }
-    return { ok: true, settings: result.data }
+    return settingsResult(readSettings(parsed.value))
   }
 
   async putSettings(settings: Settings): Promise<void> {

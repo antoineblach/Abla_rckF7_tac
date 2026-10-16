@@ -1,10 +1,10 @@
 // Drawing primitives, flat colours only (SPEC 3.3.3, 13.3). Positions in metres are converted
 // by the viewport; sizes come from the theme in CSS pixels at scale 1.
-import type { Vec2 } from '../model/types'
+import type { Team, Vec2 } from '../model/types'
 import type { Ctx2D } from './ctx2d'
 import type { Theme } from './themes'
-import { readableTextColor } from './themes'
-import { sizePx, toPx, type Viewport } from './viewport'
+import { readableTextColor, tokenFill } from './themes'
+import { sizePx, toPx, type ImageFrame, type Viewport } from './viewport'
 
 export interface StrokeStyle {
   color: string
@@ -140,26 +140,37 @@ export function strokeCircle(
   ctx.stroke()
 }
 
-/** Player token: a disc of the player colour showing only the number (SPEC 6.3). */
+/**
+ * Player token: a disc showing only the number (SPEC 6.3), of the player colour or of the colour
+ * the theme gives to the team (N&B: A filled black, B hollow, D-062).
+ */
 export function drawToken(
   ctx: Ctx2D,
   viewport: Viewport,
   theme: Theme,
   centerPx: Vec2,
+  team: Team,
   color: string,
   label: string,
 ): void {
+  const fill = tokenFill(theme, team, color)
   const radius = sizePx(viewport, theme.tokenRadius)
-  fillCircle(ctx, centerPx, radius, color)
+  fillCircle(ctx, centerPx, radius, fill)
   strokeCircle(ctx, centerPx, radius, theme.tokenStroke, sizePx(viewport, theme.tokenStrokeWidth))
-  ctx.fillStyle = readableTextColor(color)
+  ctx.fillStyle = readableTextColor(fill)
   ctx.font = `bold ${sizePx(viewport, theme.tokenFontSize)}px ${theme.font}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(label, centerPx.x, centerPx.y + sizePx(viewport, 0.5))
 }
 
-/** Ball: a flat ellipse whose long axis follows `direction` (unit, screen space). */
+/** Bézier approximation of a quarter circle (control point distance for a unit radius). */
+const QUARTER_ARC_KAPPA = 0.5522847498
+
+/**
+ * Ball: a flat ellipse whose long axis follows `direction` (unit, screen space). Built from four
+ * Bézier curves in device pixels, without transformation, so that jsPDF draws it (D-071).
+ */
 export function drawBall(
   ctx: Ctx2D,
   viewport: Viewport,
@@ -167,15 +178,28 @@ export function drawBall(
   centerPx: Vec2,
   direction: Vec2,
 ): void {
-  const length = sizePx(viewport, theme.ballLength)
-  const width = sizePx(viewport, theme.ballWidth)
-  ctx.save()
-  ctx.translate(centerPx.x, centerPx.y)
-  ctx.rotate(Math.atan2(direction.y, direction.x))
-  ctx.scale(1, width / length)
+  const a = sizePx(viewport, theme.ballLength) / 2
+  const b = sizePx(viewport, theme.ballWidth) / 2
+  const len = Math.hypot(direction.x, direction.y)
+  const ux = len > 0 ? direction.x / len : 1
+  const uy = len > 0 ? direction.y / len : 0
+  const k = QUARTER_ARC_KAPPA
+  // Point at (s along the long axis, t along the short axis) from the centre.
+  const at = (s: number, t: number): Vec2 => ({
+    x: centerPx.x + ux * s - uy * t,
+    y: centerPx.y + uy * s + ux * t,
+  })
+  const curve = (c1: Vec2, c2: Vec2, end: Vec2): void => {
+    ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, end.x, end.y)
+  }
   ctx.beginPath()
-  ctx.arc(0, 0, length / 2, 0, Math.PI * 2)
-  ctx.restore()
+  const start = at(a, 0)
+  ctx.moveTo(start.x, start.y)
+  curve(at(a, k * b), at(k * a, b), at(0, b))
+  curve(at(-k * a, b), at(-a, k * b), at(-a, 0))
+  curve(at(-a, -k * b), at(-k * a, -b), at(0, -b))
+  curve(at(k * a, -b), at(a, -k * b), at(a, 0))
+  ctx.closePath()
   ctx.fillStyle = theme.ballFill
   ctx.fill()
   ctx.strokeStyle = theme.ballStroke
@@ -205,21 +229,57 @@ export function wrapText(ctx: Ctx2D, text: string, maxWidth: number, maxLines: n
   return kept
 }
 
-/** Instruction banner across the top of the image (SPEC 7). */
-export function drawBanner(ctx: Ctx2D, viewport: Viewport, theme: Theme, text: string): void {
-  if (text.trim() === '') return
+/** Maximum number of lines of the instruction banner (D-041). */
+export const BANNER_MAX_LINES = 2
+
+/** Lines of an instruction in the banner, at most two, the last one ellipsed. */
+export function bannerLines(
+  ctx: Ctx2D,
+  viewport: ImageFrame,
+  theme: Theme,
+  text: string,
+): string[] {
+  if (text.trim() === '') return []
+  const padding = sizePx(viewport, theme.bannerPadding)
+  ctx.font = `bold ${sizePx(viewport, theme.bannerFontSize)}px ${theme.font}`
+  return wrapText(ctx, text.trim(), viewport.widthPx - 2 * padding, BANNER_MAX_LINES)
+}
+
+/** Height in device pixels of a banner of `lines` lines (0 lines: no banner). */
+export function bannerHeightPx(viewport: ImageFrame, theme: Theme, lines: number): number {
+  if (lines <= 0) return 0
+  const fontSize = sizePx(viewport, theme.bannerFontSize)
+  return lines * fontSize * 1.25 + 2 * sizePx(viewport, theme.bannerPadding)
+}
+
+/**
+ * Instruction banner across the image (SPEC 7), at the top or `top` pixels lower (exports: under
+ * their header, D-060). `minLines` keeps the same height whatever the text, so that the framing
+ * of an export never moves; with `minLines`, the band is drawn even without text.
+ */
+export function drawBanner(
+  ctx: Ctx2D,
+  viewport: ImageFrame,
+  theme: Theme,
+  text: string,
+  top = 0,
+  minLines = 0,
+): void {
+  const lines = bannerLines(ctx, viewport, theme, text)
+  const count = Math.max(lines.length, minLines)
+  if (count === 0) return
   const fontSize = sizePx(viewport, theme.bannerFontSize)
   const padding = sizePx(viewport, theme.bannerPadding)
-  ctx.font = `bold ${fontSize}px ${theme.font}`
-  const lines = wrapText(ctx, text.trim(), viewport.widthPx - 2 * padding, 2)
   const lineHeight = fontSize * 1.25
-  const height = lines.length * lineHeight + 2 * padding
   ctx.fillStyle = theme.bannerBackground
-  ctx.fillRect(0, 0, viewport.widthPx, height)
+  ctx.fillRect(0, top, viewport.widthPx, bannerHeightPx(viewport, theme, count))
+  ctx.font = `bold ${fontSize}px ${theme.font}`
   ctx.fillStyle = theme.bannerText
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
+  // Fewer lines than the band holds: centred vertically in it.
+  const offset = ((count - lines.length) * lineHeight) / 2
   lines.forEach((line, i) => {
-    ctx.fillText(line, viewport.widthPx / 2, padding + lineHeight * (i + 0.5))
+    ctx.fillText(line, viewport.widthPx / 2, top + offset + padding + lineHeight * (i + 0.5))
   })
 }

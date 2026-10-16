@@ -1,6 +1,6 @@
 // Library storage interface (SPEC 8.1), extended for lot 1 (DECISIONS Q20 / D-020).
 // Two implementations: FolderStore (main, Chrome) and IdbStore (degraded mode).
-import type { Settings } from '../model/settings'
+import { defaultSettings, type Settings, type SettingsReadResult } from '../model/settings'
 import type { Id, Play, PlayCategory } from '../model/types'
 import type { ReadError } from './readPlay'
 
@@ -48,8 +48,20 @@ export interface PutResult {
 
 export type DuplicateResolution = { kind: 'keepBoth' } | { kind: 'choose'; fileName: string }
 
+/**
+ * Settings read from storage. When they are invalid or of a newer version (`future`), defaults
+ * are used and the stored settings are never rewritten.
+ */
 export type SettingsResult =
-  { ok: true; settings: Settings } | { ok: false; settings: Settings; message: string }
+  | { ok: true; settings: Settings }
+  | { ok: false; settings: Settings; message: string; future?: boolean }
+
+/** Settings result of validated and migrated content (SPEC 4.4, D-068). */
+export function settingsResult(read: SettingsReadResult): SettingsResult {
+  return read.ok
+    ? { ok: true, settings: read.settings }
+    : { ok: false, settings: defaultSettings(), message: read.message, future: read.future }
+}
 
 export class ConflictError extends Error {
   constructor(

@@ -1,11 +1,11 @@
 // In-memory file system for io tests: same subset as the File System Access API, injectable
-// clock, simulation of external changes (the other computer) and of write failures.
-// Never imported by the application.
+// clock, simulation of external changes (the other computer) and of write failures. Contents are
+// bytes (text files are stored as UTF-8). Never imported by the application.
 import type { FsDirectoryHandle, FsFileHandle, FsFileSnapshot, FsWritable } from '../io/fs/types'
 
 interface MemoryFile {
   kind: 'file'
-  content: string
+  bytes: Uint8Array
   lastModified: number
 }
 
@@ -26,7 +26,18 @@ function typeMismatch(name: string): Error {
   return error
 }
 
-const byteLength = (text: string): number => new TextEncoder().encode(text).length
+const encode = (text: string): Uint8Array => new TextEncoder().encode(text)
+const decode = (bytes: Uint8Array): string => new TextDecoder().decode(bytes)
+
+function concat(chunks: readonly Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(chunks.reduce((sum, c) => sum + c.length, 0))
+  let offset = 0
+  for (const chunk of chunks) {
+    out.set(chunk, offset)
+    offset += chunk.length
+  }
+  return out
+}
 
 export interface MemoryFs {
   root: FsDirectoryHandle
@@ -34,10 +45,11 @@ export interface MemoryFs {
   tick(ms?: number): void
   now(): number
   /** Writes a file as another computer would (synchronisation). */
-  writeExternal(path: string, content: string, lastModified?: number): void
+  writeExternal(path: string, content: string | Uint8Array, lastModified?: number): void
   /** Changes the modification date only (a synchronisation client touching a file). */
   touch(path: string, lastModified?: number): void
   read(path: string): string | undefined
+  readBytes(path: string): Uint8Array | undefined
   stat(path: string): { lastModified: number; size: number } | undefined
   list(path?: string): string[]
   exists(path: string): boolean
@@ -77,20 +89,22 @@ export function createMemoryFs(startTime = 1_800_000_000_000): MemoryFs {
       getFile: () => {
         const file = dir.children.get(name)
         if (!file || file.kind !== 'file') return Promise.reject(notFound(name))
+        const bytes = file.bytes
         const snapshot: FsFileSnapshot = {
           lastModified: file.lastModified,
-          size: byteLength(file.content),
-          text: () => Promise.resolve(file.content),
+          size: bytes.length,
+          text: () => Promise.resolve(decode(bytes)),
+          arrayBuffer: () => Promise.resolve(bytes.slice().buffer),
         }
         return Promise.resolve(snapshot)
       },
       createWritable: () => {
-        let buffer = ''
+        const chunks: Uint8Array[] = []
         let open = true
         const writable: FsWritable = {
-          write: (data: string) => {
+          write: (data: string | Uint8Array) => {
             if (!open) return Promise.reject(new Error('Stream closed'))
-            buffer += data
+            chunks.push(typeof data === 'string' ? encode(data) : data.slice())
             return Promise.resolve()
           },
           close: () => {
@@ -102,7 +116,7 @@ export function createMemoryFs(startTime = 1_800_000_000_000): MemoryFs {
             }
             clock += 1
             writes++
-            dir.children.set(name, { kind: 'file', content: buffer, lastModified: clock })
+            dir.children.set(name, { kind: 'file', bytes: concat(chunks), lastModified: clock })
             return Promise.resolve()
           },
           abort: () => {
@@ -134,7 +148,7 @@ export function createMemoryFs(startTime = 1_800_000_000_000): MemoryFs {
         if (existing) return Promise.reject(typeMismatch(child))
         if (!options?.create) return Promise.reject(notFound(child))
         clock += 1
-        dir.children.set(child, { kind: 'file', content: '', lastModified: clock })
+        dir.children.set(child, { kind: 'file', bytes: new Uint8Array(0), lastModified: clock })
         return Promise.resolve(fileHandle(dir, child))
       },
       removeEntry: (child) => {
@@ -174,7 +188,8 @@ export function createMemoryFs(startTime = 1_800_000_000_000): MemoryFs {
     writeExternal(path, content, lastModified) {
       clock += 1
       const { dir, name } = walk(path, true)
-      dir.children.set(name, { kind: 'file', content, lastModified: lastModified ?? clock })
+      const bytes = typeof content === 'string' ? encode(content) : content.slice()
+      dir.children.set(name, { kind: 'file', bytes, lastModified: lastModified ?? clock })
     },
     touch(path, lastModified) {
       const file = getFile(path)
@@ -182,10 +197,14 @@ export function createMemoryFs(startTime = 1_800_000_000_000): MemoryFs {
       clock += 1
       file.lastModified = lastModified ?? clock
     },
-    read: (path) => getFile(path)?.content,
+    read: (path) => {
+      const file = getFile(path)
+      return file ? decode(file.bytes) : undefined
+    },
+    readBytes: (path) => getFile(path)?.bytes.slice(),
     stat(path) {
       const file = getFile(path)
-      return file ? { lastModified: file.lastModified, size: byteLength(file.content) } : undefined
+      return file ? { lastModified: file.lastModified, size: file.bytes.length } : undefined
     },
     list(path = '') {
       try {

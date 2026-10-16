@@ -83,6 +83,48 @@ describe('viewport (SPEC 3.3.4, DECISIONS Q6)', () => {
     expect(center.y).toBeCloseTo(270, 9)
   })
 
+  it('fits the frame inside the insets, under the header and banner of an export (D-060)', () => {
+    const insets = { top: 136, right: 0, bottom: 0, left: 0 }
+    for (const orientation of ORIENTATIONS) {
+      for (const team of ['A', 'B'] as const) {
+        const [widthPx, heightPx] =
+          orientation === 'portrait'
+            ? [540, 960]
+            : orientation === 'square'
+              ? [720, 720]
+              : [960, 540]
+        const viewport = createViewport({
+          widthPx,
+          heightPx,
+          pixelRatio: 1.5,
+          frame: { min: { x: 30, y: 5 }, max: { x: 70, y: 60 } },
+          orientation,
+          attackingTeam: team,
+          rotate180: orientation === 'landscape' && team === 'B',
+          insets,
+        })
+        const corners = [
+          { x: 30, y: 5 },
+          { x: 70, y: 5 },
+          { x: 30, y: 60 },
+          { x: 70, y: 60 },
+        ].map((p) => toPx(viewport, p))
+        const xs = corners.map((c) => c.x)
+        const ys = corners.map((c) => c.y)
+        expect(Math.min(...ys)).toBeGreaterThanOrEqual(insets.top - 1e-6)
+        expect(Math.max(...ys)).toBeLessThanOrEqual(heightPx + 1e-6)
+        expect(Math.min(...xs)).toBeGreaterThanOrEqual(-1e-6)
+        expect(Math.max(...xs)).toBeLessThanOrEqual(widthPx + 1e-6)
+        // Centred in the inner area, touching it on one axis at least.
+        expect((Math.min(...ys) + Math.max(...ys)) / 2).toBeCloseTo((insets.top + heightPx) / 2, 6)
+        expect((Math.min(...xs) + Math.max(...xs)) / 2).toBeCloseTo(widthPx / 2, 6)
+        const touches =
+          Math.abs(Math.min(...ys) - insets.top) < 1e-6 || Math.abs(Math.min(...xs)) < 1e-6
+        expect(touches).toBe(true)
+      }
+    }
+  })
+
   it('computes the frames of the saved views (DECISIONS Q18)', () => {
     expect(frameForView({ kind: 'full' }, field, 'A')).toEqual({
       min: { x: -12, y: -2 },

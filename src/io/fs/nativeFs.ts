@@ -9,7 +9,7 @@ export function wrapFile(native: FileSystemFileHandle): FsFileHandle {
     createWritable: async () => {
       const stream = await native.createWritable()
       return {
-        write: (data: string) => stream.write(data),
+        write: (data: string | Uint8Array<ArrayBuffer>) => stream.write(data),
         close: () => stream.close(),
         abort: () => stream.abort(),
       }

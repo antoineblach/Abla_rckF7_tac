@@ -3,6 +3,7 @@
 import { keepBothCopy } from '../io/conflicts'
 import { clearDraft, draftDiffers, loadDraft, saveDraft } from '../io/draft'
 import { downloadText } from '../io/download'
+import type { ExportTarget } from '../io/exportRun'
 import {
   asFsDirectory,
   folderPermission,
@@ -28,7 +29,7 @@ import { loadReadCache, saveReadCache } from '../io/readCache'
 import { SyncController, type ExternalChange } from '../io/sync'
 import { createNewPlay, type StartingPlacement } from '../editor/placements'
 import { randomIds } from '../model/ids'
-import type { Settings } from '../model/settings'
+import type { ExportPrefs, Settings } from '../model/settings'
 import type { Id, Play } from '../model/types'
 import { TEXT } from '../ui/strings'
 import {
@@ -67,6 +68,13 @@ function getKv(): KeyValueStore {
 
 export function currentStore(): LibraryStore | null {
   return store
+}
+
+/** Where the exports go: exports/ of the chosen folder, else a download (SPEC 9.1). */
+export function currentExportTarget(): ExportTarget {
+  return store instanceof FolderStore
+    ? { kind: 'folder', root: store.rootHandle }
+    : { kind: 'download' }
 }
 
 function reportError(error: unknown): void {
@@ -145,7 +153,7 @@ async function activateStore(next: LibraryStore): Promise<void> {
   sync.start()
   const settings = await next.getSettings()
   useSettingsStore.setState({ settings: settings.settings, writable: settings.ok })
-  if (!settings.ok) notify(TEXT.invalidSettings, 'error')
+  if (!settings.ok) notify(settings.future ? TEXT.futureSettings : TEXT.invalidSettings, 'error')
   await refreshLibrary()
   scheduleCacheSave()
 }
@@ -427,4 +435,12 @@ export async function updateSettings(settings: Settings): Promise<void> {
   if (!store || !useSettingsStore.getState().writable) return
   useSettingsStore.setState({ settings })
   await store.putSettings(settings)
+}
+
+/** Export preferences of reglages.json (D-068), written only when they change. */
+export async function updateExportPrefs(patch: Partial<ExportPrefs>): Promise<void> {
+  const current = useSettingsStore.getState().settings
+  const next: Settings = { ...current, export: { ...current.export, ...patch } }
+  if (JSON.stringify(next.export) === JSON.stringify(current.export)) return
+  await updateSettings(next).catch(reportError)
 }

@@ -8,6 +8,7 @@ import { renderSchematic } from '../../render/renderSchematic'
 import { THEMES } from '../../render/themes'
 import { createViewport, frameForView } from '../../render/viewport'
 import { useEditorStore } from '../../state/editorStore'
+import { openExportDialog } from '../../state/exportSession'
 import { pushDialog, useLibraryState, visibleSummaries } from '../../state/libraryState'
 import { setLibraryCollapsed, usePanelsStore } from '../../state/panelsStore'
 import {
@@ -161,6 +162,15 @@ export function LibraryPanel() {
         </button>
         <button type="button" onClick={() => void exportLibrary()}>
           Exporter tout
+        </button>
+        <button
+          type="button"
+          disabled={state.summaries.length === 0}
+          onClick={() => {
+            openExportDialog('book')
+          }}
+        >
+          Cahier de jeu
         </button>
         <input
           ref={fileInput}
