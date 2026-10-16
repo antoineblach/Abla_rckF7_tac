@@ -70,9 +70,27 @@ export function issueMessage(issue: Issue): string {
     case 'passerWithoutBall':
       return 'La passeuse n’a pas le ballon au moment du lâcher.'
     case 'simultaneousPass':
-      return 'Deux passes du même ballon au même instant : seule la première est jouée.'
+      return 'Deux passes ou jeux au pied au même instant : seul le premier est joué.'
     case 'unsupportedAction':
       return 'Action d’un lot ultérieur, ignorée.'
+    case 'actorNotPlayer':
+      return 'Un jeu au pied ou un regroupement ne concerne que des joueuses.'
+    case 'kickSelfTarget':
+      return 'La frappeuse ne peut pas être sa propre receveuse.'
+    case 'breakdownDuplicate':
+      return 'Plaquée, soutien et relayeur doivent être trois joueuses différentes.'
+    case 'breakdownTeam':
+      return 'Le soutien et le relayeur sont des coéquipières de la plaquée.'
+    case 'kickerWithoutBall':
+      return 'La frappeuse n’a pas le ballon au moment de la frappe : jeu au pied ignoré.'
+    case 'tackledWithoutBall':
+      return 'La plaquée n’a pas le ballon à la formation : regroupement ignoré.'
+    case 'runCutByBreakdown':
+      return 'Course arrêtée par le regroupement : la suite se dessine dans le temps suivant.'
+    case 'relayerLate':
+      return 'Relayeur trop loin : il n’arrive au ballon qu’à la sortie, en accélérant.'
+    case 'forwardPass':
+      return 'En-avant probable : la passe part vers l’avant depuis les mains.'
   }
 }
 

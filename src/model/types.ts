@@ -1,11 +1,9 @@
-// Data model, schemaVersion 1 (SPEC 4.1). Units: metres, seconds.
+// Data model, schemaVersion 2 (SPEC 4.1, lot 3: kicks and breakdowns). Units: metres, seconds.
 import type {
   AnnotationEntity,
-  BreakdownAction,
   DefenseSettings,
   EquipmentEntity,
   GroupRunAction,
-  KickAction,
   ZoneEntity,
 } from './declared'
 
@@ -88,12 +86,51 @@ export interface PassAction {
   ballSpeed?: number
 }
 
-export type Action =
-  | RunAction
-  | PassAction
-  | KickAction // lot 3
-  | BreakdownAction // lot 3
-  | GroupRunAction // lot 5
+export type KickKind = 'restart' | 'long'
+
+export const KICK_KINDS: readonly KickKind[] = ['restart', 'long']
+
+export type KickTarget = { receiverId: Id } | { point: Vec2 }
+
+/** Kick (SPEC 10.4): restart, or long kick / switch. */
+export interface KickAction {
+  id: Id
+  type: 'kick'
+  kickerId: Id
+  kind: KickKind
+  target: KickTarget
+  delay: number
+  /** Default: KICK_FLIGHT_TIME of its kind. */
+  flightTime?: number
+}
+
+export type BreakdownKind = 'ruck' | 'maul'
+
+export const BREAKDOWN_KINDS: readonly BreakdownKind[] = ['ruck', 'maul']
+
+export type BreakdownContest = 'guard' | 'jackal'
+
+/** Ruck or maul (SPEC 10.3). Only `contest` records the defence roles (D-078). */
+export interface BreakdownAction {
+  id: Id
+  type: 'breakdown'
+  kind: BreakdownKind
+  /** The carrier who is tackled. */
+  tackledId: Id
+  supportId: Id
+  relayerId: Id
+  /** Formation instant in the phase. */
+  delay: number
+  duration: number
+  /** Override of the defence setting (lot 4); absent: the setting applies. */
+  contest?: BreakdownContest
+}
+
+export function isReceiverTarget(target: KickTarget): target is { receiverId: Id } {
+  return 'receiverId' in target
+}
+
+export type Action = RunAction | PassAction | KickAction | BreakdownAction | GroupRunAction // lot 5
 
 export interface Phase {
   id: Id
@@ -116,7 +153,7 @@ export interface PlaySetup {
 }
 
 export interface Play {
-  schemaVersion: 1
+  schemaVersion: 2
   id: Id
   createdAt: string
   updatedAt: string

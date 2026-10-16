@@ -1,0 +1,58 @@
+{
+  "ball": {
+    "carrierNumber": 2,
+    "carrierRole": "attack",
+    "forward": -0.5,
+    "openSide": -1
+  },
+  "createdAt": "2026-10-14T12:00:00.000Z",
+  "id": "00000000-0000-4000-8000-000000001f40",
+  "name": "Touche à 4",
+  "positions": [
+    {
+      "forward": -0.5,
+      "number": 2,
+      "openSide": -1,
+      "role": "attack"
+    },
+    {
+      "forward": -0.5,
+      "number": 1,
+      "openSide": 6,
+      "role": "attack"
+    },
+    {
+      "forward": -0.5,
+      "number": 3,
+      "openSide": 8,
+      "role": "attack"
+    },
+    {
+      "forward": -4,
+      "number": 4,
+      "openSide": 10,
+      "role": "attack"
+    },
+    {
+      "forward": 0.5,
+      "number": 1,
+      "openSide": 6,
+      "role": "defense"
+    },
+    {
+      "forward": 0.5,
+      "number": 3,
+      "openSide": 8,
+      "role": "defense"
+    },
+    {
+      "forward": 2,
+      "number": 2,
+      "openSide": 2,
+      "role": "defense"
+    }
+  ],
+  "schemaVersion": 1,
+  "type": "lineout",
+  "updatedAt": "2026-10-14T12:00:00.000Z"
+}

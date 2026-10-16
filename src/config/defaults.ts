@@ -55,6 +55,53 @@ export const PASS_FIXED_POINT_ITERATIONS = 5
 /** Minimum arc-length samples per spline segment (SPEC 5.3). */
 export const ARC_LENGTH_SAMPLES_PER_SEGMENT = 64
 
+// ---------------------------------------------------------------------------
+// Set pieces (lot 3, SPEC 5.7, 10).
+
+/**
+ * HYPOTHÈSE: forward component, in m/s, of the ball speed relative to the passer above which a
+ * pass is flagged « en avant probable » (SPEC 5.7, 14).
+ */
+export const FORWARD_PASS_THRESHOLD = 0.5
+
+/** Default duration of a ruck or a maul, in seconds. Established, given by the user (SPEC 10.3). */
+export const BREAKDOWN_DURATION_DEFAULT = 3
+
+/** HYPOTHÈSE: relay position, in metres behind the ball on the side of its team (SPEC 10.3). */
+export const RELAY_OFFSET = 1
+
+/** HYPOTHÈSE: default kick flight times in seconds (SPEC 10.4): restart 3.0, long 3.5. */
+export const KICK_FLIGHT_TIME = {
+  restart: 3,
+  long: 3.5,
+} as const
+
+/** HYPOTHÈSE: size factor of the ball at the apex of a kick (SPEC 10.4). */
+export const KICK_APEX_SCALE = 1.8
+
+/** HYPOTHÈSE: distance in metres under which a player picks up a loose ball (SPEC 10.4). */
+export const LOOSE_BALL_PICKUP_DISTANCE = 1
+
+/**
+ * Search of the pickup of a loose ball (D-094): fixed time step in seconds, then bisection.
+ * HYPOTHÈSE: 1/100 s; at 7 m/s a player moves 7 cm per step, far less than the 2 m diameter of
+ * the pickup disc.
+ */
+export const PICKUP_SEARCH = {
+  step: 0.01,
+  bisections: 20,
+} as const
+
+/** Anchors of placement presets (SPEC 10.1, D-088). */
+export const PRESET_ANCHOR = {
+  // SOURCE: https://passport.world.rugby/laws-of-the-game/laws-by-number/18-touch-quick-throw-and-lineout/
+  // (the mark of touch is not less than 5 m from the goal line)
+  lineoutMinFromGoal: 5,
+  // HYPOTHÈSE: distance under which a restart anchor snaps to the centre of the halfway line or
+  // to a 22 m line (D-088).
+  restartCapture: 3,
+} as const
+
 /** HYPOTHÈSE: recommended maximum length of an instruction, GIF legibility on a phone (SPEC 6.4). */
 export const INSTRUCTION_RECOMMENDED_LENGTH = 60
 

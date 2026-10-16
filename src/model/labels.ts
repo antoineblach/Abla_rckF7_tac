@@ -1,6 +1,7 @@
 // French labels of the model, shared by the interface and the exports (SPEC 4.1, 6.4, 9).
 import { branchPoints, findPhase, phaseLabelParts, type PhaseLabelParts } from './phaseTree'
-import type { Id, Play, PlayCategory } from './types'
+import type { PresetType } from './preset'
+import type { BreakdownContest, BreakdownKind, Id, KickKind, Play, PlayCategory } from './types'
 
 export const CATEGORY_LABELS: Record<PlayCategory, string> = {
   scrum: 'Mêlée',
@@ -8,6 +9,32 @@ export const CATEGORY_LABELS: Record<PlayCategory, string> = {
   restart: "Coup d'envoi / renvoi",
   phasePlay: 'Ruck / jeu courant',
   drill: 'Exercice',
+}
+
+/** Types of placement presets (SPEC 10.1). */
+export const PRESET_TYPE_LABELS: Record<PresetType, string> = {
+  scrum: 'Mêlée',
+  lineout: 'Touche',
+  restart: "Coup d'envoi / renvoi",
+  ruck: 'Ruck',
+  free: 'Libre',
+}
+
+export const KICK_KIND_LABELS: Record<KickKind, string> = {
+  restart: "Coup d'envoi / renvoi",
+  long: 'Long / recentrage',
+}
+
+export const BREAKDOWN_KIND_LABELS: Record<BreakdownKind, string> = {
+  ruck: 'Ruck',
+  maul: 'Maul',
+}
+
+/** Defence at the breakdown (D-078); absent: the defence setting of lot 4 applies. */
+export const CONTEST_LABELS: Record<BreakdownContest | 'default', string> = {
+  default: 'Par défaut',
+  guard: 'Garde',
+  jackal: 'Gratteur',
 }
 
 /** « Temps n », « Temps n, option B », or the label typed by the user (SPEC 6.4). */

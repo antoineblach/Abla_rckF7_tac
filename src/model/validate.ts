@@ -2,7 +2,7 @@
 import { FIELD_LIMITS, INSTRUCTION_RECOMMENDED_LENGTH } from '../config/defaults'
 import type { Issue } from './issues'
 import { childrenOf, findPhase } from './phaseTree'
-import { isPlayer, type Entity, type Id, type Play } from './types'
+import { isPlayer, isReceiverTarget, type Entity, type Id, type Play } from './types'
 
 export function validatePlay(play: Play): Issue[] {
   return [
@@ -156,7 +156,37 @@ function checkActions(play: Play): Issue[] {
   for (const phase of play.phases) {
     for (const action of phase.actions) {
       const target = { kind: 'action', id: action.id, phaseId: phase.id } as const
-      if (action.type === 'run') {
+      // Every actor of a kick or a breakdown is an existing player (lot 3).
+      const actors = (ids: Id[]): void => {
+        for (const id of ids) {
+          const entity = byId.get(id)
+          if (!entity) {
+            issues.push({ code: 'missingEntity', severity: 'error', target, params: { id } })
+          } else if (!isPlayer(entity)) {
+            issues.push({ code: 'actorNotPlayer', severity: 'error', target, params: { id } })
+          }
+        }
+      }
+      if (action.type === 'kick') {
+        const receiverId = isReceiverTarget(action.target) ? action.target.receiverId : null
+        actors(receiverId === null ? [action.kickerId] : [action.kickerId, receiverId])
+        if (receiverId === action.kickerId) {
+          issues.push({ code: 'kickSelfTarget', severity: 'error', target })
+        }
+      } else if (action.type === 'breakdown') {
+        const ids = [action.tackledId, action.supportId, action.relayerId]
+        actors(ids)
+        if (new Set(ids).size < ids.length) {
+          issues.push({ code: 'breakdownDuplicate', severity: 'error', target })
+        }
+        const tackled = byId.get(action.tackledId)
+        for (const id of [action.supportId, action.relayerId]) {
+          const teammate = byId.get(id)
+          if (isPlayer(tackled) && isPlayer(teammate) && teammate.team !== tackled.team) {
+            issues.push({ code: 'breakdownTeam', severity: 'error', target, params: { id } })
+          }
+        }
+      } else if (action.type === 'run') {
         const entity = byId.get(action.entityId)
         if (!entity) {
           issues.push({

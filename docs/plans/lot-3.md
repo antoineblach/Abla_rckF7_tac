@@ -318,7 +318,7 @@ Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la 
 - [x] **Étape 0 : branche et plan.** (commit « Étape 0 : plan du lot 3 », après `855a804`)
   - Branche `lot-3` ; `docs/plans/lot-3.md` avec tes réponses.
   - ETAT.md réécrit (écart corrigé) ; décisions D-078 et suivantes.
-- [ ] **Étape 1 : modèle.**
+- [x] **Étape 1 : modèle.** (commit « Étape 1 : modèle v2 et modèles de placement », après `ef574cf`)
   - Schéma v2, schéma v1 figé, migration, fixtures, `PlacementPreset`, validation, libellés, valeurs de `defaults.ts`.
   - Tests : migration, schéma, aller-retour du modèle, validation.
 - [ ] **Étape 2 : moteur.**

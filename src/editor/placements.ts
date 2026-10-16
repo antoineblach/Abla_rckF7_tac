@@ -33,7 +33,7 @@ export function createNewPlay(placement: StartingPlacement, ids: IdFactory, now:
   entities.push({ id: ids(), kind: 'ball' })
   const stamp = now.toISOString()
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: ids(),
     createdAt: stamp,
     updatedAt: stamp,
