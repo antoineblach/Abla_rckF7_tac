@@ -1,31 +1,37 @@
 # État du projet
 
-- Mise à jour : 2026-10-15
-- Branche : `lot-2` (depuis `main` à `9a2c379`), poussée ; PR #3 `lot-2` vers `main` ouverte, CI verte sur `f4d2950` (push et PR)
-- Dernier commit : « État : PR #3 et CI verte » (après `f4d2950` ; clôture du lot 2 : `abe4424`)
-- `main` : lot 1 et sa correction fusionnés (PR #1 `d37f3f6`, PR #2 `9a2c379`), déployés sur Pages ; protection vérifiée par `gh api` (D-055)
-- Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter (`c6fa414`).
+- Mise à jour : 2026-10-16
+- Branche : `lot-3` (depuis `main` à `855a804`), pas encore poussée
+- Dernier commit : « Étape 0 : plan du lot 3 »
+- `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
+- Écart constaté au démarrage du lot 3 : `ETAT.md` indiquait la PR #3 ouverte ; elle est fusionnée (16/10). Corrigé ici.
 
 ## En cours
 
-- Lot 2 (exports GIF et PDF) terminé : étapes 0 à 7 cochées dans `docs/plans/lot-2.md` ; décisions D-057 à D-077.
-- En attente de l'utilisateur : fusion de la PR #3 ; les 3 vérifications manuelles du lot 2 (`docs/RECETTE.md`, section « Lot 2 ») et la séance d'usage libre.
+- Lot 3 (mise en place) : plan validé (`docs/plans/lot-3.md`), réponses Q1 à Q19, décisions D-078 à D-094.
+- Consigne de l'utilisateur : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
+- Prochaine action : étape 1 (modèle : schéma v2, migration, fixtures, `PlacementPreset`, validation).
 
 ## Fait
 
-- Lot 1 : étapes 0 à 7 (`docs/plans/lot-1.md`), PR #1 fusionnée ; correction après recette (`docs/plans/lot-1-corrections.md`), PR #2 fusionnée.
-- Lot 2 : plan et prototypes (`1a41e1f`, `50ee9e7`) ; réglages v2, noms, lisibilité (`c6fa414`) ; thèmes d'impression, habillage, ballon en Bézier (`0fe6ebc`) ; GIF (`38e7ba6`) ; PDF vectoriel et cahier (`d74dd14`) ; io des exports et Worker (`56abc6f`) ; interface des exports et bout en bout (`262f378`) ; clôture : SPEC 1.3 (3.1, 3.2, 3.3, 4.4, 8.2, 8.5, 9, 13.2, 14, 16), ARCHITECTURE, RECETTE, README.
-- Recette automatisable complète en local : lint, typecheck, 289 tests unitaires, 23 tests de bout en bout (Chromium et Firefox, vrai Worker), build, format.
+- Lot 1 : PR #1 et correction après recette PR #2, fusionnées.
+- Lot 2 : PR #3 fusionnée (exports GIF et PDF ; D-057 à D-077).
+- Lot 3 : étape 0 (branche, plan, décisions).
 
 ## Reste à faire
 
-- Lot 2 : fusion de la PR #3 par l'utilisateur ; vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre.
-- Lot 1, toujours en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel (« Garder les deux »), séance d'usage libre.
-- Lot 3 (mise en place) : pas commencé ; commencer en mode plan.
+- Lot 3 : étapes 1 à 8 du plan.
+- Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
+- Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
 
 ## Questions ouvertes
 
 - Aucune.
+
+## Points à reporter en fin de lot 3
+
+- SPEC 10.5 et `RECETTE.md` (section Lot 3, « alerte visible dans les exports ») à corriger selon D-086 : jamais d'icône d'en-avant dans les exports.
+- README : recharger la page sur les deux PC après le déploiement (fichiers v2 vus comme « version plus récente » par une page ancienne).
 
 ## Écarts connus
 
@@ -33,7 +39,7 @@
 - Fixture figée `src/test/fixtures/play-v1-7v7-options.json` : ne plus la modifier (migration v1 vers v2 du lot 3).
 - Le seuil « traits >= 3 px » du thème Contraste fort est testé sur `render`, pas sur la surcouche d'édition (jamais exportée).
 - À 1280 px de large, la seconde rangée du transport défile horizontalement ; sous 1500 px, le titre de l'application est masqué (D-077).
-- En portrait, une combinaison large laisse du terrain vide au-dessus et au-dessous dans les GIF (échelle fixée par la largeur, attaque vers le haut, D-061).
+- En portrait, une combinaison large laisse du terrain vide au-dessus et au-dessous dans les GIF (D-061).
 - Le même GIF diffère entre Chromium et Firefox (rendu du texte) : le déterminisme vaut pour un même navigateur.
 
 ## Pièges rencontrés

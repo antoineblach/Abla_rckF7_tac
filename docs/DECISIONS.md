@@ -489,6 +489,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 4.4 range les préférences d'export dans `reglages.json`, synchronisé entre les deux PC.
 - Alternatives écartées : préférences d'export par poste dans localStorage.
 - Origine : réponse de l'utilisateur (Q16).
+- Exception (lot 3) : le calque « En-avant » du lecteur n'est jamais repris dans les exports, ni GIF ni PDF (D-086).
 
 ### D-069 : optimisation des GIF désactivable
 - Date : 2026-10-15
@@ -552,3 +553,126 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 9.1 à 9.3, D-064, D-065, D-067, D-068 ; l'interface ne gèle jamais (tâches longues de la page mesurées sous 200 ms pendant un export).
 - Alternatives écartées : export de la version enregistrée seulement ; notification éphémère pour le résultat (la taille doit rester lisible).
 - Origine : choix technique (étape 6).
+
+## Lot 3 : mise en place
+
+Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du plan du lot 3 (`docs/plans/lot-3.md`, section 12), données le 16 octobre 2026.
+
+### D-078 : rôles de défense d'un regroupement
+- Date : 2026-10-16
+- Décision : un regroupement n'enregistre que `contest` (absent = « Par défaut », réglage de défense du lot 4 ; « Garde » ; « Gratteur »). Le plaqueur et la joueuse au ras restent désignés par la simulation du lot 4 (SPEC 11.4).
+- Raison : le type `BreakdownAction` de SPEC 10.3 ne stocke que `contest` ; le prompt demande seulement d'enregistrer ces rôles, sans simulation.
+- Alternatives écartées : `tacklerId` et joueuse au ras choisis à la main.
+- Origine : réponse de l'utilisateur (Q1).
+
+### D-079 : participantes d'un regroupement
+- Date : 2026-10-16
+- Décision : la plaquée et le soutien s'immobilisent là où leurs courses les ont amenées à la formation (aucune position de soutien inventée). Le relayeur rejoint en ligne droite, au sprint des réglages, le point situé 1 m derrière le ballon du côté de l'équipe de la plaquée, puis attend ; trop loin pour arriver avant la sortie de balle, il arrive exactement à la sortie (vitesse augmentée), avec une alerte. Les courses des trois participantes s'arrêtent à la formation ; la partie ultérieure est ignorée, dessinée en rouge et signalée ; leur jeu après la sortie se dessine dans le temps suivant, une passe ou un jeu au pied du relayeur après la sortie restant possible dans le même temps. Un regroupement dont la plaquée n'a pas le ballon à la formation est entièrement ignoré et signalé, comme une passe (D-013), sans recalage de la ligne d'avantage.
+- Raison : SPEC 10.3 ne déplace que le relayeur et ne dit rien des courses en conflit ni du regroupement sans ballon.
+- Alternatives écartées : soutien amené par le moteur contre la plaquée ; relayeur à vitesse constante sur toute la durée.
+- Origine : réponse de l'utilisateur (Q2, Q3, Q4).
+
+### D-080 : maul
+- Date : 2026-10-16
+- Décision : au lot 3, un maul se comporte comme un ruck et reste immobile ; seul `kind` change (lignes de hors-jeu du lot 4).
+- Raison : SPEC 10.3 (« même composition ») et la recette (« même comportement ») ne prévoient aucune avancée.
+- Alternatives écartées : maul qui avance.
+- Origine : réponse de l'utilisateur (Q5).
+
+### D-081 : pose d'un regroupement
+- Date : 2026-10-16
+- Décision : outil « Regroupement » ; clic sur une joueuse qui a le ballon dans le temps affiché ; instant de formation par défaut : fin de sa course dans le temps, ou l'instant où elle reçoit le ballon s'il est plus tard ; soutien = la coéquipière la plus proche à cet instant, relayeur = la deuxième ; ruck par défaut ; refus avec message si elle n'a pas le ballon dans ce temps ou a moins de deux coéquipières.
+- Raison : SPEC 10.3 dit « les deux coéquipières les plus proches » sans dire laquelle est le soutien ni à quel instant.
+- Alternatives écartées : aucune proposée.
+- Origine : réponse de l'utilisateur (Q6).
+
+### D-082 : ligne d'avantage en mode schéma
+- Date : 2026-10-16
+- Décision : le mode schéma (éditeur, vignettes, PDF) montre la ligne d'avantage en vigueur au début du temps affiché, recalée par les regroupements formés avant ce début ou à cet instant. En lecture, elle est recalée à chaque formation (SPEC 5.6).
+- Raison : la ligne d'avantage devient variable dans le temps ; le mode schéma montre un temps à l'arrêt.
+- Alternatives écartées : aucune proposée.
+- Origine : réponse de l'utilisateur (Q7).
+
+### D-083 : ballon au sol et ramassage
+- Date : 2026-10-16
+- Décision : le ballon au sol est ramassé par la première joueuse de l'une ou l'autre équipe qui passe à moins de 1 m, qui devient porteuse (même adverse) ; il reste immobile au point d'impact ; la recherche part de l'impact et continue dans les temps suivants ; sinon il reste au sol. Le ballon au sol au départ (D-007) devient éditable et suit la même règle à partir de t = 0. Un jeu au pied vers une adversaire ne donne aucune alerte.
+- Raison : SPEC 10.4 ne précise ni l'équipe de la joueuse qui ramasse ni la durée de la recherche ; D-007 renvoyait le ballon au sol au lot 3.
+- Alternatives écartées : ramassage limité à l'équipe qui attaque.
+- Origine : réponse de l'utilisateur (Q8).
+
+### D-084 : conventions graphiques du lot 3
+- Date : 2026-10-16
+- Décision : jeu au pied : vol rectiligne vu de dessus en tirets longs ; le ballon reste sur la trajectoire et grossit selon une parabole jusqu'à 1,8 au milieu du vol ; ombre au sol en ellipse grise pleine, décalée vers le bas à droite de l'image proportionnellement à la hauteur (confondue avec le ballon au départ et à l'arrivée) ; petit cercle sur un point visé. Regroupement : contour circulaire de 2 rayons de jeton autour du point, libellé « Ruck » ou « Maul », pendant toute sa durée en lecture, et au point de formation en mode schéma. En-avant : pastille ronde jaune à « ! » noir au milieu de la passe, noire à « ! » blanc en N&B.
+- Raison : SPEC 10.4 et 10.5 décrivent ces éléments sans en fixer le dessin ; aplats seulement (3.3).
+- Alternatives écartées : ombre sous le ballon (invisible) ; ballon décalé de la trajectoire.
+- Origine : réponse de l'utilisateur (Q9).
+
+### D-085 : calque « En-avant »
+- Date : 2026-10-16
+- Décision : calque du lecteur, par poste, activé par défaut ; l'éditeur (mode schéma) montre toujours l'icône. Le sens d'attaque retenu est celui de l'équipe de la passeuse ; la vitesse de la passeuse est sa dérivée à gauche au lâcher (la vitesse qu'elle avait en lâchant), lue sur le temps parent pour un lâcher au tout début d'un temps.
+- Raison : SPEC 5.7 et 10.5 ne précisent ni le sens d'attaque d'une défenseure qui passe ni la vitesse à retenir à un changement de course.
+- Alternatives écartées : dérivée centrée (moitié de la vitesse au dernier pas d'une course).
+- Origine : réponse de l'utilisateur (Q10, pour l'éditeur et le lecteur).
+
+### D-086 : aucune alerte d'en-avant dans les exports
+- Date : 2026-10-16
+- Décision : l'icône d'en-avant n'apparaît jamais dans les exports, ni GIF ni PDF, quel que soit le calque du lecteur. Exception à D-068 (le GIF reprend les calques du lecteur, sauf celui-ci). Les vignettes de la bibliothèque ne la montrent pas non plus. SPEC 10.5 et `RECETTE.md` (« visible dans les exports ») seront corrigées en fin de lot.
+- Raison : c'est une aide pour le coach, pas une information pour les joueuses.
+- Alternatives écartées : PDF qui suit le calque du lecteur (proposition) ; icône toujours présente dans le PDF ; case dans le dialogue PDF.
+- Origine : réponse de l'utilisateur (Q11).
+
+### D-087 : type du modèle et catégorie
+- Date : 2026-10-16
+- Décision : appliquer un modèle met la catégorie de la combinaison à : mêlée → mêlée, touche → touche, renvoi → coup d'envoi/renvoi, ruck → ruck/jeu courant ; un modèle libre la laisse inchangée. Aucun nouveau champ : le lot 4 lira la catégorie et les regroupements comme type de lancement.
+- Raison : SPEC 10.1 (« le type du modèle fixe le type de lancement de la combinaison ») sans champ prévu dans `Play`.
+- Alternatives écartées : catégorie inchangée au lot 3 ; champ dédié.
+- Origine : réponse de l'utilisateur (Q12).
+
+### D-088 : ancre et côté ouvert
+- Date : 2026-10-16
+- Décision : l'aimantation de l'ancre est toujours active, indépendamment du bouton « Grille 1 m » : grille de 1 m pour mêlée, ruck et libre ; renvoi : centre de la médiane ou l'une des deux lignes des 22 m (y sur la grille) captés à moins de 3 m (HYPOTHÈSE), sinon grille ; touche : ligne de touche la plus proche, x sur la grille, refus à moins de 5 m d'une ligne de but. Côté ouvert : par défaut le côté le plus large depuis l'ancre, au centre exact à droite de l'équipe qui attaque ; choix « Auto, Gauche, Droite » (vus par l'équipe qui attaque, face à la ligne de but adverse) à l'enregistrement comme à la pose ; touche : toujours vers l'intérieur, sans choix.
+- Raison : SPEC 10.1 ne fixe ni la distance de capture du renvoi ni le cas du centre exact.
+- Alternatives écartées : aimantation liée au bouton de grille.
+- Origine : réponse de l'utilisateur (Q13, Q14).
+
+### D-089 : enregistrer un modèle
+- Date : 2026-10-16
+- Décision : rôle selon l'équipe (l'équipe qui attaque = attaque) ; case « Inclure le ballon », cochée quand le placement entier est enregistré ou que la porteuse est sélectionnée ; numéros en double (D-016) : la k-ième position d'un numéro va à la k-ième joueuse de ce numéro ; joueuses créées : couleur d'équipe, défense manuelle ; l'exclusion des défenseures auto (SPEC 10.1) relève du lot 4.
+- Raison : SPEC 10.1 ne précise ni le ballon d'une sélection ni les numéros en double.
+- Alternatives écartées : aucune proposée.
+- Origine : réponse de l'utilisateur (Q15).
+
+### D-090 : déplacer, retourner une combinaison
+- Date : 2026-10-16
+- Décision : « Déplacer » = translation par deux clics (départ, arrivée) ; « Retourner » = symétrie gauche-droite par rapport à l'axe du terrain (y devient largeur − y), sens d'attaque inchangé. Les deux s'appliquent aux placements de départ, au ballon au sol, aux points de passage, aux points visés au pied et au cadre libre de la vue enregistrée.
+- Raison : SPEC 10.2 ne précise ni l'axe de symétrie ni le geste.
+- Alternatives écartées : symétrie autour d'un point d'ancrage ; déplacement avec choix du côté ouvert.
+- Origine : réponse de l'utilisateur (Q16).
+
+### D-091 : nouvelle combinaison depuis un modèle
+- Date : 2026-10-16
+- Décision : le dialogue « Nouvelle combinaison » liste aussi les modèles ; en choisir un crée une combinaison sans joueuses, avec un ballon si le modèle en a un, puis lance la pose (ancre, côté ouvert).
+- Raison : SPEC 6.6 (« s'y ajoutent les modèles de placement enregistrés ») sans geste précisé.
+- Alternatives écartées : pose à une ancre par défaut.
+- Origine : réponse de l'utilisateur (Q17).
+
+### D-092 : modèles et synchronisation
+- Date : 2026-10-16
+- Décision : les modèles suivent le traitement des combinaisons (relecture, fichier invalide ou futur jamais modifié, copies de conflit, corbeille, renommage) ; une action sur un modèle modifié sur l'autre PC depuis sa lecture est refusée avec un message et la liste est relue ; en mode navigateur, modèles dans IndexedDB, copiés dans le dossier au premier choix ; pas d'import ni d'export de modèles.
+- Raison : SPEC 8.1 (« les modèles de placement passent par la même couche ») ; un modèle ne s'édite pas en continu.
+- Alternatives écartées : aucune proposée.
+- Origine : réponse de l'utilisateur (Q18).
+
+### D-093 : raccourcis des nouveaux outils
+- Date : 2026-10-16
+- Décision : J pour l'outil « Jeu au pied », G pour l'outil « Regroupement », en plus des boutons.
+- Raison : choix de l'utilisateur.
+- Alternatives écartées : boutons seulement (proposition).
+- Origine : réponse de l'utilisateur (Q19).
+
+### D-094 : schéma v2, modèle v1 et moteur du lot 3
+- Date : 2026-10-16
+- Décision : combinaisons en `schemaVersion 2` (jeu au pied et regroupement acceptés ; lot 5 et `defenseSettings` toujours rejetés), migration v1 vers v2 sans changement de contenu, fichier v1 réécrit en v2 seulement au prochain enregistrement ; schéma v1 figé dans `model/schemaV1.ts` ; fixtures `play-v1-7v7-options.json` (migration) et `play-v2-lot3.json` (figée pour les lots 4 et 5) ; modèle de placement en v1 (`modeles/<nom-court>--<id>.preset.json`) ; `reglages.json` reste en v2. Moteur : courses arrêtées (`until`) et déplacement du relayeur en segment droit ; boucle d'événements du ballon dans l'ordre chronologique (passes, jeux au pied, formations ; arrivées, sorties de balle et ramassages résolus entre deux événements) ; ramassage cherché à pas fixe de 1/100 s puis par bissection ; segments du ballon par temps ; ligne d'avantage en liste de changements.
+- Raison : règle 6 de `CLAUDE.md` ; D-004 ; un regroupement valide exige que la plaquée tienne le ballon, donc aucun vol en cours : l'ordre chronologique suffit, sans itération, et le moteur reste pur.
+- Alternatives écartées : réécrire les fichiers v1 dès la lecture ; résolution itérative.
+- Origine : plan du lot 3 (sections 1 et 2), validé par l'utilisateur.
