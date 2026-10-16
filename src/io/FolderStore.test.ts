@@ -25,9 +25,9 @@ beforeEach(() => {
 })
 
 describe('folder structure (SPEC 8.2)', () => {
-  it('creates combinaisons/, exports/, _corbeille/ and reglages.json on first use, and nothing else', async () => {
+  it('creates combinaisons/, modeles/, exports/, _corbeille/ and reglages.json on first use, and nothing else', async () => {
     await open()
-    expect(fs.list()).toEqual(['_corbeille', 'combinaisons', 'exports', 'reglages.json'])
+    expect(fs.list()).toEqual(['_corbeille', 'combinaisons', 'exports', 'modeles', 'reglages.json'])
     expect(JSON.parse(fs.read('reglages.json') ?? '')).toEqual(defaultSettings())
   })
 
@@ -228,7 +228,13 @@ describe('external changes (SPEC 8.3)', () => {
     )
     const changes = await store.changesSince(stamp)
     expect(changes).toEqual([
-      { kind: 'modified', id: play.id, fileName: playFileName(play), stamp: stamp + 1 },
+      {
+        kind: 'modified',
+        collection: 'plays',
+        id: play.id,
+        fileName: playFileName(play),
+        stamp: stamp + 1,
+      },
     ])
     expect((await store.get(play.id)).notes).toBe('PC 2')
   })

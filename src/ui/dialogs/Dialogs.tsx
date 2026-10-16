@@ -11,6 +11,7 @@ import {
   resolveRemoved,
 } from '../../state/session'
 import { Modal } from '../common/Modal'
+import { TEXT } from '../strings'
 
 const date = (iso: string) => (iso ? new Date(iso).toLocaleString('fr-FR') : 'inconnue')
 
@@ -189,10 +190,7 @@ function DialogView({ dialog }: { dialog: LibraryDialog }) {
     case 'copyBrowserPlays':
       return (
         <Modal title="Combinaisons du navigateur">
-          <p>
-            {dialog.count} combinaison{dialog.count > 1 ? 's' : ''} enregistrée
-            {dialog.count > 1 ? 's' : ''} dans ce navigateur. Les copier dans le dossier choisi ?
-          </p>
+          <p>{TEXT.browserContent(dialog.count, dialog.presets)}</p>
           <div className="modal__actions">
             <button
               type="button"

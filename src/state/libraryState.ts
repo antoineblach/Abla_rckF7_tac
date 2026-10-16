@@ -21,7 +21,7 @@ export type LibraryDialog =
   | { kind: 'removedExternally' }
   | { kind: 'draft'; draft: Play }
   | { kind: 'import'; candidate: ImportCandidate; existingUpdatedAt: string }
-  | { kind: 'copyBrowserPlays'; count: number }
+  | { kind: 'copyBrowserPlays'; count: number; presets: number }
   | { kind: 'confirmDelete'; id: string; name: string }
   | { kind: 'confirmDeletePhase'; phaseId: string; label: string; descendants: number }
   | { kind: 'newPlay' }

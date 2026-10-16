@@ -330,7 +330,7 @@ Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la 
 - [x] **Étape 4 : rendu.** (commit « Étape 4 : rendu des regroupements, du jeu au pied et de l'en-avant », après `fb7298b`)
   - Thèmes, jeu au pied (tirets longs, ombre, grossissement), regroupement, icône d'en-avant, calque, surcouche.
   - Images de référence ; aplats ; 3 px ; gris en N&B.
-- [ ] **Étape 5 : io.**
+- [x] **Étape 5 : io.** (commit « Étape 5 : stockage des modèles de placement », après `9a5d846`)
   - Collection générique, `modeles/` dans `FolderStore` et `IdbStore`, cache, copie vers le dossier.
   - Tests contre `memoryFs` : ceux du lot 1 inchangés, plus ceux des modèles.
 - [ ] **Étape 6 : éditeur et interface, regroupement et jeu au pied.**

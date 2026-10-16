@@ -2,7 +2,7 @@
 
 - Mise à jour : 2026-10-16
 - Branche : `lot-3` (depuis `main` à `855a804`), pas encore poussée
-- Dernier commit : « Étape 4 : rendu des regroupements, du jeu au pied et de l'en-avant » (après `fb7298b`)
+- Dernier commit : « Étape 5 : stockage des modèles de placement » (après `9a5d846`)
 - `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 - Écart constaté au démarrage du lot 3 : `ETAT.md` indiquait la PR #3 ouverte ; elle est fusionnée (16/10). Corrigé ici.
 
@@ -10,7 +10,7 @@
 
 - Lot 3 (mise en place) : plan validé (`docs/plans/lot-3.md`), réponses Q1 à Q19, décisions D-078 à D-094.
 - Consigne de l'utilisateur : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
-- Prochaine action : étape 5 (io : collection générique, `modeles/` dans `FolderStore` et `IdbStore`).
+- Prochaine action : étape 6 (éditeur et interface : outils Jeu au pied (J) et Regroupement (G), propositions, ballon au sol, inspecteur, calque « En-avant », suppression étendue).
 
 ## Fait
 
@@ -22,9 +22,11 @@
 - Lot 3, étape 3 : `editor/presets.ts` (repère local, aimantation de l'ancre, enregistrer, appliquer, catégorie, vignette) et `editor/transform.ts` (déplacer, retourner), avec leurs tests.
 - Lot 3, étape 4 : clés de thème du lot 3 (4 thèmes), tirets longs, ombre et grossissement, anneau et libellé du regroupement, partie ignorée en rouge, pastille d'en-avant (calque `forwardPass` requis dans `Layers`, option de `drawSchematic` : éditeur oui, PDF et vignettes non ; GIF forcé à non) ; surcouche : fantômes et ancre ; 5 images de référence vérifiées à l'œil (`render/setPieces.test.ts`).
 
+- Lot 3, étape 5 : `io/collection.ts` (index générique extrait de `FolderStore`), `modeles/` créé avec la structure, méthodes `listPresets`, `getPreset`, `putPreset`, `removePreset`, `presetIssues`, `resolvePresetDuplicate`, `presetVersionOf` (dossier et IndexedDB), `Change.collection`, `ConflictError<T>`, cache de lecture préfixé `modeles/`, copie navigateur vers dossier avec les modèles ; tests `io/presets.test.ts`.
+
 ## Reste à faire
 
-- Lot 3 : étapes 5 à 8 du plan. Calque « En-avant » pas encore dans la barre de lecture ni `setLayer` (étape 6) ; la suppression d'une joueuse ne retire pas encore ses jeux au pied ni ses regroupements (étape 6).
+- Lot 3 : étapes 6 à 8 du plan. Calque « En-avant » pas encore dans la barre de lecture ni `setLayer` (étape 6) ; la suppression d'une joueuse ne retire pas encore ses jeux au pied ni ses regroupements (étape 6).
 - Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
 - Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
 

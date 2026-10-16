@@ -133,8 +133,20 @@ export const TEXT = {
   imported: (n: number) => (n > 1 ? `${n} combinaisons importées.` : 'Combinaison importée.'),
   importFailed: (n: number) =>
     `${n} élément${n > 1 ? 's' : ''} invalide${n > 1 ? 's' : ''} ignoré${n > 1 ? 's' : ''}.`,
-  copied: (n: number) =>
-    `${n} combinaison${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} dans le dossier.`,
+  browserContent: (plays: number, presets: number) => {
+    const p = (n: number) => (n > 1 ? 's' : '')
+    const what =
+      presets === 0
+        ? `${plays} combinaison${p(plays)} enregistrée${p(plays)}`
+        : plays === 0
+          ? `${presets} modèle${p(presets)} de placement enregistré${p(presets)}`
+          : `${plays} combinaison${p(plays)} et ${presets} modèle${p(presets)} de placement enregistrés`
+    return `${what} dans ce navigateur. Les copier dans le dossier choisi ?`
+  },
+  copied: (n: number, presets = 0) =>
+    presets === 0
+      ? `${n} combinaison${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} dans le dossier.`
+      : `${n} combinaison${n > 1 ? 's' : ''} et ${presets} modèle${presets > 1 ? 's' : ''} copiés dans le dossier.`,
   deleted: 'Combinaison déplacée dans la corbeille.',
 } as const
 

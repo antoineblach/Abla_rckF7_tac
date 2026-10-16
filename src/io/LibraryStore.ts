@@ -1,5 +1,7 @@
-// Library storage interface (SPEC 8.1), extended for lot 1 (DECISIONS Q20 / D-020).
+// Library storage interface (SPEC 8.1), extended for lot 1 (DECISIONS Q20 / D-020) and for the
+// placement presets of lot 3, which go through the same layer (SPEC 8.1, D-092).
 // Two implementations: FolderStore (main, Chrome) and IdbStore (degraded mode).
+import type { PlacementPreset } from '../model/preset'
 import { defaultSettings, type Settings, type SettingsReadResult } from '../model/settings'
 import type { Id, Play, PlayCategory } from '../model/types'
 import type { ReadError } from './readPlay'
@@ -25,9 +27,27 @@ export type LibraryIssue =
   | { kind: 'invalid'; fileName: string; error: ReadError }
   | { kind: 'duplicate'; id: Id; fileNames: string[] }
 
+/** Collection of a change: the plays of combinaisons/ or the presets of modeles/ (lot 3). */
+export type Collection = 'plays' | 'presets'
+
 export type Change =
-  | { kind: 'added' | 'modified' | 'removed'; id: Id; fileName: string | null; stamp: number }
-  | { kind: 'issues'; stamp: number }
+  | {
+      kind: 'added' | 'modified' | 'removed'
+      collection: Collection
+      id: Id
+      fileName: string | null
+      stamp: number
+    }
+  | { kind: 'issues'; collection: Collection; stamp: number }
+
+/** A stored placement preset with its file (SPEC 10.1). */
+export interface PresetEntry {
+  preset: PlacementPreset
+  /** File name in folder mode, null in the browser library. */
+  fileName: string | null
+  /** True while another file carries the same id (D-022, D-092). */
+  readOnly: boolean
+}
 
 export interface PutOptions {
   /**
@@ -63,13 +83,13 @@ export function settingsResult(read: SettingsReadResult): SettingsResult {
     : { ok: false, settings: defaultSettings(), message: read.message, future: read.future }
 }
 
-export class ConflictError extends Error {
+export class ConflictError<T = Play> extends Error {
   constructor(
     /** Version currently stored, null when it was removed. */
-    readonly current: Play | null,
+    readonly current: T | null,
     readonly currentVersion: VersionToken | null,
   ) {
-    super('The stored play changed since it was read')
+    super('The stored item changed since it was read')
     this.name = 'ConflictError'
   }
 }
@@ -104,4 +124,20 @@ export interface LibraryStore {
   versionOf(id: Id): VersionToken | null
   getSettings(): Promise<SettingsResult>
   putSettings(settings: Settings): Promise<void>
+  // Placement presets (lot 3, SPEC 10.1, D-092).
+  listPresets(): Promise<PresetEntry[]>
+  getPreset(id: Id): Promise<PlacementPreset>
+  /**
+   * Writes a preset (updatedAt set at save time); renaming writes the new file then moves the
+   * old one to the trash. With `expected`, refused by a ConflictError when it changed elsewhere.
+   */
+  putPreset(
+    preset: PlacementPreset,
+    options?: { expected?: VersionToken | null },
+  ): Promise<{ preset: PlacementPreset; version: VersionToken | null }>
+  /** Moves the preset to the trash; never deletes (SPEC 8.5). */
+  removePreset(id: Id): Promise<void>
+  presetIssues(): Promise<LibraryIssue[]>
+  resolvePresetDuplicate(id: Id, resolution: DuplicateResolution): Promise<void>
+  presetVersionOf(id: Id): VersionToken | null
 }

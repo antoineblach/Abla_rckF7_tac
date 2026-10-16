@@ -1,7 +1,9 @@
 // Browser library in IndexedDB: degraded mode (Firefox, or no folder chosen) (SPEC 8.6).
 // Same rules as the folder: removing moves to a trash, an invalid entry is never modified,
-// settings and trash live in IndexedDB too (DECISIONS Q21 / D-021).
+// settings and trash live in IndexedDB too (DECISIONS Q21 / D-021). Placement presets of lot 3
+// are kept the same way, under their own keys (D-092).
 import { contentHash } from '../model/canonical'
+import type { PlacementPreset } from '../model/preset'
 import { defaultSettings, readSettings, type Settings } from '../model/settings'
 import type { Id, Play } from '../model/types'
 import { kvKey, type KeyValueStore } from './kv'
@@ -9,40 +11,130 @@ import {
   ConflictError,
   NotFoundInLibraryError,
   type Change,
+  type Collection,
   type DuplicateResolution,
   type LibraryIssue,
   type LibraryStore,
   type PlaySummary,
+  type PresetEntry,
   type PutOptions,
   type PutResult,
   settingsResult,
   type SettingsResult,
   type VersionToken,
 } from './LibraryStore'
-import { readPlayText, type ReadPlayResult } from './readPlay'
+import type { ReadError } from './readPlay'
+import { readPlayText } from './readPlay'
+import { readPresetText } from './readPreset'
 import { parseJson, serialize } from './serialize'
 
 const PLAY_PREFIX = kvKey('play:')
+const PRESET_PREFIX = kvKey('preset:')
 const TRASH_PREFIX = kvKey('trash:')
 const SETTINGS_KEY = kvKey('settings')
 
-interface Entry {
-  key: string
-  text: string
-  result: ReadPlayResult
+interface Stored {
+  id: Id
+  updatedAt: string
 }
 
-const versionOfText = (play: Play, text: string): VersionToken => ({
-  lastModified: Date.parse(play.updatedAt) || 0,
+type EntryRead<T> = { ok: true; item: T } | { ok: false; error: ReadError }
+
+interface Entry<T> {
+  key: string
+  text: string
+  result: EntryRead<T>
+}
+
+type OkEntry<T> = Entry<T> & { result: { ok: true; item: T } }
+
+const versionOfText = (item: Stored, text: string): VersionToken => ({
+  lastModified: Date.parse(item.updatedAt) || 0,
   size: text.length,
 })
 
+const readPlay = (text: string): EntryRead<Play> => {
+  const result = readPlayText(text)
+  return result.ok ? { ok: true, item: result.play } : result
+}
+
+const readPreset = (text: string): EntryRead<PlacementPreset> => {
+  const result = readPresetText(text)
+  return result.ok ? { ok: true, item: result.preset } : result
+}
+
+/** Entries of one kind (plays or presets) under one key prefix. */
+class EntrySet<T extends Stored> {
+  entries = new Map<string, Entry<T>>()
+  lastIssuesKey = ''
+
+  constructor(
+    readonly prefix: string,
+    readonly collection: Collection,
+    readonly read: (text: string) => EntryRead<T>,
+  ) {}
+
+  ok(): OkEntry<T>[] {
+    return [...this.entries.values()]
+      .filter((e): e is OkEntry<T> => e.result.ok)
+      .sort((a, b) => a.key.localeCompare(b.key))
+  }
+
+  find(id: Id): OkEntry<T> | undefined {
+    return this.ok().find((e) => e.result.item.id === id)
+  }
+
+  issues(): LibraryIssue[] {
+    return [...this.entries.values()]
+      .filter((e) => !e.result.ok)
+      .map((e) => ({
+        kind: 'invalid' as const,
+        fileName: e.key.slice(this.prefix.length),
+        error: e.result.ok ? { code: 'notAnObject' as const } : e.result.error,
+      }))
+  }
+
+  /** Detects changes made by another tab of the same browser. */
+  async scan(
+    kv: KeyValueStore,
+    keys: readonly string[],
+  ): Promise<({ kind: 'added' | 'modified' | 'removed'; id: Id } | { kind: 'issues' })[]> {
+    const next = new Map<string, Entry<T>>()
+    for (const key of keys) {
+      if (!key.startsWith(this.prefix)) continue
+      const value = await kv.get(key)
+      const text = typeof value === 'string' ? value : JSON.stringify(value)
+      const old = this.entries.get(key)
+      next.set(key, old?.text === text ? old : { key, text, result: this.read(text) })
+    }
+    const found: ({ kind: 'added' | 'modified' | 'removed'; id: Id } | { kind: 'issues' })[] = []
+    for (const [key, entry] of next) {
+      const old = this.entries.get(key)
+      if (!entry.result.ok) continue
+      if (!old?.result.ok) found.push({ kind: 'added', id: entry.result.item.id })
+      else if (contentHash(old.result.item) !== contentHash(entry.result.item)) {
+        found.push({ kind: 'modified', id: entry.result.item.id })
+      }
+    }
+    for (const [key, old] of this.entries) {
+      if (!next.has(key) && old.result.ok) found.push({ kind: 'removed', id: old.result.item.id })
+    }
+    this.entries = next
+    const issuesKey = JSON.stringify(this.issues())
+    if (issuesKey !== this.lastIssuesKey) {
+      found.push({ kind: 'issues' })
+      this.lastIssuesKey = issuesKey
+    }
+    return found
+  }
+}
+
 export class IdbStore implements LibraryStore {
   readonly kind = 'browser'
-  private entries = new Map<string, Entry>()
+  private readonly plays = new EntrySet<Play>(PLAY_PREFIX, 'plays', readPlay)
+  private readonly presets = new EntrySet<PlacementPreset>(PRESET_PREFIX, 'presets', readPreset)
   private readonly log: Change[] = []
   private currentStamp = 0
-  private lastIssuesKey = ''
 
   private constructor(
     private readonly kv: KeyValueStore,
@@ -60,53 +152,21 @@ export class IdbStore implements LibraryStore {
     return this.currentStamp
   }
 
-  private okEntries(): (Entry & { result: { ok: true; play: Play } })[] {
-    return [...this.entries.values()]
-      .filter((e): e is Entry & { result: { ok: true; play: Play } } => e.result.ok)
-      .sort((a, b) => a.key.localeCompare(b.key))
-  }
-
-  private entryFor(id: Id) {
-    return this.okEntries().find((e) => e.result.play.id === id)
-  }
-
-  /** Detects changes made by another tab of the same browser. */
   private async scan(): Promise<void> {
-    const next = new Map<string, Entry>()
-    for (const key of await this.kv.keys()) {
-      if (!key.startsWith(PLAY_PREFIX)) continue
-      const value = await this.kv.get(key)
-      const text = typeof value === 'string' ? value : JSON.stringify(value)
-      const old = this.entries.get(key)
-      next.set(key, old?.text === text ? old : { key, text, result: readPlayText(text) })
-    }
-    const found: ({ kind: 'added' | 'modified' | 'removed'; id: Id } | { kind: 'issues' })[] = []
-    for (const [key, entry] of next) {
-      const old = this.entries.get(key)
-      if (!entry.result.ok) continue
-      if (!old?.result.ok) found.push({ kind: 'added', id: entry.result.play.id })
-      else if (contentHash(old.result.play) !== contentHash(entry.result.play)) {
-        found.push({ kind: 'modified', id: entry.result.play.id })
+    const keys = await this.kv.keys()
+    const found: Change[] = []
+    for (const set of [this.plays, this.presets] as const) {
+      for (const change of await set.scan(this.kv, keys)) {
+        found.push(
+          change.kind === 'issues'
+            ? { kind: 'issues', collection: set.collection, stamp: 0 }
+            : { ...change, collection: set.collection, fileName: null, stamp: 0 },
+        )
       }
-    }
-    for (const [key, old] of this.entries) {
-      if (!next.has(key) && old.result.ok) found.push({ kind: 'removed', id: old.result.play.id })
-    }
-    this.entries = next
-    const issuesKey = JSON.stringify(this.computeIssues())
-    if (issuesKey !== this.lastIssuesKey) {
-      found.push({ kind: 'issues' })
-      this.lastIssuesKey = issuesKey
     }
     if (found.length === 0) return
     this.currentStamp++
-    this.log.push(
-      ...found.map((change): Change =>
-        change.kind === 'issues'
-          ? { kind: 'issues', stamp: this.currentStamp }
-          : { ...change, fileName: null, stamp: this.currentStamp },
-      ),
-    )
+    this.log.push(...found.map((change) => ({ ...change, stamp: this.currentStamp })))
   }
 
   async changesSince(stamp: number): Promise<Change[]> {
@@ -116,11 +176,11 @@ export class IdbStore implements LibraryStore {
 
   list(): Promise<PlaySummary[]> {
     return Promise.resolve(
-      this.okEntries().map((e) => ({
-        id: e.result.play.id,
-        name: e.result.play.name,
-        category: e.result.play.category,
-        updatedAt: e.result.play.updatedAt,
+      this.plays.ok().map((e) => ({
+        id: e.result.item.id,
+        name: e.result.item.name,
+        category: e.result.item.category,
+        updatedAt: e.result.item.updatedAt,
         fileName: null,
         readOnly: false,
       })),
@@ -128,67 +188,112 @@ export class IdbStore implements LibraryStore {
   }
 
   get(id: Id): Promise<Play> {
-    const entry = this.entryFor(id)
+    const entry = this.plays.find(id)
     if (!entry) return Promise.reject(new NotFoundInLibraryError(id))
-    return Promise.resolve(structuredClone(entry.result.play))
+    return Promise.resolve(structuredClone(entry.result.item))
   }
 
   versionOf(id: Id): VersionToken | null {
-    const entry = this.entryFor(id)
-    return entry ? versionOfText(entry.result.play, entry.text) : null
-  }
-
-  private computeIssues(): LibraryIssue[] {
-    return [...this.entries.values()]
-      .filter((e) => !e.result.ok)
-      .map((e) => ({
-        kind: 'invalid' as const,
-        fileName: e.key.slice(PLAY_PREFIX.length),
-        error: e.result.ok ? { code: 'notAnObject' as const } : e.result.error,
-      }))
+    const entry = this.plays.find(id)
+    return entry ? versionOfText(entry.result.item, entry.text) : null
   }
 
   issues(): Promise<LibraryIssue[]> {
-    return Promise.resolve(this.computeIssues())
+    return Promise.resolve(this.plays.issues())
   }
 
-  private async moveToTrash(entry: Entry): Promise<void> {
-    const id = entry.key.slice(PLAY_PREFIX.length)
-    await this.kv.set(`${TRASH_PREFIX}${this.now().toISOString()}:${id}`, entry.text)
+  private async moveToTrash<T extends Stored>(set: EntrySet<T>, entry: Entry<T>): Promise<void> {
+    // Trash keys of plays are unchanged since lot 1; presets are marked as such.
+    const id = entry.key.slice(set.prefix.length)
+    const name = set.collection === 'plays' ? id : `preset:${id}`
+    await this.kv.set(`${TRASH_PREFIX}${this.now().toISOString()}:${name}`, entry.text)
     await this.kv.del(entry.key)
-    this.entries.delete(entry.key)
+    set.entries.delete(entry.key)
   }
 
-  async put(play: Play, options: PutOptions = {}): Promise<PutResult> {
-    const key = `${PLAY_PREFIX}${play.id}`
-    const current = this.entries.get(key)
-    if (current && !current.result.ok) throw new Error(`Invalid stored entry: ${play.id}`)
+  /** Writes an item with optimistic concurrency on its updatedAt (D-043). */
+  private async write<T extends Stored>(
+    set: EntrySet<T>,
+    item: T,
+    options: PutOptions,
+  ): Promise<{ item: T; text: string }> {
+    const key = `${set.prefix}${item.id}`
+    const current = set.entries.get(key)
+    if (current && !current.result.ok) throw new Error(`Invalid stored entry: ${item.id}`)
     if (options.expected !== undefined) {
-      if (!current && options.expected !== null) throw new ConflictError(null, null)
-      if (current?.result.ok && current.result.play.updatedAt !== play.updatedAt) {
-        throw new ConflictError(
-          current.result.play,
-          versionOfText(current.result.play, current.text),
+      if (!current && options.expected !== null) throw new ConflictError<T>(null, null)
+      if (current?.result.ok && current.result.item.updatedAt !== item.updatedAt) {
+        throw new ConflictError<T>(
+          current.result.item,
+          versionOfText(current.result.item, current.text),
         )
       }
     }
-    if (current && options.archivePrevious) await this.moveToTrash(current)
-    const saved: Play = { ...play, updatedAt: this.now().toISOString() }
+    if (current && options.archivePrevious) await this.moveToTrash(set, current)
+    const saved: T = { ...item, updatedAt: this.now().toISOString() }
     const text = serialize(saved)
     await this.kv.set(key, text)
-    this.entries.set(key, { key, text, result: readPlayText(text) })
-    return { play: saved, fileName: null, version: versionOfText(saved, text) }
+    set.entries.set(key, { key, text, result: set.read(text) })
+    return { item: saved, text }
+  }
+
+  async put(play: Play, options: PutOptions = {}): Promise<PutResult> {
+    const { item, text } = await this.write(this.plays, play, options)
+    return { play: item, fileName: null, version: versionOfText(item, text) }
   }
 
   async remove(id: Id): Promise<void> {
-    const entry = this.entryFor(id)
+    const entry = this.plays.find(id)
     if (!entry) throw new NotFoundInLibraryError(id)
-    await this.moveToTrash(entry)
+    await this.moveToTrash(this.plays, entry)
   }
 
   resolveDuplicate(_id: Id, _resolution: DuplicateResolution): Promise<void> {
-    // Keys are play ids: duplicates cannot exist in the browser library.
+    // Keys are ids: duplicates cannot exist in the browser library.
     return Promise.resolve()
+  }
+
+  // Placement presets (lot 3).
+
+  listPresets(): Promise<PresetEntry[]> {
+    return Promise.resolve(
+      this.presets
+        .ok()
+        .map((e) => ({ preset: structuredClone(e.result.item), fileName: null, readOnly: false })),
+    )
+  }
+
+  getPreset(id: Id): Promise<PlacementPreset> {
+    const entry = this.presets.find(id)
+    if (!entry) return Promise.reject(new NotFoundInLibraryError(id))
+    return Promise.resolve(structuredClone(entry.result.item))
+  }
+
+  async putPreset(
+    preset: PlacementPreset,
+    options: { expected?: VersionToken | null } = {},
+  ): Promise<{ preset: PlacementPreset; version: VersionToken | null }> {
+    const { item, text } = await this.write(this.presets, preset, options)
+    return { preset: item, version: versionOfText(item, text) }
+  }
+
+  async removePreset(id: Id): Promise<void> {
+    const entry = this.presets.find(id)
+    if (!entry) throw new NotFoundInLibraryError(id)
+    await this.moveToTrash(this.presets, entry)
+  }
+
+  presetIssues(): Promise<LibraryIssue[]> {
+    return Promise.resolve(this.presets.issues())
+  }
+
+  resolvePresetDuplicate(_id: Id, _resolution: DuplicateResolution): Promise<void> {
+    return Promise.resolve()
+  }
+
+  presetVersionOf(id: Id): VersionToken | null {
+    const entry = this.presets.find(id)
+    return entry ? versionOfText(entry.result.item, entry.text) : null
   }
 
   async getSettings(): Promise<SettingsResult> {
@@ -209,6 +314,12 @@ export class IdbStore implements LibraryStore {
   /** Every play, for the copy to a folder chosen later (DECISIONS Q21 / D-021). */
   async allPlays(): Promise<Play[]> {
     await this.scan()
-    return this.okEntries().map((e) => structuredClone(e.result.play))
+    return this.plays.ok().map((e) => structuredClone(e.result.item))
+  }
+
+  /** Every preset, copied with the plays to a folder chosen later (D-092). */
+  async allPresets(): Promise<PlacementPreset[]> {
+    await this.scan()
+    return this.presets.ok().map((e) => structuredClone(e.result.item))
   }
 }
