@@ -327,7 +327,7 @@ Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la 
 - [x] **Étape 3 : géométrie de mise en place.** (commit « Étape 3 : géométrie des modèles et de la combinaison entière », après `2d11239`)
   - Repère local, enregistrer et appliquer un modèle, association, aimantation de l'ancre, déplacer, retourner.
   - Tests obligatoires des modèles et des identités.
-- [ ] **Étape 4 : rendu.**
+- [x] **Étape 4 : rendu.** (commit « Étape 4 : rendu des regroupements, du jeu au pied et de l'en-avant », après `fb7298b`)
   - Thèmes, jeu au pied (tirets longs, ombre, grossissement), regroupement, icône d'en-avant, calque, surcouche.
   - Images de référence ; aplats ; 3 px ; gris en N&B.
 - [ ] **Étape 5 : io.**

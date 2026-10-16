@@ -140,7 +140,8 @@ export function FieldCanvas() {
       )
       render(ctx, state, viewport, theme, layers)
     } else if (schematic) {
-      drawSchematic(ctx, schematic, viewport, theme)
+      // The editor always shows the forward pass badge (D-085).
+      drawSchematic(ctx, schematic, viewport, theme, { forwardPass: true })
       renderOverlay(
         ctx,
         viewport,

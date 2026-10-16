@@ -2,7 +2,7 @@
 
 - Mise à jour : 2026-10-16
 - Branche : `lot-3` (depuis `main` à `855a804`), pas encore poussée
-- Dernier commit : « Étape 3 : géométrie des modèles et de la combinaison entière » (après `2d11239`)
+- Dernier commit : « Étape 4 : rendu des regroupements, du jeu au pied et de l'en-avant » (après `fb7298b`)
 - `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 - Écart constaté au démarrage du lot 3 : `ETAT.md` indiquait la PR #3 ouverte ; elle est fusionnée (16/10). Corrigé ici.
 
@@ -10,7 +10,7 @@
 
 - Lot 3 (mise en place) : plan validé (`docs/plans/lot-3.md`), réponses Q1 à Q19, décisions D-078 à D-094.
 - Consigne de l'utilisateur : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
-- Prochaine action : étape 4 (rendu : thèmes, jeu au pied, regroupement, icône d'en-avant, calque, surcouche).
+- Prochaine action : étape 5 (io : collection générique, `modeles/` dans `FolderStore` et `IdbStore`).
 
 ## Fait
 
@@ -20,10 +20,11 @@
 - Lot 3, étape 2 : `engine/timeline.ts` (courses arrêtées `until`, relais, boucle d'événements, segments du ballon, `gainLine`), `engine/ballEvents.ts` (ramassage, en-avant, vol au pied), `SceneState` et `PhaseSchematic` enrichis ; tests `breakdown`, `kick`, `forwardPass`, continuité et déterminisme du lot 3.
 - Constat : le scénario de référence du lot 1 contient une passe en avant au sens de 5.7 (option B, `uuid(231)`) ; les tests l'attendent désormais. Tests de bout en bout toujours verts après l'étape 2 (23).
 - Lot 3, étape 3 : `editor/presets.ts` (repère local, aimantation de l'ancre, enregistrer, appliquer, catégorie, vignette) et `editor/transform.ts` (déplacer, retourner), avec leurs tests.
+- Lot 3, étape 4 : clés de thème du lot 3 (4 thèmes), tirets longs, ombre et grossissement, anneau et libellé du regroupement, partie ignorée en rouge, pastille d'en-avant (calque `forwardPass` requis dans `Layers`, option de `drawSchematic` : éditeur oui, PDF et vignettes non ; GIF forcé à non) ; surcouche : fantômes et ancre ; 5 images de référence vérifiées à l'œil (`render/setPieces.test.ts`).
 
 ## Reste à faire
 
-- Lot 3 : étapes 3 à 8 du plan. Le rendu ne dessine pas encore jeux au pied, regroupements ni icône d'en-avant (étape 4) ; la suppression d'une joueuse ne retire pas encore ses jeux au pied ni ses regroupements (étape 6).
+- Lot 3 : étapes 5 à 8 du plan. Calque « En-avant » pas encore dans la barre de lecture ni `setLayer` (étape 6) ; la suppression d'une joueuse ne retire pas encore ses jeux au pied ni ses regroupements (étape 6).
 - Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
 - Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
 

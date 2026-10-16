@@ -134,6 +134,7 @@ export function sampleLine(compiled: CompiledLine, rawT: number): SceneState {
         current,
         from: copy(p.from),
         to,
+        target: copy(p.to),
         completed,
         forward: p.forward,
       })

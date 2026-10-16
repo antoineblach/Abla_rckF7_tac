@@ -106,7 +106,8 @@ export function drawGifItem(
     return
   }
   const state = evaluate(play, item.line, item.t, settings, caches)
-  render(ctx, state, viewport, theme, { ...layers, instruction: false })
+  // The banner is part of the dressing; the forward pass badge is never exported (D-086).
+  render(ctx, state, viewport, theme, { ...layers, instruction: false, forwardPass: false })
   drawDressing(
     ctx,
     viewport,

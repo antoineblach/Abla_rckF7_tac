@@ -39,5 +39,13 @@ export function buildOverlay(input: OverlayInput): EditorOverlay {
     const from = schematic.players.find((p) => p.id === input.passFromId)?.pos
     if (from) selectedPlayers.push(from)
   }
-  return { selectedPlayers, selectedPaths, handles, selectionBox: input.selectionBox, preview }
+  return {
+    selectedPlayers,
+    selectedPaths,
+    handles,
+    selectionBox: input.selectionBox,
+    preview,
+    ghosts: [],
+    anchor: null,
+  }
 }

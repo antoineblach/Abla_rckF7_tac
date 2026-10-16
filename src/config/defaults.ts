@@ -165,6 +165,9 @@ export const ORIENTATION_ASPECT = {
  * HYPOTHÈSE: every colour and size below. « Contraste fort »: saturated flat colours and every
  * stroke at least 3 px at scale 1 (SPEC 13.2). The two print themes are export themes only
  * (D-062). A `null` colour stands for the colour of the player.
+ * Lot 3 (D-084): kicks in long dashes (`kickDash`), ground shadow of a kicked ball offset towards
+ * the bottom right by up to `kickShadowOffset` at the apex, ring and label of a ruck or a maul,
+ * badge of a forward pass (editor and player only, never exported, D-086).
  */
 export const THEME_VALUES = {
   screen: {
@@ -211,6 +214,14 @@ export const THEME_VALUES = {
     tokenFillB: null,
     badgeBackground: '#ffe36e',
     badgeText: '#000000',
+    kickWidth: 2.5,
+    kickDash: [12, 7],
+    kickShadow: '#1f4426',
+    kickShadowOffset: 9,
+    breakdownColor: '#ffe36e',
+    breakdownWidth: 2,
+    forwardFill: '#ffe36e',
+    forwardText: '#000000',
   },
   highContrast: {
     background: '#002b0b',
@@ -256,6 +267,14 @@ export const THEME_VALUES = {
     tokenFillB: null,
     badgeBackground: '#ffeb3b',
     badgeText: '#000000',
+    kickWidth: 4,
+    kickDash: [14, 8],
+    kickShadow: '#00230a',
+    kickShadowOffset: 11,
+    breakdownColor: '#ffeb3b',
+    breakdownWidth: 3,
+    forwardFill: '#ffeb3b',
+    forwardText: '#000000',
   },
   // « Impression couleur » (D-062): white background, grey field lines, team colours kept.
   printColor: {
@@ -302,6 +321,14 @@ export const THEME_VALUES = {
     tokenFillB: null,
     badgeBackground: '#ffffff',
     badgeText: '#000000',
+    kickWidth: 3,
+    kickDash: [12, 7],
+    kickShadow: '#bdbdbd',
+    kickShadowOffset: 10,
+    breakdownColor: '#000000',
+    breakdownWidth: 2,
+    forwardFill: '#ffe36e',
+    forwardText: '#000000',
   },
   // « Impression N&B » (SPEC 9.3, D-062): greys only; team A filled black, team B hollow
   // whatever the player colour; black solid runs, dotted passes, previous phases light grey;
@@ -350,6 +377,14 @@ export const THEME_VALUES = {
     tokenFillB: '#ffffff',
     badgeBackground: '#ffffff',
     badgeText: '#000000',
+    kickWidth: 3,
+    kickDash: [12, 7],
+    kickShadow: '#bdbdbd',
+    kickShadowOffset: 10,
+    breakdownColor: '#000000',
+    breakdownWidth: 2,
+    forwardFill: '#000000',
+    forwardText: '#ffffff',
   },
 } as const
 

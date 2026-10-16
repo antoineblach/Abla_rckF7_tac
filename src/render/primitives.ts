@@ -168,18 +168,10 @@ export function drawToken(
 const QUARTER_ARC_KAPPA = 0.5522847498
 
 /**
- * Ball: a flat ellipse whose long axis follows `direction` (unit, screen space). Built from four
- * Bézier curves in device pixels, without transformation, so that jsPDF draws it (D-071).
+ * Ellipse path of half axes `a` along `direction` (unit, screen space) and `b` across. Built from
+ * four Bézier curves in device pixels, without transformation, so that jsPDF draws it (D-071).
  */
-export function drawBall(
-  ctx: Ctx2D,
-  viewport: Viewport,
-  theme: Theme,
-  centerPx: Vec2,
-  direction: Vec2,
-): void {
-  const a = sizePx(viewport, theme.ballLength) / 2
-  const b = sizePx(viewport, theme.ballWidth) / 2
+function ellipsePath(ctx: Ctx2D, centerPx: Vec2, a: number, b: number, direction: Vec2): void {
   const len = Math.hypot(direction.x, direction.y)
   const ux = len > 0 ? direction.x / len : 1
   const uy = len > 0 ? direction.y / len : 0
@@ -200,6 +192,37 @@ export function drawBall(
   curve(at(-a, -k * b), at(-k * a, -b), at(0, -b))
   curve(at(k * a, -b), at(a, -k * b), at(a, 0))
   ctx.closePath()
+}
+
+/** Flat filled ellipse (the ground shadow of a kicked ball, D-084). */
+export function fillEllipse(
+  ctx: Ctx2D,
+  centerPx: Vec2,
+  a: number,
+  b: number,
+  direction: Vec2,
+  color: string,
+): void {
+  ellipsePath(ctx, centerPx, a, b, direction)
+  ctx.fillStyle = color
+  ctx.fill()
+}
+
+/**
+ * Ball: a flat ellipse whose long axis follows `direction` (unit, screen space), `scale` times its
+ * size (a kicked ball grows up to its apex, SPEC 10.4).
+ */
+export function drawBall(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  centerPx: Vec2,
+  direction: Vec2,
+  scale = 1,
+): void {
+  const a = (sizePx(viewport, theme.ballLength) / 2) * scale
+  const b = (sizePx(viewport, theme.ballWidth) / 2) * scale
+  ellipsePath(ctx, centerPx, a, b, direction)
   ctx.fillStyle = theme.ballFill
   ctx.fill()
   ctx.strokeStyle = theme.ballStroke

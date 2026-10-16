@@ -48,6 +48,8 @@ export interface PassTrace {
   from: Vec2
   /** Arrival point, or current ball position while in flight. */
   to: Vec2
+  /** Arrival point (receiver position at arrival). */
+  target: Vec2
   completed: boolean
   /** « En avant probable » (SPEC 5.7). */
   forward: boolean
