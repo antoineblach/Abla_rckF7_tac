@@ -415,16 +415,37 @@ export const PDF_LAYOUT = {
   thumbRatio: { min: 0.45, max: 1 },
   // HYPOTHÈSE: largest phone page height before continuing on a new page (PDF limit 5 m).
   phoneMaxHeight: 5000,
+  // HYPOTHÈSE: lines of an instruction under a thumbnail (ellipsis beyond).
+  instructionMaxLines: 3,
 } as const
 
 /**
- * Text sizes of the PDF pages in points. HYPOTHÈSE: print sizes; phone sizes follow the
- * legibility rule (D-061) on a 100 mm page: 2.5 / 64 of the width, about 11 pt for the body.
- * Token numbers of the print thumbnails: just above 7 pt, as jsPDF floors font sizes (D-071).
+ * Text sizes of the PDF pages in points. HYPOTHÈSE: print sizes. Phone sizes follow the
+ * legibility rule (D-061): a 100 mm page read across 64 mm needs 2.5 × 100 / 64 = 3.9 mm, that is
+ * 11.1 pt at least. Token numbers of the thumbnails are just above an integer number of points,
+ * as the jsPDF context floors font sizes (D-071): 7 pt in print, 12 pt on the phone.
  */
 export const PDF_TEXT = {
-  print: { title: 16, subtitle: 10, body: 9, rowTitle: 10, footer: 8, thumbTokenNumber: 7.05 },
-  phone: { title: 18, subtitle: 12, body: 11.1, rowTitle: 12, footer: 9 },
+  print: {
+    title: 16,
+    subtitle: 10,
+    body: 9,
+    rowTitle: 10,
+    footer: 8,
+    thumbTokenNumber: 7.05,
+    bookTitle: 28,
+    bookSubtitle: 14,
+  },
+  phone: {
+    title: 18,
+    subtitle: 13,
+    body: 11.5,
+    rowTitle: 13,
+    footer: 11.5,
+    thumbTokenNumber: 12.05,
+    bookTitle: 22,
+    bookSubtitle: 14,
+  },
 } as const
 
 /** HYPOTHÈSE: delay before a worker that does not acknowledge a cancellation is terminated. */

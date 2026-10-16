@@ -273,10 +273,10 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
   - Thème Impression N&B ; style de jeton par équipe ; captions ; marges du viewport ; bandeau décalable.
   - Selon le choix de l'étape 0 : ballon en Bézier, `clip()` et `bezierCurveTo()` (contexte enregistreur mis à jour).
   - Tests : images de référence du lot 1 inchangées ou régénérées avec justification ; contrôles par le contexte enregistreur.
-- [x] **Étape 3 : GIF.** (commit « Étape 3 : export GIF », après `0fe6ebc` ; D-074)
+- [x] **Étape 3 : GIF.** (commit `38e7ba6` ; D-074)
   - Plan des images, dessin d'une image, palette, transparence, délais, encodage pas à pas.
   - Tests : déterminisme, nombre d'images, délais, cadrage fixe, orientation, images de référence.
-- [ ] **Étape 4 : PDF.**
+- [x] **Étape 4 : PDF.** (commit « Étape 4 : export PDF », après `38e7ba6` ; D-075)
   - Mise en page téléphone et impression, débordement, vignettes (mode choisi), cahier, sommaire, liens, signets, polices, métadonnées déterministes.
   - Tests avec pdf.js.
 - [ ] **Étape 5 : io et Worker.**

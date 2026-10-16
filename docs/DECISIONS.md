@@ -531,3 +531,10 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : D-059 (maintiens), 9.2 (cadrage fixe, palette sans scintillement) ; D-066 exige que deux variantes différentes ne portent jamais le même nom, or la version allégée d'un GIF standard aurait le nom du GIF complet.
 - Alternatives écartées : maintien ajouté au délai normal de la dernière image ; même nom pour la version allégée (remplacement du GIF complet).
 - Origine : choix technique (étape 3), le suffixe découle de D-066.
+
+### D-075 : mise en page et écriture des PDF (étape 4)
+- Date : 2026-10-15
+- Décision : une rangée d'option contient l'option et ses temps suivants jusqu'au point d'option suivant compris ; les sous-options suivent dans l'ordre de l'arbre ; leur titre est préfixé de « Temps n, » quand la combinaison a plusieurs points d'option (comme les cartons, D-058). Largeur des vignettes cherchée par pas de 1 mm de 90 à 60 mm ; une rangée plus haute qu'une page entière est la seule coupée, entre deux lignes de vignettes. Sous une vignette : libellé, puis consigne sur 3 lignes au plus (HYPOTHÈSE). Téléphone : corps 11,5 pt, numéros des jetons 12 pt (minimum 11,1 pt par D-061, jsPDF arrondit à l'entier inférieur). Cahier : sommaire nom, catégorie et page sur une ligne (impression) ou deux (téléphone) ; numéros de page seulement dans un cahier ; date de la page de titre au format « 15 octobre 2026 » (date UTC). Date de création de tout PDF : la plus récente des dates de modification de ses combinaisons ; identifiant de fichier : empreinte de son contenu. Cadre gris fin autour des vignettes.
+- Raison : D-063, D-064 et D-061 précisés là où ils ne fixaient pas le détail ; déterminisme (même PDF octet pour octet).
+- Alternatives écartées : rangées d'options en retrait ; numéros de page aussi dans le PDF d'une combinaison.
+- Origine : choix technique (étape 4).

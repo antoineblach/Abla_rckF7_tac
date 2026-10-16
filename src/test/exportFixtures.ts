@@ -1,10 +1,20 @@
 // Fixtures and surfaces of the export tests. Never imported by the application.
 import { createCanvas } from '@napi-rs/canvas'
 import { readFileSync } from 'node:fs'
+import type { PdfFonts } from '../export/pdf/pdfCtx'
 import type { PixelSurface } from '../export/types'
 import type { Play } from '../model/types'
 import type { Ctx2D } from '../render/ctx2d'
-import { basePlay, phase, player, run, uuid } from './builders'
+import {
+  basePlay,
+  fourVsTwoNoBall,
+  P,
+  phase,
+  player,
+  run,
+  sevenVsSevenWithOptions,
+  uuid,
+} from './builders'
 import { registerFonts } from './imageSnapshot'
 
 /** The frozen fixture of lot 1: 7 v 7, trunk of 2 phases, 2 options at phase 3 (read only). */
@@ -12,6 +22,54 @@ export function loadOptionsFixture(): Play {
   return JSON.parse(
     readFileSync(new URL('./fixtures/play-v1-7v7-options.json', import.meta.url), 'utf8'),
   ) as Play
+}
+
+/** The embedded font, as the worker fetches it from public/fonts/. */
+export function loadPdfFonts(): PdfFonts {
+  const read = (weight: string) =>
+    new Uint8Array(
+      readFileSync(
+        new URL(`../../public/fonts/AtkinsonHyperlegible-${weight}.ttf`, import.meta.url),
+      ),
+    )
+  return { regular: read('Regular'), bold: read('Bold') }
+}
+
+/** The acceptance scenario with a third option at phase 3, and French typography in its texts. */
+export function threeOptionsPlay(): Play {
+  const play = sevenVsSevenWithOptions()
+  return {
+    ...play,
+    id: uuid(9001),
+    name: 'Trois options « au large »',
+    notes: 'l’option dépend de la « défense » adverse, décidée au temps 2. Œil sur la 6.',
+    updatedAt: '2026-10-12T08:00:00.000Z',
+    phases: [
+      ...play.phases,
+      phase(uuid(104), P.t2, [run(uuid(240), P.A(7), [{ x: 52, y: 68 }], { pace: 'sprint' })], {
+        condition: 'Défense glissée',
+        instruction: 'Jeu au large',
+      }),
+    ],
+  }
+}
+
+/** Five plays of a playbook, one of them with three options (plan of lot 2, section 7). */
+export function bookPlays(): Play[] {
+  const fixture = loadOptionsFixture()
+  return [
+    fixture,
+    threeOptionsPlay(),
+    { ...twoBranchPointsPlay(), id: uuid(9002), updatedAt: '2026-10-13T09:30:00.000Z' },
+    { ...fourVsTwoNoBall(), id: uuid(9003), updatedAt: '2026-10-11T10:00:00.000Z' },
+    {
+      ...sevenVsSevenWithOptions(),
+      id: uuid(9004),
+      name: 'Croisée côté fermé',
+      category: 'scrum',
+      updatedAt: '2026-10-15T18:45:00.000Z',
+    },
+  ]
 }
 
 /** Drawing surface of @napi-rs/canvas with the embedded font, as the worker's OffscreenCanvas. */

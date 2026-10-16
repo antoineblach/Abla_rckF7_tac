@@ -1,22 +1,21 @@
 // One image of a GIF (SPEC 9.1, 9.2, D-060): the scene drawn by evaluate and render, under the
 // header and the instruction banner, or a card. A single layout (size, scale, framing) serves the
 // whole GIF, so that the field never moves.
-import { AUTO_FRAME_MARGIN, GIF_FORMATS, GIF_LIGHT_FPS } from '../../config/defaults'
-import { expandBounds, lineBounds, unionBounds, type Bounds } from '../../engine/bounds'
+import { GIF_FORMATS, GIF_LIGHT_FPS } from '../../config/defaults'
 import type { EvalCaches } from '../../engine/caches'
 import { evaluate } from '../../engine/evaluate'
-import { compileLine } from '../../engine/timeline'
 import { phaseLabelOf } from '../../model/labels'
 import { findPhase } from '../../model/phaseTree'
 import type { EngineSettings, ExportOrientation, GifQuality } from '../../model/settings'
-import type { Id, Play } from '../../model/types'
+import type { Play } from '../../model/types'
 import { dressingHeightPx, drawCard, drawDressing, smallestTextCss } from '../../render/captions'
 import type { Ctx2D } from '../../render/ctx2d'
 import type { Layers } from '../../render/layers'
 import { bannerLines } from '../../render/primitives'
 import { render } from '../../render/render'
 import { THEMES, type Theme } from '../../render/themes'
-import { createViewport, frameForView, type Viewport } from '../../render/viewport'
+import { createViewport, type Viewport } from '../../render/viewport'
+import { linesFrame } from '../framing'
 import { legiblePixelRatio, phoneScreenWidthMm } from '../legibility'
 import { EXPORT_TEXT, exportText } from '../text'
 import type { GifOptions } from '../types'
@@ -41,22 +40,6 @@ export function gifFormat(options: {
     height: size.height,
     fps: options.light ? GIF_LIGHT_FPS : format.fps,
   }
-}
-
-/** Bounding box of every line shown in the file, plus the automatic framing margin (SPEC 9.2). */
-export function gifFrameBounds(
-  play: Play,
-  lines: readonly (readonly Id[])[],
-  settings: EngineSettings,
-  caches: EvalCaches,
-): Bounds {
-  let bounds: Bounds | null = null
-  for (const line of lines) {
-    bounds = unionBounds(bounds, lineBounds(compileLine(play, line, settings, caches)))
-  }
-  return bounds
-    ? expandBounds(bounds, AUTO_FRAME_MARGIN)
-    : frameForView({ kind: 'full' }, play.field, play.attackingTeam)
 }
 
 export interface GifLayout {
@@ -97,7 +80,7 @@ export function gifLayout(
     widthPx: format.width,
     heightPx: format.height,
     pixelRatio,
-    frame: gifFrameBounds(play, target.lines, settings, caches),
+    frame: linesFrame(play, target.lines, settings, caches),
     orientation: options.orientation,
     attackingTeam: play.attackingTeam,
     // Landscape GIFs always attack to the right (SPEC 9.2, D-006).

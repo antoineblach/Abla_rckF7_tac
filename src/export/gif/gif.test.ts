@@ -27,7 +27,8 @@ import { createRecordingContext, paintEvents } from '../../test/recordingCtx'
 import { minTextSize, phoneScreenWidthMm } from '../legibility'
 import type { ExportFile, ExportProgress, GifOptions } from '../types'
 import { gifExport } from './encode'
-import { drawGifItem, gifFormat, gifFrameBounds, gifLayout } from './frame'
+import { linesFrame } from '../framing'
+import { drawGifItem, gifFormat, gifLayout } from './frame'
 import { gifTargets, gifTimeline, type GifTarget } from './timeline'
 
 const settings = engineSettingsOf(defaultSettings())
@@ -73,13 +74,13 @@ describe('GIF layout (SPEC 9.2, D-060, D-061)', () => {
     for (const line of allLines(fixture)) {
       union = unionBounds(union, lineBounds(compileLine(fixture, line, settings, caches)))
     }
-    expect(gifFrameBounds(fixture, allLines(fixture), settings, caches)).toEqual(
+    expect(linesFrame(fixture, allLines(fixture), settings, caches)).toEqual(
       expandBounds(union as Bounds, 5),
     )
     const target = targetOf(fixture, 'chained', 0)
     const { ctx } = createRecordingContext()
     const layout = gifLayout(ctx, fixture, target, OPTIONS, settings, caches)
-    const frame = gifFrameBounds(fixture, target.lines, settings, caches)
+    const frame = linesFrame(fixture, target.lines, settings, caches)
     const top = dressingHeightPx(layout.viewport, layout.theme, layout.bannerLines)
     expect(layout.bannerLines).toBe(1)
     for (const corner of [frame.min, frame.max, { x: frame.min.x, y: frame.max.y }]) {
