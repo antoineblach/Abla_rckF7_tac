@@ -269,11 +269,11 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
   - `model/labels.ts`, avec `ui/strings.ts` qui le réexporte.
   - Réglages v2 : schéma, migration, fixture v1, test ; lecture versionnée ; une version future n'est jamais réécrite (comme D-024).
   - `export/names.ts`, `legibility.ts` et `text.ts`, avec leurs tests.
-- [x] **Étape 2 : render.** (commit « Étape 2 : thèmes d'impression et habillage », après `c6fa414` ; D-073)
+- [x] **Étape 2 : render.** (commit `0fe6ebc` ; D-073)
   - Thème Impression N&B ; style de jeton par équipe ; captions ; marges du viewport ; bandeau décalable.
   - Selon le choix de l'étape 0 : ballon en Bézier, `clip()` et `bezierCurveTo()` (contexte enregistreur mis à jour).
   - Tests : images de référence du lot 1 inchangées ou régénérées avec justification ; contrôles par le contexte enregistreur.
-- [ ] **Étape 3 : GIF.**
+- [x] **Étape 3 : GIF.** (commit « Étape 3 : export GIF », après `0fe6ebc` ; D-074)
   - Plan des images, dessin d'une image, palette, transparence, délais, encodage pas à pas.
   - Tests : déterminisme, nombre d'images, délais, cadrage fixe, orientation, images de référence.
 - [ ] **Étape 4 : PDF.**

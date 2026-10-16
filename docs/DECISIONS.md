@@ -524,3 +524,10 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : D-060, D-062 ; 9.2 (cadrage fixe) ; jsPDF.
 - Alternatives écartées : thèmes d'impression ajoutés à l'éditeur ; bandeau de hauteur variable (le terrain sauterait d'un temps à l'autre).
 - Origine : choix technique (étape 2).
+
+### D-074 : plan et encodage des GIF (étape 3)
+- Date : 2026-10-15
+- Décision : la dernière image d'une ligne a pour délai le maintien seul (1 s avant un carton, 2 s à la fin), ses images précédentes la cadence exacte en centièmes arrondis en cumulé ; un segment de durée D joué à la vitesse s compte ⌈D·f/s⌉ + 1 images. Le sous-titre du carton titre d'un GIF par option liste les options de la ligne, séparées par « ; ». La palette est calculée sur le premier carton de chaque sorte et 12 images de scène réparties (HYPOTHÈSE) ; 255 couleurs plus l'indice transparent, magenta jamais affiché. Le bandeau garde le nombre de lignes de la plus longue consigne du fichier (0 à 2). La « version allégée » porte le suffixe `-allege` (sans `-hd`) : `croisee-au-centre--portrait-enchaine-allege.gif`.
+- Raison : D-059 (maintiens), 9.2 (cadrage fixe, palette sans scintillement) ; D-066 exige que deux variantes différentes ne portent jamais le même nom, or la version allégée d'un GIF standard aurait le nom du GIF complet.
+- Alternatives écartées : maintien ajouté au délai normal de la dernière image ; même nom pour la version allégée (remplacement du GIF complet).
+- Origine : choix technique (étape 3), le suffixe découle de D-066.

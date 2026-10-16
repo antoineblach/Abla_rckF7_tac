@@ -28,6 +28,8 @@ export interface GifNameOptions {
   quality: GifQuality
   lines: GifLines
   speed: GifSpeedMode
+  /** « Version allégée » (D-067): its own name, so that it never replaces the full GIF (D-074). */
+  light?: boolean
 }
 
 /** Letters of the options chosen along a line, from the root (« -option-a-b »). */
@@ -50,7 +52,9 @@ export function gifVariant(options: GifNameOptions): string {
       : options.lines.kind === 'leaf' && options.lines.letters.length > 0
         ? `-option-${options.lines.letters.join('-')}`
         : ''
-  return `${ORIENTATION_SLUG[options.orientation]}${options.quality === 'high' ? '-hd' : ''}${lines}${SPEED_SLUG[options.speed]}`
+  const quality = options.quality === 'high' && options.light !== true ? '-hd' : ''
+  const light = options.light === true ? '-allege' : ''
+  return `${ORIENTATION_SLUG[options.orientation]}${quality}${lines}${SPEED_SLUG[options.speed]}${light}`
 }
 
 export function gifFileName(playName: string, options: GifNameOptions): string {
