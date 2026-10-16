@@ -328,4 +328,31 @@ describe('settings (SPEC 4.4)', () => {
     )
     expect(fs.read('reglages.json')).toBe('{ broken')
   })
+
+  it('reads a version 1 file migrated, without rewriting it on reading (D-068)', async () => {
+    const v1 = readFileSync(new URL('../test/fixtures/reglages-v1.json', import.meta.url), 'utf8')
+    fs.writeExternal('reglages.json', v1)
+    const store = await open()
+    const result = await store.getSettings()
+    expect(result.ok).toBe(true)
+    expect(result.settings.schemaVersion).toBe(2)
+    expect(result.settings.passSpeed).toBe(11)
+    expect(result.settings.export).toEqual(defaultSettings().export)
+    expect(fs.read('reglages.json')).toBe(v1)
+    await store.putSettings(result.settings)
+    expect(JSON.parse(fs.read('reglages.json') ?? '')).toEqual(result.settings)
+  })
+
+  it('never rewrites a settings file of a newer version (D-024)', async () => {
+    const future = serialize({ ...defaultSettings(), schemaVersion: 3, defense: {} })
+    fs.writeExternal('reglages.json', future)
+    const store = await open()
+    const result = await store.getSettings()
+    expect(result).toMatchObject({ ok: false, future: true })
+    expect(result.settings).toEqual(defaultSettings())
+    await expect(store.putSettings(defaultSettings())).rejects.toBeInstanceOf(
+      InvalidStoredFileError,
+    )
+    expect(fs.read('reglages.json')).toBe(future)
+  })
 })

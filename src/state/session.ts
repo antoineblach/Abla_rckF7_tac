@@ -145,7 +145,7 @@ async function activateStore(next: LibraryStore): Promise<void> {
   sync.start()
   const settings = await next.getSettings()
   useSettingsStore.setState({ settings: settings.settings, writable: settings.ok })
-  if (!settings.ok) notify(TEXT.invalidSettings, 'error')
+  if (!settings.ok) notify(settings.future ? TEXT.futureSettings : TEXT.invalidSettings, 'error')
   await refreshLibrary()
   scheduleCacheSave()
 }

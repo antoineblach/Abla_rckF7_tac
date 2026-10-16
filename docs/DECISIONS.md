@@ -510,3 +510,10 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : mesures de l'étape 0 (plan, section 1.5) : PDF vectoriel de 63 Ko la page contre 160 à 210 Ko en images, texte et police corrects, jsPDF, gifenc et police fonctionnels dans un Worker sous Chromium et Firefox ; le `drawBall` actuel n'est pas dessiné par jsPDF et repeint le dernier jeton ; gifenc passe en mode 2 avec la transparence sans `dispose` explicite ; GIF de 20 s : 0,54 à 1,5 Mo avec l'optimisation, 3,9 à 4,5 Mo sans, images composées identiques au pixel près.
 - Alternatives écartées : images à 300 dpi ; ballon dessiné par transformation d'un `arc`.
 - Origine : essai (prototypes P1 à P4 de l'étape 0).
+
+### D-072 : réglages v2 et valeurs de l'étape 1
+- Date : 2026-10-15
+- Décision : un `reglages.json` v1 est migré en mémoire à la lecture et n'est réécrit en v2 qu'au prochain enregistrement des réglages ; une version plus récente est signalée (« recharger la page ») et n'est jamais réécrite, dans le dossier comme dans le navigateur (garde ajoutée à `IdbStore.putSettings`). Libellés des catégories, des temps et des options dans `model/labels.ts`, nom court dans `model/shortName.ts`, partagés par l'interface et les exports. Seuil d'alerte de 8 Mo compté en Mio (8 × 1024 × 1024 octets, comme l'affiche Windows, HYPOTHÈSE). Long côté du téléphone : 138 mm (6 pouces au format 19,5:9 : 63,9 × 138,4 mm).
+- Raison : une lecture ne modifie jamais un fichier de l'utilisateur (règle 9) ; 4.4 et D-024 ; l'interface et les exports affichent les mêmes libellés.
+- Alternatives écartées : réécrire `reglages.json` en v2 dès la lecture ; 8 Mo décimaux.
+- Origine : choix technique (étape 1).

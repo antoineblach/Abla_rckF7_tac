@@ -1,0 +1,10 @@
+{
+  "paces": {
+    "jog": 4.5,
+    "sprint": 7.5,
+    "walk": 1.8
+  },
+  "passSpeed": 11,
+  "schemaVersion": 1,
+  "theme": "highContrast"
+}

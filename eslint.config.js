@@ -109,8 +109,9 @@ export default defineConfig(
     },
   },
   {
-    files: ['src/render/**/*.ts', 'src/field/**/*.ts'],
-    ignores: ['**/*.test.ts'],
+    // Lot 2: the export core is pure too; only the worker shell touches browser APIs.
+    files: ['src/render/**/*.ts', 'src/field/**/*.ts', 'src/export/**/*.ts'],
+    ignores: ['**/*.test.ts', 'src/export/worker/**'],
     rules: {
       'no-restricted-properties': ['error', ...clockProperties, ...flatProperties],
       'no-restricted-syntax': ['error', ...clockSyntax, ...flatSyntax],

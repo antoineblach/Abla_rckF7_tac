@@ -1,18 +1,11 @@
 // Interface texts, in French, without em dash (CLAUDE.md conventions).
 import type { Issue } from '../model/issues'
-import type { PhaseLabelParts } from '../model/phaseTree'
-import type { Pace, PlayCategory } from '../model/types'
+import type { Pace } from '../model/types'
 import type { ReadError } from '../io/readPlay'
 import type { EditorNotice } from '../state/editorStore'
 import type { ToolId } from '../editor/tools/types'
 
-export const CATEGORY_LABELS: Record<PlayCategory, string> = {
-  scrum: 'Mêlée',
-  lineout: 'Touche',
-  restart: "Coup d'envoi / renvoi",
-  phasePlay: 'Ruck / jeu courant',
-  drill: 'Exercice',
-}
+export { CATEGORY_LABELS, phaseLabel } from '../model/labels'
 
 export const PACE_LABELS: Record<Pace, string> = { walk: 'Marche', jog: 'Trot', sprint: 'Sprint' }
 
@@ -22,12 +15,6 @@ export const TOOL_LABELS: Record<ToolId, { label: string; key: string }> = {
   placeB: { label: 'Placer B', key: 'B' },
   run: { label: 'Course', key: 'R' },
   pass: { label: 'Passe', key: 'P' },
-}
-
-export function phaseLabel(parts: PhaseLabelParts): string {
-  if (parts.custom) return parts.custom
-  const base = `Temps ${parts.depth}`
-  return parts.option ? `${base}, option ${parts.option}` : base
 }
 
 export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
@@ -120,6 +107,8 @@ export const TEXT = {
   saveError: 'Enregistrement impossible.',
   invalidSettings:
     'reglages.json est invalide : il ne sera pas modifié, valeurs par défaut utilisées.',
+  futureSettings:
+    'reglages.json a été créé par une version plus récente de l’outil : recharger la page. Il ne sera pas modifié.',
   newPlay: 'Nouvelle combinaison',
   imported: (n: number) => (n > 1 ? `${n} combinaisons importées.` : 'Combinaison importée.'),
   importFailed: (n: number) =>

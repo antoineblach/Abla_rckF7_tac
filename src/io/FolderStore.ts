@@ -3,7 +3,7 @@
 // modified nor moved, a write never overwrites a version changed by the other computer.
 import { contentHash } from '../model/canonical'
 import type { IdFactory } from '../model/ids'
-import { defaultSettings, settingsSchema, type Settings } from '../model/settings'
+import { defaultSettings, readSettings, type Settings } from '../model/settings'
 import type { Id, Play } from '../model/types'
 import { keepBothCopy } from './conflicts'
 import {
@@ -26,6 +26,7 @@ import {
   type PlaySummary,
   type PutOptions,
   type PutResult,
+  settingsResult,
   type SettingsResult,
   type VersionToken,
 } from './LibraryStore'
@@ -339,15 +340,7 @@ export class FolderStore implements LibraryStore {
     if (!handle) return { ok: true, settings: defaultSettings() }
     const parsed = parseJson(await (await handle.getFile()).text())
     if (!parsed.ok) return { ok: false, settings: defaultSettings(), message: parsed.message }
-    const result = settingsSchema.safeParse(parsed.value)
-    if (!result.success) {
-      return {
-        ok: false,
-        settings: defaultSettings(),
-        message: result.error.issues[0]?.message ?? '',
-      }
-    }
-    return { ok: true, settings: result.data }
+    return settingsResult(readSettings(parsed.value))
   }
 
   async putSettings(settings: Settings): Promise<void> {

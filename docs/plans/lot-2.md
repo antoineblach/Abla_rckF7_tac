@@ -264,7 +264,7 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
   - Installation de gifenc, jspdf, pdfjs-dist, omggif.
   - Prototypes P1 à P4 (section 1.4), non versionnés ; chiffres et limites dans le plan.
   - Vectoriel retenu si les quatre points de 1.3 sont confirmés ; **arrêt** seulement sur une limite bloquante (D-057).
-- [ ] **Étape 1 : config, model, noms et lisibilité.**
+- [x] **Étape 1 : config, model, noms et lisibilité.** (commit « Étape 1 : réglages v2, noms et lisibilité », après `50ee9e7` ; reprise après interruption, D-072)
   - Valeurs de `defaults.ts`.
   - `model/labels.ts`, avec `ui/strings.ts` qui le réexporte.
   - Réglages v2 : schéma, migration, fixture v1, test ; lecture versionnée ; une version future n'est jamais réécrite (comme D-024).

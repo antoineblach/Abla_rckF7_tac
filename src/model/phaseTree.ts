@@ -48,6 +48,11 @@ export function isBranchPoint(play: Play, phaseId: Id): boolean {
   return childrenOf(play, phaseId).length >= 2
 }
 
+/** Branch points (phases with at least two children), in array order. */
+export function branchPoints(play: Play): Id[] {
+  return play.phases.filter((phase) => isBranchPoint(play, phase.id)).map((phase) => phase.id)
+}
+
 /** Extends a path (root to some phase) with default children down to a leaf. */
 export function extendWithDefaults(play: Play, path: readonly Id[]): Id[] {
   const result = [...path]
