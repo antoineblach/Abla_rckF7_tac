@@ -2,7 +2,7 @@
 
 - Mise à jour : 2026-10-16
 - Branche : `lot-3` (depuis `main` à `855a804`), pas encore poussée
-- Dernier commit : « Étape 2 : moteur des regroupements, du jeu au pied et de l'en-avant » (après `8b38617`)
+- Dernier commit : « Étape 3 : géométrie des modèles et de la combinaison entière » (après `2d11239`)
 - `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 - Écart constaté au démarrage du lot 3 : `ETAT.md` indiquait la PR #3 ouverte ; elle est fusionnée (16/10). Corrigé ici.
 
@@ -10,7 +10,7 @@
 
 - Lot 3 (mise en place) : plan validé (`docs/plans/lot-3.md`), réponses Q1 à Q19, décisions D-078 à D-094.
 - Consigne de l'utilisateur : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
-- Prochaine action : étape 3 (géométrie de mise en place : `editor/presets.ts`, `editor/transform.ts`).
+- Prochaine action : étape 4 (rendu : thèmes, jeu au pied, regroupement, icône d'en-avant, calque, surcouche).
 
 ## Fait
 
@@ -18,7 +18,8 @@
 - Lot 2 : PR #3 fusionnée (exports GIF et PDF ; D-057 à D-077).
 - Lot 3 : étape 0 (`ef574cf`) ; étape 1 : `Play` v2 (schéma v1 figé dans `schemaV1.ts`, migration), `model/preset.ts`, alertes et validation des jeux au pied et regroupements, fixtures `play-v2-lot3.json` et `preset-v1-touche.json` (figées, issues de `setPiecesPlay()` et `lineoutPreset()`).
 - Lot 3, étape 2 : `engine/timeline.ts` (courses arrêtées `until`, relais, boucle d'événements, segments du ballon, `gainLine`), `engine/ballEvents.ts` (ramassage, en-avant, vol au pied), `SceneState` et `PhaseSchematic` enrichis ; tests `breakdown`, `kick`, `forwardPass`, continuité et déterminisme du lot 3.
-- Constat : le scénario de référence du lot 1 contient une passe en avant au sens de 5.7 (option B, `uuid(231)`) ; les tests l'attendent désormais.
+- Constat : le scénario de référence du lot 1 contient une passe en avant au sens de 5.7 (option B, `uuid(231)`) ; les tests l'attendent désormais. Tests de bout en bout toujours verts après l'étape 2 (23).
+- Lot 3, étape 3 : `editor/presets.ts` (repère local, aimantation de l'ancre, enregistrer, appliquer, catégorie, vignette) et `editor/transform.ts` (déplacer, retourner), avec leurs tests.
 
 ## Reste à faire
 

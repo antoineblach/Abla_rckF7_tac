@@ -324,7 +324,7 @@ Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la 
 - [x] **Étape 2 : moteur.** (commit « Étape 2 : moteur des regroupements, du jeu au pied et de l'en-avant », après `8b38617`)
   - Mouvements arrêtés et relais, boucle d'événements, jeu au pied, regroupement, ramassage, ligne d'avantage, en-avant, schéma, boîte englobante.
   - Tests obligatoires du moteur, déterminisme et continuité ; tests du lot 1 inchangés.
-- [ ] **Étape 3 : géométrie de mise en place.**
+- [x] **Étape 3 : géométrie de mise en place.** (commit « Étape 3 : géométrie des modèles et de la combinaison entière », après `2d11239`)
   - Repère local, enregistrer et appliquer un modèle, association, aimantation de l'ancre, déplacer, retourner.
   - Tests obligatoires des modèles et des identités.
 - [ ] **Étape 4 : rendu.**
