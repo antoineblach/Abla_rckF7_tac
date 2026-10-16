@@ -545,3 +545,10 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : D-065 (jamais d'écrasement sans décision, rien de partiel), règle 9, plan section 3.
 - Alternatives écartées : décision globale appliquée aussi aux fichiers apparus ensuite ; logique du Worker testée seulement de bout en bout.
 - Origine : choix technique (étape 5).
+
+### D-077 : interface des exports (étape 6)
+- Date : 2026-10-15
+- Décision : « Exporter GIF » et « Exporter PDF » dans la barre d'outils (combinaison ouverte, modifications non enregistrées comprises) ; « Cahier de jeu » dans la bibliothèque. Les dialogues reprennent les préférences de `reglages.json` et les y écrivent au lancement, seulement si elles ont changé ; ils affichent le nom du ou des fichiers. Une seule fenêtre d'export à la fois : dialogue, progression (barre, étape, « Annuler », puis « Enregistrement… » non annulable), question « Export déjà présent » (Remplacer, Garder les deux, Annuler), résultat (fichiers, tailles en Ko ou Mo, lieu, alerte au-delà de 8 Mo avec « Exporter une version allégée »). Une annulation affiche « Export annulé : aucun fichier écrit. ». Cahier : toutes les combinaisons cochées par défaut, dans l'ordre du tri courant de la bibliothèque, copies en lecture seule exclues ; le choix rapide d'une catégorie coche ses combinaisons et donne son nom au titre ; sous-titre « Sélection » sauf si la sélection est exactement une catégorie ; les combinaisons sont enregistrées avant l'export. Le morceau principal du build ne contient ni jsPDF ni gifenc (contrôlé par un test sur `dist/`). Sous 1500 px de large, le titre de l'application est masqué dans la barre d'outils (il reste dans l'onglet), pour garder « Changer de dossier » visible avec les deux boutons d'export.
+- Raison : 9.1 à 9.3, D-064, D-065, D-067, D-068 ; l'interface ne gèle jamais (tâches longues de la page mesurées sous 200 ms pendant un export).
+- Alternatives écartées : export de la version enregistrée seulement ; notification éphémère pour le résultat (la taille doit rester lisible).
+- Origine : choix technique (étape 6).

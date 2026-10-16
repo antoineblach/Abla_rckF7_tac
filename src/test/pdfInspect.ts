@@ -55,7 +55,9 @@ export async function pageLinks(doc: PDFDocumentProxy, page: number): Promise<Pd
 export async function pdfOutline(
   doc: PDFDocumentProxy,
 ): Promise<{ title: string; page: number | null }[]> {
-  const outline = await doc.getOutline()
+  // pdf.js answers null, not [], for a PDF without bookmarks (its types say otherwise).
+  const outline =
+    ((await doc.getOutline()) as Awaited<ReturnType<typeof doc.getOutline>> | null) ?? []
   return Promise.all(
     outline.map(async (node) => ({
       title: node.title,

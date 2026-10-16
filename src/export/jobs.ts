@@ -1,23 +1,13 @@
 // An export job: what the page asks the export worker to produce (SPEC 9). Plain data, sent by
 // structured clone. Its file names are known before encoding, so that existing exports are
-// checked before the wait (D-065).
-import type { EvalCaches } from '../engine/caches'
-import { leafLetters, gifFileName, pdfFileName, type GifLines } from './names'
+// checked before the wait (D-065). Light module: the page imports it, while the encoders (gifenc,
+// jsPDF) are imported by jobSteps.ts, in the worker only.
 import type { EngineSettings } from '../model/settings'
 import type { Play } from '../model/types'
-import { gifExport } from './gif/encode'
 import { gifTargets } from './gif/timeline'
-import type { PdfFonts } from './pdf/pdfCtx'
-import { pdfExport } from './pdf/write'
+import { gifFileName, leafLetters, pdfFileName, type GifLines } from './names'
 import { EXPORT_TEXT } from './text'
-import type {
-  BookOptions,
-  ExportFile,
-  ExportProgress,
-  GifOptions,
-  PdfOptions,
-  SurfaceFactory,
-} from './types'
+import type { BookOptions, GifOptions, PdfOptions } from './types'
 
 export type ExportJob =
   | { kind: 'gif'; play: Play; settings: EngineSettings; options: GifOptions }
@@ -47,23 +37,4 @@ export function expectedFileNames(job: ExportJob): string[] {
       : job.book.title
     : (job.plays[0]?.name ?? '')
   return [pdfFileName(title, { ...job.options, book: job.book !== null })]
-}
-
-/** Resources a job needs where it runs (worker or tests). */
-export interface ExportResources {
-  createSurface: SurfaceFactory
-  pdfFonts: PdfFonts | null
-}
-
-/** The steps of a job: one per image or page, the files at the end. */
-export function jobSteps(
-  job: ExportJob,
-  resources: ExportResources,
-  caches: EvalCaches,
-): Generator<ExportProgress, ExportFile[]> {
-  if (job.kind === 'gif') {
-    return gifExport(job.play, job.options, job.settings, caches, resources.createSurface)
-  }
-  if (!resources.pdfFonts) throw new Error('The PDF font is not loaded')
-  return pdfExport(job.plays, job.options, job.book, resources.pdfFonts, job.settings, caches)
 }

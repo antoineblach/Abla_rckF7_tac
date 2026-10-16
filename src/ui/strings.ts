@@ -107,6 +107,8 @@ export const TEXT = {
   saveError: 'Enregistrement impossible.',
   invalidSettings:
     'reglages.json est invalide : il ne sera pas modifié, valeurs par défaut utilisées.',
+  exportCancelled: 'Export annulé : aucun fichier écrit.',
+  exportFailed: (message: string) => `Export impossible. ${message}`,
   futureSettings:
     'reglages.json a été créé par une version plus récente de l’outil : recharger la page. Il ne sera pas modifié.',
   newPlay: 'Nouvelle combinaison',
@@ -117,3 +119,10 @@ export const TEXT = {
     `${n} combinaison${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} dans le dossier.`,
   deleted: 'Combinaison déplacée dans la corbeille.',
 } as const
+
+/** File size as Windows shows it, in French (D-072): « 850 Ko », « 1,2 Mo ». */
+export function formatSize(bytes: number): string {
+  const mo = bytes / (1024 * 1024)
+  if (mo >= 1) return `${mo.toFixed(1).replace('.', ',')} Mo`
+  return `${Math.max(1, Math.round(bytes / 1024))} Ko`
+}

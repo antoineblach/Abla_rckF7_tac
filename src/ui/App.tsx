@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { setNotice, useEditorStore } from '../state/editorStore'
 import { startSession } from '../state/session'
 import { Dialogs } from './dialogs/Dialogs'
+import { ExportWindows } from './export/ExportProgress'
 import { StatusBanner, Toasts } from './feedback/StatusBanner'
 import { FieldCanvas } from './field/FieldCanvas'
 import { useAnimationLoop } from './hooks/useAnimationLoop'
@@ -64,6 +65,7 @@ export function App() {
       </main>
       <PhaseTree />
       <Dialogs />
+      <ExportWindows />
       <Toasts />
     </div>
   )

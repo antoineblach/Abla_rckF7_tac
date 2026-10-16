@@ -42,7 +42,8 @@ async function chooseFolder(page: Page): Promise<void> {
 }
 
 async function storedPlay(page: Page): Promise<StoredPlay> {
-  const files = await listFolder(page, 'combinaisons')
+  // A write in progress shows Chrome's temporary « .crswap » file: ignored, as by the app (D-023).
+  const files = (await listFolder(page, 'combinaisons')).filter((f) => f.endsWith('.combi.json'))
   expect(files).toHaveLength(1)
   return JSON.parse(await readFolderFile(page, `combinaisons/${files[0] ?? ''}`)) as StoredPlay
 }

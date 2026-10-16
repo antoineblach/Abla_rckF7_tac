@@ -1,4 +1,3 @@
-import { useEffect, useRef, type ReactNode } from 'react'
 import { deletePhase } from '../../editor/commands'
 import { applyEdit, selectPhase, useEditorStore } from '../../state/editorStore'
 import { closeDialog, useLibraryState, type LibraryDialog } from '../../state/libraryState'
@@ -11,40 +10,9 @@ import {
   resolveImport,
   resolveRemoved,
 } from '../../state/session'
+import { Modal } from '../common/Modal'
 
 const date = (iso: string) => (iso ? new Date(iso).toLocaleString('fr-FR') : 'inconnue')
-
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string
-  children: ReactNode
-  onClose?: () => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    ref.current?.querySelector<HTMLButtonElement>('button')?.focus()
-  }, [])
-  return (
-    <div className="modal-backdrop">
-      <div
-        ref={ref}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape' && onClose) onClose()
-        }}
-      >
-        <h2>{title}</h2>
-        {children}
-      </div>
-    </div>
-  )
-}
 
 function DialogView({ dialog }: { dialog: LibraryDialog }) {
   const close = () => {

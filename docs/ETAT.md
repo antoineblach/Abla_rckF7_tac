@@ -2,15 +2,15 @@
 
 - Mise à jour : 2026-10-15
 - Branche : `lot-2` (depuis `main` à `9a2c379`) ; pas encore poussée, pas de PR
-- Dernier commit : « Étape 5 : io des exports et Worker » (après `d74dd14`)
+- Dernier commit : « Étape 6 : interface des exports » (après `56abc6f`)
 - `main` : lot 1 et sa correction fusionnés (PR #1 `d37f3f6`, PR #2 `9a2c379`), déployés sur Pages ; protection vérifiée par `gh api` (D-055)
 - Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter.
 
 ## En cours
 
-- Lot 2 (exports GIF et PDF), plan validé : `docs/plans/lot-2.md` ; réponses Q1 à Q16 et complément : D-057 à D-070 ; étape 0 : D-071 (PDF vectoriel) ; étape 1 : D-072 ; étape 2 : D-073 ; étape 3 : D-074 ; étape 4 : D-075 ; étape 5 : D-076.
+- Lot 2 (exports GIF et PDF), plan validé : `docs/plans/lot-2.md` ; réponses Q1 à Q16 et complément : D-057 à D-070 ; étape 0 : D-071 (PDF vectoriel) ; étape 1 : D-072 ; étape 2 : D-073 ; étape 3 : D-074 ; étape 4 : D-075 ; étape 5 : D-076 ; étape 6 : D-077.
 - Consigne de l'utilisateur : enchaîner les étapes 2 à 7 sans attendre, arrêt seulement sur une question bloquante.
-- Action suivante : étape 6 (state et interface : stores et session d'export, dialogues GIF, PDF et cahier, progression, Annuler, taille, alerte de 8 Mo et version allégée, préférences dans `reglages.json`, tests de bout en bout dont le Worker réel).
+- Action suivante : étape 7 (clôture : ARCHITECTURE, SPEC, RECETTE, README, recette automatisable complète, push, PR).
 
 ## Fait
 
@@ -20,7 +20,8 @@
 - Lot 2, étape 2 : thèmes `printColor` et `printBw` ; jeton, course et passe selon le thème ; `render/captions.ts` (cartons, en-tête, pastille, bandeau de hauteur fixe) ; `insets` du viewport ; ballon en Bézier ; `clip` et `bezierCurveTo` dans `Ctx2D` ; `paintEvents` dans le contexte enregistreur (`0fe6ebc`).
 - Lot 2, étape 3 : `export/gif/` (plan des images, image, palette, transparence, `gifExport` pas à pas), `export/types.ts`, `types/gifenc.d.ts` ; outils de test `exportFixtures.ts`, `gifInspect.ts` ; images `gif-frame-{highContrast,printBw}.png` (`38e7ba6`).
 - Lot 2, étape 4 : `export/framing.ts` ; `export/pdf/` (rangées, mise en page impression et téléphone, cahier, vignette vectorielle, contexte jsPDF, `pdfExport` pas à pas) ; outil de test `pdfInspect.ts` (pdf.js) ; images `pdf-thumbnail-{highContrast,printColor,printBw}.png` (`d74dd14`).
-- Lot 2, étape 5 : fichiers binaires (`fs/types.ts`, `memoryFs`), `io/trash.ts`, `io/exportsFolder.ts`, `io/exportRun.ts`, `downloadBytes` ; `export/jobs.ts` ; `export/worker/` (protocole, gestionnaire, client, Worker, module vide) ; Vite : Worker ES et alias des dépendances optionnelles de jsPDF ; outil de test `inlineEngine.ts`. 282 tests verts. Worker réel pas encore exercé (étape 6, bout en bout).
+- Lot 2, étape 5 : fichiers binaires (`fs/types.ts`, `memoryFs`), `io/trash.ts`, `io/exportsFolder.ts`, `io/exportRun.ts`, `downloadBytes` ; `export/jobs.ts` ; `export/worker/` (protocole, gestionnaire, client, Worker, module vide) ; Vite : Worker ES et alias des dépendances optionnelles de jsPDF ; outil de test `inlineEngine.ts`. 282 tests verts. (`56abc6f`).
+- Lot 2, étape 6 : `state/exportStore.ts`, `state/exportSession.ts` ; `ui/export/` (dialogues GIF, PDF, cahier ; progression, « Export déjà présent », résultat, version allégée) ; `ui/common/Modal.tsx` ; boutons de la barre d'outils et de la bibliothèque ; `export/jobSteps.ts` (encodeurs hors du morceau principal) ; bout en bout : `export-gif.chromium`, `export-pdf.chromium`, `export.firefox`, `bundle.chromium` (Worker réel, 23 tests verts). 289 tests unitaires verts.
 
 ## Reste à faire (lot 2)
 
@@ -56,6 +57,8 @@
 - Contexte 2D de jsPDF (lu dans son code source) : transformations appliquées à l'ajout des points, chemin perdu entre `save` et `restore`, tirets non mis à l'échelle, taille de police arrondie à l'entier inférieur en points.
 - La police Atkinson Hyperlegible couvre le français sauf l'espace fine insécable U+202F (remplacée par U+00A0, `export/text.ts`).
 - gifenc : avec `transparent`, `dispose` vaut 2 par défaut (annule l'optimisation) : toujours `dispose: 1`. `quantize` et `applyPalette` lisent tout `t.buffer` : leur passer des tableaux autonomes, jamais une vue.
+- pdf.js renvoie `null` (et non `[]`) pour un PDF sans signets. Une liste de `combinaisons/` pendant une écriture contient le `.crswap` de Chrome : filtrer sur `.combi.json`.
+- Le morceau principal ne doit importer ni `export/jobSteps.ts` ni les encodeurs : `export/jobs.ts` reste léger (contrôlé par `bundle.chromium.spec.ts`).
 - Prototypes de l'étape 0 (hors dépôt, réutilisables) : `C:\Users\antoi\AppData\Local\Temp\claude\c--Dev-Abla-rckF7-tac\a955686d-a4c3-4ad2-b0c4-f945e4f85b97\scratchpad\proto\` (p1 PDF, p3 GIF, p4 Worker) ; rolldown (`npx rolldown -c <config>` depuis le dépôt).
 
 ## Chantiers en parallèle

@@ -2,7 +2,8 @@
 // same client as in the browser. Messages are structured-cloned (and file bytes transferred) as
 // between a page and a worker. Never imported by the application.
 import { createCaches } from '../engine/caches'
-import { jobSteps, type ExportJob } from '../export/jobs'
+import type { ExportJob } from '../export/jobs'
+import { jobSteps } from '../export/jobSteps'
 import type { ExportFile, ExportProgress } from '../export/types'
 import { ExportEngineClient, type WorkerPort } from '../export/worker/engine'
 import { createExportHandler } from '../export/worker/handler'

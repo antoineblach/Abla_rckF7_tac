@@ -1,5 +1,7 @@
 import { TOOL_IDS } from '../../editor/tools/types'
 import { redoEdit, setSnap, setTool, undoEdit, useEditorStore } from '../../state/editorStore'
+import { useExportStore } from '../../state/exportStore'
+import { openExportDialog } from '../../state/exportSession'
 import { useLibraryState } from '../../state/libraryState'
 import { chooseFolder, saveNow } from '../../state/session'
 import { TEXT, TOOL_LABELS } from '../strings'
@@ -15,6 +17,7 @@ export function Toolbar() {
   const status = useLibraryState((s) => s.status)
   const folderName = useLibraryState((s) => s.folderName)
   const folderSupported = useLibraryState((s) => s.folderSupported)
+  const exporting = useExportStore((s) => s.running !== null)
 
   return (
     <header className="toolbar">
@@ -62,6 +65,26 @@ export function Toolbar() {
           title="Enregistrer (Ctrl+S)"
         >
           Enregistrer
+        </button>
+        <button
+          type="button"
+          disabled={!play || exporting}
+          onClick={() => {
+            openExportDialog('gif')
+          }}
+          title="GIF animé pour WhatsApp (SPEC 9.2)"
+        >
+          Exporter GIF
+        </button>
+        <button
+          type="button"
+          disabled={!play || exporting}
+          onClick={() => {
+            openExportDialog('pdf')
+          }}
+          title="PDF à imprimer ou à lire sur un téléphone (SPEC 9.3)"
+        >
+          Exporter PDF
         </button>
         <span className="toolbar__status" role="status" data-testid="save-status">
           {!play

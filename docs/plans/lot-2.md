@@ -279,11 +279,11 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
 - [x] **Étape 4 : PDF.** (commit `d74dd14` ; D-075)
   - Mise en page téléphone et impression, débordement, vignettes (mode choisi), cahier, sommaire, liens, signets, polices, métadonnées déterministes.
   - Tests avec pdf.js.
-- [x] **Étape 5 : io et Worker.** (commit « Étape 5 : io des exports et Worker », après `d74dd14` ; D-076)
+- [x] **Étape 5 : io et Worker.** (commit `56abc6f` ; D-076)
   - Fichiers binaires, `trash.ts`, `exports/`, existence et confirmation, téléchargement.
   - Protocole, Worker, moteur Worker et moteur en ligne, `exportRun` avec annulation.
   - Tests contre `memoryFs`.
-- [ ] **Étape 6 : state et interface.**
+- [x] **Étape 6 : state et interface.** (commit « Étape 6 : interface des exports », après `56abc6f` ; D-077)
   - Stores et session d'export, dialogues GIF, PDF et cahier, progression, Annuler, taille, alerte de 8 Mo et version allégée.
   - Préférences relues et écrites dans `reglages.json`.
   - Tests de bout en bout.

@@ -4,7 +4,8 @@
 // drops its buffers. Progress: at most one message per EXPORT_PROGRESS_INTERVAL_MS, plus the last.
 import { EXPORT_PROGRESS_INTERVAL_MS } from '../../config/defaults'
 import { createCaches } from '../../engine/caches'
-import { jobSteps, type ExportJob, type ExportResources } from '../jobs'
+import type { ExportJob } from '../jobs'
+import { jobSteps, type ExportResources } from '../jobSteps'
 import type { ExportFile } from '../types'
 import { isToWorker, type FromWorker, type ToWorker, type TransferredFile } from './protocol'
 
