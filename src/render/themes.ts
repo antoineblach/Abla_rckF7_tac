@@ -1,22 +1,48 @@
-// Graphic themes (SPEC 13.2). The « Impression N&B » theme arrives with lot 2.
+// Graphic themes (SPEC 13.2). « Écran » and « Contraste fort » are editor themes; « Impression
+// couleur » and « Impression N&B » are export themes only (lot 2, D-062).
 import { THEME_VALUES } from '../config/defaults'
 import type { ThemeId } from '../model/settings'
+import type { Team } from '../model/types'
 
-type Widen<T> = T extends string
-  ? string
-  : T extends number
-    ? number
-    : T extends readonly number[]
-      ? readonly number[]
-      : T
+/** Every theme the renderer knows: the editor themes plus the print themes of the exports. */
+export type RenderThemeId = ThemeId | 'printColor' | 'printBw'
 
-export type Theme = { readonly id: ThemeId } & {
+export const RENDER_THEME_IDS: readonly RenderThemeId[] = [
+  'screen',
+  'highContrast',
+  'printColor',
+  'printBw',
+]
+
+type Widen<T> = T extends null
+  ? string | null
+  : T extends string
+    ? string
+    : T extends number
+      ? number
+      : T extends readonly number[]
+        ? readonly number[]
+        : T
+
+export type Theme = { readonly id: RenderThemeId } & {
   readonly [K in keyof (typeof THEME_VALUES)['screen']]: Widen<(typeof THEME_VALUES)['screen'][K]>
 }
 
-export const THEMES: Record<ThemeId, Theme> = {
+export const THEMES: Record<RenderThemeId, Theme> = {
   screen: { id: 'screen', ...THEME_VALUES.screen },
   highContrast: { id: 'highContrast', ...THEME_VALUES.highContrast },
+  printColor: { id: 'printColor', ...THEME_VALUES.printColor },
+  printBw: { id: 'printBw', ...THEME_VALUES.printBw },
+}
+
+/** Fill of a token: the player colour, unless the theme fixes one per team (N&B, D-062). */
+export function tokenFill(theme: Theme, team: Team, playerColor: string): string {
+  return (team === 'A' ? theme.tokenFillA : theme.tokenFillB) ?? playerColor
+}
+
+/** Colour of a run: the player colour, unless the theme fixes one (N&B, D-062). */
+export function runColor(theme: Theme, playerColor: string): string {
+  return theme.runColor ?? playerColor
 }
 
 function parseHex(color: string): [number, number, number] | null {

@@ -517,3 +517,10 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : une lecture ne modifie jamais un fichier de l'utilisateur (règle 9) ; 4.4 et D-024 ; l'interface et les exports affichent les mêmes libellés.
 - Alternatives écartées : réécrire `reglages.json` en v2 dès la lecture ; 8 Mo décimaux.
 - Origine : choix technique (étape 1).
+
+### D-073 : rendu des exports (étape 2)
+- Date : 2026-10-15
+- Décision : thèmes `printColor` et `printBw` dans `defaults.ts` (tailles du Contraste fort, traits du terrain et des jetons à 2 px, ligne d'avantage à 1,5 px), absents de la liste des thèmes de l'éditeur ; nouvelles valeurs de thème : couleur des passes (blanche à l'écran, noire à l'impression), couleur des courses et remplissage des jetons par équipe (`null` = couleur de la joueuse ; N&B : A noir, B blanc, course noire), pastille ; passe invalide grise en N&B. Habillage dans `render/captions.ts` : en-tête de 30 px à l'échelle 1 (libellé à gauche, pastille à droite), cartons pleine image (titre sur 4 lignes au plus, sous-titre), tailles en HYPOTHÈSE (`CAPTION_SIZES`). Le bandeau d'un export garde une hauteur fixe (`minLines`) pour que le cadrage ne bouge jamais ; le viewport accepte des marges intérieures (`insets`) et cadre le terrain sous l'en-tête et le bandeau. Ballon en 4 courbes de Bézier (D-071) : images de référence du lot 1 inchangées dans la tolérance de D-042.
+- Raison : D-060, D-062 ; 9.2 (cadrage fixe) ; jsPDF.
+- Alternatives écartées : thèmes d'impression ajoutés à l'éditeur ; bandeau de hauteur variable (le terrain sauterait d'un temps à l'autre).
+- Origine : choix technique (étape 2).

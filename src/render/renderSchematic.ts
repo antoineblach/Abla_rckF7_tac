@@ -9,7 +9,7 @@ import type { Id, Play } from '../model/types'
 import type { Ctx2D } from './ctx2d'
 import { arrowAtEnd, drawToken, strokePolyline } from './primitives'
 import { clearBackground, colorOf, drawBallState, drawGainLine } from './render'
-import type { Theme } from './themes'
+import { runColor, type Theme } from './themes'
 import { toPx, type Viewport } from './viewport'
 
 /** Draws already computed schematic data (the editor reuses it for hit tests). */
@@ -48,12 +48,12 @@ export function drawSchematic(
     })
   }
   for (const run of schematic.runs) {
-    const color = colorOf(schematic.players, run.entityId)
+    const color = runColor(theme, colorOf(schematic.players, run.entityId))
     strokePolyline(ctx, viewport, run.points, { color, width: theme.runWidth, cap: 'round' })
     arrowAtEnd(ctx, viewport, run.points, color, theme.arrowSize)
   }
   for (const pass of schematic.passes) {
-    const color = pass.applied ? theme.ballFill : theme.error
+    const color = pass.applied ? theme.passColor : theme.error
     const points = [pass.from, pass.to]
     strokePolyline(ctx, viewport, points, {
       color,
@@ -64,7 +64,15 @@ export function drawSchematic(
     arrowAtEnd(ctx, viewport, points, color, theme.arrowSize)
   }
   for (const player of schematic.players) {
-    drawToken(ctx, viewport, theme, toPx(viewport, player.pos), player.color, String(player.number))
+    drawToken(
+      ctx,
+      viewport,
+      theme,
+      toPx(viewport, player.pos),
+      player.team,
+      player.color,
+      String(player.number),
+    )
   }
   if (schematic.ball) {
     drawBallState(ctx, viewport, theme, schematic.ball, schematic.attackingTeam)

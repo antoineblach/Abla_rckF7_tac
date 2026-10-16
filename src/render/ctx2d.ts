@@ -1,6 +1,9 @@
 // Minimal 2D context used by the renderer (SPEC 3.3.2). A displayed canvas, an OffscreenCanvas,
 // @napi-rs/canvas in tests and the jsPDF context (lot 2) all satisfy it. Gradients, patterns,
 // shadows and filters are deliberately absent (SPEC 3.3.3).
+// jsPDF applies transformations when points are added and loses a path built between save() and
+// restore(): shapes are built in device units, a transformation only places a whole drawing
+// (D-071).
 export interface Ctx2D {
   save(): void
   restore(): void
@@ -8,6 +11,9 @@ export interface Ctx2D {
   closePath(): void
   moveTo(x: number, y: number): void
   lineTo(x: number, y: number): void
+  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void
+  /** Clips to the current path (a PDF page, unlike a canvas, does not clip at its edges). */
+  clip(): void
   arc(
     x: number,
     y: number,

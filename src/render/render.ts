@@ -15,7 +15,7 @@ import {
   strokePolyline,
   strokePolylinePx,
 } from './primitives'
-import { mixColors, type Theme } from './themes'
+import { mixColors, runColor, type Theme } from './themes'
 import { directionPx, sizePx, toPx, type Viewport } from './viewport'
 
 export function clearBackground(ctx: Ctx2D, viewport: Viewport, theme: Theme): void {
@@ -105,7 +105,7 @@ function drawTraces(ctx: Ctx2D, viewport: Viewport, theme: Theme, state: SceneSt
   // Previous phases first (faded), then the current phase (emphasised) on top.
   for (const current of [false, true]) {
     for (const trace of state.traces.filter((tr) => tr.current === current)) {
-      const base = colorOf(state.players, trace.entityId)
+      const base = runColor(theme, colorOf(state.players, trace.entityId))
       const color = current ? base : mixColors(base, theme.grass, theme.fadeTowardsGrass)
       strokePolyline(ctx, viewport, trace.points, { color, width: theme.runWidth, cap: 'round' })
       if (trace.completed) {
@@ -114,8 +114,8 @@ function drawTraces(ctx: Ctx2D, viewport: Viewport, theme: Theme, state: SceneSt
     }
     for (const pass of state.passTraces.filter((p) => p.current === current)) {
       const color = current
-        ? theme.ballFill
-        : mixColors(theme.ballFill, theme.grass, theme.fadeTowardsGrass)
+        ? theme.passColor
+        : mixColors(theme.passColor, theme.grass, theme.fadeTowardsGrass)
       const points: Vec2[] = [pass.from, pass.to]
       strokePolyline(ctx, viewport, points, {
         color,
@@ -143,7 +143,15 @@ export function render(
   }
   if (layers.traces) drawTraces(ctx, viewport, theme, state)
   for (const player of state.players) {
-    drawToken(ctx, viewport, theme, toPx(viewport, player.pos), player.color, String(player.number))
+    drawToken(
+      ctx,
+      viewport,
+      theme,
+      toPx(viewport, player.pos),
+      player.team,
+      player.color,
+      String(player.number),
+    )
   }
   if (state.ball) drawBallState(ctx, viewport, theme, state.ball, state.attackingTeam)
   if (layers.instruction) drawBanner(ctx, viewport, theme, state.instruction)

@@ -1,7 +1,8 @@
 // Viewport: the only layer that knows pixels (SPEC 3.3.4). It converts metres to pixels, fits a
 // frame, and orients the field: landscape keeps x to the right; portrait and square put the
-// attack towards the top of the image (DECISIONS Q6). An optional extra rotation of 180° exists
-// for lot 2 (landscape GIFs always attacking to the right); it is unused in lot 1.
+// attack towards the top of the image (DECISIONS Q6). An extra rotation of 180° makes landscape
+// GIFs always attack to the right (D-006). Exports fit their frame inside insets (header and
+// banner of the GIFs, D-060).
 // On screen, the displayed area is a view (centre and scale) that does not depend on the canvas
 // size: resizing the canvas keeps the scale and the centre (D-048).
 import { FULL_VIEW_MARGIN } from '../config/defaults'
@@ -11,6 +12,14 @@ import type { FieldView, Team, Vec2 } from '../model/types'
 export type Orientation = 'landscape' | 'portrait' | 'square'
 
 export const ORIENTATIONS: readonly Orientation[] = ['landscape', 'portrait', 'square']
+
+/** Device pixels kept free on each side of the canvas. */
+export interface Insets {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
 
 export interface ViewportOptions {
   /** Canvas size in device pixels. */
@@ -23,6 +32,8 @@ export interface ViewportOptions {
   orientation: Orientation
   attackingTeam: Team
   rotate180?: boolean
+  /** The frame fits and is centred inside the canvas minus these insets. */
+  insets?: Insets
 }
 
 export interface Viewport {
@@ -116,11 +127,12 @@ function buildViewport(
   orientation: Orientation,
   attackingTeam: Team,
   rotate180: boolean,
+  screenCenter: Vec2 = { x: widthPx / 2, y: heightPx / 2 },
 ): Viewport {
   const { ex, ey } = axesFor(orientation, attackingTeam, rotate180)
   const origin = {
-    x: widthPx / 2 - scale * (ex.x * center.x + ey.x * center.y),
-    y: heightPx / 2 - scale * (ex.y * center.x + ey.y * center.y),
+    x: screenCenter.x - scale * (ex.x * center.x + ey.x * center.y),
+    y: screenCenter.y - scale * (ex.y * center.x + ey.y * center.y),
   }
   return { widthPx, heightPx, pixelRatio, scale, ex, ey, origin, orientation, attackingTeam }
 }
@@ -144,7 +156,10 @@ export function viewportFromView(options: ViewViewportOptions): Viewport {
 export function createViewport(options: ViewportOptions): Viewport {
   const { widthPx, heightPx, frame, orientation, attackingTeam } = options
   const rotate180 = options.rotate180 ?? false
-  const fit = fitView(frame, widthPx, heightPx, orientation, attackingTeam, rotate180)
+  const insets = options.insets ?? { top: 0, right: 0, bottom: 0, left: 0 }
+  const innerW = Math.max(1, widthPx - insets.left - insets.right)
+  const innerH = Math.max(1, heightPx - insets.top - insets.bottom)
+  const fit = fitView(frame, innerW, innerH, orientation, attackingTeam, rotate180)
   return buildViewport(
     widthPx,
     heightPx,
@@ -154,6 +169,7 @@ export function createViewport(options: ViewportOptions): Viewport {
     orientation,
     attackingTeam,
     rotate180,
+    { x: insets.left + innerW / 2, y: insets.top + innerH / 2 },
   )
 }
 
@@ -197,8 +213,11 @@ export function directionPx(viewport: Viewport, v: Vec2): Vec2 {
   return len > 0 ? { x: x / len, y: y / len } : { x: 0, y: 0 }
 }
 
+/** Size and scale of an image, without its field transformation (export dressing). */
+export type ImageFrame = Pick<Viewport, 'widthPx' | 'heightPx' | 'pixelRatio'>
+
 /** Theme size (CSS pixels at scale 1) in device pixels. */
-export function sizePx(viewport: Viewport, cssPixels: number): number {
+export function sizePx(viewport: Pick<Viewport, 'pixelRatio'>, cssPixels: number): number {
   return cssPixels * viewport.pixelRatio
 }
 

@@ -264,12 +264,12 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
   - Installation de gifenc, jspdf, pdfjs-dist, omggif.
   - Prototypes P1 à P4 (section 1.4), non versionnés ; chiffres et limites dans le plan.
   - Vectoriel retenu si les quatre points de 1.3 sont confirmés ; **arrêt** seulement sur une limite bloquante (D-057).
-- [x] **Étape 1 : config, model, noms et lisibilité.** (commit « Étape 1 : réglages v2, noms et lisibilité », après `50ee9e7` ; reprise après interruption, D-072)
+- [x] **Étape 1 : config, model, noms et lisibilité.** (commit `c6fa414` ; reprise après interruption, D-072)
   - Valeurs de `defaults.ts`.
   - `model/labels.ts`, avec `ui/strings.ts` qui le réexporte.
   - Réglages v2 : schéma, migration, fixture v1, test ; lecture versionnée ; une version future n'est jamais réécrite (comme D-024).
   - `export/names.ts`, `legibility.ts` et `text.ts`, avec leurs tests.
-- [ ] **Étape 2 : render.**
+- [x] **Étape 2 : render.** (commit « Étape 2 : thèmes d'impression et habillage », après `c6fa414` ; D-073)
   - Thème Impression N&B ; style de jeton par équipe ; captions ; marges du viewport ; bandeau décalable.
   - Selon le choix de l'étape 0 : ballon en Bézier, `clip()` et `bezierCurveTo()` (contexte enregistreur mis à jour).
   - Tests : images de référence du lot 1 inchangées ou régénérées avec justification ; contrôles par le contexte enregistreur.

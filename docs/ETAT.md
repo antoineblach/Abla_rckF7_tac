@@ -2,21 +2,22 @@
 
 - Mise à jour : 2026-10-15
 - Branche : `lot-2` (depuis `main` à `9a2c379`) ; pas encore poussée, pas de PR
-- Dernier commit : « Étape 1 : réglages v2, noms et lisibilité » (après `50ee9e7`)
+- Dernier commit : « Étape 2 : thèmes d'impression et habillage » (après `c6fa414`)
 - `main` : lot 1 et sa correction fusionnés (PR #1 `d37f3f6`, PR #2 `9a2c379`), déployés sur Pages ; protection vérifiée par `gh api` (D-055)
 - Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter.
 
 ## En cours
 
-- Lot 2 (exports GIF et PDF), plan validé : `docs/plans/lot-2.md` ; réponses Q1 à Q16 et complément : D-057 à D-070 ; étape 0 : D-071 (PDF vectoriel) ; étape 1 : D-072.
+- Lot 2 (exports GIF et PDF), plan validé : `docs/plans/lot-2.md` ; réponses Q1 à Q16 et complément : D-057 à D-070 ; étape 0 : D-071 (PDF vectoriel) ; étape 1 : D-072 ; étape 2 : D-073.
 - Consigne de l'utilisateur : enchaîner les étapes 2 à 7 sans attendre, arrêt seulement sur une question bloquante.
-- Action suivante : étape 2 (render : thèmes d'impression, jeton plein ou creux, captions, marges du viewport, ballon en Bézier, `clip`, `bezierCurveTo`).
+- Action suivante : étape 3 (GIF : plan des images, dessin d'une image, palette, transparence, délais, encodage pas à pas).
 
 ## Fait
 
 - Lot 1 : étapes 0 à 7 (`docs/plans/lot-1.md`), PR #1 fusionnée ; correction après recette (`docs/plans/lot-1-corrections.md`), PR #2 fusionnée.
 - Lot 2, étape 0 : plan, décisions, dépendances (gifenc 1.0.3, jspdf 4.2.1 ; dev : pdfjs-dist 6.4.299, omggif 1.0.10, @types/omggif) (`1a41e1f`) ; prototypes P1 à P4, résultats en section 1.5 du plan (`50ee9e7`).
-- Lot 2, étape 1 : `defaults.ts` (formats et cadences GIF, durées, lisibilité, mise en page PDF, seuils) ; `model/labels.ts` et `model/shortName.ts` (réexportés par `ui/strings.ts` et `io/fileNames.ts`) ; `reglages.json` v2 (préférences d'export), migration, fixture `reglages-v1.json`, version future jamais réécrite ; `export/names.ts`, `legibility.ts`, `text.ts` ; ESLint : pureté et aplats étendus à `src/export/` (hors `worker/`). 216 tests verts.
+- Lot 2, étape 1 : `defaults.ts` (formats et cadences GIF, durées, lisibilité, mise en page PDF, seuils) ; `model/labels.ts` et `model/shortName.ts` (réexportés par `ui/strings.ts` et `io/fileNames.ts`) ; `reglages.json` v2 (préférences d'export), migration, fixture `reglages-v1.json`, version future jamais réécrite ; `export/names.ts`, `legibility.ts`, `text.ts` ; ESLint : pureté et aplats étendus à `src/export/` (hors `worker/`) (`c6fa414`).
+- Lot 2, étape 2 : thèmes `printColor` et `printBw` ; jeton, course et passe selon le thème ; `render/captions.ts` (cartons, en-tête, pastille, bandeau de hauteur fixe) ; `insets` du viewport ; ballon en Bézier ; `clip` et `bezierCurveTo` dans `Ctx2D` ; `paintEvents` dans le contexte enregistreur. 228 tests verts.
 
 ## Reste à faire (lot 2)
 
