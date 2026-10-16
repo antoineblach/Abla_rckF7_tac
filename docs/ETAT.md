@@ -1,14 +1,14 @@
 # État du projet
 
 - Mise à jour : 2026-10-16
-- Branche : `lot-3` (depuis `main` à `855a804`), poussée ; PR vers `main` ouverte en fin d'étape 8 (numéro et CI dans le commit suivant)
-- Dernier commit : « Étape 8 : exports et clôture du lot 3 » (après `a5fe836`)
+- Branche : `lot-3` (depuis `main` à `855a804`), poussée ; PR #4 vers `main` ouverte, CI verte (16/10)
+- Dernier commit : « État : PR #4 et CI verte » (après `119b9cd`, « Étape 8 : exports et clôture du lot 3 »)
 - `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 
 ## En cours
 
-- Lot 3 (mise en place) : étapes 0 à 8 faites (`docs/plans/lot-3.md`), décisions D-078 à D-096. En attente de l'utilisateur : fusion de la PR (CI verte), puis 3 vérifications manuelles (`docs/RECETTE.md`, section Lot 3) et séance d'usage libre.
-- Prochaine action : suivre la CI de la PR ; après fusion, le retour de recette du lot 3 (prompt « Correction après recette »), ou le lot 4 sur demande.
+- Lot 3 (mise en place) : étapes 0 à 8 faites (`docs/plans/lot-3.md`), décisions D-078 à D-096. En attente de l'utilisateur : fusion de la PR #4 (CI verte), puis 3 vérifications manuelles (`docs/RECETTE.md`, section Lot 3) et séance d'usage libre.
+- Prochaine action : après la fusion (déploiement sur Pages, puis recharger la page sur les deux PC), le retour de recette du lot 3 (prompt « Correction après recette »), ou le lot 4 sur demande.
 
 ## Fait
 
