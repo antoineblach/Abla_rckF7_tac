@@ -63,6 +63,8 @@ export function FieldCanvas() {
   const tool = useEditorStore((s) => s.tool)
   const runDraft = useEditorStore((s) => s.runDraft)
   const passFromId = useEditorStore((s) => s.passFromId)
+  const kickFromId = useEditorStore((s) => s.kickFromId)
+  const placement = useEditorStore((s) => s.placement)
   const mode = usePlayerStore((s) => s.mode)
   const transport = usePlayerStore((s) => s.transport)
   const layers = usePlayerStore((s) => s.layers)
@@ -140,12 +142,24 @@ export function FieldCanvas() {
       )
       render(ctx, state, viewport, theme, layers)
     } else if (schematic) {
-      drawSchematic(ctx, schematic, viewport, theme)
+      // The editor always shows the forward pass badge (D-085).
+      drawSchematic(ctx, schematic, viewport, theme, { forwardPass: true })
       renderOverlay(
         ctx,
         viewport,
         theme,
-        buildOverlay({ schematic, selection, tool, runDraft, passFromId, cursor, selectionBox }),
+        buildOverlay({
+          play,
+          schematic,
+          selection,
+          tool,
+          runDraft,
+          passFromId,
+          kickFromId,
+          placement,
+          cursor,
+          selectionBox,
+        }),
       )
     }
   }, [
@@ -161,6 +175,8 @@ export function FieldCanvas() {
     tool,
     runDraft,
     passFromId,
+    kickFromId,
+    placement,
     cursor,
     selectionBox,
     fontReady,
@@ -278,7 +294,7 @@ export function FieldCanvas() {
       {play ? (
         <canvas
           ref={canvasRef}
-          className={`field__canvas field__canvas--${tool}`}
+          className={`field__canvas field__canvas--${placement ? 'placement' : tool}`}
           data-testid="field-canvas"
           data-viewport={viewportData}
           data-mode={mode}

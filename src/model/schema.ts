@@ -1,6 +1,7 @@
-// zod schemas of the file format, schemaVersion 1 (SPEC 4.1, 4.4).
-// Objects are strict: an unknown key makes the file invalid, so that it is never
-// rewritten without that key (DECISIONS Q24). Types of lots 3 to 5 are rejected (DECISIONS Q4).
+// zod schemas of the file format, schemaVersion 2 (SPEC 4.1, 4.4; lot 3: kicks and breakdowns,
+// D-094). Objects are strict: an unknown key makes the file invalid, so that it is never
+// rewritten without that key (DECISIONS Q24). Types of lots 4 and 5 are rejected (DECISIONS Q4).
+// The frozen version 1 is in schemaV1.ts.
 import { z } from 'zod'
 import type { Play } from './types'
 
@@ -38,7 +39,7 @@ const ballSchema = z.strictObject({ id: idSchema, kind: z.literal('ball') })
 
 export const entitySchema = z.discriminatedUnion('kind', [playerSchema, ballSchema])
 
-const runSchema = z.strictObject({
+export const runSchema = z.strictObject({
   id: idSchema,
   type: z.literal('run'),
   entityId: idSchema,
@@ -48,7 +49,7 @@ const runSchema = z.strictObject({
   delay: z.number().nonnegative(),
 })
 
-const passSchema = z.strictObject({
+export const passSchema = z.strictObject({
   id: idSchema,
   type: z.literal('pass'),
   fromId: idSchema,
@@ -57,7 +58,37 @@ const passSchema = z.strictObject({
   ballSpeed: z.number().positive().optional(),
 })
 
-export const actionSchema = z.discriminatedUnion('type', [runSchema, passSchema])
+const kickSchema = z.strictObject({
+  id: idSchema,
+  type: z.literal('kick'),
+  kickerId: idSchema,
+  kind: z.enum(['restart', 'long']),
+  target: z.union([
+    z.strictObject({ receiverId: idSchema }),
+    z.strictObject({ point: vec2Schema }),
+  ]),
+  delay: z.number().nonnegative(),
+  flightTime: z.number().positive().optional(),
+})
+
+const breakdownSchema = z.strictObject({
+  id: idSchema,
+  type: z.literal('breakdown'),
+  kind: z.enum(['ruck', 'maul']),
+  tackledId: idSchema,
+  supportId: idSchema,
+  relayerId: idSchema,
+  delay: z.number().nonnegative(),
+  duration: z.number().positive(),
+  contest: z.enum(['guard', 'jackal']).optional(),
+})
+
+export const actionSchema = z.discriminatedUnion('type', [
+  runSchema,
+  passSchema,
+  kickSchema,
+  breakdownSchema,
+])
 
 export const phaseSchema = z.strictObject({
   id: idSchema,
@@ -75,8 +106,8 @@ export const setupSchema = z.strictObject({
   ballPosition: vec2Schema.nullable(),
 })
 
-export const playSchemaV1 = z.strictObject({
-  schemaVersion: z.literal(1),
+export const playSchemaV2 = z.strictObject({
+  schemaVersion: z.literal(2),
   id: idSchema,
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -90,7 +121,7 @@ export const playSchemaV1 = z.strictObject({
   phases: z.array(phaseSchema),
 })
 
-export type PlayFileV1 = z.infer<typeof playSchemaV1>
+export type PlayFileV2 = z.infer<typeof playSchemaV2>
 
-// Compile-time check: every valid v1 file is a Play.
-export const asPlay = (file: PlayFileV1): Play => file
+// Compile-time check: every valid v2 file is a Play.
+export const asPlay = (file: PlayFileV2): Play => file

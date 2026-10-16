@@ -1,7 +1,7 @@
 // Library state (Zustand): storage mode, list, issues, filters, dialogs and notifications.
 import { create } from 'zustand'
 import type { ImportCandidate } from '../io/packFiles'
-import type { LibraryIssue, PlaySummary, VersionToken } from '../io/LibraryStore'
+import type { LibraryIssue, PlaySummary, PresetEntry, VersionToken } from '../io/LibraryStore'
 import type { Play, PlayCategory } from '../model/types'
 
 /**
@@ -21,10 +21,17 @@ export type LibraryDialog =
   | { kind: 'removedExternally' }
   | { kind: 'draft'; draft: Play }
   | { kind: 'import'; candidate: ImportCandidate; existingUpdatedAt: string }
-  | { kind: 'copyBrowserPlays'; count: number }
+  | { kind: 'copyBrowserPlays'; count: number; presets: number }
   | { kind: 'confirmDelete'; id: string; name: string }
   | { kind: 'confirmDeletePhase'; phaseId: string; label: string; descendants: number }
   | { kind: 'newPlay' }
+  // Placement presets (lot 3, D-096). `update`: « Mettre à jour », with the version read.
+  | { kind: 'savePreset'; update: { entry: PresetEntry; version: VersionToken | null } | null }
+  | { kind: 'renamePreset'; entry: PresetEntry }
+  | { kind: 'confirmDeletePreset'; entry: PresetEntry }
+
+/** Tabs of the library: the plays, the placement presets (lot 3). */
+export type LibraryTab = 'plays' | 'presets'
 
 export interface LibraryState {
   status: StorageStatus
@@ -32,6 +39,9 @@ export interface LibraryState {
   folderName: string | null
   summaries: PlaySummary[]
   issues: LibraryIssue[]
+  tab: LibraryTab
+  presets: PresetEntry[]
+  presetIssues: LibraryIssue[]
   search: string
   category: PlayCategory | 'all'
   sort: 'name' | 'date'
@@ -45,6 +55,9 @@ export const useLibraryState = create<LibraryState>(() => ({
   folderName: null,
   summaries: [],
   issues: [],
+  tab: 'plays',
+  presets: [],
+  presetIssues: [],
   search: '',
   category: 'all',
   sort: 'date',
@@ -91,6 +104,15 @@ export function visibleSummaries(
         ? a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
         : b.updatedAt.localeCompare(a.updatedAt),
     )
+}
+
+/** Presets by name (SPEC 10.1). */
+export function sortedPresets(presets: readonly PresetEntry[]): PresetEntry[] {
+  return [...presets].sort(
+    (a, b) =>
+      a.preset.name.localeCompare(b.preset.name, 'fr', { sensitivity: 'base' }) ||
+      (a.fileName ?? '').localeCompare(b.fileName ?? ''),
+  )
 }
 
 function normalize(text: string): string {

@@ -10,8 +10,17 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 1. Ouvrir l'application dans Chrome depuis le favori.
 2. Au premier usage, cliquer sur « Choisir un dossier » et désigner le dossier Drive (par exemple `Mon Drive/Rugby7`). Chrome demande l'autorisation : choisir **« Autoriser à chaque visite »** (« Allow on every visit », Chrome 122 et suivants). L'accès reste alors permanent et l'outil rouvre le dossier sans rien demander.
 3. Si Chrome a oublié l'autorisation, un bandeau propose « Réautoriser le dossier » : un clic suffit.
-4. L'outil crée dans le dossier `reglages.json`, `combinaisons/`, `exports/` et `_corbeille/`. Chaque combinaison est un fichier `combinaisons/<nom-court>--<id>.combi.json`. Rien n'est jamais effacé : supprimer une combinaison la déplace dans `_corbeille/`.
+4. L'outil crée dans le dossier `reglages.json`, `combinaisons/`, `modeles/`, `exports/` et `_corbeille/`. Chaque combinaison est un fichier `combinaisons/<nom-court>--<id>.combi.json`. Rien n'est jamais effacé : supprimer une combinaison la déplace dans `_corbeille/`.
 5. Enregistrement automatique 2 s après la dernière modification, ou Ctrl+S. L'outil relit le dossier au retour sur la fenêtre et toutes les 30 s : une combinaison modifiée sur l'autre PC est rechargée (ou un choix est proposé si vous étiez en train de la modifier).
+
+### Mises en place (modèles de placement)
+
+- **Enregistrer un modèle** : bibliothèque, onglet « Modèles », « Enregistrer un modèle… » (combinaison ouverte). Choisir le nom, le type (mêlée, touche, coup d'envoi/renvoi, ruck, libre), le placement de départ entier ou la sélection (par exemple la défense seule), le ballon et le côté ouvert, puis cliquer le point d'ancrage sur le terrain. Chaque modèle est un fichier `modeles/<nom-court>--<id>.preset.json`.
+- **Appliquer** : « Appliquer », puis cliquer le point d'ancrage ; des jetons fantômes suivent le pointeur et un bandeau propose le côté ouvert (Auto, Gauche, Droite). L'ancre d'une touche se place sur la ligne de touche, jamais à moins de 5 m d'une ligne de but. Les joueuses sont associées par rôle (attaque, défense) et numéro : existantes déplacées, manquantes créées. Échap annule.
+- Un modèle d'attaque puis un modèle de défense se combinent. « Nouvelle combinaison » propose aussi les modèles.
+- Renommer, dupliquer, mettre à jour depuis le placement courant, supprimer (dans `_corbeille/`). Un modèle modifié sur l'autre PC depuis votre dernière lecture n'est pas touché : l'outil le signale et relit la liste.
+- **Combinaison entière** (section Combinaison de l'inspecteur) : « Déplacer la combinaison » (deux clics, départ puis arrivée) et « Retourner » (symétrie gauche-droite).
+- **Regroupements et jeu au pied** : outils « Regroupement » (G) et « Jeu au pied » (J) ; le calque « En-avant » du lecteur signale les passes en avant probables (jamais dans les exports).
 
 ### Exports GIF et PDF
 
@@ -34,7 +43,7 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 
 - **Firefox**, ou Chrome tant qu'aucun dossier n'est choisi : la bibliothèque reste dans le navigateur (IndexedDB). Un bandeau le rappelle.
 - Échanges manuels : « Exporter » (une combinaison, `.combi.json`), « Exporter tout » (`.combipack.json`), « Importer ».
-- En choisissant ensuite un dossier dans Chrome, l'outil propose d'y copier les combinaisons du navigateur.
+- En choisissant ensuite un dossier dans Chrome, l'outil propose d'y copier les combinaisons et les modèles du navigateur.
 
 ## Configuration de Google Drive pour ordinateur (une fois par PC)
 
@@ -74,3 +83,4 @@ npm run preview            # prévisualisation du build : http://localhost:4173/
 - `main` est protégée : une PR ne peut être fusionnée que si le statut « checks » est vert. Pas de push direct sur `main`.
 - Travail par lot : une branche `lot-N`, une PR vers `main`, fusion après la recette du lot (`docs/RECETTE.md` : tests automatisés, au plus 5 vérifications manuelles, séance d'usage libre).
 - La base de Vite est `/Abla_rckF7_tac/` (casse exacte) : la changer seulement si le dépôt est renommé.
+- Après un déploiement qui change le format des fichiers (lot 3 : combinaisons en version 2), recharger la page sur les deux PC : une page restée ouverte sur l'ancienne version signale les nouveaux fichiers comme « créés par une version plus récente » et ne les modifie pas.

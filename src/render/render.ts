@@ -1,9 +1,10 @@
 // render(ctx, state, viewport, theme, layers): draws one image of a scene (SPEC 3.3.2).
 // Pure: same inputs, same drawing calls.
-import { TEAM_COLORS } from '../config/defaults'
+import { KICK_APEX_SCALE, TEAM_COLORS } from '../config/defaults'
 import type { BallState, SceneState } from '../engine/sceneState'
 import { drawField } from '../field/drawField'
-import { attackDirection, type Id, type Team, type Vec2 } from '../model/types'
+import { BREAKDOWN_KIND_LABELS } from '../model/labels'
+import { attackDirection, type BreakdownKind, type Id, type Team, type Vec2 } from '../model/types'
 import type { Ctx2D } from './ctx2d'
 import type { Layers } from './layers'
 import {
@@ -12,6 +13,9 @@ import {
   drawBanner,
   drawToken,
   fillArrowHead,
+  fillCircle,
+  fillEllipse,
+  strokeCircle,
   strokePolyline,
   strokePolylinePx,
 } from './primitives'
@@ -90,14 +94,119 @@ export function drawBallState(
       const to = toPx(viewport, ball.to)
       const len = Math.hypot(to.x - from.x, to.y - from.y)
       const dir = len > 0 ? { x: (to.x - from.x) / len, y: (to.y - from.y) / len } : attack
-      drawBall(ctx, viewport, theme, toPx(viewport, ball.pos), dir)
+      const center = toPx(viewport, ball.pos)
+      if (ball.via === 'kick' && ball.lift > 0) {
+        // Ground shadow, offset towards the bottom right with the height (D-084).
+        const offset = sizePx(viewport, theme.kickShadowOffset) * ball.lift
+        fillEllipse(
+          ctx,
+          { x: center.x + offset, y: center.y + offset },
+          sizePx(viewport, theme.ballLength) / 2,
+          sizePx(viewport, theme.ballWidth) / 2,
+          dir,
+          theme.kickShadow,
+        )
+      }
+      const scale = ball.via === 'kick' ? 1 + (KICK_APEX_SCALE - 1) * ball.lift : 1
+      drawBall(ctx, viewport, theme, center, dir, scale)
       return
     }
     case 'loose':
-    case 'inBreakdown':
       drawBall(ctx, viewport, theme, toPx(viewport, ball.pos), attack)
       return
+    case 'inBreakdown': {
+      // Placed back, behind the tackled player, so that her number stays readable.
+      const center = toPx(viewport, ball.pos)
+      const offset = sizePx(viewport, theme.tokenRadius) + sizePx(viewport, theme.ballLength) * 0.3
+      drawBall(
+        ctx,
+        viewport,
+        theme,
+        { x: center.x - attack.x * offset, y: center.y - attack.y * offset },
+        attack,
+      )
+      return
+    }
   }
+}
+
+/** Kick in long dashes (SPEC 13.3), a small circle on a target point (D-084). */
+export function drawKickPath(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  from: Vec2,
+  to: Vec2,
+  color: string,
+  arrow: { backOff: number } | null,
+  targetPoint: Vec2 | null,
+): void {
+  const points = [from, to]
+  strokePolyline(ctx, viewport, points, { color, width: theme.kickWidth, dash: theme.kickDash })
+  if (arrow) arrowAtEnd(ctx, viewport, points, color, theme.arrowSize, arrow.backOff)
+  if (targetPoint) {
+    strokeCircle(
+      ctx,
+      toPx(viewport, targetPoint),
+      sizePx(viewport, theme.arrowSize) * 0.6,
+      color,
+      sizePx(viewport, theme.kickWidth),
+    )
+  }
+}
+
+/** Ring of a ruck or a maul around its point (D-084). */
+export function drawBreakdownRing(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  pos: Vec2,
+  color: string,
+): void {
+  strokeCircle(
+    ctx,
+    toPx(viewport, pos),
+    sizePx(viewport, theme.tokenRadius) * 2,
+    color,
+    sizePx(viewport, theme.breakdownWidth),
+  )
+}
+
+/** Label « Ruck » or « Maul » above the ring (D-084). */
+export function drawBreakdownLabel(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  pos: Vec2,
+  kind: BreakdownKind,
+  color: string,
+): void {
+  const center = toPx(viewport, pos)
+  const radius = sizePx(viewport, theme.tokenRadius) * 2
+  ctx.fillStyle = color
+  ctx.font = `bold ${sizePx(viewport, theme.tokenFontSize)}px ${theme.font}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'bottom'
+  ctx.fillText(BREAKDOWN_KIND_LABELS[kind], center.x, center.y - radius - sizePx(viewport, 2))
+}
+
+/** Badge « ! » in the middle of a forward pass (SPEC 10.5, D-084). */
+export function drawForwardBadge(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  from: Vec2,
+  to: Vec2,
+): void {
+  const center = toPx(viewport, { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 })
+  const radius = sizePx(viewport, theme.tokenRadius) * 0.75
+  fillCircle(ctx, center, radius, theme.forwardFill)
+  strokeCircle(ctx, center, radius, theme.forwardText, sizePx(viewport, theme.tokenStrokeWidth))
+  ctx.fillStyle = theme.forwardText
+  ctx.font = `bold ${sizePx(viewport, theme.tokenFontSize)}px ${theme.font}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('!', center.x, center.y + sizePx(viewport, 0.5))
 }
 
 function drawTraces(ctx: Ctx2D, viewport: Viewport, theme: Theme, state: SceneState): void {
@@ -125,6 +234,21 @@ function drawTraces(ctx: Ctx2D, viewport: Viewport, theme: Theme, state: SceneSt
       })
       if (pass.completed) arrowAtEnd(ctx, viewport, points, color, theme.arrowSize, tokenRadius)
     }
+    for (const kick of state.kickTraces.filter((k) => k.current === current)) {
+      const color = current
+        ? theme.passColor
+        : mixColors(theme.passColor, theme.grass, theme.fadeTowardsGrass)
+      drawKickPath(
+        ctx,
+        viewport,
+        theme,
+        kick.from,
+        kick.to,
+        color,
+        kick.completed ? { backOff: kick.toPoint ? 0 : tokenRadius } : null,
+        kick.toPoint ? kick.target : null,
+      )
+    }
   }
 }
 
@@ -142,6 +266,9 @@ export function render(
     drawGainLine(ctx, viewport, theme, state.gainLineX, state.field, state.attackingTeam)
   }
   if (layers.traces) drawTraces(ctx, viewport, theme, state)
+  for (const breakdown of state.breakdowns) {
+    drawBreakdownRing(ctx, viewport, theme, breakdown.pos, theme.breakdownColor)
+  }
   for (const player of state.players) {
     drawToken(
       ctx,
@@ -153,7 +280,15 @@ export function render(
       String(player.number),
     )
   }
+  for (const breakdown of state.breakdowns) {
+    drawBreakdownLabel(ctx, viewport, theme, breakdown.pos, breakdown.kind, theme.breakdownColor)
+  }
   if (state.ball) drawBallState(ctx, viewport, theme, state.ball, state.attackingTeam)
+  if (layers.forwardPass) {
+    for (const pass of state.passTraces) {
+      if (pass.forward) drawForwardBadge(ctx, viewport, theme, pass.from, pass.target)
+    }
+  }
   if (layers.instruction) drawBanner(ctx, viewport, theme, state.instruction)
   ctx.restore()
 }

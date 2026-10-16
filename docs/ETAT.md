@@ -1,27 +1,30 @@
 # État du projet
 
-- Mise à jour : 2026-10-15
-- Branche : `lot-2` (depuis `main` à `9a2c379`), poussée ; PR #3 `lot-2` vers `main` ouverte, CI verte sur `f4d2950` (push et PR)
-- Dernier commit : « État : PR #3 et CI verte » (après `f4d2950` ; clôture du lot 2 : `abe4424`)
-- `main` : lot 1 et sa correction fusionnés (PR #1 `d37f3f6`, PR #2 `9a2c379`), déployés sur Pages ; protection vérifiée par `gh api` (D-055)
-- Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter (`c6fa414`).
+- Mise à jour : 2026-10-16
+- Branche : `lot-3` (depuis `main` à `855a804`), poussée ; PR #4 vers `main` ouverte, CI verte (16/10)
+- Dernier commit : « État : PR #4 et CI verte » (après `119b9cd`, « Étape 8 : exports et clôture du lot 3 »)
+- `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 
 ## En cours
 
-- Lot 2 (exports GIF et PDF) terminé : étapes 0 à 7 cochées dans `docs/plans/lot-2.md` ; décisions D-057 à D-077.
-- En attente de l'utilisateur : fusion de la PR #3 ; les 3 vérifications manuelles du lot 2 (`docs/RECETTE.md`, section « Lot 2 ») et la séance d'usage libre.
+- Lot 3 (mise en place) : étapes 0 à 8 faites (`docs/plans/lot-3.md`), décisions D-078 à D-096. En attente de l'utilisateur : fusion de la PR #4 (CI verte), puis 3 vérifications manuelles (`docs/RECETTE.md`, section Lot 3) et séance d'usage libre.
+- Prochaine action : après la fusion (déploiement sur Pages, puis recharger la page sur les deux PC), le retour de recette du lot 3 (prompt « Correction après recette »), ou le lot 4 sur demande.
 
 ## Fait
 
-- Lot 1 : étapes 0 à 7 (`docs/plans/lot-1.md`), PR #1 fusionnée ; correction après recette (`docs/plans/lot-1-corrections.md`), PR #2 fusionnée.
-- Lot 2 : plan et prototypes (`1a41e1f`, `50ee9e7`) ; réglages v2, noms, lisibilité (`c6fa414`) ; thèmes d'impression, habillage, ballon en Bézier (`0fe6ebc`) ; GIF (`38e7ba6`) ; PDF vectoriel et cahier (`d74dd14`) ; io des exports et Worker (`56abc6f`) ; interface des exports et bout en bout (`262f378`) ; clôture : SPEC 1.3 (3.1, 3.2, 3.3, 4.4, 8.2, 8.5, 9, 13.2, 14, 16), ARCHITECTURE, RECETTE, README.
-- Recette automatisable complète en local : lint, typecheck, 289 tests unitaires, 23 tests de bout en bout (Chromium et Firefox, vrai Worker), build, format.
+- Lots 1 et 2 : PR #1, #2 et #3 fusionnées.
+- Lot 3, étapes 0 à 2 : plan ; `Play` v2 (schéma v1 figé, migration), `model/preset.ts`, fixtures figées `play-v2-lot3.json` et `preset-v1-touche.json` ; moteur (`engine/timeline.ts`, `engine/ballEvents.ts` : courses arrêtées, relais, boucle d'événements, ramassage, en-avant, ligne d'avantage).
+- Constat : le scénario de référence du lot 1 contient une passe en avant au sens de 5.7 (option B, `uuid(231)`) ; les tests l'attendent désormais.
+- Lot 3, étapes 3 à 6 : géométrie des modèles et de la combinaison entière ; rendu (tirets longs, ombre, regroupement, pastille d'en-avant) ; `io/collection.ts` et `modeles/` ; outils J et G, inspecteur, ballon au sol, calque « En-avant » (D-095).
+- Lot 3, étape 7 (D-096) : `editor/placementMode.ts`, `state/presetSession.ts`, onglets de la bibliothèque, dialogues des modèles, bandeau de pose, « Déplacer la combinaison » et « Retourner » ; e2e `placement.chromium` et `presets.firefox`.
+- Lot 3, étape 8 : `export/setPieces.test.ts` (image de GIF avec un jeu au pied en vol, tirets longs relus dans le PDF N&B, aucune icône d'en-avant dans le GIF ni le PDF, calque activé ; 2 images de référence vérifiées à l'œil), `pageDashes` dans `test/pdfInspect.ts`, export GIF et PDF dans `breakdown-kick.chromium` ; SPEC 1.4 (dont 10.5 corrigée selon D-086), ARCHITECTURE, RECETTE (section Lot 3), README (modèles, rechargement après déploiement).
+- Recette automatisable : lint, typecheck, format, 438 tests unitaires, 32 tests de bout en bout (Chromium et Firefox), build ; aucun test désactivé ; fixtures v1 et v2 inchangées ; `bundle.chromium.spec.ts` vert.
 
 ## Reste à faire
 
-- Lot 2 : fusion de la PR #3 par l'utilisateur ; vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre.
-- Lot 1, toujours en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel (« Garder les deux »), séance d'usage libre.
-- Lot 3 (mise en place) : pas commencé ; commencer en mode plan.
+- Lot 3 : fusion de la PR par l'utilisateur ; 3 vérifications manuelles (modèle synchronisé entre les deux PC, GIF sur le téléphone, PDF N&B sur la laser) ; séance d'usage libre.
+- Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
+- Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
 
 ## Questions ouvertes
 
@@ -33,7 +36,7 @@
 - Fixture figée `src/test/fixtures/play-v1-7v7-options.json` : ne plus la modifier (migration v1 vers v2 du lot 3).
 - Le seuil « traits >= 3 px » du thème Contraste fort est testé sur `render`, pas sur la surcouche d'édition (jamais exportée).
 - À 1280 px de large, la seconde rangée du transport défile horizontalement ; sous 1500 px, le titre de l'application est masqué (D-077).
-- En portrait, une combinaison large laisse du terrain vide au-dessus et au-dessous dans les GIF (échelle fixée par la largeur, attaque vers le haut, D-061).
+- En portrait, une combinaison large laisse du terrain vide au-dessus et au-dessous dans les GIF (D-061).
 - Le même GIF diffère entre Chromium et Firefox (rendu du texte) : le déterminisme vaut pour un même navigateur.
 
 ## Pièges rencontrés

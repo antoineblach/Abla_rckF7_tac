@@ -17,7 +17,13 @@ test('folder mode: create, save, reload and play each option (lot 1 acceptance)'
     .getByRole('button', { name: 'Choisir un dossier' })
     .click()
   await expect(page.getByText('Dossier : Rugby7')).toBeVisible()
-  expect(await listFolder(page)).toEqual(['_corbeille', 'combinaisons', 'exports', 'reglages.json'])
+  expect(await listFolder(page)).toEqual([
+    '_corbeille',
+    'combinaisons',
+    'exports',
+    'modeles',
+    'reglages.json',
+  ])
 
   await buildScenario(page, 'Croisée test')
   await save(page)

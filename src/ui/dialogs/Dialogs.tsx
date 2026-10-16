@@ -1,6 +1,13 @@
 import { deletePhase } from '../../editor/commands'
+import { PRESET_TYPE_LABELS } from '../../model/labels'
 import { applyEdit, selectPhase, useEditorStore } from '../../state/editorStore'
-import { closeDialog, useLibraryState, type LibraryDialog } from '../../state/libraryState'
+import {
+  closeDialog,
+  sortedPresets,
+  useLibraryState,
+  type LibraryDialog,
+} from '../../state/libraryState'
+import { createPlayFromPreset } from '../../state/presetSession'
 import {
   confirmDelete,
   copyBrowserPlays,
@@ -11,6 +18,8 @@ import {
   resolveRemoved,
 } from '../../state/session'
 import { Modal } from '../common/Modal'
+import { TEXT } from '../strings'
+import { PresetDialogView } from './PresetDialogs'
 
 const date = (iso: string) => (iso ? new Date(iso).toLocaleString('fr-FR') : 'inconnue')
 
@@ -47,8 +56,13 @@ function DialogView({ dialog }: { dialog: LibraryDialog }) {
               Annuler
             </button>
           </div>
+          <NewPlayPresets close={close} />
         </Modal>
       )
+    case 'savePreset':
+    case 'renamePreset':
+    case 'confirmDeletePreset':
+      return <PresetDialogView dialog={dialog} />
     case 'confirmDelete':
       return (
         <Modal title="Supprimer la combinaison" onClose={close}>
@@ -189,10 +203,7 @@ function DialogView({ dialog }: { dialog: LibraryDialog }) {
     case 'copyBrowserPlays':
       return (
         <Modal title="Combinaisons du navigateur">
-          <p>
-            {dialog.count} combinaison{dialog.count > 1 ? 's' : ''} enregistrée
-            {dialog.count > 1 ? 's' : ''} dans ce navigateur. Les copier dans le dossier choisi ?
-          </p>
+          <p>{TEXT.browserContent(dialog.count, dialog.presets)}</p>
           <div className="modal__actions">
             <button
               type="button"
@@ -208,6 +219,31 @@ function DialogView({ dialog }: { dialog: LibraryDialog }) {
         </Modal>
       )
   }
+}
+
+/** The placement presets of the library, as starting placements (SPEC 6.6, D-091). */
+function NewPlayPresets({ close }: { close: () => void }) {
+  const presets = sortedPresets(useLibraryState((s) => s.presets))
+  if (presets.length === 0) return null
+  return (
+    <>
+      <p>Depuis un modèle de placement (cliquez ensuite le point d’ancrage) :</p>
+      <div className="modal__actions modal__actions--wrap">
+        {presets.map((entry) => (
+          <button
+            key={`${entry.preset.id}:${entry.fileName ?? ''}`}
+            type="button"
+            onClick={() => {
+              close()
+              void createPlayFromPreset(entry)
+            }}
+          >
+            {entry.preset.name} ({PRESET_TYPE_LABELS[entry.preset.type]})
+          </button>
+        ))}
+      </div>
+    </>
+  )
 }
 
 export function Dialogs() {

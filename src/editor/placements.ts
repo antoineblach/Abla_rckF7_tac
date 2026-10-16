@@ -31,9 +31,22 @@ export function createNewPlay(placement: StartingPlacement, ids: IdFactory, now:
   line('A', attackLineX)
   if (placement === 'sevenVsSeven') line('B', defenseLineX)
   entities.push({ id: ids(), kind: 'ball' })
+  return playWith(entities, { positions, ballCarrierId: carrier, ballPosition: null }, ids, now)
+}
+
+/**
+ * New play from a placement preset (D-091): no player, a ball when the preset has one; the
+ * preset is then laid by its anchor, which creates the players and places the ball.
+ */
+export function createPlayForPreset(withBall: boolean, ids: IdFactory, now: Date): Play {
+  const entities: Entity[] = withBall ? [{ id: ids(), kind: 'ball' }] : []
+  return playWith(entities, { positions: {}, ballCarrierId: null, ballPosition: null }, ids, now)
+}
+
+function playWith(entities: Entity[], setup: Play['setup'], ids: IdFactory, now: Date): Play {
   const stamp = now.toISOString()
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: ids(),
     createdAt: stamp,
     updatedAt: stamp,
@@ -43,7 +56,7 @@ export function createNewPlay(placement: StartingPlacement, ids: IdFactory, now:
     attackingTeam: 'A',
     field: { ...FIELD_DEFAULTS, view: { kind: 'full' } },
     entities,
-    setup: { positions, ballCarrierId: carrier, ballPosition: null },
+    setup,
     phases: [
       {
         id: ids(),

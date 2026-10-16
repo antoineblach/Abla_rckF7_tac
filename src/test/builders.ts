@@ -1,10 +1,14 @@
 // Deterministic play builders for tests. Never imported by the application.
-import { STARTING_PLACEMENT, TEAM_COLORS } from '../config/defaults'
+import { BREAKDOWN_DURATION_DEFAULT, STARTING_PLACEMENT, TEAM_COLORS } from '../config/defaults'
 import type { IdFactory } from '../model/ids'
+import type { PlacementPreset } from '../model/preset'
 import type {
   Action,
   BallEntity,
+  BreakdownAction,
   Id,
+  KickAction,
+  KickTarget,
   PassAction,
   Phase,
   Play,
@@ -54,6 +58,51 @@ export function pass(
   return { id, type: 'pass', fromId, toId, delay, ...extra }
 }
 
+export function kick(
+  id: Id,
+  kickerId: Id,
+  target: KickTarget,
+  delay: number,
+  extra: Partial<KickAction> = {},
+): KickAction {
+  return { id, type: 'kick', kickerId, kind: 'long', target, delay, ...extra }
+}
+
+export function breakdown(
+  id: Id,
+  tackledId: Id,
+  supportId: Id,
+  relayerId: Id,
+  delay: number,
+  extra: Partial<BreakdownAction> = {},
+): BreakdownAction {
+  return {
+    id,
+    type: 'breakdown',
+    kind: 'ruck',
+    tackledId,
+    supportId,
+    relayerId,
+    delay,
+    duration: BREAKDOWN_DURATION_DEFAULT,
+    ...extra,
+  }
+}
+
+export function preset(extra: Partial<PlacementPreset> = {}): PlacementPreset {
+  return {
+    schemaVersion: 1,
+    id: uuid(8000),
+    name: 'Touche à 4',
+    type: 'lineout',
+    positions: [],
+    ball: null,
+    createdAt: FIXED_DATE,
+    updatedAt: FIXED_DATE,
+    ...extra,
+  }
+}
+
 export function phase(
   id: Id,
   parentId: Id | null,
@@ -74,7 +123,7 @@ export function phase(
 
 export function basePlay(extra: Partial<Play> = {}): Play {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: uuid(9999),
     createdAt: FIXED_DATE,
     updatedAt: FIXED_DATE,
@@ -177,6 +226,71 @@ export function sevenVsSevenWithOptions(): Play {
         { condition: 'Défense montée', instruction: 'Retour intérieur' },
       ),
     ],
+  })
+}
+
+/**
+ * Set pieces of lot 3, source of the frozen fixture `play-v2-lot3.json` (never change it: the
+ * fixture must stay equal to it). 7 v 7 in line, ball on the ground next to A4.
+ * T1: A4 picks the ball up at once, runs into contact; ruck (support A5, relayer A3, guard).
+ * T2: A3 passes to A2 who runs forward (forward pass).
+ * T3 option A (default): A2 kicks long to a point. T3 option B: maul on A2 (support A1,
+ * relayer A3, jackal), then T4: A3 kicks a restart to B7.
+ */
+export function setPiecesPlay(): Play {
+  const play = sevenVsSevenWithOptions()
+  return {
+    ...play,
+    name: 'Ruck puis jeu au pied',
+    setup: { ...play.setup, ballCarrierId: null, ballPosition: { x: 40.5, y: 35 } },
+    phases: [
+      phase(P.t1, null, [
+        run(uuid(400), P.A(4), [{ x: 46, y: 36 }], { durationOverride: 1.5 }),
+        run(uuid(401), P.A(5), [{ x: 45, y: 37 }], { durationOverride: 1.5 }),
+        breakdown(uuid(402), P.A(4), P.A(5), P.A(3), 1.5, { contest: 'guard' }),
+      ]),
+      phase(P.t2, P.t1, [
+        run(uuid(410), P.A(2), [{ x: 50, y: 18 }], { pace: 'sprint' }),
+        pass(uuid(411), P.A(3), P.A(2), 0.2),
+      ]),
+      phase(P.t3a, P.t2, [kick(uuid(420), P.A(2), { point: { x: 75, y: 12 } }, 0.5)], {
+        isDefault: true,
+        condition: 'Ailière adverse montée',
+        instruction: 'Par-dessus',
+      }),
+      phase(
+        P.t3b,
+        P.t2,
+        [
+          run(uuid(430), P.A(1), [{ x: 49, y: 13 }], { pace: 'sprint' }),
+          breakdown(uuid(431), P.A(2), P.A(1), P.A(3), 0.5, {
+            kind: 'maul',
+            contest: 'jackal',
+            duration: 2.5,
+          }),
+        ],
+        { condition: 'Défense en retrait', instruction: 'Maul' },
+      ),
+      phase(uuid(104), P.t3b, [
+        kick(uuid(440), P.A(3), { receiverId: P.B(7) }, 0.2, { kind: 'restart', flightTime: 2.5 }),
+      ]),
+    ],
+  }
+}
+
+/** Placement preset of a lineout, source of the frozen fixture `preset-v1-touche.json`. */
+export function lineoutPreset(): PlacementPreset {
+  return preset({
+    positions: [
+      { role: 'attack', number: 2, forward: -0.5, openSide: -1 },
+      { role: 'attack', number: 1, forward: -0.5, openSide: 6 },
+      { role: 'attack', number: 3, forward: -0.5, openSide: 8 },
+      { role: 'attack', number: 4, forward: -4, openSide: 10 },
+      { role: 'defense', number: 1, forward: 0.5, openSide: 6 },
+      { role: 'defense', number: 3, forward: 0.5, openSide: 8 },
+      { role: 'defense', number: 2, forward: 2, openSide: 2 },
+    ],
+    ball: { forward: -0.5, openSide: -1, carrierRole: 'attack', carrierNumber: 2 },
   })
 }
 

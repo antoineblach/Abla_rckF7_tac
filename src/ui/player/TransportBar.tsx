@@ -225,6 +225,13 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
             setLayer('gainLine', v)
           }}
         />
+        <CheckboxField
+          label="En-avant"
+          checked={layers.forwardPass}
+          onChange={(v) => {
+            setLayer('forwardPass', v)
+          }}
+        />
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 // Reads the PDFs produced by the exports (pdf.js): pages, text, links and their destination,
 // bookmarks, and a page rasterised by @napi-rs/canvas. Never imported by the application.
 import { createCanvas, type Canvas } from '@napi-rs/canvas'
-import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { getDocument, OPS, type PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 export async function openPdf(bytes: Uint8Array): Promise<PDFDocumentProxy> {
   // pdf.js takes ownership of the array it reads: give it a copy.
@@ -12,6 +12,18 @@ export async function openPdf(bytes: Uint8Array): Promise<PDFDocumentProxy> {
 export async function pageText(doc: PDFDocumentProxy, page: number): Promise<string> {
   const content = await (await doc.getPage(page)).getTextContent()
   return content.items.map((item) => ('str' in item ? item.str : '')).join(' ')
+}
+
+/** Dash patterns set on a page (setDash operators), in the units of the page content. */
+export async function pageDashes(doc: PDFDocumentProxy, page: number): Promise<number[][]> {
+  const operators = await (await doc.getPage(page)).getOperatorList()
+  const dashes: number[][] = []
+  for (const [i, fn] of operators.fnArray.entries()) {
+    if (fn !== OPS.setDash) continue
+    const args = operators.argsArray[i] as [number[], number] | undefined
+    if (args) dashes.push([...args[0]])
+  }
+  return dashes
 }
 
 /** Width and height of a page, in millimetres. */

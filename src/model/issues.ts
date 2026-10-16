@@ -30,12 +30,23 @@ export type IssueCode =
   | 'duplicateNumber'
   | 'fieldOutOfRange'
   | 'instructionTooLong'
+  // Business validation of kicks and breakdowns (lot 3, SPEC 10.3, 10.4)
+  | 'actorNotPlayer'
+  | 'kickSelfTarget'
+  | 'breakdownDuplicate'
+  | 'breakdownTeam'
   // Engine validation (SPEC 5.3, 5.4)
   | 'twoRunsSamePhase'
   | 'passToOpponent'
   | 'passerWithoutBall'
   | 'simultaneousPass'
   | 'unsupportedAction'
+  // Engine validation of lot 3 (SPEC 5.7, 10.3, 10.4, D-079, D-083)
+  | 'kickerWithoutBall'
+  | 'tackledWithoutBall'
+  | 'runCutByBreakdown'
+  | 'relayerLate'
+  | 'forwardPass'
 
 export interface Issue {
   code: IssueCode

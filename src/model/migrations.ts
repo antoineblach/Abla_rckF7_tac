@@ -2,11 +2,12 @@
 // Each step validates the data against the schema of its own version, then migrates it;
 // the result is finally validated against the current schema.
 import type { z } from 'zod'
-import { playSchemaV1, type PlayFileV1 } from './schema'
+import { playSchemaV2, type PlayFileV2 } from './schema'
 import { playSchemaV0, type PlayFileV0 } from './schemaV0'
+import { playSchemaV1, type PlayFileV1 } from './schemaV1'
 import type { Play } from './types'
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 export interface SchemaIssue {
   path: string
@@ -63,17 +64,28 @@ function migrateV0toV1(v0: PlayFileV0): PlayFileV1 {
   }
 }
 
-const STEPS: readonly MigrationStep[] = [{ from: 0, schema: playSchemaV0, migrate: migrateV0toV1 }]
+/** Lot 3 (D-094): version 2 only adds kicks and breakdowns; the content is unchanged. */
+function migrateV1toV2(v1: PlayFileV1): PlayFileV2 {
+  return { ...v1, schemaVersion: 2 }
+}
 
-function toSchemaIssues(error: z.ZodError): SchemaIssue[] {
+const STEPS: readonly MigrationStep[] = [
+  { from: 0, schema: playSchemaV0, migrate: migrateV0toV1 },
+  { from: 1, schema: playSchemaV1, migrate: migrateV1toV2 },
+]
+
+export function toSchemaIssues(error: z.ZodError): SchemaIssue[] {
   return error.issues.map((issue) => ({
     path: issue.path.map((part) => String(part)).join('.'),
     message: issue.message,
   }))
 }
 
-/** Validates and migrates raw file data (already parsed from JSON) to the current Play. */
-export function upgradePlay(raw: unknown): UpgradeResult {
+/** Integer `schemaVersion` of raw file data, refused when above `current` (DECISIONS Q24). */
+export function readSchemaVersion(
+  raw: unknown,
+  current: number,
+): { ok: true; version: number } | { ok: false; error: UpgradeError } {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return { ok: false, error: { code: 'notAnObject' } }
   }
@@ -81,9 +93,15 @@ export function upgradePlay(raw: unknown): UpgradeResult {
   if (typeof version !== 'number' || !Number.isInteger(version)) {
     return { ok: false, error: { code: 'missingVersion' } }
   }
-  if (version > CURRENT_SCHEMA_VERSION) {
-    return { ok: false, error: { code: 'futureVersion', version } }
-  }
+  if (version > current) return { ok: false, error: { code: 'futureVersion', version } }
+  return { ok: true, version }
+}
+
+/** Validates and migrates raw file data (already parsed from JSON) to the current Play. */
+export function upgradePlay(raw: unknown): UpgradeResult {
+  const read = readSchemaVersion(raw, CURRENT_SCHEMA_VERSION)
+  if (!read.ok) return read
+  const version = read.version
   let data: unknown = raw
   for (let v = version; v < CURRENT_SCHEMA_VERSION; v++) {
     const step = STEPS.find((candidate) => candidate.from === v)
@@ -97,7 +115,7 @@ export function upgradePlay(raw: unknown): UpgradeResult {
     }
     data = step.migrate(parsed.data as never)
   }
-  const current = playSchemaV1.safeParse(data)
+  const current = playSchemaV2.safeParse(data)
   if (!current.success) {
     return {
       ok: false,

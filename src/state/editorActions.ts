@@ -5,6 +5,8 @@ import { DRAG_THRESHOLD_PX, NUDGE_STEP, NUDGE_STEP_LARGE } from '../config/defau
 import type { Bounds } from '../engine/bounds'
 import { phaseSchematic, type PhaseSchematic } from '../engine/evaluate'
 import {
+  addBreakdown,
+  addKick,
   addPass,
   addPlayer,
   addRun,
@@ -12,11 +14,14 @@ import {
   deletePlayers,
   deleteWaypoint,
   duplicatePlayers,
+  moveBallPosition,
+  moveKickTarget,
   moveSetupPositions,
   moveWaypoint,
   type CommandContext,
 } from '../editor/commands'
 import { playersInBox, type Hit } from '../editor/hitTest'
+import { placementClick, type PlacementMode, type SavePresetRequest } from '../editor/placementMode'
 import {
   selectAction,
   selectPlayer,
@@ -25,10 +30,13 @@ import {
 } from '../editor/selection'
 import { shortcutFor, type KeyInput } from '../editor/shortcuts'
 import { maybeSnap } from '../editor/snap'
+import { kickToolClick } from '../editor/tools/kickTool'
 import { passToolClick } from '../editor/tools/passTool'
 import { runToolClick, runToolFinish } from '../editor/tools/runTool'
+import { mirrorPlay } from '../editor/transform'
 import { randomIds } from '../model/ids'
-import { findPhase } from '../model/phaseTree'
+import { findPhase, rootPhase } from '../model/phaseTree'
+import type { PlacementPreset } from '../model/preset'
 import { phaseIndexAtTime } from '../player/transport'
 import type { Id, Play, Vec2 } from '../model/types'
 import {
@@ -40,6 +48,7 @@ import {
   redoEdit,
   selectPhase,
   setNotice,
+  setPlacement,
   setSelection,
   setTool,
   undoEdit,
@@ -78,11 +87,25 @@ export function setSaveRequest(handler: () => void): void {
   saveRequest = handler
 }
 
+type PresetAnchorHandler = (
+  request: SavePresetRequest,
+  content: Pick<PlacementPreset, 'positions' | 'ball'>,
+) => void
+
+/** Called with the content of a preset when its anchor is clicked: set by the preset session. */
+let presetAnchorHandler: PresetAnchorHandler = () => undefined
+
+export function setPresetAnchorHandler(handler: PresetAnchorHandler): void {
+  presetAnchorHandler = handler
+}
+
 // `origin`: raw pointer position at the press; `started`: the pointer went past the drag
 // threshold (D-051).
 type Drag =
   | { kind: 'players'; ids: Id[]; grab: Vec2; origin: Vec2; started: boolean }
   | { kind: 'waypoint'; actionId: Id; index: number; origin: Vec2; started: boolean }
+  | { kind: 'kickTarget'; actionId: Id; origin: Vec2; started: boolean }
+  | { kind: 'ball'; origin: Vec2; started: boolean }
   | { kind: 'box'; origin: Vec2; additive: boolean }
   | null
 
@@ -142,6 +165,10 @@ export function editorPointerDown(input: PointerInput): void {
   const { play, selectedPhaseId, tool, snap } = state
   if (!play || !selectedPhaseId) return
   const pos = maybeSnap(input.pos, snap)
+  if (state.placement) {
+    placementPointerDown(play, state.placement, pos)
+    return
+  }
   switch (tool) {
     case 'placeA':
     case 'placeB': {
@@ -169,9 +196,97 @@ export function editorPointerDown(input: PointerInput): void {
         )
       return
     }
+    case 'kick': {
+      const result = kickToolClick(state.kickFromId, input.hit, pos)
+      useEditorStore.setState({ kickFromId: result.kickerId })
+      const commit = result.commit
+      if (commit) {
+        const added = addKick(
+          play,
+          selectedPhaseId,
+          commit.kickerId,
+          commit.target,
+          commandContext(),
+        )
+        const actionId = added.actionId
+        if (actionId !== null) {
+          applyEdit(() => added.play)
+          setSelection({ players: [], actions: [actionId], waypoint: null })
+        }
+      }
+      return
+    }
+    case 'breakdown': {
+      // The marker is laid on the carrier; support and relayer are proposed (D-081).
+      if (input.hit?.kind !== 'player') return
+      const tackledId = input.hit.id
+      const result = addBreakdown(play, selectedPhaseId, tackledId, commandContext())
+      if (result.refused === 'noBall') setNotice('breakdownNoBall')
+      else if (result.refused === 'teammates') setNotice('breakdownTeammates')
+      const actionId = result.actionId
+      if (actionId !== null) {
+        applyEdit(() => result.play)
+        setSelection({ players: [], actions: [actionId], waypoint: null })
+      }
+      return
+    }
     case 'select':
       selectPointerDown(play, selectedPhaseId, input, pos)
   }
+}
+
+/** Shows the first phase in edit mode: a placement concerns the starting positions. */
+function showRootPhase(play: Play): void {
+  const root = rootPhase(play)
+  if (!root) return
+  selectPhase(root.id)
+  showPhaseInPlayer(root.id)
+}
+
+/** Starts a placement on the first phase, the selection tool active (D-096). */
+export function startPlacement(mode: PlacementMode): void {
+  const play = useEditorStore.getState().play
+  if (!play) return
+  setTool('select')
+  showRootPhase(play)
+  setPlacement(mode)
+}
+
+/** Click during a placement: anchor of a preset, or start and end of a move (D-088, D-090). */
+function placementPointerDown(play: Play, mode: PlacementMode, pos: Vec2): void {
+  const step = placementClick(mode, play, pos, commandContext().ids)
+  switch (step.kind) {
+    case 'refused':
+      return
+    case 'continue':
+      setPlacement(step.mode)
+      return
+    case 'edit':
+      setPlacement(null)
+      applyEdit(() => step.play)
+      if (mode.kind === 'applyPreset') showRootPhase(play)
+      return
+    case 'save':
+      if (mode.kind !== 'savePreset') return
+      setPlacement(null)
+      presetAnchorHandler(mode.request, step.content)
+  }
+}
+
+/** « Déplacer la combinaison »: two clicks, start then end (D-090). */
+export function startMovePlay(): void {
+  const { play, readOnly } = useEditorStore.getState()
+  if (!play) return
+  if (readOnly) {
+    setNotice('readOnly')
+    return
+  }
+  startPlacement({ kind: 'movePlay', from: null })
+}
+
+/** « Retourner »: left-right symmetry of the whole play, one undo step (D-090). */
+export function flipWholePlay(): void {
+  applyEdit(mirrorPlay)
 }
 
 function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Vec2): void {
@@ -193,6 +308,22 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     beginGesture()
     return
   }
+  if (hit?.kind === 'kickTarget') {
+    setSelection({ players: [], actions: [hit.actionId], waypoint: null })
+    drag = { kind: 'kickTarget', actionId: hit.actionId, origin: input.pos, started: false }
+    beginGesture()
+    return
+  }
+  if (hit?.kind === 'ball') {
+    // The ball on the ground at the start moves like a starting placement (D-009, D-083).
+    if (!isRootSelected(play, phaseId)) {
+      setNotice('inheritedPosition')
+      return
+    }
+    drag = { kind: 'ball', origin: input.pos, started: false }
+    beginGesture()
+    return
+  }
   if (hit?.kind === 'player') {
     const keep = !input.shift && selection.players.includes(hit.id)
     const next = keep ? selection : selectPlayer(selection, hit.id, input.shift)
@@ -209,7 +340,12 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     beginGesture()
     return
   }
-  if (hit?.kind === 'run' || hit?.kind === 'pass') {
+  if (
+    hit?.kind === 'run' ||
+    hit?.kind === 'pass' ||
+    hit?.kind === 'kick' ||
+    hit?.kind === 'breakdown'
+  ) {
     setSelection(selectAction(selection, hit.actionId, input.shift))
     return
   }
@@ -243,6 +379,10 @@ export function editorPointerMove(raw: Vec2): void {
     previewGesture((start) =>
       moveWaypoint(start, current.actionId, current.index, maybeSnap(raw, snap)),
     )
+  } else if (current.kind === 'kickTarget') {
+    previewGesture((start) => moveKickTarget(start, current.actionId, maybeSnap(raw, snap)))
+  } else if (current.kind === 'ball') {
+    previewGesture((start) => moveBallPosition(start, maybeSnap(raw, snap)))
   } else {
     useInteractionStore.setState({ selectionBox: { min: current.origin, max: raw } })
   }
@@ -381,7 +521,12 @@ export function handleKey(input: KeyInput): boolean {
     case 'cancel':
       cancelGesture()
       drag = null
-      useEditorStore.setState({ runDraft: null, passFromId: null })
+      useEditorStore.setState({
+        runDraft: null,
+        passFromId: null,
+        kickFromId: null,
+        placement: null,
+      })
       useInteractionStore.setState({ selectionBox: null })
       setSelection(EMPTY_SELECTION)
       return true

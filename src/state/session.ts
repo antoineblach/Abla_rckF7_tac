@@ -82,9 +82,23 @@ function reportError(error: unknown): void {
   notify(`${TEXT.saveError} ${error instanceof Error ? error.message : ''}`, 'error')
 }
 
+/** Reads the plays and the placement presets of a store into the library state. */
+export async function loadLibraryFrom(target: LibraryStore): Promise<void> {
+  useLibraryState.setState({
+    summaries: await target.list(),
+    issues: await target.issues(),
+    presets: await target.listPresets(),
+    presetIssues: await target.presetIssues(),
+  })
+}
+
 export async function refreshLibrary(): Promise<void> {
-  if (!store) return
-  useLibraryState.setState({ summaries: await store.list(), issues: await store.issues() })
+  if (store) await loadLibraryFrom(store)
+}
+
+/** Full rescan now, serialised with the saves (SPEC 8.3): before acting on a preset (D-092). */
+export function rescanNow(): Promise<void> {
+  return sync?.rescan() ?? Promise.resolve()
 }
 
 function scheduleDraft(): void {
@@ -250,7 +264,8 @@ export async function chooseFolder(): Promise<void> {
   await openFolder(handle)
   if (previous instanceof IdbStore) {
     const count = (await previous.allPlays()).length
-    if (count > 0) pushDialog({ kind: 'copyBrowserPlays', count })
+    const presets = (await previous.allPresets()).length
+    if (count > 0 || presets > 0) pushDialog({ kind: 'copyBrowserPlays', count, presets })
   }
 }
 
@@ -263,7 +278,10 @@ export async function reauthorizeFolder(): Promise<void> {
   }
 }
 
-/** Copies the plays of the browser library into the folder just chosen (D-021). */
+/**
+ * Copies the plays and the placement presets of the browser library into the folder just chosen
+ * (D-021, D-092).
+ */
 export async function copyBrowserPlays(dialog: LibraryDialog, accept: boolean): Promise<void> {
   closeDialog(dialog)
   if (!accept || !store) return
@@ -276,8 +294,16 @@ export async function copyBrowserPlays(dialog: LibraryDialog, accept: boolean): 
     await store.put(play)
     copied++
   }
+  const presets = await browser.allPresets()
+  const existingPresets = new Set((await store.listPresets()).map((e) => e.preset.id))
+  let copiedPresets = 0
+  for (const preset of presets) {
+    if (existingPresets.has(preset.id)) continue
+    await store.putPreset(preset)
+    copiedPresets++
+  }
   await refreshLibrary()
-  notify(TEXT.copied(copied))
+  notify(TEXT.copied(copied, copiedPresets))
 }
 
 export async function openFromLibrary(id: Id, fileName: string | null = null): Promise<void> {

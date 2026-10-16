@@ -170,10 +170,25 @@ describe('render: flat colours and determinism (SPEC 3.3.3, 3.3.6)', () => {
       return recording.calls.length
     }
     const all = count(DEFAULT_LAYERS)
-    const none = count({ traces: false, instruction: false, gainLine: false })
-    const onlyTraces = count({ traces: true, instruction: false, gainLine: false })
-    const onlyInstruction = count({ traces: false, instruction: true, gainLine: false })
-    const onlyGain = count({ traces: false, instruction: false, gainLine: true })
+    const none = count({ traces: false, instruction: false, gainLine: false, forwardPass: false })
+    const onlyTraces = count({
+      traces: true,
+      instruction: false,
+      gainLine: false,
+      forwardPass: false,
+    })
+    const onlyInstruction = count({
+      traces: false,
+      instruction: true,
+      gainLine: false,
+      forwardPass: false,
+    })
+    const onlyGain = count({
+      traces: false,
+      instruction: false,
+      gainLine: true,
+      forwardPass: false,
+    })
     expect(onlyTraces).toBeGreaterThan(none)
     expect(onlyInstruction).toBeGreaterThan(none)
     expect(onlyGain).toBeGreaterThan(none)

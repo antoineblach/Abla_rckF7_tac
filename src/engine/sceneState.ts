@@ -1,6 +1,6 @@
 // State of a scene at an instant: everything render() needs to draw one image (SPEC 3.3).
 import type { Issue } from '../model/issues'
-import type { Id, Team, Vec2 } from '../model/types'
+import type { BreakdownKind, Id, Team, Vec2 } from '../model/types'
 
 export type BallState =
   | { kind: 'carried'; carrierId: Id; pos: Vec2 }
@@ -10,12 +10,16 @@ export type BallState =
       to: Vec2
       releaseT: number
       arrivalT: number
-      toId: Id
+      /** Receiver, or null for a kick to a point. */
+      toId: Id | null
       pos: Vec2
+      via: 'pass' | 'kick'
+      /** Height of a kicked ball, 0 on the ground to 1 at the apex; always 0 for a pass. */
+      lift: number
     }
-  /** Ball on the ground. Lot 1: only a starting ball without carrier, never picked up (lot 3). */
+  /** Ball on the ground: starting ball without carrier, or after a kick to a point (SPEC 10.4). */
   | { kind: 'loose'; pos: Vec2 }
-  /** Lot 3: ball in a ruck or a maul. Declared only. */
+  /** Ball in a ruck or a maul (SPEC 10.3). */
   | { kind: 'inBreakdown'; pos: Vec2 }
 
 export interface ScenePlayer {
@@ -44,7 +48,32 @@ export interface PassTrace {
   from: Vec2
   /** Arrival point, or current ball position while in flight. */
   to: Vec2
+  /** Arrival point (receiver position at arrival). */
+  target: Vec2
   completed: boolean
+  /** « En avant probable » (SPEC 5.7). */
+  forward: boolean
+}
+
+export interface KickTrace {
+  actionId: Id
+  phaseId: Id
+  current: boolean
+  from: Vec2
+  /** Landing point, or current ball position while in flight. */
+  to: Vec2
+  /** Landing point (receiver position at arrival, or the target point). */
+  target: Vec2
+  /** True for a kick to a point (its target is marked, D-084). */
+  toPoint: boolean
+  completed: boolean
+}
+
+/** Ruck or maul in progress at the instant of the scene (SPEC 10.3). */
+export interface SceneBreakdown {
+  actionId: Id
+  kind: BreakdownKind
+  pos: Vec2
 }
 
 export interface SceneState {
@@ -64,7 +93,9 @@ export interface SceneState {
   ball: BallState | null
   traces: RunTrace[]
   passTraces: PassTrace[]
-  /** Abscissa of the gain line (ball at t = 0), null without ball (SPEC 5.6). */
+  kickTraces: KickTrace[]
+  breakdowns: SceneBreakdown[]
+  /** Abscissa of the gain line at t (ball at t = 0, then each ruck or maul), null without ball. */
   gainLineX: number | null
   issues: Issue[]
 }

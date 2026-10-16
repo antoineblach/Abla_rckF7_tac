@@ -9,7 +9,13 @@ import { THEMES } from '../../render/themes'
 import { createViewport, frameForView } from '../../render/viewport'
 import { useEditorStore } from '../../state/editorStore'
 import { openExportDialog } from '../../state/exportSession'
-import { pushDialog, useLibraryState, visibleSummaries } from '../../state/libraryState'
+import {
+  pushDialog,
+  useLibraryState,
+  visibleSummaries,
+  type LibraryState,
+  type LibraryTab,
+} from '../../state/libraryState'
 import { setLibraryCollapsed, usePanelsStore } from '../../state/panelsStore'
 import {
   currentStore,
@@ -22,6 +28,7 @@ import {
 } from '../../state/session'
 import { useSettingsStore } from '../../state/settingsStore'
 import { CATEGORY_LABELS, readErrorMessage } from '../strings'
+import { PresetPanel } from './PresetPanel'
 
 const THUMB_W = 128
 const THUMB_H = 72
@@ -108,13 +115,14 @@ function IssueItem({ issue }: { issue: LibraryIssue }) {
   )
 }
 
+const TABS: { id: LibraryTab; label: string }[] = [
+  { id: 'plays', label: 'Combinaisons' },
+  { id: 'presets', label: 'Modèles' },
+]
+
 export function LibraryPanel() {
   const state = useLibraryState()
   const collapsed = usePanelsStore((s) => s.libraryCollapsed)
-  const openId = useEditorStore((s) => s.play?.id ?? null)
-  const fileInput = useRef<HTMLInputElement>(null)
-  const [busy, setBusy] = useState(false)
-  const summaries = visibleSummaries(state)
 
   if (collapsed) {
     return (
@@ -146,6 +154,34 @@ export function LibraryPanel() {
           «
         </button>
       </div>
+      <div className="library__tabs" role="tablist" aria-label="Contenu de la bibliothèque">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={state.tab === tab.id}
+            className={state.tab === tab.id ? 'library__tab library__tab--active' : 'library__tab'}
+            onClick={() => {
+              useLibraryState.setState({ tab: tab.id })
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {state.tab === 'presets' ? <PresetPanel /> : <PlaysTab state={state} />}
+    </aside>
+  )
+}
+
+function PlaysTab({ state }: { state: LibraryState }) {
+  const openId = useEditorStore((s) => s.play?.id ?? null)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const summaries = visibleSummaries(state)
+  return (
+    <>
       <div className="library__actions">
         <button
           type="button"
@@ -284,6 +320,6 @@ export function LibraryPanel() {
           <li className="library__empty">Aucune combinaison.</li>
         ) : null}
       </ul>
-    </aside>
+    </>
   )
 }

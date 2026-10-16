@@ -1,43 +1,77 @@
 // Builds the editor overlay (selection, handles, previews) from the editor state.
 import type { Bounds } from '../engine/bounds'
 import type { PhaseSchematic } from '../engine/evaluate'
+import { placementPreview, type PlacementMode } from '../editor/placementMode'
 import type { Selection } from '../editor/selection'
 import { runToolPreview, type RunDraft } from '../editor/tools/runTool'
 import type { ToolId } from '../editor/tools/types'
-import type { Id, Vec2 } from '../model/types'
+import type { Id, Play, Vec2 } from '../model/types'
 import type { EditorOverlay } from '../render/overlay'
 
 export interface OverlayInput {
+  play: Play
   schematic: PhaseSchematic
   selection: Selection
   tool: ToolId
   runDraft: RunDraft | null
   passFromId: Id | null
+  kickFromId: Id | null
+  placement: PlacementMode | null
   cursor: Vec2 | null
   selectionBox: Bounds | null
 }
 
 export function buildOverlay(input: OverlayInput): EditorOverlay {
   const { schematic, selection, tool, cursor } = input
+  const selected = (actionId: Id) => selection.actions.includes(actionId)
   const selectedPlayers = schematic.players
     .filter((p) => selection.players.includes(p.id))
     .map((p) => p.pos)
+  // A selected breakdown is ringed like a selected player (lot 3).
+  selectedPlayers.push(
+    ...schematic.breakdowns.filter((b) => selected(b.actionId)).map((b) => b.pos),
+  )
   const selectedPaths: Vec2[][] = [
-    ...schematic.runs.filter((r) => selection.actions.includes(r.actionId)).map((r) => r.points),
-    ...schematic.passes
-      .filter((p) => selection.actions.includes(p.actionId))
-      .map((p) => [p.from, p.to]),
+    ...schematic.runs.filter((r) => selected(r.actionId)).map((r) => r.points),
+    ...schematic.relays.filter((r) => selected(r.actionId)).map((r) => r.points),
+    ...schematic.passes.filter((p) => selected(p.actionId)).map((p) => [p.from, p.to]),
+    ...schematic.kicks.filter((k) => selected(k.actionId)).map((k) => [k.from, k.to]),
   ]
-  const handles = tool === 'select' ? schematic.runs.flatMap((r) => r.waypoints) : []
+  if (input.placement) {
+    // A placement shows its ghost tokens and its anchor, nothing of the tools (D-096).
+    const placed = placementPreview(input.placement, input.play, cursor)
+    return {
+      selectedPlayers,
+      selectedPaths,
+      handles: [],
+      selectionBox: null,
+      preview: placed.path,
+      ghosts: placed.ghosts.map((g) => ({ pos: g.pos, team: g.team, label: String(g.number) })),
+      anchor: placed.anchor,
+    }
+  }
+  const handles =
+    tool === 'select'
+      ? [
+          ...schematic.runs.flatMap((r) => r.waypoints),
+          ...schematic.kicks.filter((k) => k.receiverId === null).map((k) => k.to),
+        ]
+      : []
   let preview: Vec2[] | null = null
   if (tool === 'run') preview = runToolPreview(input.runDraft, cursor)
-  if (tool === 'pass' && input.passFromId && cursor) {
-    const from = schematic.players.find((p) => p.id === input.passFromId)?.pos
-    if (from) preview = [from, cursor]
+  const fromId = tool === 'pass' ? input.passFromId : tool === 'kick' ? input.kickFromId : null
+  if (fromId) {
+    const from = schematic.players.find((p) => p.id === fromId)?.pos
+    if (from && cursor) preview = [from, cursor]
+    else if (from) selectedPlayers.push(from)
   }
-  if (tool === 'pass' && input.passFromId && !cursor) {
-    const from = schematic.players.find((p) => p.id === input.passFromId)?.pos
-    if (from) selectedPlayers.push(from)
+  return {
+    selectedPlayers,
+    selectedPaths,
+    handles,
+    selectionBox: input.selectionBox,
+    preview,
+    ghosts: [],
+    anchor: null,
   }
-  return { selectedPlayers, selectedPaths, handles, selectionBox: input.selectionBox, preview }
 }

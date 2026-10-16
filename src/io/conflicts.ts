@@ -3,13 +3,18 @@ import type { Id, Play } from '../model/types'
 
 export const COPY_SUFFIX = ' (copie)'
 
-/** « Garder les deux »: a copy with a new id and « (copie) » appended to the name. */
-export function keepBothCopy(play: Play, newId: Id, now: Date): Play {
+/**
+ * « Garder les deux »: a copy with a new id and « (copie) » appended to the name; a play or a
+ * placement preset (D-092).
+ */
+export function keepBothCopy<
+  T extends { id: Id; name: string; createdAt: string; updatedAt: string },
+>(item: T, newId: Id, now: Date): T {
   const stamp = now.toISOString()
   return {
-    ...structuredClone(play),
+    ...structuredClone(item),
     id: newId,
-    name: `${play.name}${COPY_SUFFIX}`,
+    name: `${item.name}${COPY_SUFFIX}`,
     createdAt: stamp,
     updatedAt: stamp,
   }

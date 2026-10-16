@@ -105,9 +105,11 @@ export class SyncController {
         this.hooks.saved(result, open.play)
       } catch (error) {
         if (error instanceof ConflictError) {
+          // A conflict on a play (the default type): put() only stores plays.
+          const conflict = error as ConflictError
           this.hooks.externalChange(
-            error.current
-              ? { kind: 'conflict', stored: error.current, version: error.currentVersion }
+            conflict.current
+              ? { kind: 'conflict', stored: conflict.current, version: conflict.currentVersion }
               : { kind: 'removed' },
           )
           return
@@ -134,7 +136,9 @@ export class SyncController {
   }
 
   private async handleOpenPlay(open: OpenPlay, changes: Change[]): Promise<void> {
-    const mine = changes.filter((c) => c.kind !== 'issues' && c.id === open.play.id)
+    const mine = changes.filter(
+      (c) => c.kind !== 'issues' && c.collection === 'plays' && c.id === open.play.id,
+    )
     if (mine.length === 0) return
     const stored = await this.store.get(open.play.id).catch(() => null)
     if (!stored) {

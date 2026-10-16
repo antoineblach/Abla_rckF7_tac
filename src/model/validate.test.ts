@@ -3,16 +3,19 @@ import {
   P,
   ball,
   basePlay,
+  breakdown,
   fourVsTwoNoBall,
+  kick,
   pass,
   phase,
   player,
   run,
+  setPiecesPlay,
   sevenVsSevenWithOptions,
   uuid,
 } from '../test/builders'
 import type { Issue, IssueCode } from './issues'
-import type { Play } from './types'
+import type { Action, Play } from './types'
 import { validatePlay } from './validate'
 
 const codes = (play: Play): IssueCode[] => validatePlay(play).map((issue: Issue) => issue.code)
@@ -23,6 +26,32 @@ describe('business validation (SPEC 4.3)', () => {
   it('accepts the reference plays', () => {
     expect(validatePlay(sevenVsSevenWithOptions())).toEqual([])
     expect(validatePlay(fourVsTwoNoBall())).toEqual([])
+    expect(validatePlay(setPiecesPlay())).toEqual([])
+  })
+
+  it('checks the actors of kicks and breakdowns (lot 3)', () => {
+    const withActions = (...actions: Action[]): Play => {
+      const play = sevenVsSevenWithOptions()
+      return { ...play, phases: [phase(P.t1, null, actions)] }
+    }
+    const target = (play: Play): string[] =>
+      validatePlay(play).map((i) => `${i.code}:${i.target.kind === 'action' ? i.target.id : ''}`)
+    expect(target(withActions(kick(uuid(501), P.A(4), { receiverId: P.A(4) }, 0)))).toEqual([
+      `kickSelfTarget:${uuid(501)}`,
+    ])
+    expect(target(withActions(kick(uuid(501), P.A(4), { receiverId: P.ball }, 0)))).toEqual([
+      `actorNotPlayer:${uuid(501)}`,
+    ])
+    expect(target(withActions(kick(uuid(501), uuid(77), { point: { x: 1, y: 1 } }, 0)))).toEqual([
+      `missingEntity:${uuid(501)}`,
+    ])
+    expect(target(withActions(breakdown(uuid(502), P.A(4), P.A(4), P.A(3), 0)))).toEqual([
+      `breakdownDuplicate:${uuid(502)}`,
+    ])
+    expect(target(withActions(breakdown(uuid(502), P.A(4), P.B(5), P.A(3), 0)))).toEqual([
+      `breakdownTeam:${uuid(502)}`,
+    ])
+    expect(errors(withActions(breakdown(uuid(502), P.A(4), P.A(5), P.A(3), 0)))).toEqual([])
   })
 
   it('accepts any number of players per team, zero included', () => {

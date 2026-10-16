@@ -15,6 +15,8 @@ export const TOOL_LABELS: Record<ToolId, { label: string; key: string }> = {
   placeB: { label: 'Placer B', key: 'B' },
   run: { label: 'Course', key: 'R' },
   pass: { label: 'Passe', key: 'P' },
+  kick: { label: 'Jeu au pied', key: 'J' },
+  breakdown: { label: 'Regroupement', key: 'G' },
 }
 
 export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
@@ -24,6 +26,9 @@ export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
   rootOption: 'Le premier temps ne peut pas avoir d’option.',
   notLeaf:
     'Ce temps a déjà une suite : utilisez « Insérer un temps après » ou « Créer une option ».',
+  breakdownNoBall:
+    'Regroupement : cliquez une joueuse qui a le ballon dans ce temps (la porteuse plaquée).',
+  breakdownTeammates: 'Regroupement : il faut deux coéquipières pour le soutien et le relayeur.',
 }
 
 export function issueMessage(issue: Issue): string {
@@ -70,9 +75,27 @@ export function issueMessage(issue: Issue): string {
     case 'passerWithoutBall':
       return 'La passeuse n’a pas le ballon au moment du lâcher.'
     case 'simultaneousPass':
-      return 'Deux passes du même ballon au même instant : seule la première est jouée.'
+      return 'Deux passes ou jeux au pied au même instant : seul le premier est joué.'
     case 'unsupportedAction':
       return 'Action d’un lot ultérieur, ignorée.'
+    case 'actorNotPlayer':
+      return 'Un jeu au pied ou un regroupement ne concerne que des joueuses.'
+    case 'kickSelfTarget':
+      return 'La frappeuse ne peut pas être sa propre receveuse.'
+    case 'breakdownDuplicate':
+      return 'Plaquée, soutien et relayeur doivent être trois joueuses différentes.'
+    case 'breakdownTeam':
+      return 'Le soutien et le relayeur sont des coéquipières de la plaquée.'
+    case 'kickerWithoutBall':
+      return 'La frappeuse n’a pas le ballon au moment de la frappe : jeu au pied ignoré.'
+    case 'tackledWithoutBall':
+      return 'La plaquée n’a pas le ballon à la formation : regroupement ignoré.'
+    case 'runCutByBreakdown':
+      return 'Course arrêtée par le regroupement : la suite se dessine dans le temps suivant.'
+    case 'relayerLate':
+      return 'Relayeur trop loin : il n’arrive au ballon qu’à la sortie, en accélérant.'
+    case 'forwardPass':
+      return 'En-avant probable : la passe part vers l’avant depuis les mains.'
   }
 }
 
@@ -115,10 +138,42 @@ export const TEXT = {
   imported: (n: number) => (n > 1 ? `${n} combinaisons importées.` : 'Combinaison importée.'),
   importFailed: (n: number) =>
     `${n} élément${n > 1 ? 's' : ''} invalide${n > 1 ? 's' : ''} ignoré${n > 1 ? 's' : ''}.`,
-  copied: (n: number) =>
-    `${n} combinaison${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} dans le dossier.`,
+  browserContent: (plays: number, presets: number) => {
+    const p = (n: number) => (n > 1 ? 's' : '')
+    const what =
+      presets === 0
+        ? `${plays} combinaison${p(plays)} enregistrée${p(plays)}`
+        : plays === 0
+          ? `${presets} modèle${p(presets)} de placement enregistré${p(presets)}`
+          : `${plays} combinaison${p(plays)} et ${presets} modèle${p(presets)} de placement enregistrés`
+    return `${what} dans ce navigateur. Les copier dans le dossier choisi ?`
+  },
+  copied: (n: number, presets = 0) =>
+    presets === 0
+      ? `${n} combinaison${n > 1 ? 's' : ''} copiée${n > 1 ? 's' : ''} dans le dossier.`
+      : `${n} combinaison${n > 1 ? 's' : ''} et ${presets} modèle${presets > 1 ? 's' : ''} copiés dans le dossier.`,
   deleted: 'Combinaison déplacée dans la corbeille.',
+  // Placement presets and placements (lot 3, D-092, D-096).
+  presetSaved: (name: string) => `Modèle « ${name} » enregistré.`,
+  presetUpdated: (name: string) => `Modèle « ${name} » mis à jour.`,
+  presetDuplicated: 'Modèle dupliqué.',
+  presetRenamed: 'Modèle renommé.',
+  presetDeleted: 'Modèle déplacé dans la corbeille.',
+  presetChanged:
+    'Ce modèle a été modifié ou retiré sur l’autre ordinateur : la liste est relue, recommencez.',
+  presetReadOnly: 'Ce modèle est en lecture seule : résolvez d’abord la copie de conflit.',
+  presetError: 'Action impossible sur le modèle.',
+  placementApply: (name: string) => `Modèle « ${name} » : cliquez le point d’ancrage.`,
+  placementSave: (name: string) => `Enregistrer « ${name} » : cliquez le point d’ancrage.`,
+  placementAxes: 'Flèches : avant, côté ouvert.',
+  placementMoveStart: 'Déplacer la combinaison : cliquez le point de départ.',
+  placementMoveEnd: 'Déplacer la combinaison : cliquez le point d’arrivée.',
+  placementRefused: 'Marque de touche à moins de 5 m d’une ligne de but : refusée.',
+  placementEscape: 'Échap pour annuler.',
 } as const
+
+/** « Côté ouvert » of a preset, seen by the attacking team facing the opposing goal (D-088). */
+export const OPEN_SIDE_LABELS = { auto: 'Auto', left: 'Gauche', right: 'Droite' } as const
 
 /** File size as Windows shows it, in French (D-072): « 850 Ko », « 1,2 Mo ». */
 export function formatSize(bytes: number): string {

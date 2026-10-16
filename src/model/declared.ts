@@ -1,31 +1,7 @@
-// Types of later lots, declared only (CLAUDE.md rule 4). Nothing here is implemented
-// in lot 1: the v1 file schema rejects them and the engine ignores them with an issue
-// (DECISIONS Q4).
+// Types of later lots, declared only (CLAUDE.md rule 4). Nothing here is implemented: the file
+// schema rejects them and the engine ignores them with an issue (DECISIONS Q4). Kicks,
+// breakdowns and placement presets are implemented since lot 3 (types.ts, preset.ts).
 import type { Id, Vec2 } from './types'
-
-/** Lot 3 (SPEC 10.4). */
-export interface KickAction {
-  id: Id
-  type: 'kick'
-  kickerId: Id
-  kind: 'restart' | 'long'
-  target: { receiverId: Id } | { point: Vec2 }
-  delay: number
-  flightTime?: number
-}
-
-/** Lot 3 (SPEC 10.3). */
-export interface BreakdownAction {
-  id: Id
-  type: 'breakdown'
-  kind: 'ruck' | 'maul'
-  tackledId: Id
-  supportId: Id
-  relayerId: Id
-  delay: number
-  duration: number
-  contest?: 'guard' | 'jackal'
-}
 
 /** Lot 5 (SPEC 12). */
 export interface GroupRunAction {
@@ -79,21 +55,4 @@ export interface DefenseSettings {
   reintegrationDelay: number
   sweeperDepth: number
   drift: boolean
-}
-
-/** Lot 3 (SPEC 10.1). */
-export interface PlacementPreset {
-  schemaVersion: 1
-  id: Id
-  name: string
-  type: 'scrum' | 'lineout' | 'restart' | 'ruck' | 'free'
-  positions: { role: 'attack' | 'defense'; number: number; forward: number; openSide: number }[]
-  ball: {
-    forward: number
-    openSide: number
-    carrierRole?: 'attack' | 'defense'
-    carrierNumber?: number
-  } | null
-  createdAt: string
-  updatedAt: string
 }

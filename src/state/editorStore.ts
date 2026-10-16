@@ -2,6 +2,8 @@
 // Logic lives in editor/ and model/; this store only holds state and applies commands.
 import { create } from 'zustand'
 import { EMPTY_HISTORY, record, redo, undo, type History } from '../editor/history'
+import type { PlacementMode } from '../editor/placementMode'
+import type { OpenSideChoice } from '../editor/presets'
 import { EMPTY_SELECTION, pruneSelection, type Selection } from '../editor/selection'
 import type { RunDraft } from '../editor/tools/runTool'
 import type { ToolId } from '../editor/tools/types'
@@ -10,7 +12,15 @@ import { findPhase, rootPhase } from '../model/phaseTree'
 import type { Id, Play } from '../model/types'
 import { resetView } from './viewStore'
 
-export type EditorNotice = 'inheritedPosition' | 'readOnly' | 'rootOption' | 'notLeaf' | null
+export type EditorNotice =
+  | 'inheritedPosition'
+  | 'readOnly'
+  | 'rootOption'
+  | 'notLeaf'
+  // Breakdown tool (D-081): no ball in the phase, fewer than two teammates.
+  | 'breakdownNoBall'
+  | 'breakdownTeammates'
+  | null
 
 export interface EditorState {
   play: Play | null
@@ -25,6 +35,10 @@ export interface EditorState {
   tool: ToolId
   runDraft: RunDraft | null
   passFromId: Id | null
+  /** Kicker chosen by the kick tool, waiting for the receiver or the point (lot 3). */
+  kickFromId: Id | null
+  /** Placement in progress: preset applied or saved, play moved (lot 3, D-096). */
+  placement: PlacementMode | null
   snap: boolean
   notice: EditorNotice
 }
@@ -41,6 +55,8 @@ const initial: EditorState = {
   tool: 'select',
   runDraft: null,
   passFromId: null,
+  kickFromId: null,
+  placement: null,
   snap: false,
   notice: null,
 }
@@ -199,12 +215,39 @@ export function selectPhase(phaseId: Id): void {
     selectedPhaseId: phaseId,
     runDraft: null,
     passFromId: null,
+    kickFromId: null,
     notice: null,
   })
 }
 
 export function setTool(tool: ToolId): void {
-  useEditorStore.setState({ tool, runDraft: null, passFromId: null, notice: null })
+  useEditorStore.setState({
+    tool,
+    runDraft: null,
+    passFromId: null,
+    kickFromId: null,
+    placement: null,
+    notice: null,
+  })
+}
+
+/** Starts or ends a placement (D-096); the tool drafts in progress are dropped. */
+export function setPlacement(placement: PlacementMode | null): void {
+  useEditorStore.setState({
+    placement,
+    runDraft: null,
+    passFromId: null,
+    kickFromId: null,
+    notice: null,
+  })
+}
+
+/** « Côté ouvert : Auto | Gauche | Droite » of the banner (D-088). */
+export function setPlacementOpenSide(openSide: OpenSideChoice): void {
+  const placement = useEditorStore.getState().placement
+  if (placement && placement.kind !== 'movePlay') {
+    useEditorStore.setState({ placement: { ...placement, openSide } })
+  }
 }
 
 export function setSelection(selection: Selection): void {

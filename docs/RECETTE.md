@@ -119,37 +119,41 @@ Exporter normalement quelques combinaisons (GIF et PDF, cahier de jeu) sur les d
 
 ## Lot 3 : mise en place
 
-Comportements attendus, à couvrir par les tests (D-054). Les vérifications manuelles (au plus 5) et la séance d'usage libre seront précisées en fin de lot.
+### Comportements couverts par les tests
 
-### Modèles de placement
-- Enregistrer un modèle de mêlée (attaque seule), un de touche, un de renvoi, un de ruck, un libre.
-- Appliquer chaque modèle à un autre endroit du terrain, côté ouvert à gauche puis à droite.
-- Modèle de touche : l'ancre reste sur la ligne de touche et refuse les 5 derniers mètres avant une ligne de but.
-- Appliquer un modèle d'attaque puis un modèle de défense sur la même combinaison.
-- Appliquer un modèle quand l'équipe B attaque : rôles respectés.
-- Joueuses existantes déplacées, manquantes créées, autres inchangées.
-- Renommer, dupliquer, mettre à jour, supprimer (corbeille) un modèle.
-- Modèles synchronisés entre les deux PC.
+Tests unitaires dans `src/` (Vitest), tests de bout en bout dans `e2e/` (Playwright, sur le build de production).
 
-### Combinaison entière
-- Déplacer une combinaison vers un autre point d'ancrage.
-- Retourner une combinaison (symétrie) : courses, passes et jeu au pied suivent.
+| Comportement | Tests |
+|---|---|
+| Combinaisons en version 2 : fichiers des lots 1 et 2 lus sans changement, réécrits en v2 au prochain enregistrement ; version future signalée et jamais modifiée | `model/migrations.test.ts`, `model/schema.test.ts`, `io/FolderStore.test.ts` |
+| Modèle de placement v1 : aller-retour du fichier dans `modeles/`, fichier invalide ou futur ni modifié ni déplacé, renommage, corbeille, copies de conflit en lecture seule, IndexedDB | `model/preset.test.ts`, `io/presets.test.ts` |
+| Enregistrer un modèle (placement entier ou sélection, ballon, côté ouvert, ancre aimantée) ; l'appliquer au même ancrage redonne le placement | `editor/presets.test.ts`, `editor/placementMode.test.ts`, `state/presetSession.test.ts` ; `placement.chromium.spec.ts`, `presets.firefox.spec.ts` |
+| Application aux quatre cas : côté ouvert à gauche ou à droite, A ou B qui attaque ; côté le plus large par défaut ; côté choisi dans le bandeau | `editor/presets.test.ts`, `state/placement.test.ts`, `state/presetSession.test.ts` ; `placement.chromium.spec.ts` |
+| Ancre de touche sur la ligne de touche, refusée à moins de 5 m d'une ligne de but (fantômes masqués, message, clic sans effet) ; renvoi capté par le centre ou les 22 m ; grille pour mêlée, ruck et libre | `editor/presets.test.ts`, `editor/placementMode.test.ts`, `state/placement.test.ts` ; `placement.chromium.spec.ts` |
+| Association par rôle et numéro : existantes déplacées, manquantes créées, autres inchangées ; numéros en double ; modèle d'attaque puis modèle de défense | `editor/presets.test.ts` ; `placement.chromium.spec.ts` |
+| Catégorie de la combinaison mise à jour selon le type du modèle | `editor/presets.test.ts`, `state/placement.test.ts` ; `placement.chromium.spec.ts`, `presets.firefox.spec.ts` |
+| Renommer, dupliquer, mettre à jour (identifiant, nom et type gardés), supprimer (corbeille) un modèle ; modèle de l'autre PC relu au focus ; action refusée, avec un message, sur un modèle changé ailleurs | `state/presetSession.test.ts`, `io/presets.test.ts` ; `placement.chromium.spec.ts` |
+| Nouvelle combinaison depuis un modèle | `editor/placementMode.test.ts`, `state/presetSession.test.ts` ; `placement.chromium.spec.ts` |
+| Déplacer (deux clics, grille) et retourner une combinaison : positions, points de passage, points visés, ballon au sol, cadre ; deux symétries ou un aller-retour redonnent la combinaison ; une étape d'annulation, Échap annule | `editor/transform.test.ts`, `editor/placementMode.test.ts`, `state/placement.test.ts` ; `placement.chromium.spec.ts` |
+| Ruck posé sur la porteuse (G), soutien et relayeur proposés puis changés, refus avec un message | `editor/setPieces.test.ts`, `state/setPieces.test.ts` ; `breakdown-kick.chromium.spec.ts` |
+| Regroupement : ballon dans le regroupement pendant la durée (3 s par défaut, modifiable), relayeur porteuse à la fin, temps suivant à la sortie de balle, ligne d'avantage recalée, courses des participantes arrêtées et signalées, relayeur en retard ; maul identique ; garde ou gratteur enregistré | `engine/breakdown.test.ts`, `editor/setPieces.test.ts` ; `breakdown-kick.chromium.spec.ts` |
+| Jeu au pied (J) vers une receveuse : arrivée à lâcher + temps de vol ; vers un point : ballon au sol ramassé par la première joueuse à moins de 1 m, aussi dans les temps suivants, ou jamais ; ballon au sol au départ ; frappeuse sans ballon signalée | `engine/kick.test.ts`, `editor/setPieces.test.ts`, `state/setPieces.test.ts` ; `breakdown-kick.chromium.spec.ts` |
+| Tirets longs, ombre et grossissement du ballon, repère du regroupement dans l'éditeur, le lecteur, le GIF et le PDF ; aplats, gris seulement en N&B, traits de 3 px en Contraste fort | `render/setPieces.test.ts` (images de référence), `export/setPieces.test.ts` (image de GIF, tirets relus dans le PDF N&B, vignette de référence) ; `breakdown-kick.chromium.spec.ts` (GIF et PDF exportés) |
+| En-avant : passe plate d'une passeuse lancée non signalée ; passe vers l'avant dans le repère de la passeuse signalée (seuil, équipe B, lâcher au début d'un temps, passeuse arrêtée) ; la passe s'exécute | `engine/forwardPass.test.ts` |
+| Icône d'en-avant toujours dans l'éditeur, dans le lecteur selon le calque « En-avant » (mémorisé par poste) ; jamais dans le GIF ni le PDF, même calque activé, ni dans les vignettes (D-086) | `render/setPieces.test.ts`, `state/setPieces.test.ts`, `export/setPieces.test.ts` ; `breakdown-kick.chromium.spec.ts` |
+| Déterminisme ; saut direct égal à la lecture continue ; tronc identique dans toutes les options, regroupement compris | `engine/evaluate.test.ts` |
+| Raccourcis J et G ; barre d'outils entière visible à 1440 px | `editor/setPieces.test.ts`, `state/setPieces.test.ts` ; `breakdown-kick.chromium.spec.ts` |
 
-### Regroupements
-- Poser un ruck sur la porteuse ; soutien et relayeur proposés, modifiables.
-- Durée de 3 s par défaut, modifiable ; la phase suivante démarre à la sortie de balle.
-- Ligne d'avantage recalée au point du ruck.
-- Maul : même comportement.
-- Bascule gratteur / garde sur un regroupement.
+### Vérifications manuelles
 
-### Jeu au pied
-- Coup d'envoi vers une receveuse : arrivée à l'heure, ombre et grossissement visibles.
-- Jeu au pied long vers un point : ballon au sol, ramassé par la première joueuse qui passe dessus.
-- Tirets longs dans l'éditeur, le lecteur, le GIF et le PDF.
+Indispensables et impossibles à automatiser (synchronisation Drive réelle, téléphone, imprimante) :
+- [ ] Modèle enregistré sur un PC, présent dans l'onglet « Modèles » de l'autre PC après la synchronisation Drive, puis appliqué (à faire avec la vérification Drive restante du lot 1, après avoir rechargé la page sur les deux PC).
+- [ ] GIF portrait d'une combinaison avec un jeu au pied et un ruck, sur le téléphone : ombre et grossissement du ballon lisibles, repère du ruck compris.
+- [ ] PDF « Impression » noir et blanc sur la laser : jeu au pied (tirets longs) distinct des passes (pointillés) et des courses (trait plein).
 
-### En-avant
-- Passe plate d'une joueuse lancée, mains vers l'arrière : aucune alerte.
-- Passe lancée vers l'avant : alerte visible dans l'éditeur, le lecteur et les exports (calque activé).
+### Séance d'usage libre
+
+Préparer quelques mises en place (modèles de mêlée, de touche, de renvoi et de ruck, appliqués des deux côtés et quand B attaque ; combinaisons avec regroupements, jeux au pied et ballon au sol), les lire, les exporter, puis faire un retour avec le prompt « Correction après recette ».
 
 ## Lot 4 : défense simulée
 

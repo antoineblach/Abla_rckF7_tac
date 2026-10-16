@@ -6,9 +6,15 @@ import type { Id, Vec2 } from '../model/types'
 
 export type Hit =
   | { kind: 'waypoint'; actionId: Id; index: number }
+  /** Target point of a kick to a point (lot 3), draggable like a waypoint. */
+  | { kind: 'kickTarget'; actionId: Id }
+  /** Ball on the ground at the start of the phase (lot 3, D-083). */
+  | { kind: 'ball' }
   | { kind: 'player'; id: Id }
   | { kind: 'run'; actionId: Id }
   | { kind: 'pass'; actionId: Id }
+  | { kind: 'kick'; actionId: Id }
+  | { kind: 'breakdown'; actionId: Id }
   | null
 
 export function distanceToSegment(p: Vec2, a: Vec2, b: Vec2): number {
@@ -45,41 +51,70 @@ function closest<T>(candidates: readonly { value: T; d: number; max: number }[])
   return best ? best.value : null
 }
 
-/** Priority: waypoint handles, then players, then runs, then passes (closest first in each). */
+const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y)
+
+/**
+ * Priority: waypoint handles and kick target points, then the ball on the ground, then players,
+ * then runs (ignored parts included) and relays (they select their breakdown), passes, kicks,
+ * and the ring of a breakdown (closest first in each).
+ */
 export function hitTest(schematic: PhaseSchematic, p: Vec2, tol: HitTolerances): Hit {
-  const handle = closest(
-    schematic.runs.flatMap((run) =>
+  const handle = closest<Hit>([
+    ...schematic.runs.flatMap((run) =>
       run.waypoints.map((w, index) => ({
         value: { kind: 'waypoint' as const, actionId: run.actionId, index },
-        d: Math.hypot(p.x - w.x, p.y - w.y),
+        d: dist(p, w),
         max: tol.handle,
       })),
     ),
-  )
+    ...schematic.kicks
+      .filter((k) => k.receiverId === null)
+      .map((k) => ({
+        value: { kind: 'kickTarget' as const, actionId: k.actionId },
+        d: dist(p, k.to),
+        max: tol.handle,
+      })),
+  ])
   if (handle) return handle
+  if (schematic.ball?.kind === 'loose' && dist(p, schematic.ball.pos) <= tol.handle) {
+    return { kind: 'ball' }
+  }
   const player = closest(
     schematic.players.map((pl) => ({
       value: { kind: 'player' as const, id: pl.id },
-      d: Math.hypot(p.x - pl.pos.x, p.y - pl.pos.y),
+      d: dist(p, pl.pos),
       max: tol.token,
     })),
   )
   if (player) return player
-  const run = closest(
-    schematic.runs.map((r) => ({
+  return closest<Hit>([
+    ...schematic.runs.map((r) => ({
       value: { kind: 'run' as const, actionId: r.actionId },
+      d: distanceToPolyline(p, [...r.points, ...r.ignoredPoints]),
+      max: tol.line,
+    })),
+    ...schematic.relays.map((r) => ({
+      value: { kind: 'breakdown' as const, actionId: r.actionId },
       d: distanceToPolyline(p, r.points),
       max: tol.line,
     })),
-  )
-  if (run) return run
-  return closest(
-    schematic.passes.map((ps) => ({
+    ...schematic.passes.map((ps) => ({
       value: { kind: 'pass' as const, actionId: ps.actionId },
       d: distanceToSegment(p, ps.from, ps.to),
       max: tol.line,
     })),
-  )
+    ...schematic.kicks.map((k) => ({
+      value: { kind: 'kick' as const, actionId: k.actionId },
+      d: distanceToSegment(p, k.from, k.to),
+      max: tol.line,
+    })),
+    ...schematic.breakdowns.map((b) => ({
+      // The ring of a breakdown has a radius of two tokens (D-084).
+      value: { kind: 'breakdown' as const, actionId: b.actionId },
+      d: Math.abs(dist(p, b.pos) - 2 * tol.token),
+      max: tol.line,
+    })),
+  ])
 }
 
 /** Players whose start position lies in a rubber-band box. */
