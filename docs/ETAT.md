@@ -1,15 +1,15 @@
 # État du projet
 
 - Mise à jour : 2026-10-15
-- Branche : `lot-2` (depuis `main` à `9a2c379`), poussée ; PR `lot-2` vers `main` ouverte (voir `gh pr list`), CI à vérifier
-- Dernier commit : « Délais des tests d'encodage pour la CI » (après `abe4424`, clôture du lot 2)
+- Branche : `lot-2` (depuis `main` à `9a2c379`), poussée ; PR #3 `lot-2` vers `main` ouverte, CI verte sur `f4d2950` (push et PR)
+- Dernier commit : « État : PR #3 et CI verte » (après `f4d2950` ; clôture du lot 2 : `abe4424`)
 - `main` : lot 1 et sa correction fusionnés (PR #1 `d37f3f6`, PR #2 `9a2c379`), déployés sur Pages ; protection vérifiée par `gh api` (D-055)
 - Écart constaté à la reprise du 15/10 : l'étape 1 avait été interrompue (limite d'usage) avec des modifications non commitées ; examinées, complétées et commitées sans rien jeter (`c6fa414`).
 
 ## En cours
 
 - Lot 2 (exports GIF et PDF) terminé : étapes 0 à 7 cochées dans `docs/plans/lot-2.md` ; décisions D-057 à D-077.
-- En attente de l'utilisateur : CI verte de la PR puis fusion ; les 3 vérifications manuelles du lot 2 (`docs/RECETTE.md`, section « Lot 2 ») et la séance d'usage libre.
+- En attente de l'utilisateur : fusion de la PR #3 ; les 3 vérifications manuelles du lot 2 (`docs/RECETTE.md`, section « Lot 2 ») et la séance d'usage libre.
 
 ## Fait
 
@@ -19,7 +19,7 @@
 
 ## Reste à faire
 
-- Lot 2 : fusion par l'utilisateur ; vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre.
+- Lot 2 : fusion de la PR #3 par l'utilisateur ; vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre.
 - Lot 1, toujours en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel (« Garder les deux »), séance d'usage libre.
 - Lot 3 (mise en place) : pas commencé ; commencer en mode plan.
 
