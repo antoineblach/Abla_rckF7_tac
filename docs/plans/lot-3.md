@@ -339,7 +339,7 @@ Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la 
 - [x] **Étape 7 : éditeur et interface, modèles et combinaison entière.** (commit « Étape 7 : interface des modèles et de la combinaison entière », après `f44ee27` ; D-096)
   - Onglet Modèles, enregistrer, appliquer (bandeau, côté ouvert), gérer, nouvelle combinaison depuis un modèle, déplacer, retourner, catégorie.
   - Tests unitaires et de bout en bout.
-- [ ] **Étape 8 : exports et clôture.**
+- [x] **Étape 8 : exports et clôture.** (commit « Étape 8 : exports et clôture du lot 3 », après `a5fe836`)
   - Aucune icône d'en-avant dans le GIF ni le PDF ; tests GIF et PDF avec les éléments du lot 3.
   - SPEC 1.4, ARCHITECTURE, RECETTE, README.
   - Recette automatisable complète ; push ; PR `lot-3` vers `main`. Tu fusionnes.

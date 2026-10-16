@@ -8,8 +8,9 @@ import {
   fillCommit,
   save,
 } from './support/editorActions'
+import { closeResult, exportFromToolbar, exportResult, readGif, readPdf } from './support/exports'
 import { stubFolderPicker } from './support/folderStub'
-import { listFolder, readFolderFile } from './support/opfs'
+import { listFolder, readFolderBytes, readFolderFile } from './support/opfs'
 
 // Lot 3 in the interface: ruck laid with the G tool (support and relayer proposed, then changed),
 // kick to a point with the J tool, forward pass layer of the player, toolbar width (D-078 to
@@ -136,4 +137,43 @@ test('the whole toolbar stays visible at 1440 px, new tools included', async ({ 
   for (const name of ['Exporter GIF', 'Exporter PDF', 'Changer de dossier']) {
     await expect(page.getByRole('button', { name })).toBeInViewport({ ratio: 1 })
   }
+})
+
+test('exports a GIF and a PDF of a play with a ruck and a kick (SPEC 9, 10.3, 10.4)', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await chooseFolder(page)
+  await createSevenVsSeven(page, 'Export lot 3')
+  await drawRun(page, [40, 35], [[46, 36]])
+  await page.keyboard.press('g')
+  await clickField(page, 40, 35)
+  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
+  await expect(page.getByTestId('current-phase')).toContainText('Temps 2')
+  // The relayer A3 kicks from the relay position (45, 36).
+  await page.keyboard.press('j')
+  await clickField(page, 45, 36)
+  await clickField(page, 70, 20)
+  await expect(inspector(page).getByRole('heading', { name: 'Jeu au pied de A 3' })).toBeVisible()
+  await page.keyboard.press('v')
+  await save(page)
+
+  await exportFromToolbar(page, 'Exporter GIF')
+  const gif = await exportResult(page)
+  expect(gif.names).toHaveLength(1)
+  await closeResult(page)
+  const summary = readGif(await readFolderBytes(page, `exports/${gif.names[0] ?? ''}`))
+  expect(summary.frames).toBeGreaterThan(20)
+
+  await exportFromToolbar(page, 'Exporter PDF', async (dialog) => {
+    await dialog.getByLabel('Couleurs').selectOption('bw')
+  })
+  const pdf = await exportResult(page)
+  expect(pdf.names).toEqual(['export-lot-3--impression-nb.pdf'])
+  const printed = await readPdf(
+    await readFolderBytes(page, 'exports/export-lot-3--impression-nb.pdf'),
+  )
+  expect(printed.pages).toBe(1)
+  expect(printed.texts[0]).toContain('Export lot 3')
+  expect(printed.texts[0]).toContain('Temps 2')
 })
