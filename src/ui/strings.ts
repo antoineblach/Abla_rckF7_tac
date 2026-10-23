@@ -118,7 +118,7 @@ export function issueMessage(issue: Issue): string {
     case 'syncSpeedCapped':
       return `Synchronisation impossible : il faudrait ${kmh(p.needed)} ; vitesse plafonnée au seuil rouge.`
     case 'durationCapped':
-      return `Durée imposée inatteignable sous le seuil rouge : la course dure ${seconds(p.duration)}.`
+      return `Durée imposée inatteignable (accélérations, seuil rouge) : la course dure ${seconds(p.duration)}.`
     case 'runSpeedHigh':
       return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil orange.`
     case 'runSpeedTooHigh':

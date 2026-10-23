@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { allLines } from '../model/phaseTree'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../model/settings'
-import type { Play, RunAction } from '../model/types'
+import type { Action, Play, RunAction } from '../model/types'
 import {
   P,
   basePlay,
@@ -16,6 +16,7 @@ import {
 } from '../test/builders'
 import { lineBounds } from './bounds'
 import { createCaches } from './caches'
+import { PROFILE_TOLERANCE, trapezoid } from '../test/profileMath'
 import {
   ballObtainedAt,
   evaluate,
@@ -27,11 +28,7 @@ import type { SceneState } from './sceneState'
 import { compileLine, compileLineUncached } from './timeline'
 import { distance } from './vec'
 
-// Paces of lots 1 to 3 (sprint 7 m/s), which these timings were written for.
-const settings: EngineSettings = {
-  ...engineSettingsOf(defaultSettings()),
-  paces: { walk: 2, jog: 4, sprint: 7 },
-}
+const settings: EngineSettings = engineSettingsOf(defaultSettings())
 const LINE_A = [P.t1, P.t2, P.t3a]
 const LINE_B = [P.t1, P.t2, P.t3b]
 
@@ -126,7 +123,9 @@ describe('evaluation of every leaf', () => {
   })
 })
 
-describe('durations (SPEC 5.1)', () => {
+describe('durations (SPEC 5.1, 5.3)', () => {
+  const { accel, decel } = settings.motion
+
   it('phase duration = max(delay + duration), line duration = sum', () => {
     const a = uuid(1)
     const b = uuid(2)
@@ -139,8 +138,8 @@ describe('durations (SPEC 5.1)', () => {
       },
       phases: [
         phase(uuid(10), null, [
-          run(uuid(20), a, [{ x: 8, y: 0 }], { pace: 'jog', delay: 1 }), // 1 + 8 / 4 = 3 s
-          run(uuid(21), b, [{ x: 0, y: 26 }], { pace: 'sprint' }), // 14 / 7 = 2 s
+          run(uuid(20), a, [{ x: 8, y: 0 }], { pace: 'jog', delay: 1 }),
+          run(uuid(21), b, [{ x: 0, y: 26 }], { pace: 'sprint' }),
         ]),
         phase(uuid(11), uuid(10), []),
         phase(uuid(12), uuid(11), [pass(uuid(22), a, b, 0.5)]),
@@ -148,18 +147,27 @@ describe('durations (SPEC 5.1)', () => {
     })
     const compiled = compileLine(play, [uuid(10), uuid(11), uuid(12)], settings, createCaches())
     const [p1, p2, p3] = compiled.phases
-    expect((p1?.end ?? 0) - (p1?.start ?? 0)).toBeCloseTo(3, 9)
+    const [ma, mb] = p1?.motions ?? []
+    // Durations of the speed profile: jog 8 m (3.17 s), sprint 14 m (4.39 s).
+    expect(Math.abs((ma?.duration ?? 0) - trapezoid(8, 4, accel, decel))).toBeLessThan(
+      PROFILE_TOLERANCE,
+    )
+    expect(Math.abs((mb?.duration ?? 0) - trapezoid(14, 5.5, accel, decel))).toBeLessThan(
+      PROFILE_TOLERANCE,
+    )
+    const phase1 = Math.max(1 + (ma?.duration ?? 0), mb?.duration ?? 0)
+    expect((p1?.end ?? 0) - (p1?.start ?? 0)).toBeCloseTo(phase1, 9)
     expect((p2?.end ?? 0) - (p2?.start ?? 0)).toBe(0)
     // Pass from (8, 0) to (0, 26), still receiver: 0.5 + distance / 12.
     const flight = Math.hypot(8, 26) / 12
     expect((p3?.end ?? 0) - (p3?.start ?? 0)).toBeCloseTo(0.5 + flight, 9)
-    expect(compiled.duration).toBeCloseTo(3 + 0 + 0.5 + flight, 9)
+    expect(compiled.duration).toBeCloseTo(phase1 + 0 + 0.5 + flight, 9)
   })
 
   it('uses the paces of the settings, durationOverride and ballSpeed', () => {
     const a = uuid(1)
     const b = uuid(2)
-    const make = (extra: Partial<RunAction>, ballSpeed?: number): Play =>
+    const make = (actions: Action[]): Play =>
       basePlay({
         entities: [player(a, 'A', 1), player(b, 'A', 2), { id: uuid(3), kind: 'ball' }],
         setup: {
@@ -167,24 +175,44 @@ describe('durations (SPEC 5.1)', () => {
           ballCarrierId: a,
           ballPosition: null,
         },
-        phases: [
-          phase(uuid(10), null, [
-            run(uuid(20), a, [{ x: 8, y: 0 }], extra),
-            pass(uuid(21), a, b, 0, ballSpeed === undefined ? {} : { ballSpeed }),
-          ]),
-        ],
+        phases: [phase(uuid(10), null, actions)],
       })
+    const runOf = (extra: Partial<RunAction>) => make([run(uuid(20), a, [{ x: 8, y: 0 }], extra)])
     const duration = (play: Play, s: EngineSettings = settings) =>
       compileLine(play, [uuid(10)], s, createCaches()).duration
-    expect(duration(make({}))).toBeCloseTo(2, 9)
-    expect(duration(make({}), { ...settings, paces: { ...settings.paces, jog: 2 } })).toBeCloseTo(
-      4,
-      9,
+    const close = (actual: number, expected: number) => {
+      expect(Math.abs(actual - expected)).toBeLessThan(PROFILE_TOLERANCE)
+    }
+    close(duration(runOf({})), trapezoid(8, 4, accel, decel))
+    close(
+      duration(runOf({}), { ...settings, paces: { ...settings.paces, jog: 2 } }),
+      trapezoid(8, 2, accel, decel),
     )
-    expect(duration(make({ durationOverride: 5 }))).toBeCloseTo(5, 9)
-    expect(duration(make({ delay: 1.5 }))).toBeCloseTo(3.5, 9)
+    close(
+      duration(runOf({}), { ...settings, motion: { ...settings.motion, accel: 6 } }),
+      trapezoid(8, 4, 6, decel),
+    )
+    // The imposed duration is met exactly (common factor, D-107).
+    expect(duration(runOf({ durationOverride: 5 }))).toBeCloseTo(5, 9)
+    close(duration(runOf({ delay: 1.5 })), 1.5 + trapezoid(8, 4, accel, decel))
     // Pass of 12 m at 6 m/s instead of 12 m/s.
-    expect(duration(make({ durationOverride: 0.5 }, 6))).toBeCloseTo(2, 9)
+    expect(duration(make([pass(uuid(21), a, b, 0)]))).toBeCloseTo(1, 9)
+    expect(duration(make([pass(uuid(21), a, b, 0, { ballSpeed: 6 })]))).toBeCloseTo(2, 9)
+  })
+
+  it('caps an imposed duration out of reach, with a warning (D-107)', () => {
+    const a = uuid(1)
+    const play = basePlay({
+      entities: [player(a, 'A', 1)],
+      setup: { positions: { [a]: { x: 0, y: 0 } }, ballCarrierId: null, ballPosition: null },
+      phases: [
+        phase(uuid(10), null, [run(uuid(20), a, [{ x: 8, y: 0 }], { durationOverride: 1 })]),
+      ],
+    })
+    const compiled = compileLine(play, [uuid(10)], settings, createCaches())
+    expect(compiled.issues.map((i) => i.code)).toEqual(['durationCapped'])
+    // Bounded by the accelerations: a triangle without peak limit, then the red threshold.
+    expect(compiled.duration).toBeGreaterThan(trapezoid(8, 1000, accel, decel))
   })
 })
 
@@ -566,10 +594,14 @@ describe('set pieces of lot 3: continuity and determinism (D-094)', () => {
       'breakdown',
       'carried',
     ])
+    // The ruck forms at 1.5 s where A4 has run to by then (her run is cut, D-079).
+    const ruck = a.phases[0]?.breakdowns[0]?.pos
     expect(a.gainLine).toEqual([
       { t: 0, x: 40.5 },
-      { t: 1.5, x: 46 },
+      { t: 1.5, x: ruck?.x },
     ])
+    expect(ruck?.x).toBeGreaterThan(40.5)
+    expect(ruck?.x).toBeLessThan(46)
     expect(a.phases[1]?.passes[0]?.forward).toBe(true)
     expect(evaluate(play, lineA, 1e9, settings, caches).ball).toEqual({
       kind: 'loose',

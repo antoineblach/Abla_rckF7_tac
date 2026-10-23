@@ -7,10 +7,13 @@ import { evaluate, phaseSchematic } from './evaluate'
 import { compileLine } from './timeline'
 import { distance } from './vec'
 
-// Paces of lots 1 to 3 (sprint 7 m/s), which these timings were written for.
+// These tests check the rules of the breakdowns, not the speed profile (profile.test.ts): paces of
+// lots 1 to 3 (sprint 7 m/s) and near-instant accelerations keep their timings, ramps of a few
+// millimetres apart (accelerations of 1000 m/s²).
 const settings: EngineSettings = {
   ...engineSettingsOf(defaultSettings()),
   paces: { walk: 2, jog: 4, sprint: 7 },
+  motion: { accel: 1000, decel: 1000, lateralAccel: 1000 },
 }
 
 // A attacks towards +x. A1 carries the ball and runs into contact in 2 s (3 m/s); A2 arrives in
@@ -79,10 +82,15 @@ describe('breakdowns (SPEC 10.3)', () => {
     expect(end?.kind === 'carried' && end.carrierId).toBe(A3)
     // 1 m behind the ball, on the side of the attacking team (towards -x for A).
     expect(distance(posOf(play, A3, 5), { x: 45, y: 30 })).toBeLessThan(1e-9)
-    // The relayer sprints (7 m/s) then waits: 9.22 m in 1.32 s.
-    const travel = Math.hypot(7, 6) / 7
-    expect(distance(posOf(play, A3, 2 + travel), { x: 45, y: 30 })).toBeLessThan(1e-6)
-    expect(distance(posOf(play, A3, 2 + travel / 2), { x: 41.5, y: 33 })).toBeLessThan(1e-6)
+    // The relayer sprints (7 m/s) then waits: 9.22 m in 1.32 s (ramps within one sample).
+    const relay = compileLine(play, [T1], settings, createCaches()).phases[0]?.motions.find(
+      (m) => m.source === 'relay',
+    )
+    const travel = relay?.duration ?? NaN
+    expect(Math.abs(travel - Math.hypot(7, 6) / 7)).toBeLessThan(0.05)
+    expect(distance(posOf(play, A3, 2 + travel), { x: 45, y: 30 })).toBeLessThan(1e-9)
+    // Symmetric ramps: half the way at half the time.
+    expect(distance(posOf(play, A3, 2 + travel / 2), { x: 41.5, y: 33 })).toBeLessThan(1e-3)
     expect(at(play, 5).breakdowns).toEqual([])
   })
 
@@ -142,11 +150,13 @@ describe('breakdowns (SPEC 10.3)', () => {
         ['runCutByBreakdown', uuid(41)],
       ],
     )
-    expect(posOf(early, A1, 3)).toEqual({ x: 43, y: 30 })
+    // Frozen half way (a few millimetres short, the start ramp).
+    const frozen = posOf(early, A1, 3)
+    expect(distance(frozen, { x: 43, y: 30 })).toBeLessThan(0.01)
     const schematic = phaseSchematic(early, T1, settings, createCaches())
     const cut = schematic?.runs.find((r) => r.actionId === uuid(40))
-    expect(cut?.points.at(-1)).toEqual({ x: 43, y: 30 })
-    expect(cut?.ignoredPoints[0]).toEqual({ x: 43, y: 30 })
+    expect(cut?.points.at(-1)).toEqual(frozen)
+    expect(cut?.ignoredPoints[0]).toEqual(frozen)
     expect(cut?.ignoredPoints.at(-1)).toEqual({ x: 46, y: 30 })
     expect(cut?.waypoints).toEqual([{ x: 46, y: 30 }])
     // The phase lasts until the ball comes out, not until the end of the cut runs.

@@ -8,7 +8,7 @@
 ## En cours
 
 - Lot 3 bis : courses réalistes. Plan validé le 23/10 avec les réponses Q1 à Q13 : `docs/plans/lot-3bis.md` ; décisions D-103 à D-118 ; SPEC 1.6.
-- Étape en cours : 2 (profil de vitesse). Étapes 0 et 1 faites.
+- Étape en cours : 3 (synchronisation et lâchers). Étapes 0 à 2 faites.
 - Consigne : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
 
 ## Fait
@@ -17,11 +17,11 @@
 - Écart de la reprise du 23/10 : ETAT.md disait « PR #6 à fusionner », elle l'était (`e76aa13`) ; `origin/etat-23-10` était une référence locale périmée, retirée par `git fetch --prune`.
 - Lot 3 bis, étape 0 : branche, plan, SPEC 1.6, D-103 à D-118.
 - Lot 3 bis, étape 1 : combinaison v3 (`Waypoint.speed`, `endsAtSpeed`, `sync`, `release`), schéma v2 figé, migration v2 vers v3 (fin lancée posée), `reglages.json` v3 (`motion`, `speedAlert`, sprint 7 vers 5,5), graphe des liens (`model/syncGraph.ts`), validation, fixtures `play-v3-lot3bis.json` et `reglages-v2.json`. Précision de D-108 : la receveuse calée sur l'arrivée de sa passe n'est pas une boucle.
-- Trois tests du moteur (`evaluate`, `breakdown`, `kick`) gardent pour l'instant les allures des lots 1 à 3 (sprint 7) : repris à l'étape 2.
+- Lot 3 bis, étape 2 : profil de vitesse (`engine/profile.ts` : trapèze sur les échantillons, inverse exacte, solveur de facteur), vitesses par segment, durée imposée par facteur (inatteignable : `durationCapped`), course lancée (recompilée tant qu'une course lancée attend la fin du temps ; prolongement avec raccord de tangente, `spline.ts` ; `runNotContinued`), relayeur à profil (arrive à la sortie de balle même au-delà des accélérations bornées, D-079), alertes de vitesse. Tests du moteur recalculés sur le profil (`src/test/profileMath.ts`) ; les tests des regroupements gardent des accélérations quasi instantanées (règles, pas profil) ; 14 images de référence régénérées (positions en cours de course, point du ruck de la fixture v2 dont la durée imposée de 1,5 s est inatteignable).
 
 ## Reste à faire
 
-- Lot 3 bis : étapes 2 à 8 du plan.
+- Lot 3 bis : étapes 3 à 8 du plan.
 - Vérifications de terrain, non bloquantes, pas encore faites :
   - conflit Drive réel, avec la vraie modification sur l'autre PC de la correction du lot 3 ;
   - modèle enregistré sur un PC, visible et appliqué sur l'autre ;

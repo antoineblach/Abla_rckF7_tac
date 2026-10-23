@@ -48,8 +48,8 @@ function contactPlay(): Play {
     ...play,
     phases: [
       phase(P.t1, null, [
-        run(uuid(400), P.A(4), [{ x: 46, y: 36 }], { durationOverride: 1.5 }),
-        run(uuid(401), P.A(5), [{ x: 45, y: 37 }], { durationOverride: 1.5 }),
+        run(uuid(400), P.A(4), [{ x: 46, y: 36 }], { durationOverride: 3 }),
+        run(uuid(401), P.A(5), [{ x: 45, y: 37 }], { durationOverride: 3 }),
       ]),
     ],
   }
@@ -111,9 +111,9 @@ describe('kick commands (SPEC 10.4)', () => {
 describe('breakdown commands (SPEC 10.3, D-081)', () => {
   it('proposes the formation at the end of the run, the two closest teammates as support and relayer', () => {
     const proposal = proposeBreakdown(contactPlay(), P.t1, P.A(4), ctx())
-    // A4 is at (46, 36) at 1.5 s; A5 at (45, 37) is the closest, then A3 still at (40, 25)
+    // A4 is at (46, 36) at 3 s; A5 at (45, 37) is the closest, then A3 still at (40, 25)
     // (11.7 m) before A6 at (40, 55) (19.9 m).
-    expect(proposal).toEqual({ ok: true, delay: 1.5, supportId: P.A(5), relayerId: P.A(3) })
+    expect(proposal).toEqual({ ok: true, delay: 3, supportId: P.A(5), relayerId: P.A(3) })
   })
 
   it('forms the breakdown when she receives the ball if that is later than her run', () => {
@@ -152,7 +152,7 @@ describe('breakdown commands (SPEC 10.3, D-081)', () => {
       tackledId: P.A(4),
       supportId: P.A(5),
       relayerId: P.A(3),
-      delay: 1.5,
+      delay: 3,
       duration: BREAKDOWN_DURATION_DEFAULT,
     })
     let play = updateBreakdown(added.play, uuid(700), {
@@ -240,8 +240,12 @@ describe('kick tool, shortcuts and hit testing', () => {
       actionId: uuid(420),
     })
     expect(hitTest(t3a, { x: 62.5, y: 15 }, tol)).toEqual({ kind: 'kick', actionId: uuid(420) })
-    // Ruck ring of two tokens around (46, 36).
-    expect(hitTest(t1, { x: 46, y: 38.1 }, tol)).toEqual({ kind: 'breakdown', actionId: uuid(402) })
+    // Ruck ring of two tokens around the point of A4 at the formation.
+    const ruck = t1.breakdowns[0]?.pos ?? { x: NaN, y: NaN }
+    expect(hitTest(t1, { x: ruck.x, y: ruck.y + 2.1 }, tol)).toEqual({
+      kind: 'breakdown',
+      actionId: uuid(402),
+    })
     // The relayer path selects the breakdown.
     const relay = t1.relays[0]?.points[10] ?? { x: NaN, y: NaN }
     expect(hitTest(t1, relay, tol)).toEqual({ kind: 'breakdown', actionId: uuid(402) })

@@ -6,14 +6,17 @@ import { basePlay, ball, kick, pass, phase, player, run, uuid } from '../test/bu
 import { kickFlightTime, kickLift } from './ballEvents'
 import { lineBounds } from './bounds'
 import { createCaches } from './caches'
+import { PROFILE_TOLERANCE, timeFromRest } from '../test/profileMath'
 import { evaluate, phaseSchematic } from './evaluate'
 import { compileLine } from './timeline'
 import { distance } from './vec'
 
-// Paces of lots 1 to 3 (sprint 7 m/s), which these timings were written for.
-const settings: EngineSettings = {
-  ...engineSettingsOf(defaultSettings()),
-  paces: { walk: 2, jog: 4, sprint: 7 },
+const settings: EngineSettings = engineSettingsOf(defaultSettings())
+const { accel } = settings.motion
+const { walk, jog, sprint } = settings.paces
+/** Pickup instants follow the speed profile, exact on its samples. */
+const expectInstant = (actual: number | undefined, expected: number) => {
+  expect(Math.abs((actual ?? NaN) - expected)).toBeLessThan(PROFILE_TOLERANCE)
 }
 
 const A1 = uuid(1)
@@ -97,7 +100,7 @@ describe('kicks (SPEC 10.4)', () => {
 
   it('leaves the ball on the ground at the target point, picked up by the first player within 1 m', () => {
     // Landing at 3.5 s. A2 sprints through the point from 3 s; B1 sprints from the other side
-    // from 2.5 s and reaches 1 m first: x = 90 - 7 (t - 2.5) = 76 at t = 4.5.
+    // from 2.5 s: both have 14 m to cover to come within 1 m, B1 half a second earlier.
     const play = kickPlay([
       kick(KICK, A1, { point: { x: 75, y: 30 } }, 0),
       run(uuid(41), A2, [{ x: 90, y: 30 }], { pace: 'sprint', delay: 3 }),
@@ -105,13 +108,13 @@ describe('kicks (SPEC 10.4)', () => {
     ])
     const landed = state(play, 3.5, [T1]).ball
     expect(landed).toEqual({ kind: 'loose', pos: { x: 75, y: 30 } })
-    // A2: x = 60 + 7 (t - 3) = 74 at t = 3 + 2; B1 reaches 76 at 4.5: B1 first.
     const segments = compileLine(play, [T1], settings, createCaches()).phases[0]?.ball ?? []
     const pickup = segments.at(-1)
     expect(pickup?.kind === 'carried' && pickup.carrierId).toBe(B1)
-    expect(pickup?.start).toBeCloseTo(4.5, 6)
-    expect(state(play, 4.49, [T1]).ball?.kind).toBe('loose')
-    const after = state(play, 4.6, [T1]).ball
+    const pickupT = 2.5 + timeFromRest(14, sprint, accel)
+    expectInstant(pickup?.start, pickupT)
+    expect(state(play, pickupT - 0.05, [T1]).ball?.kind).toBe('loose')
+    const after = state(play, pickupT + 0.05, [T1]).ball
     expect(after?.kind === 'carried' && after.carrierId).toBe(B1)
   })
 
@@ -129,10 +132,10 @@ describe('kicks (SPEC 10.4)', () => {
     )
     const compiled = compileLine(play, [T1, T2], settings, createCaches())
     expect(compiled.phases[0]?.holderAtEnd).toEqual({ kind: 'loose', pos: { x: 75, y: 30 } })
-    // A2 jogs from x = 60 from 3.5 s: x = 74 at 3.5 + 14 / 4 = 7.
+    // A2 jogs from x = 60 from 3.5 s: x = 74 after 14 m.
     const pickup = compiled.phases[1]?.ball.at(-1)
     expect(pickup?.kind === 'carried' && pickup.carrierId).toBe(A2)
-    expect(pickup?.start).toBeCloseTo(7, 6)
+    expectInstant(pickup?.start, 3.5 + timeFromRest(14, jog, accel))
   })
 
   it('stays on the ground when nobody comes', () => {
@@ -206,9 +209,9 @@ describe('ball on the ground at the start (D-083)', () => {
       ballPosition: { x: 55, y: 30 },
     })
     expect(state(play, 1, [T1]).ball).toEqual({ kind: 'loose', pos: { x: 55, y: 30 } })
-    // A2 walks from x = 60 at 2 m/s: within 1 m (x = 56) at 2 s.
+    // A2 walks from x = 60 at 2 m/s: within 1 m (x = 56) after 4 m.
     const pickup = compileLine(play, [T1], settings, createCaches()).phases[0]?.ball.at(-1)
     expect(pickup?.kind === 'carried' && pickup.carrierId).toBe(A2)
-    expect(pickup?.start).toBeCloseTo(2, 6)
+    expectInstant(pickup?.start, timeFromRest(4, walk, accel))
   })
 })

@@ -145,7 +145,11 @@ describe('GIF plan (SPEC 9.2, D-058, D-059)', () => {
       'Temps 3, option B : Montée',
       'Temps 2, option B : Serré',
     ])
-    expect(optionCards.map((i) => sceneT(two[i + 1]))).toEqual([2, 1])
+    // Each phase is a 4 m jog: the options resume at the end of phase 2, then of phase 1.
+    const step = compileLine(play, [play.phases[0]?.id ?? ''], settings, caches).duration
+    const resumedAt = optionCards.map((i) => sceneT(two[i + 1]))
+    expect(resumedAt[0]).toBeCloseTo(2 * step, 9)
+    expect(resumedAt[1]).toBeCloseTo(step, 9)
   })
 
   it('plays the slow speed only or the real speed only, without a speed card', () => {

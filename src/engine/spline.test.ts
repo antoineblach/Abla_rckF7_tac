@@ -90,4 +90,47 @@ describe('centripetal Catmull-Rom spline', () => {
     expect(half[half.length - 1]?.x).toBeCloseTo(5, 9)
     expect(endDirection(spline)).toEqual({ x: 1, y: 0 })
   })
+
+  it('gives the input segment of each spline segment, duplicates removed (D-114)', () => {
+    const spline = buildSpline(
+      [
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+        { x: 3, y: 0 },
+        { x: 3, y: 0 },
+        { x: 3, y: 4 },
+      ],
+      SAMPLES,
+    )
+    expect(spline.sourceSegments).toEqual([1, 3])
+    expect(buildSpline([{ x: 1, y: 1 }], SAMPLES).sourceSegments).toEqual([])
+  })
+
+  it('starts in the imposed direction, through the same points (tangent junction, D-106)', () => {
+    const points = [
+      { x: 0, y: 0 },
+      { x: 10, y: 10 },
+      { x: 20, y: 10 },
+    ]
+    const plain = buildSpline(points, SAMPLES)
+    const joined = buildSpline(points, SAMPLES, { x: 2, y: 0 })
+    expect(joined.startDirection).toEqual({ x: 1, y: 0 })
+    // It leaves along +x, where the plain curve leaves towards its first point.
+    const first = joined.samples[1] ?? { x: NaN, y: NaN }
+    expect(Math.abs(first.y / first.x)).toBeLessThan(0.05)
+    const plainFirst = plain.samples[1] ?? { x: NaN, y: NaN }
+    expect(plainFirst.y / plainFirst.x).toBeGreaterThan(0.5)
+    // Same points, same second segment, smooth at the first waypoint.
+    expect(pointAtDistance(joined, joined.length)).toEqual({ x: 20, y: 10 })
+    expect(joined.samples[SAMPLES]).toEqual({ x: 10, y: 10 })
+    expect(joined.samples.slice(SAMPLES)).toEqual(plain.samples.slice(SAMPLES))
+    const k = SAMPLES
+    const a = joined.samples[k - 1] ?? { x: NaN, y: NaN }
+    const b = joined.samples[k] ?? { x: NaN, y: NaN }
+    const c = joined.samples[k + 1] ?? { x: NaN, y: NaN }
+    const turn = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(b.y - a.y, b.x - a.x)
+    expect(Math.abs(turn)).toBeLessThan(0.05)
+    // A null or zero direction changes nothing.
+    expect(buildSpline(points, SAMPLES, { x: 0, y: 0 })).toEqual(plain)
+  })
 })
