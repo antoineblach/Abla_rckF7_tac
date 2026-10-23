@@ -10,6 +10,8 @@ Suivi : une case par étape, cochée dans le commit qui termine l'étape, avec l
 
 Branche `lot-3-corrections` depuis `main` (`f1f4fcc`), une PR vers `main`.
 
+**Clôture :** PR #5 fusionnée le 23 octobre 2026 (commit de fusion `fb70316`), CI verte, déployée sur Pages après le rétablissement du 23/10 (D-102).
+
 ## Contexte
 
 Pendant la séance d'usage du lot 3, sur un seul PC (Drive pour ordinateur en mode diffusion), le dialogue « Version plus récente dans le dossier » apparaît très souvent. Attendu (SPEC 8.4) : seulement si une autre instance de l'outil a modifié le fichier pendant des modifications non enregistrées. Une version écrite par la page n'est jamais une modification extérieure.
@@ -214,7 +216,7 @@ F (interface) ; `sync-own-writes.chromium.spec.ts`.
 - **Résultat sur le code de `main`** : l'e2e échoue à la sauvegarde qui suit deux annulations et une date touchée (« Modifications en cours » : écriture refusée, dialogue).
 - **Après correction :** l'e2e est vert ; le journal copié contient « retour en arrière » et « sauvegarde différée », et aucune « écriture refusée ».
 
-### [x] Étape 6 : documents et clôture (`1bf85cd` ; PR #5)
+### [x] Étape 6 : documents et clôture (`1bf85cd` ; PR #5 fusionnée, `fb70316`)
 
 Fait : SPEC 1.5 (6.6, 8.1, 8.3, 8.4, 10.1, 14, 16) ; ARCHITECTURE ; RECETTE (section « Lot 3 : correction après recette ») ; README (synchronisation, journal, nouvelle combinaison depuis un modèle, restauration par l'historique de Drive) ; ETAT.
 Recette automatisable verte : format, lint, typecheck, 481 tests unitaires, 33 tests de bout en bout (Chromium et Firefox), build.

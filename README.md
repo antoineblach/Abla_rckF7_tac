@@ -82,6 +82,7 @@ npm run preview            # prévisualisation du build : http://localhost:4173/
 - Réglage du dépôt (une fois) : Settings, Pages, source « GitHub Actions ».
 - Le workflow `.github/workflows/ci.yml` lance, à chaque push et chaque PR : lint, typecheck, tests unitaires, tests de bout en bout et build. Sur `main`, et seulement si tout passe, il publie `dist/` sur Pages.
 - `main` est protégée : une PR ne peut être fusionnée que si le statut « checks » est vert. Pas de push direct sur `main`.
+- Le dépôt doit rester public : sans abonnement payant, passer en privé désactive GitHub Pages et supprime la protection de `main` (incident du 23/10/2026, D-102).
 - Travail par lot : une branche `lot-N`, une PR vers `main`, fusion après la recette du lot (`docs/RECETTE.md` : tests automatisés, au plus 5 vérifications manuelles, séance d'usage libre).
 - La base de Vite est `/Abla_rckF7_tac/` (casse exacte) : la changer seulement si le dépôt est renommé.
 - Après un déploiement qui change le format des fichiers (lot 3 : combinaisons en version 2), recharger la page sur les deux PC : une page restée ouverte sur l'ancienne version signale les nouveaux fichiers comme « créés par une version plus récente » et ne les modifie pas.
