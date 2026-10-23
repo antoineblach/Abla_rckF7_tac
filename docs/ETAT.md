@@ -1,15 +1,15 @@
 # État du projet
 
 - Mise à jour : 2026-10-23
-- Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`) ; PR vers `main` à ouvrir à la fin de l'étape 6
-- Dernier commit : « Étape 6 : documents de la correction du lot 3 » (après `5740327`, étape 5)
+- Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), poussée ; PR #5 vers `main` ouverte, CI verte (23/10)
+- Dernier commit : « État : PR #5 et CI verte » (après `1bf85cd`, « Étape 6 : documents de la correction du lot 3 »)
 - `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 - Écarts constatés à la reprise du 23/10, corrigés : ce fichier indiquait la PR #4 ouverte ; références locales `origin/lot-*` périmées (`git fetch --prune`) ; `docs/PASSATION.md` non suivi (commité tel quel).
 
 ## En cours
 
 - Correction après recette du lot 3 (`docs/plans/lot-3-corrections.md`, D-097 à D-101), étapes 0 à 6 faites. Elle traite le dialogue « Version plus récente dans le dossier » qui apparaissait en travaillant seul, et la nouvelle combinaison depuis un modèle.
-- En attente de l'utilisateur : fusion de la PR (CI verte), puis Ctrl+F5 sur les deux PC, 2 vérifications manuelles (`docs/RECETTE.md`, section « Lot 3 : correction après recette ») et suite de la séance d'usage.
+- En attente de l'utilisateur : fusion de la PR #5 (CI verte), puis Ctrl+F5 sur les deux PC, 2 vérifications manuelles (`docs/RECETTE.md`, section « Lot 3 : correction après recette ») et suite de la séance d'usage.
 - Prochaine action : retour de recette (journal de synchronisation copié si un dialogue réapparaît), ou le lot 4 sur demande.
 
 ## Fait
@@ -27,7 +27,7 @@
 
 ## Reste à faire
 
-- Correction du lot 3, en attente de l'utilisateur : fusion de la PR ; 2 vérifications manuelles (15 minutes d'édition sur Drive réel en mode diffusion sans dialogue ; vraie modification sur l'autre PC) ; suite de la séance d'usage libre.
+- Correction du lot 3, en attente de l'utilisateur : fusion de la PR #5 ; 2 vérifications manuelles (15 minutes d'édition sur Drive réel en mode diffusion sans dialogue ; vraie modification sur l'autre PC) ; suite de la séance d'usage libre.
 - Lot 3, en attente de l'utilisateur : 3 vérifications manuelles (modèle synchronisé entre les deux PC, GIF sur le téléphone, PDF N&B sur la laser).
 - Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
 - Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
