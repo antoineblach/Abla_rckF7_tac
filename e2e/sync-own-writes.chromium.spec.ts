@@ -31,6 +31,13 @@ async function watchUnexpected(page: Page): Promise<void> {
 const unexpected = (page: Page): Promise<string[]> =>
   page.evaluate(() => (window as unknown as { seenUnexpected: string[] }).seenUnexpected)
 
+/**
+ * The file, or null while the page is writing it: the private file system refuses a read during a
+ * write (NotReadableError, then NotFoundError while the file is replaced).
+ */
+const readWhenWritten = (page: Page, path: string): Promise<string | null> =>
+  readFolderFile(page, path).catch(() => null)
+
 /** Drive changes the modification date after the upload: the same text written again. */
 async function driveTouchesDate(page: Page, path: string): Promise<void> {
   await writeFolderFile(page, path, await readFolderFile(page, path))
@@ -61,6 +68,8 @@ test('editing, dragging, undoing and saving alone while Drive touches the file: 
     .getByTestId('degraded-banner')
     .getByRole('button', { name: 'Choisir un dossier' })
     .click()
+  // The play must be created in the folder, not in the browser library.
+  await expect(page.getByText('Dossier : Rugby7')).toBeVisible()
   await createSevenVsSeven(page, 'Seule')
   await save(page)
   await watchUnexpected(page)
@@ -102,7 +111,7 @@ test('editing, dragging, undoing and saving alone while Drive touches the file: 
   const latest = await readFolderFile(page, path)
   await writeFolderFile(page, path, v1)
   await focusWindow(page)
-  await expect.poll(() => readFolderFile(page, path)).toBe(latest)
+  await expect.poll(() => readWhenWritten(page, path)).toBe(latest)
 
   // The same with a change in progress: the change is kept, then saved.
   await fillCommit(page, 'Notes', 'Ma version')

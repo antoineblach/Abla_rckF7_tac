@@ -1,15 +1,15 @@
 # État du projet
 
 - Mise à jour : 2026-10-23
-- Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), poussée ; PR #5 vers `main` ouverte, CI verte (23/10)
-- Dernier commit : « État : PR #5 et CI verte » (après `1bf85cd`, « Étape 6 : documents de la correction du lot 3 »)
+- Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), poussée ; PR #5 vers `main` ouverte
+- Dernier commit : « Test de bout en bout : lecture pendant une écriture » (après `0bae584`, dont le run « push » a échoué sur une course du test `sync-own-writes`, corrigée)
 - `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 - Écarts constatés à la reprise du 23/10, corrigés : ce fichier indiquait la PR #4 ouverte ; références locales `origin/lot-*` périmées (`git fetch --prune`) ; `docs/PASSATION.md` non suivi (commité tel quel).
 
 ## En cours
 
 - Correction après recette du lot 3 (`docs/plans/lot-3-corrections.md`, D-097 à D-101), étapes 0 à 6 faites. Elle traite le dialogue « Version plus récente dans le dossier » qui apparaissait en travaillant seul, et la nouvelle combinaison depuis un modèle.
-- En attente de l'utilisateur : fusion de la PR #5 (CI verte), puis Ctrl+F5 sur les deux PC, 2 vérifications manuelles (`docs/RECETTE.md`, section « Lot 3 : correction après recette ») et suite de la séance d'usage.
+- En attente de l'utilisateur : fusion de la PR #5 (CI à revérifier sur le dernier commit), puis Ctrl+F5 sur les deux PC, 2 vérifications manuelles (`docs/RECETTE.md`, section « Lot 3 : correction après recette ») et suite de la séance d'usage.
 - Prochaine action : retour de recette (journal de synchronisation copié si un dialogue réapparaît), ou le lot 4 sur demande.
 
 ## Fait
@@ -65,6 +65,10 @@
 - Le morceau principal ne doit importer ni `export/jobSteps.ts` ni les encodeurs : `export/jobs.ts` reste léger (contrôlé par `bundle.chromium.spec.ts`).
 - Vitest coupe un test à 5 s par défaut ; le runner de la CI encode 2 à 3 fois moins vite que ce poste : les groupes de tests qui encodent réellement ont un délai explicite (`ENCODING_TIMEOUT_MS`).
 - Vérifier qu'un test attrape un défaut : arbre de travail temporaire sur `main` avec une jonction vers `node_modules` ; supprimer la jonction (`rmdir`) avant `git worktree remove`.
+- **OPFS et tests de bout en bout :**
+  - une lecture pendant une écriture de la page échoue (`NotReadableError`, puis `NotFoundError` pendant le remplacement) ; `expect.poll` ne réessaie pas sur une erreur : lire avec `.catch(() => null)` ;
+  - après « Choisir un dossier », attendre « Dossier : Rugby7 » avant de créer une combinaison (sinon elle part dans IndexedDB).
+  - Ces courses ne se voient en local que sous charge : `--repeat-each=40 --workers=10`.
 
 ## Chantiers en parallèle
 
