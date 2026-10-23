@@ -394,6 +394,7 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : vérification exacte et sans bruit dans l'historique.
 - Alternatives écartées : branche avec un test cassé (point de la recette du lot 1).
 - Origine : demande de l'utilisateur.
+- Protection supprimée par le passage du dépôt en privé, puis recréée à l'identique le 23/10/2026 (D-102).
 
 ### D-056 : raccourcis et focus des contrôles
 - Date : 2026-10-15
@@ -731,3 +732,16 @@ Plan : `docs/plans/lot-3-corrections.md`, validé le 23 octobre 2026 avec les r�
 - Raison : Échap laissait une combinaison vide dans la bibliothèque. La précédente est relue, car elle a pu changer sur l'autre PC pendant la pose.
 - Alternatives écartées : rouvrir la précédente depuis un instantané de l'éditeur ; laisser l'éditeur vide.
 - Origine : demande de l'utilisateur (passation du 16/10) ; réponse Q2.
+
+## Exploitation du dépôt
+
+### D-102 : le dépôt reste public
+- Date : 2026-10-23
+- Décision : le dépôt `antoineblach/Abla_rckF7_tac` reste public. Sans abonnement payant, GitHub Pages et la protection de branche en dépendent : passer le dépôt en privé désactive Pages et supprime la protection de `main`.
+- Raison : incident du 23/10. Le dépôt était passé en privé entre le 16 et le 23/10. Le premier déploiement après la fusion de la PR #5 (`fb70316`) a échoué (404, « Ensure GitHub Pages has been enabled »), et la protection de `main` avait disparu. Rétabli le même jour :
+  - dépôt repassé en public ;
+  - Pages réactivé (`gh api -X POST repos/antoineblach/Abla_rckF7_tac/pages -f build_type=workflow`) ;
+  - déploiement relancé (`gh run rerun 40000159609 --failed`), vert ;
+  - protection de `main` recréée à l'identique de D-055 : statut « checks » de l'application GitHub Actions (15368), branche à jour exigée, administrateurs inclus, aucune revue, poussées forcées et suppression interdites. Vérifiée par la réponse de l'API, puis relue par `gh api` le même jour.
+- Alternatives écartées : dépôt privé avec un abonnement payant.
+- Origine : incident constaté par l'utilisateur au déploiement de la PR #5.
