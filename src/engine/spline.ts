@@ -247,3 +247,43 @@ export function endDirection(spline: Spline): Vec2 | null {
   }
   return null
 }
+
+/** A polyline of the curve with the flag of its spline segments (fast segments, D-115). */
+export interface CurvePart {
+  points: Vec2[]
+  flag: boolean
+}
+
+/**
+ * Polylines of the curve between arc lengths `from` and `to`, consecutive spline segments with
+ * the same flag grouped together.
+ */
+export function partsBetween(
+  spline: Spline,
+  from: number,
+  to: number,
+  flags: readonly boolean[],
+): CurvePart[] {
+  const { cumulative, samples, samplesPerSegment } = spline
+  const parts: CurvePart[] = []
+  const segments = Math.max(0, spline.points.length - 1)
+  for (let j = 0; j < segments; j++) {
+    const firstSample = j * samplesPerSegment
+    const lastSample = Math.min((j + 1) * samplesPerSegment, cumulative.length - 1)
+    const lo = Math.max(cumulative[firstSample] ?? 0, from)
+    const hi = Math.min(cumulative[lastSample] ?? 0, to)
+    if (hi <= lo) continue
+    const points: Vec2[] = [pointAtDistance(spline, lo)]
+    for (let k = firstSample; k <= lastSample; k++) {
+      const c = cumulative[k] ?? 0
+      const p = samples[k]
+      if (p && c > lo && c < hi) points.push({ x: p.x, y: p.y })
+    }
+    points.push(pointAtDistance(spline, hi))
+    const flag = flags[j] ?? false
+    const previous = parts[parts.length - 1]
+    if (previous && previous.flag === flag) previous.points.push(...points.slice(1))
+    else parts.push({ points, flag })
+  }
+  return parts
+}

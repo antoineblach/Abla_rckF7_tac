@@ -93,7 +93,14 @@ export interface RunMotion {
   prolongs: boolean
   /** Its synchronisation link, resolved (SPEC 5.8); null without link or when it cannot apply. */
   sync: RunSyncResult | null
+  /** Spline segments at the sprint pace of the settings or faster: drawn thicker (D-115). */
+  fastSegments: boolean[]
+  /** Spline segments whose peak is beyond a speed threshold (SPEC 5.9), else null. */
+  speedLevels: (SpeedLevel | null)[]
 }
+
+/** Peak speed beyond the orange (warning) or the red (danger) threshold (SPEC 5.9). */
+export type SpeedLevel = 'warning' | 'danger'
 
 /** A synchronisation link once resolved (SPEC 5.8, D-108). */
 export interface RunSyncResult {
@@ -499,6 +506,8 @@ function compilePhase(
       launchWait: null,
       prolongs: spec.launch !== null,
       sync: null,
+      fastSegments: fastOf(targets, settings),
+      speedLevels: [],
     }
   }
 
@@ -917,6 +926,8 @@ function compilePhase(
         launchWait: null,
         prolongs: false,
         sync: null,
+        fastSegments: fastOf([sprint * factor], settings),
+        speedLevels: [],
       }
     }
 
@@ -1234,7 +1245,8 @@ function compilePhase(
     }
   }
   for (const motion of draft.motions) {
-    if (motion.source === 'run') result.issues.push(...speedIssues(motion, phaseId, settings))
+    motion.speedLevels = speedLevelsOf(motion, settings)
+    if (motion.source === 'run') result.issues.push(...speedIssues(motion, phaseId))
     if (motion.source === 'run' && motion.endsAtSpeed && motion.until === null) {
       const speed = endSpeedOf(motion.profile)
       const direction = endDirection(motion.spline)
@@ -1255,21 +1267,41 @@ function compilePhase(
 }
 
 /** Peak speeds of the segments of a run beyond the thresholds (SPEC 5.9, D-111). */
-function speedIssues(motion: RunMotion, phaseId: Id, settings: EngineSettings): Issue[] {
+function speedIssues(motion: RunMotion, phaseId: Id): Issue[] {
   const result: Issue[] = []
   motion.spline.sourceSegments.forEach((source, segment) => {
-    const peak = segmentPeak(motion.profile, segment)
-    const { warning, danger } = settings.speedAlert
-    if (peak <= warning) return
+    const level = motion.speedLevels[segment]
+    if (!level) return
     result.push({
-      code: peak > danger ? 'runSpeedTooHigh' : 'runSpeedHigh',
-      severity: peak > danger ? 'error' : 'warning',
+      code: level === 'danger' ? 'runSpeedTooHigh' : 'runSpeedHigh',
+      severity: level === 'danger' ? 'error' : 'warning',
       target: { kind: 'action', id: motion.actionId, phaseId },
-      params: { segment: source + 1, speed: peak },
+      params: { segment: source + 1, speed: segmentPeak(motion.profile, segment) },
       key: String(source),
     })
   })
   return result
+}
+
+/** Level of the peak speed of each spline segment of a motion (SPEC 5.9, D-111). */
+function speedLevelsOf(motion: RunMotion, settings: EngineSettings): (SpeedLevel | null)[] {
+  const { warning, danger } = settings.speedAlert
+  // A run frozen by a breakdown is judged on the part it runs only.
+  const reach = motion.until === null ? Infinity : motionDistance(motion, motion.until)
+  const { s, v, samplesPerSegment } = motion.profile
+  return motion.spline.sourceSegments.map((_, segment) => {
+    let peak = 0
+    const first = segment * samplesPerSegment
+    const last = Math.min(first + samplesPerSegment, v.length - 1)
+    for (let k = first; k <= last && (s[k] ?? Infinity) <= reach; k++)
+      peak = Math.max(peak, v[k] ?? 0)
+    return peak > danger ? 'danger' : peak > warning ? 'warning' : null
+  })
+}
+
+/** Segments at the sprint pace of the settings or faster (D-115). */
+function fastOf(targets: readonly number[], settings: EngineSettings): boolean[] {
+  return targets.map((v) => v >= settings.paces.sprint - 1e-9)
 }
 
 function initialHolder(play: Play): BallHolder {
