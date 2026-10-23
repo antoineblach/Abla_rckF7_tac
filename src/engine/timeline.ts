@@ -5,19 +5,28 @@
 // Runs follow a speed profile (profile.ts, SPEC 5.3, D-105): bounded acceleration and braking,
 // speed limited in turns, a target speed per segment. A run « Finit lancée » ends at speed when it
 // ends with its phase, and the run that prolongs it in the next phase of the line starts at that
-// speed in its arrival direction (SPEC 5.2, D-106): the phase is compiled once with the runs at
-// speed, then again with a normal braking for those that ended before the end of the phase.
+// speed in its arrival direction (SPEC 5.2, D-106): the phase is compiled with the runs at speed,
+// then again with a normal braking for those that end before the end of the phase.
 //
-// Ball events of a phase (passes, kicks, breakdown formations) are processed in chronological
-// order; between two events, flight arrivals, breakdown ends and loose-ball pickups are resolved.
+// A run linked to another action of its phase (SPEC 5.8, D-108) is adjusted in the order of the
+// dependencies of the links: the instant of its target is read on a simulation of the phase.
+//
+// Ball events of a phase (fixed releases, breakdown formations, releases on receipt queued by the
+// receptions, D-110) are processed in chronological order; between two events, flight arrivals,
+// breakdown ends and loose-ball pickups are resolved.
 // A breakdown only applies when the tackled player holds the ball, so no flight is in progress:
 // it changes motions only after its formation, and everything computed before stays exact.
-import { ARC_LENGTH_SAMPLES_PER_SEGMENT, RELAY_OFFSET } from '../config/defaults'
+import {
+  ARC_LENGTH_SAMPLES_PER_SEGMENT,
+  PASS_RECEIPT_TOLERANCE,
+  RELAY_OFFSET,
+} from '../config/defaults'
 import { canonicalJson, contentHash } from '../model/canonical'
 import type { Issue } from '../model/issues'
 import { phaseLabelOf } from '../model/labels'
 import { findPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
+import { analyseSyncs, meetsOwnPass } from '../model/syncGraph'
 import {
   attackDirection,
   isBall,
@@ -32,6 +41,7 @@ import {
   type Play,
   type PlayerEntity,
   type RunAction,
+  type RunSync,
   type Team,
   type Vec2,
 } from '../model/types'
@@ -45,6 +55,7 @@ import {
   segmentPeak,
   solveFactor,
   speedAt,
+  timeAtSegmentEnd,
   withDuration,
   type SpeedProfile,
 } from './profile'
@@ -80,9 +91,35 @@ export interface RunMotion {
   launchWait: number | null
   /** Starts at the end speed of the run it prolongs (D-106). */
   prolongs: boolean
+  /** Its synchronisation link, resolved (SPEC 5.8); null without link or when it cannot apply. */
+  sync: RunSyncResult | null
 }
 
-export interface CompiledPass {
+/** A synchronisation link once resolved (SPEC 5.8, D-108). */
+export interface RunSyncResult {
+  adjust: 'delay' | 'speed'
+  /** Delay of the run: computed (« Départ différé ») or stored. */
+  delay: number
+  /** Common factor on the segments before the rendez-vous (« Vitesse ajustée »), or 1. */
+  factor: number
+  /** 'late': delay below 0, started at once; 'capped': speed capped at the red threshold. */
+  status: 'ok' | 'late' | 'capped' | 'unreached'
+  /** Absolute instant of the target, null when it is never reached. */
+  targetT: number | null
+  /** Point of the run that meets the target (rendez-vous or end). */
+  meetPoint: Vec2
+  /** Point of the target, null when it is never reached. */
+  targetPoint: Vec2 | null
+}
+
+/** Release of a pass or a kick (D-110). */
+export interface ReleaseInfo {
+  releaseMode: 'fixed' | 'onReceipt'
+  /** Planned instant of a fixed release (start + delay), null for a release on receipt. */
+  plannedT: number | null
+}
+
+export interface CompiledPass extends ReleaseInfo {
   actionId: Id
   fromId: Id
   toId: Id
@@ -97,7 +134,7 @@ export interface CompiledPass {
   forward: boolean
 }
 
-export interface CompiledKick {
+export interface CompiledKick extends ReleaseInfo {
   actionId: Id
   kickerId: Id
   kind: KickKind
@@ -301,20 +338,65 @@ interface RunPlan {
   run: RunAction
   points: Vec2[]
   inputTargets: number[]
-  /** Run prolonged from the previous phase: its end speed and direction (D-106). */
-  launch: LaunchedRun | null
+  /** Run ending at speed in the previous phase that this run may prolong (D-106). */
+  launchCandidate: LaunchedRun | null
+  /** The link of the run applies (usable and outside any cycle, D-108). */
+  linked: boolean
 }
 
-interface MotionOptions {
+interface MotionSpec {
   delay: number
   /** Ends at speed (« Finit lancée » kept for this compilation). */
   endsAtSpeed: boolean
+  /** Prolonged run ending at speed (start speed and direction, D-106), or null. */
+  launch: LaunchedRun | null
+  /** Common factor on the target speeds. */
+  factor: number
+  /** Last input segment the factor applies to; null: every segment. */
+  factorUpTo: number | null
 }
 
 interface CompiledDraft {
   phase: CompiledPhase
   issues: Issue[]
   gainLine: GainLineChange[]
+}
+
+/** Event of the ball queue: a fixed release or formation, or a release on receipt (D-110). */
+interface QueuedEvent {
+  t: number
+  index: number
+  action: BallAction
+  /** Planned instant of a fixed release, null for a release on receipt or a formation. */
+  planned: number | null
+  /** Already postponed to a reception (tolerance of a fixed release, D-110). */
+  postponed: boolean
+}
+
+/** Instant, relative to the start of a motion, at which it reaches waypoint `index`. */
+export function waypointTime(motion: Pick<RunMotion, 'spline' | 'profile'>, index: number): number {
+  let segment = -1
+  motion.spline.sourceSegments.forEach((source, j) => {
+    if (source <= index) segment = j
+  })
+  return segment < 0 ? 0 : timeAtSegmentEnd(motion.profile, segment)
+}
+
+/** Arc length from the start of a run to its rendez-vous point (`at`, or its end). */
+function meetDistance(spline: Spline, at: number | undefined): number {
+  if (at === undefined) return spline.length
+  let segment = -1
+  spline.sourceSegments.forEach((source, j) => {
+    if (source <= at) segment = j
+  })
+  if (segment < 0) return 0
+  const k = Math.min((segment + 1) * spline.samplesPerSegment, spline.cumulative.length - 1)
+  return spline.cumulative[k] ?? spline.length
+}
+
+/** Instant, relative to the start of a motion, of its rendez-vous point (`at`, or its end). */
+function meetTime(motion: Pick<RunMotion, 'spline' | 'profile'>, at: number | undefined): number {
+  return at === undefined ? motion.profile.duration : waypointTime(motion, at)
 }
 
 function compilePhase(
@@ -337,10 +419,13 @@ function compilePhase(
     .filter(isPlayer)
     .map((p) => p.id)
     .filter((id) => startPositions[id] !== undefined)
+  const analysis = analyseSyncs(phase)
+  const launched = previous?.launched ?? {}
 
   // Runs: at most one per entity; the first one in array order applies (DECISIONS Q13).
   const plans: RunPlan[] = []
-  const events: { action: BallAction; index: number }[] = []
+  const fixed: QueuedEvent[] = []
+  const onReceipt: { action: PassAction | KickAction; index: number }[] = []
   const staticIssues: Issue[] = []
   phase.actions.forEach((action, index) => {
     const target = { kind: 'action', id: action.id, phaseId } as const
@@ -360,10 +445,20 @@ function compilePhase(
         run: action,
         points: [startPos, ...action.waypoints.map((w) => ({ x: w.x, y: w.y }))],
         inputTargets: runTargets(action, settings),
-        launch: null,
+        launchCandidate: launched[action.entityId] ?? null,
+        linked: analysis.order.includes(action.id),
       })
+    } else if ((action.type === 'pass' || action.type === 'kick') && action.release) {
+      onReceipt.push({ action, index })
     } else if (action.type === 'pass' || action.type === 'kick' || action.type === 'breakdown') {
-      events.push({ action, index })
+      const t = start + action.delay
+      fixed.push({
+        t,
+        index,
+        action,
+        planned: action.type === 'breakdown' ? null : t,
+        postponed: false,
+      })
     } else {
       staticIssues.push({
         code: 'unsupportedAction',
@@ -374,38 +469,24 @@ function compilePhase(
     }
   })
 
-  // Runs prolonging a run ending at speed in the previous phase of the line (D-106).
-  const launched = previous?.launched ?? {}
-  for (const [entityId, launch] of Object.entries(launched)) {
-    const plan = plans.find((p) => p.run.entityId === entityId)
-    if (plan && plan.run.delay <= SIMULTANEOUS_EPSILON) {
-      plan.launch = launch
-    } else {
-      staticIssues.push({
-        code: 'runNotContinued',
-        severity: 'warning',
-        target: { kind: 'action', id: launch.actionId, phaseId: launch.phaseId },
-        params: { phase: phaseLabelOf(play, phaseId) },
-        key: phaseId,
-      })
-    }
-  }
-
   /** Motion of a run with a common speed factor. */
-  const motionOf = (plan: RunPlan, options: MotionOptions, factor: number): RunMotion => {
-    const spline = getSpline(plan.points, plan.launch?.direction ?? null, caches)
-    const targets = splineTargets(spline, plan.inputTargets).map((v) => v * factor)
+  const motionOf = (plan: RunPlan, spec: MotionSpec): RunMotion => {
+    const spline = getSpline(plan.points, spec.launch?.direction ?? null, caches)
+    const scaled = plan.inputTargets.map((v, i) =>
+      spec.factorUpTo === null || i <= spec.factorUpTo ? v * spec.factor : v,
+    )
+    const targets = splineTargets(spline, scaled)
     const profile = buildProfile({
       spline,
       targets,
-      startSpeed: plan.launch?.speed ?? 0,
-      endsAtSpeed: options.endsAtSpeed,
+      startSpeed: spec.launch?.speed ?? 0,
+      endsAtSpeed: spec.endsAtSpeed,
       motion: settings.motion,
     })
     return {
       actionId: plan.run.id,
       entityId: plan.run.entityId,
-      start: start + options.delay,
+      start: start + spec.delay,
       duration: profile.duration,
       spline,
       profile,
@@ -413,27 +494,34 @@ function compilePhase(
       until: null,
       source: 'run',
       targets,
-      factor,
-      endsAtSpeed: options.endsAtSpeed,
+      factor: spec.factor,
+      endsAtSpeed: spec.endsAtSpeed,
       launchWait: null,
-      prolongs: plan.launch !== null,
+      prolongs: spec.launch !== null,
+      sync: null,
     }
   }
 
   /** Motion of a run, the imposed duration solved by a common factor (D-107). */
-  const runMotion = (plan: RunPlan, options: MotionOptions, out: Issue[]): RunMotion => {
+  const runMotion = (plan: RunPlan, spec: MotionSpec, out: Issue[]): RunMotion => {
     const imposed = plan.run.durationOverride
-    if (imposed === undefined) return motionOf(plan, options, 1)
+    // A link with an adjusted speed replaces the imposed duration (D-107).
+    if (imposed === undefined || (plan.linked && plan.run.sync?.adjust === 'speed')) {
+      return motionOf(plan, spec)
+    }
     const fastest = Math.max(...plan.inputTargets, 1e-9)
     const solution = solveFactor(
-      (factor) => motionOf(plan, options, factor).profile,
+      (factor) => motionOf(plan, { ...spec, factor, factorUpTo: null }).profile,
       (profile) => profile.duration,
       imposed,
       settings.speedAlert.danger / fastest,
     )
     const profile =
       solution.capped === 'none' ? withDuration(solution.profile, imposed) : solution.profile
-    const motion = withProfile(motionOf(plan, options, solution.factor), profile)
+    const motion = withProfile(
+      motionOf(plan, { ...spec, factor: solution.factor, factorUpTo: null }),
+      profile,
+    )
     if (solution.capped === 'slow') {
       out.push({
         code: 'durationCapped',
@@ -445,20 +533,14 @@ function compilePhase(
     return motion
   }
 
-  /** Compiles the phase with the runs at speed listed in `atSpeed`. */
-  const compileWith = (atSpeed: ReadonlySet<Id>): CompiledDraft => {
-    const localIssues: Issue[] = [...staticIssues]
-    const localGainLine: GainLineChange[] = []
-    const motions = plans.map((plan) =>
-      runMotion(
-        plan,
-        { delay: plan.run.delay, endsAtSpeed: atSpeed.has(plan.run.id) },
-        localIssues,
-      ),
-    )
-    const draft = simulate(motions, localIssues, localGainLine)
-    return { phase: draft, issues: localIssues, gainLine: localGainLine }
-  }
+  /** Motion of a run before its link is resolved: stored delay and speeds. */
+  const baseSpec = (plan: RunPlan, atSpeed: ReadonlySet<Id>): MotionSpec => ({
+    delay: plan.run.delay,
+    endsAtSpeed: atSpeed.has(plan.run.id),
+    launch: plan.run.delay <= SIMULTANEOUS_EPSILON ? plan.launchCandidate : null,
+    factor: 1,
+    factorUpTo: null,
+  })
 
   /** Ball events of the phase on the given run motions (relays and freezes added). */
   const simulate = (
@@ -491,44 +573,132 @@ function compilePhase(
     let exit: { t: number; relayerId: Id } | null = null
     let looseSince = start
     const releases: number[] = []
+    const queue: QueuedEvent[] = fixed.map((e) => ({ ...e }))
+    // Releases on receipt waiting for a reception of their player, in array order (D-110).
+    const waiting = new Map<Id, { action: PassAction | KickAction; index: number }[]>()
+    for (const entry of onReceipt) {
+      const playerId = entry.action.type === 'pass' ? entry.action.fromId : entry.action.kickerId
+      waiting.set(playerId, [...(waiting.get(playerId) ?? []), entry])
+    }
 
-    const advance = (te: number): void => {
-      for (;;) {
-        if (flight && flight.arrivalT <= te) {
-          const landed = flight
-          flight = null
-          if (landed.toId !== null) {
-            holder = { kind: 'carried', carrierId: landed.toId }
-            draft.ball.push({ kind: 'carried', start: landed.arrivalT, carrierId: landed.toId })
-          } else {
-            holder = { kind: 'loose', pos: copy(landed.to) }
-            looseSince = landed.arrivalT
-            draft.ball.push({ kind: 'loose', start: landed.arrivalT, pos: copy(landed.to) })
-          }
-          continue
+    /** A player receives the ball: her next release on receipt is due after its delay. */
+    const received = (playerId: Id, t: number): void => {
+      const next = waiting.get(playerId)?.shift()
+      if (!next) return
+      queue.push({
+        t: t + next.action.delay,
+        index: next.index,
+        action: next.action,
+        planned: null,
+        postponed: false,
+      })
+    }
+
+    /** Resolves the first transition at or before te; false when there is none. */
+    const advanceOne = (te: number): boolean => {
+      if (flight && flight.arrivalT <= te) {
+        const landed = flight
+        flight = null
+        if (landed.toId !== null) {
+          holder = { kind: 'carried', carrierId: landed.toId }
+          draft.ball.push({ kind: 'carried', start: landed.arrivalT, carrierId: landed.toId })
+          received(landed.toId, landed.arrivalT)
+        } else {
+          holder = { kind: 'loose', pos: copy(landed.to) }
+          looseSince = landed.arrivalT
+          draft.ball.push({ kind: 'loose', start: landed.arrivalT, pos: copy(landed.to) })
         }
-        if (exit && exit.t <= te) {
-          holder = { kind: 'carried', carrierId: exit.relayerId }
-          draft.ball.push({ kind: 'carried', start: exit.t, carrierId: exit.relayerId })
-          exit = null
-          continue
-        }
-        if (holder.kind === 'loose') {
-          const found = findPickup(holder.pos, looseSince, te, playerIds, at)
-          if (found) {
-            holder = { kind: 'carried', carrierId: found.id }
-            draft.ball.push({ kind: 'carried', start: found.t, carrierId: found.id })
-          } else {
-            looseSince = te
-          }
-        }
-        return
+        return true
       }
+      if (exit && exit.t <= te) {
+        const out = exit
+        exit = null
+        holder = { kind: 'carried', carrierId: out.relayerId }
+        draft.ball.push({ kind: 'carried', start: out.t, carrierId: out.relayerId })
+        received(out.relayerId, out.t)
+        return true
+      }
+      if (holder.kind === 'loose' && looseSince <= te) {
+        const found = findPickup(holder.pos, looseSince, te, playerIds, at)
+        if (found) {
+          holder = { kind: 'carried', carrierId: found.id }
+          draft.ball.push({ kind: 'carried', start: found.t, carrierId: found.id })
+          return true
+        }
+        looseSince = te
+      }
+      return false
     }
 
     const carries = (id: Id): boolean => holder.kind === 'carried' && holder.carrierId === id
     const simultaneous = (t: number): boolean =>
       releases.some((r) => Math.abs(r - t) <= SIMULTANEOUS_EPSILON)
+
+    /** Reception of the ball by a player still to come in the phase, or null (D-110). */
+    const upcomingReception = (id: Id): number | null => {
+      if (flight && flight.toId === id) return flight.arrivalT
+      if (exit && exit.relayerId === id) return exit.t
+      return null
+    }
+
+    /**
+     * A fixed release by a player who receives the ball a little later waits for it (tolerance,
+     * D-110): the event is put back at the reception. True when postponed.
+     */
+    const postpone = (event: QueuedEvent, playerId: Id): boolean => {
+      if (event.planned === null || event.postponed || carries(playerId)) return false
+      const reception = upcomingReception(playerId)
+      if (reception === null || reception > event.t + PASS_RECEIPT_TOLERANCE) return false
+      queue.push({ ...event, t: reception, postponed: true })
+      return true
+    }
+
+    /** Release on receipt never triggered: ignored and signalled, never played (D-110). */
+    const unreceived = (action: PassAction | KickAction): void => {
+      const releaseT = start + action.delay
+      const target = { kind: 'action', id: action.id, phaseId } as const
+      const fromId = action.type === 'pass' ? action.fromId : action.kickerId
+      const from = at(fromId, releaseT)
+      if (!players.has(fromId) || !from) return
+      const release = { releaseMode: 'onReceipt' as const, plannedT: null }
+      if (action.type === 'pass') {
+        const to = at(action.toId, releaseT)
+        if (!players.has(action.toId) || !to) return
+        localIssues.push({ code: 'passerWithoutBall', severity: 'error', target })
+        draft.passes.push({
+          actionId: action.id,
+          fromId,
+          toId: action.toId,
+          releaseT,
+          arrivalT: releaseT,
+          from,
+          to,
+          applied: false,
+          forward: false,
+          ...release,
+        })
+        return
+      }
+      const receiverId = isReceiverTarget(action.target) ? action.target.receiverId : null
+      const to =
+        'point' in action.target
+          ? copy(action.target.point)
+          : at(action.target.receiverId, releaseT)
+      if (!to) return
+      localIssues.push({ code: 'kickerWithoutBall', severity: 'error', target })
+      draft.kicks.push({
+        actionId: action.id,
+        kickerId: fromId,
+        kind: action.kind,
+        receiverId,
+        releaseT,
+        arrivalT: releaseT + kickFlightTime(action),
+        from,
+        to,
+        applied: false,
+        ...release,
+      })
+    }
 
     const startFlight = (
       actionId: Id,
@@ -553,14 +723,20 @@ function compilePhase(
       })
     }
 
-    const handlePass = (action: PassAction, releaseT: number): void => {
+    const handlePass = (action: PassAction, event: QueuedEvent): void => {
+      const releaseT = event.t
       const target = { kind: 'action', id: action.id, phaseId } as const
       const passer = players.get(action.fromId)
       const receiver = players.get(action.toId)
       if (!passer || !receiver) return
+      if (postpone(event, passer.id)) return
       const from = at(passer.id, releaseT)
       const receiverAtRelease = at(receiver.id, releaseT)
       if (!from || !receiverAtRelease) return
+      const release = {
+        releaseMode: action.release === 'onReceipt' ? ('onReceipt' as const) : ('fixed' as const),
+        plannedT: event.planned,
+      }
       const ignored = (code: 'simultaneousPass' | 'passerWithoutBall'): void => {
         localIssues.push({ code, severity: 'error', target })
         draft.passes.push({
@@ -573,6 +749,7 @@ function compilePhase(
           to: receiverAtRelease,
           applied: false,
           forward: false,
+          ...release,
         })
       }
       if (simultaneous(releaseT)) {
@@ -618,14 +795,17 @@ function compilePhase(
         to,
         applied: true,
         forward,
+        ...release,
       })
       startFlight(action.id, 'pass', from, to, releaseT, arrivalT, receiver.id)
     }
 
-    const handleKick = (action: KickAction, releaseT: number): void => {
+    const handleKick = (action: KickAction, event: QueuedEvent): void => {
+      const releaseT = event.t
       const target = { kind: 'action', id: action.id, phaseId } as const
       const kicker = players.get(action.kickerId)
       if (!kicker) return
+      if (postpone(event, kicker.id)) return
       const from = at(kicker.id, releaseT)
       if (!from) return
       const arrivalT = releaseT + kickFlightTime(action)
@@ -650,6 +830,8 @@ function compilePhase(
         from,
         to,
         applied: false,
+        releaseMode: action.release === 'onReceipt' ? 'onReceipt' : 'fixed',
+        plannedT: event.planned,
       }
       if (simultaneous(releaseT)) {
         localIssues.push({ code: 'simultaneousPass', severity: 'error', target })
@@ -734,6 +916,7 @@ function compilePhase(
         endsAtSpeed: false,
         launchWait: null,
         prolongs: false,
+        sync: null,
       }
     }
 
@@ -782,28 +965,229 @@ function compilePhase(
       localGainLine.push({ t: tf, x: pos.x })
     }
 
-    // Events in chronological order (stable on array order).
-    const sorted = [...events].sort((a, b) => a.action.delay - b.action.delay || a.index - b.index)
-    for (const { action } of sorted) {
-      const t = start + action.delay
-      advance(t)
-      if (action.type === 'pass') handlePass(action, t)
-      else if (action.type === 'kick') handleKick(action, t)
-      else handleBreakdown(action, t)
+    /** Events in chronological order (stable on array order); transitions are resolved first. */
+    const drain = (): void => {
+      for (;;) {
+        let next: QueuedEvent | undefined
+        for (const event of queue) {
+          if (!next || event.t < next.t || (event.t === next.t && event.index < next.index)) {
+            next = event
+          }
+        }
+        if (!next) return
+        // A reception may queue a release on receipt before `next`: look again.
+        if (advanceOne(next.t)) continue
+        queue.splice(queue.indexOf(next), 1)
+        const action = next.action
+        if (action.type === 'pass') handlePass(action, next)
+        else if (action.type === 'kick') handleKick(action, next)
+        else handleBreakdown(action, next.t)
+      }
     }
 
     // Phase duration = max(delay + duration) of its applied actions, 0 without action (SPEC 5.1);
-    // a breakdown lasts until the ball comes out (SPEC 10.3).
-    let end = start
-    for (const motion of draft.motions) end = Math.max(end, motionEnd(motion))
-    for (const p of draft.passes) if (p.applied) end = Math.max(end, p.arrivalT)
-    for (const k of draft.kicks) if (k.applied) end = Math.max(end, k.arrivalT)
-    for (const b of draft.breakdowns) if (b.applied) end = Math.max(end, b.end)
-    advance(end)
+    // a breakdown lasts until the ball comes out (SPEC 10.3). Transitions up to the end may still
+    // trigger releases on receipt, which may make the phase longer.
+    const phaseEnd = (): number => {
+      let end = start
+      for (const motion of draft.motions) end = Math.max(end, motionEnd(motion))
+      for (const p of draft.passes) if (p.applied) end = Math.max(end, p.arrivalT)
+      for (const k of draft.kicks) if (k.applied) end = Math.max(end, k.arrivalT)
+      for (const b of draft.breakdowns) if (b.applied) end = Math.max(end, b.end)
+      return end
+    }
+    let end: number
+    do {
+      drain()
+      end = phaseEnd()
+      while (advanceOne(end)) {
+        // Every transition up to the end of the phase.
+      }
+    } while (queue.length > 0)
+    // A release on receipt whose player never received the ball: ignored (D-110, D-013).
+    for (const entries of waiting.values()) {
+      for (const { action } of entries) unreceived(action)
+    }
     draft.end = end
-    // Every flight and breakdown is over at the end of the phase: advance() resolved them.
+    // Every flight and breakdown is over at the end of the phase: advanceOne resolved them.
     draft.holderAtEnd = settledHolder(holder)
     return draft
+  }
+
+  /** Instant and point of the target of a link on a simulation of the phase, or null. */
+  const targetOf = (
+    probe: CompiledPhase,
+    plan: RunPlan,
+    sync: RunSync,
+  ): { t: number; point: Vec2 } | null => {
+    const target = sync.target
+    switch (target.event) {
+      case 'runEnd':
+      case 'runPoint': {
+        const m = probe.motions.find((x) => x.source === 'run' && x.actionId === target.actionId)
+        if (!m) return null
+        if (target.event === 'runEnd') {
+          const t = motionEnd(m)
+          return { t, point: motionPosition(m, t) }
+        }
+        const t = m.start + waypointTime(m, target.index)
+        if (m.until !== null && t > m.until + SIMULTANEOUS_EPSILON) return null
+        const point = m.waypoints[target.index]
+        return point ? { t, point: copy(point) } : null
+      }
+      case 'release':
+      case 'arrival': {
+        const pass = probe.passes.find((p) => p.actionId === target.actionId)
+        const kick = probe.kicks.find((k) => k.actionId === target.actionId)
+        const thrown = pass ?? kick
+        if (!thrown?.applied) return null
+        if (target.event === 'release') return { t: thrown.releaseT, point: copy(thrown.from) }
+        // The receiver meets the pass she receives: it arrives at the rendez-vous (D-108).
+        if (pass && meetsOwnPass(phase, plan.run, sync)) {
+          const meet = plan.run.waypoints[sync.at ?? plan.run.waypoints.length - 1]
+          const action = phase.actions.find((a) => a.id === target.actionId)
+          const speed =
+            (action?.type === 'pass' ? action.ballSpeed : undefined) ?? settings.passSpeed
+          if (!meet || speed <= 0) return null
+          const point = { x: meet.x, y: meet.y }
+          return { t: pass.releaseT + distance(pass.from, point) / speed, point }
+        }
+        return { t: thrown.arrivalT, point: copy(thrown.to) }
+      }
+      case 'formation': {
+        const b = probe.breakdowns.find((x) => x.actionId === target.actionId)
+        return b?.applied ? { t: b.start, point: copy(b.pos) } : null
+      }
+    }
+  }
+
+  /** The run adjusted to its link (SPEC 5.8, D-108), or with its stored values when unreached. */
+  const resolveLink = (
+    plan: RunPlan,
+    sync: RunSync,
+    spec: MotionSpec,
+    probe: CompiledPhase,
+    out: Issue[],
+  ): RunMotion => {
+    const target = targetOf(probe, plan, sync)
+    const issueTarget = { kind: 'action', id: plan.run.id, phaseId } as const
+    const meetIndex = sync.at ?? plan.run.waypoints.length - 1
+    const meetPoint = copy(plan.run.waypoints[meetIndex] ?? plan.points[0] ?? { x: 0, y: 0 })
+    if (!target) {
+      out.push({
+        code: 'syncTargetInvalid',
+        severity: 'error',
+        target: issueTarget,
+        params: { reason: 'unreached' },
+      })
+      const motion = runMotion(plan, spec, out)
+      motion.sync = {
+        adjust: sync.adjust,
+        delay: spec.delay,
+        factor: 1,
+        status: 'unreached',
+        targetT: null,
+        meetPoint,
+        targetPoint: null,
+      }
+      return motion
+    }
+    if (sync.adjust === 'delay') {
+      // Prolonging a run at speed first; if she has to wait, from rest (D-106).
+      const delayWith = (launch: LaunchedRun | null) => {
+        const m = runMotion(plan, { ...spec, delay: 0, launch }, [])
+        return target.t - start - meetTime(m, sync.at)
+      }
+      let launch = plan.launchCandidate
+      let delay = delayWith(launch)
+      if (launch && delay > SIMULTANEOUS_EPSILON) {
+        launch = null
+        delay = delayWith(null)
+      }
+      let status: 'ok' | 'late' = 'ok'
+      if (delay < -SIMULTANEOUS_EPSILON) {
+        status = 'late'
+        out.push({
+          code: 'syncLate',
+          severity: 'warning',
+          target: issueTarget,
+          params: { late: -delay },
+        })
+      }
+      delay = Math.max(0, delay)
+      const motion = runMotion(plan, { ...spec, delay, launch }, out)
+      motion.sync = {
+        adjust: 'delay',
+        delay,
+        factor: motion.factor,
+        status,
+        targetT: target.t,
+        meetPoint,
+        targetPoint: target.point,
+      }
+      return motion
+    }
+    // Adjusted speed: a common factor on the segments before the rendez-vous (D-108).
+    const wanted = target.t - start - spec.delay
+    const upTo = meetIndex
+    const fastest = Math.max(...plan.inputTargets.slice(0, upTo + 1), 1e-9)
+    const maxFactor = settings.speedAlert.danger / fastest
+    const build = (factor: number) => motionOf(plan, { ...spec, factor, factorUpTo: upTo })
+    const spline = build(1).spline
+    let factor = maxFactor
+    let profile = build(maxFactor).profile
+    let capped = wanted <= 0
+    if (!capped) {
+      const solution = solveFactor(
+        (f) => build(f).profile,
+        (p) => meetTime({ spline, profile: p }, sync.at),
+        wanted,
+        maxFactor,
+      )
+      factor = solution.factor
+      profile = solution.profile
+      capped = solution.capped === 'slow'
+    }
+    const motion = withProfile(build(factor), profile)
+    if (capped) {
+      // Average speed needed over the way to the rendez-vous (none for a target before the start).
+      out.push({
+        code: 'syncSpeedCapped',
+        severity: 'warning',
+        target: issueTarget,
+        ...(wanted > 0 ? { params: { needed: meetDistance(spline, sync.at) / wanted } } : {}),
+      })
+    }
+    motion.sync = {
+      adjust: 'speed',
+      delay: spec.delay,
+      factor,
+      status: capped ? 'capped' : 'ok',
+      targetT: target.t,
+      meetPoint,
+      targetPoint: target.point,
+    }
+    return motion
+  }
+
+  /** Compiles the phase with the runs at speed listed in `atSpeed`. */
+  const compileWith = (atSpeed: ReadonlySet<Id>): CompiledDraft => {
+    const localIssues: Issue[] = [...staticIssues]
+    const localGainLine: GainLineChange[] = []
+    const motions = plans.map((plan) =>
+      runMotion(plan, baseSpec(plan, atSpeed), plan.linked ? [] : localIssues),
+    )
+    // Links in the order of their dependencies: each target read on a simulation (D-108).
+    for (const runId of analysis.order) {
+      const index = plans.findIndex((p) => p.run.id === runId)
+      const plan = plans[index]
+      const sync = plan?.run.sync
+      if (!plan || !sync) continue
+      const probe = simulate(motions, [], [])
+      motions[index] = resolveLink(plan, sync, baseSpec(plan, atSpeed), probe, localIssues)
+    }
+    const draft = simulate(motions, localIssues, localGainLine)
+    return { phase: draft, issues: localIssues, gainLine: localGainLine }
   }
 
   // Compilation with every « Finit lancée » run at speed; a run that ends before the end of the
@@ -836,6 +1220,19 @@ function compilePhase(
     if (wait !== undefined && motion.source === 'run') motion.launchWait = wait
   }
   const draft = result.phase
+  // Runs of the previous phase ending at speed, not prolonged here: they stop short (D-106).
+  for (const [entityId, launch] of Object.entries(launched)) {
+    const prolonged = draft.motions.some((m) => m.entityId === entityId && m.prolongs)
+    if (!prolonged) {
+      result.issues.push({
+        code: 'runNotContinued',
+        severity: 'warning',
+        target: { kind: 'action', id: launch.actionId, phaseId: launch.phaseId },
+        params: { phase: phaseLabelOf(play, phaseId) },
+        key: phaseId,
+      })
+    }
+  }
   for (const motion of draft.motions) {
     if (motion.source === 'run') result.issues.push(...speedIssues(motion, phaseId, settings))
     if (motion.source === 'run' && motion.endsAtSpeed && motion.until === null) {

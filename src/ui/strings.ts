@@ -110,13 +110,17 @@ export function issueMessage(issue: Issue): string {
     case 'syncTargetMissing':
       return 'Lien de synchronisation : cible supprimée, lien ignoré.'
     case 'syncTargetInvalid':
-      return 'Lien de synchronisation invalide (cible ou point inexistant) : lien ignoré.'
+      return p.reason === 'unreached'
+        ? 'Lien de synchronisation : la cible n’a jamais lieu (action ignorée ou point non atteint), lien ignoré.'
+        : 'Lien de synchronisation invalide (cible ou point inexistant) : lien ignoré.'
     case 'syncCycle':
       return 'Liens de synchronisation en boucle : liens ignorés.'
     case 'syncLate':
       return `Synchronisation impossible : départ immédiat, arrivée en retard de ${seconds(p.late)}.`
     case 'syncSpeedCapped':
-      return `Synchronisation impossible : il faudrait ${kmh(p.needed)} ; vitesse plafonnée au seuil rouge.`
+      return p.needed === undefined
+        ? 'Synchronisation impossible : la cible arrive avant le départ de la course ; vitesse plafonnée au seuil rouge.'
+        : `Synchronisation impossible : il faudrait ${kmh(p.needed)} de moyenne ; vitesse plafonnée au seuil rouge.`
     case 'durationCapped':
       return `Durée imposée inatteignable (accélérations, seuil rouge) : la course dure ${seconds(p.duration)}.`
     case 'runSpeedHigh':
