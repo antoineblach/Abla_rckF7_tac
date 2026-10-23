@@ -156,12 +156,22 @@ describe('conflicts (SPEC 8.4)', () => {
     expect(copy.phases).toEqual(play.phases)
   })
 
-  it('reloads silently without local change, asks otherwise', () => {
-    const play = sevenVsSevenWithOptions()
-    const stored = { ...play, updatedAt: '2026-10-14T18:00:00.000Z' }
-    expect(decideExternalChange({ play, dirty: false }, stored)).toBe('reload')
-    expect(decideExternalChange({ play, dirty: true }, stored)).toBe('ask')
-    expect(decideExternalChange({ play, dirty: true }, play)).toBe('ignore')
+  it('reloads silently a content never written by the page without local change, asks otherwise', () => {
+    // [base, dirty, stored hash, written by the page] -> decision (D-097, D-098).
+    const table = [
+      ['h1', false, 'x', false, 'reload'],
+      ['h1', true, 'x', false, 'ask'],
+      [null, false, 'x', false, 'reload'],
+      [null, true, 'x', false, 'ask'],
+      ['h1', true, 'h1', false, 'ignore'],
+      ['h1', false, 'h1', false, 'ignore'],
+      ['h1', true, 'h0', true, 'ignore'],
+      ['h1', false, 'h0', true, 'ignore'],
+      [null, true, 'h0', true, 'ignore'],
+    ] as const
+    for (const [baseHash, dirty, hash, own, decision] of table) {
+      expect(decideExternalChange({ baseHash, dirty }, { hash, own })).toBe(decision)
+    }
   })
 })
 
@@ -194,7 +204,7 @@ describe('synchronisation controller (SPEC 8.3, 8.4)', () => {
     const fs = createMemoryFs()
     const store = await FolderStore.open(fs.root, { now: () => NOW, ids: sequentialIds() })
     const { play, version } = await store.put(sevenVsSevenWithOptions())
-    let open: OpenPlay = { play, version, dirty: false, readOnly: false }
+    let open: OpenPlay = { play, version, dirty: false, readOnly: false, gesture: false }
     const events: ExternalChange[] = []
     const saves: Play[] = []
     let visible = true
@@ -204,7 +214,13 @@ describe('synchronisation controller (SPEC 8.3, 8.4)', () => {
         getOpen: () => open,
         saved: (result) => {
           saves.push(result.play)
-          open = { play: result.play, version: result.version, dirty: false, readOnly: false }
+          open = {
+            play: result.play,
+            version: result.version,
+            dirty: false,
+            readOnly: false,
+            gesture: false,
+          }
         },
         externalChange: (change) => events.push(change),
         libraryChanged: () => undefined,

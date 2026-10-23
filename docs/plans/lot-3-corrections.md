@@ -159,7 +159,7 @@ Chaque test marqué « échoue avant » est exécuté sur le code non corrigé a
 ### [x] Étape 0 : mémoire (`dc6fcac`)
 Branche, `git fetch --prune`, `docs/PASSATION.md` tel quel, `ETAT.md` corrigé, ce plan, D-097 à D-101.
 
-### [x] Étape 1 : base par empreinte, écritures de la page, journal (io) (commit « Étape 1 : concurrence par l'empreinte du contenu »)
+### [x] Étape 1 : base par empreinte, écritures de la page, journal (io) (`b772508`)
 A, B, F (partie io), `driveSim.ts` ; tests « Stockage », « Empreinte unique », combinaisons (causes 1, 3, 4) et mode navigateur.
 
 **Résultat sur le code de `main`** (arbre de travail temporaire, `src/state/syncSession.test.ts` copié) : 7 tests échouent sur 11, comme prévu.
@@ -175,8 +175,13 @@ Les 4 garde-fous passent : date seule changée, vraie modification extérieure (
 
 **Après correction :** 467 tests unitaires verts.
 
-### [ ] Étape 2 : décision sur la combinaison ouverte et glisser
+### [x] Étape 2 : décision sur la combinaison ouverte et glisser (commit « Étape 2 : décision par l'empreinte, glisser sans sauvegarde »)
 C, D, `session.ts` ; tests de la cause 2.
+
+- `decideExternalChange` décide par l'empreinte et l'origine ; chaque décision va au journal.
+- Nouveau `state/syncBridge.ts` (`openPlayForSync`, `onGestureEnd`), partagé par la session et les tests.
+- **Résultat sur le code de `main`** (même test, câblé comme sur `main`) : les 2 tests du glisser échouent, avec une écriture pendant le geste (3 écritures au lieu de 2).
+- **Après correction :** 470 tests unitaires verts.
 
 ### [ ] Étape 3 : modèles
 E ; tests « Modèles ».

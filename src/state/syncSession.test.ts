@@ -1,7 +1,7 @@
 // The editor, the synchronisation controller and the folder together, with the simulated
 // behaviours of Drive (correction after the lot 3 acceptance, D-097, D-098): a version written by
 // the page is never taken for an external change, whatever Drive does with its date or content.
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { playFileName } from '../io/fileNames'
 import { FolderStore } from '../io/FolderStore'
 import { IdbStore } from '../io/IdbStore'
@@ -16,6 +16,7 @@ import { createMemoryKv } from '../test/memoryKv'
 import {
   applyEdit,
   beginGesture,
+  cancelGesture,
   endGesture,
   markSaved,
   openPlay,
@@ -25,6 +26,7 @@ import {
   undoEdit,
   useEditorStore,
 } from './editorStore'
+import { onGestureEnd, openPlayForSync } from './syncBridge'
 
 let clock = 0
 /** Each save gets its own updatedAt, as in real use. */
@@ -49,18 +51,15 @@ interface Env {
   events: ExternalChange[]
 }
 
+let unsubscribe: () => void = () => undefined
+
 /** The open play saved in `store`, the controller wired as in session.ts. */
 async function connect(store: LibraryStore): Promise<Env> {
   const { play, version } = await store.put(sevenVsSevenWithOptions())
   openPlay(play, version, false)
   const events: ExternalChange[] = []
   const sync = new SyncController(store, {
-    getOpen: () => {
-      const s = useEditorStore.getState()
-      return s.play
-        ? { play: s.play, version: s.version, dirty: s.dirty, readOnly: s.readOnly }
-        : null
-    },
+    getOpen: openPlayForSync,
     saved: (result, savedFrom) => {
       markSaved(result, savedFrom)
     },
@@ -76,6 +75,7 @@ async function connect(store: LibraryStore): Promise<Env> {
   setEditorChangeListener(() => {
     sync.notifyLocalChange()
   })
+  unsubscribe = onGestureEnd(() => void sync.gestureEnded())
   return { store, sync, events }
 }
 
@@ -91,6 +91,65 @@ async function folderEnv(): Promise<Env> {
 
 beforeEach(() => {
   clock = Date.UTC(2026, 9, 23, 12)
+})
+
+afterEach(() => {
+  unsubscribe()
+  vi.useRealTimers()
+})
+
+describe('no automatic save during a gesture (D-099)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  it('a gesture longer than the save delay: nothing written before its end', async () => {
+    const env = await folderEnv()
+    const writes = fs.writeCount
+    edit('a')
+    await vi.advanceTimersByTimeAsync(1000)
+    beginGesture()
+    for (let s = 1; s <= 5; s++) {
+      previewGesture((start) => ({ ...start, notes: `g${String(s)}` }))
+      await vi.advanceTimersByTimeAsync(1000)
+    }
+    expect(fs.writeCount).toBe(writes)
+    endGesture()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fs.writeCount).toBe(writes + 1)
+    expect(notesIn(fs.read(path))).toBe('g5')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(fs.writeCount).toBe(writes + 1)
+    expect(useEditorStore.getState().dirty).toBe(false)
+    expect(env.events).toEqual([])
+  })
+
+  it('a cancelled gesture (Escape) saves the changes made before it, and only those', async () => {
+    const env = await folderEnv()
+    const writes = fs.writeCount
+    edit('a')
+    await vi.advanceTimersByTimeAsync(1000)
+    beginGesture()
+    previewGesture((start) => ({ ...start, notes: 'g' }))
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(fs.writeCount).toBe(writes)
+    cancelGesture()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fs.writeCount).toBe(writes + 1)
+    expect(notesIn(fs.read(path))).toBe('a')
+    expect(env.events).toEqual([])
+  })
+
+  it('a cancelled gesture without unsaved changes writes nothing', async () => {
+    await folderEnv()
+    const writes = fs.writeCount
+    beginGesture()
+    previewGesture((start) => ({ ...start, notes: 'g' }))
+    await vi.advanceTimersByTimeAsync(3000)
+    cancelGesture()
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(fs.writeCount).toBe(writes)
+  })
 })
 
 describe('a version written by the page is never a conflict (D-097)', () => {

@@ -51,6 +51,7 @@ import {
 } from './libraryState'
 import { showPhaseInPlayer, syncLineWithPlay } from './playerStore'
 import { useSettingsStore } from './settingsStore'
+import { onGestureEnd, openPlayForSync } from './syncBridge'
 
 const now = (): Date => new Date()
 
@@ -147,12 +148,7 @@ async function activateStore(next: LibraryStore): Promise<void> {
   sync = new SyncController(
     next,
     {
-      getOpen: () => {
-        const s = useEditorStore.getState()
-        return s.play
-          ? { play: s.play, version: s.version, dirty: s.dirty, readOnly: s.readOnly }
-          : null
-      },
+      getOpen: openPlayForSync,
       saved: (result, savedFrom) => {
         markSaved(result, savedFrom)
         void clearDraft(getKv()).catch(() => undefined)
@@ -166,7 +162,7 @@ async function activateStore(next: LibraryStore): Promise<void> {
       },
       error: reportError,
     },
-    { isVisible: () => document.visibilityState === 'visible' },
+    { isVisible: () => document.visibilityState === 'visible', log: syncLog },
   )
   sync.start()
   const settings = await next.getSettings()
@@ -188,6 +184,8 @@ function attachListeners(): void {
     scheduleDraft()
   })
   setSaveRequest(() => void sync?.saveNow())
+  // The automatic save held back by a gesture leaves at its end (D-099).
+  onGestureEnd(() => void sync?.gestureEnded())
   useEditorStore.subscribe((state, previous) => {
     if (state.selectedPhaseId !== previous.selectedPhaseId && state.selectedPhaseId) {
       showPhaseInPlayer(state.selectedPhaseId)

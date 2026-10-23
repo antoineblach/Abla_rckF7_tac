@@ -1,9 +1,10 @@
-// Synchronisation controller (SPEC 8.3, 8.4): automatic save 2 s after the last change, full
-// rescan at start-up, on window focus and every 30 s while the window is visible; external
-// changes reload silently or ask, depending on local unsaved changes.
+// Synchronisation controller (SPEC 8.3, 8.4): automatic save 2 s after the last change, never
+// during a gesture (D-099); full rescan at start-up, on window focus and every 30 s while the
+// window is visible; a content never written by this page reloads silently or asks, depending on
+// local unsaved changes (D-097, D-098). Every decision goes to the synchronisation log (D-100).
 import { AUTOSAVE_DELAY_SECONDS, FOLDER_RESCAN_PERIOD_SECONDS } from '../config/defaults'
-import type { Play } from '../model/types'
-import { decideExternalChange } from './conflicts'
+import type { Id, Play } from '../model/types'
+import { decideExternalChange, type ExternalChangeDecision } from './conflicts'
 import {
   ConflictError,
   type Change,
@@ -11,13 +12,16 @@ import {
   type PutResult,
   type VersionToken,
 } from './LibraryStore'
+import type { SyncLog } from './syncLog'
 
 export interface OpenPlay {
   play: Play
-  /** Version of the stored play this one started from; null for a play never saved. */
+  /** Version of the stored play this one started from (D-097); null for a play never saved. */
   version: VersionToken | null
   dirty: boolean
   readOnly: boolean
+  /** A gesture (drag) is in progress: the automatic save waits for its end (D-099). */
+  gesture: boolean
 }
 
 export type ExternalChange =
@@ -37,6 +41,16 @@ export interface SyncOptions {
   autosaveDelayMs?: number
   rescanPeriodMs?: number
   isVisible?: () => boolean
+  /** Synchronisation log of the page (D-100). */
+  log?: SyncLog
+}
+
+const CHANGE_LABELS = { added: 'ajoutée', modified: 'modifiée', removed: 'retirée' } as const
+
+const DECISION_DETAILS: Record<ExternalChangeDecision, string> = {
+  ignore: 'rien à faire',
+  reload: 'aucune modification en cours : rechargement silencieux',
+  ask: 'modifications non enregistrées : dialogue',
 }
 
 export class SyncController {
@@ -44,9 +58,12 @@ export class SyncController {
   private rescanTimer: ReturnType<typeof setInterval> | null = null
   private stamp: number
   private busy: Promise<void> = Promise.resolve()
+  /** The automatic save came during a gesture: it leaves at the end of the gesture (D-099). */
+  private saveAfterGesture = false
   private readonly autosaveDelayMs: number
   private readonly rescanPeriodMs: number
   private readonly isVisible: () => boolean
+  private readonly log: SyncLog | undefined
 
   constructor(
     private readonly store: LibraryStore,
@@ -57,6 +74,7 @@ export class SyncController {
     this.autosaveDelayMs = options.autosaveDelayMs ?? AUTOSAVE_DELAY_SECONDS * 1000
     this.rescanPeriodMs = options.rescanPeriodMs ?? FOLDER_RESCAN_PERIOD_SECONDS * 1000
     this.isVisible = options.isVisible ?? (() => true)
+    this.log = options.log
   }
 
   /** Serialises operations: a save and a rescan never run at the same time. */
@@ -80,6 +98,7 @@ export class SyncController {
     if (this.autosaveTimer !== null) clearTimeout(this.autosaveTimer)
     this.rescanTimer = null
     this.autosaveTimer = null
+    this.saveAfterGesture = false
   }
 
   /** To call after every local change of the open play. */
@@ -87,8 +106,31 @@ export class SyncController {
     if (this.autosaveTimer !== null) clearTimeout(this.autosaveTimer)
     this.autosaveTimer = setTimeout(() => {
       this.autosaveTimer = null
-      void this.saveNow()
+      void this.autosave()
     }, this.autosaveDelayMs)
+  }
+
+  /** End of the automatic save delay: never during a gesture (D-099). */
+  private autosave(): Promise<void> {
+    if (this.hooks.getOpen()?.gesture) {
+      this.saveAfterGesture = true
+      this.log?.add('deferred', {
+        collection: 'plays',
+        detail: 'glisser en cours : sauvegarde à la fin du geste',
+      })
+      return Promise.resolve()
+    }
+    return this.saveNow()
+  }
+
+  /**
+   * A gesture ended (finished or cancelled): the automatic save it held back leaves now, if
+   * changes are still unsaved (D-099).
+   */
+  gestureEnded(): Promise<void> {
+    if (!this.saveAfterGesture) return Promise.resolve()
+    this.saveAfterGesture = false
+    return this.saveNow()
   }
 
   /** Ctrl+S, or the end of the automatic save delay. */
@@ -107,6 +149,17 @@ export class SyncController {
         if (error instanceof ConflictError) {
           // A conflict on a play (the default type): put() only stores plays.
           const conflict = error as ConflictError
+          this.log?.add('decision', {
+            collection: 'plays',
+            lastModified: conflict.currentVersion?.lastModified ?? null,
+            size: conflict.currentVersion?.size ?? null,
+            hash: conflict.currentVersion?.contentHash ?? null,
+            updatedAt: conflict.current?.updatedAt ?? null,
+            origin: conflict.current ? 'external' : null,
+            detail: conflict.current
+              ? 'écriture refusée : dialogue « Version plus récente dans le dossier »'
+              : 'écriture refusée, fichier retiré : dialogue',
+          })
           this.hooks.externalChange(
             conflict.current
               ? { kind: 'conflict', stored: conflict.current, version: conflict.currentVersion }
@@ -137,16 +190,46 @@ export class SyncController {
 
   private async handleOpenPlay(open: OpenPlay, changes: Change[]): Promise<void> {
     const mine = changes.filter(
-      (c) => c.kind !== 'issues' && c.collection === 'plays' && c.id === open.play.id,
+      (c): c is Extract<Change, { id: Id }> =>
+        c.kind !== 'issues' && c.collection === 'plays' && c.id === open.play.id,
     )
     if (mine.length === 0) return
+    for (const change of mine) {
+      this.log?.add('change', {
+        collection: 'plays',
+        fileName: change.fileName,
+        detail: `combinaison ouverte ${CHANGE_LABELS[change.kind]}`,
+      })
+    }
     const stored = await this.store.get(open.play.id).catch(() => null)
-    if (!stored) {
-      if (open.version !== null) this.hooks.externalChange({ kind: 'removed' })
+    const version = this.store.versionOf(open.play.id)
+    if (!stored || !version) {
+      if (open.version !== null) {
+        this.log?.add('decision', {
+          collection: 'plays',
+          detail: 'combinaison ouverte retirée du dossier : dialogue',
+        })
+        this.hooks.externalChange({ kind: 'removed' })
+      }
       return
     }
-    const version = this.store.versionOf(open.play.id)
-    const decision = decideExternalChange(open, stored)
+    const own = this.store.isOwnWrite('plays', open.play.id, version.contentHash)
+    const decision = decideExternalChange(
+      { baseHash: open.version?.contentHash ?? null, dirty: open.dirty },
+      { hash: version.contentHash, own },
+    )
+    this.log?.add('decision', {
+      collection: 'plays',
+      lastModified: version.lastModified,
+      size: version.size,
+      updatedAt: stored.updatedAt,
+      hash: version.contentHash,
+      origin: own ? 'page' : 'external',
+      detail:
+        decision === 'ignore' && !own
+          ? 'même contenu que la version ouverte : rien à faire'
+          : DECISION_DETAILS[decision],
+    })
     if (decision === 'reload')
       this.hooks.externalChange({ kind: 'reloaded', play: stored, version })
     else if (decision === 'ask') this.hooks.externalChange({ kind: 'conflict', stored, version })
