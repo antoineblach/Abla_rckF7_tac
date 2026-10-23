@@ -1,6 +1,6 @@
 # Spécification : outil de combinaisons de rugby à 7 (Abla_rckF7_tac)
 
-Version 1.5 du 23 octobre 2026 (décisions du lot 1, de sa correction après recette, des lots 2 et 3 et de la correction après recette du lot 3 intégrées, voir `docs/DECISIONS.md`, D-001 à D-101). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
+Version 1.6 du 23 octobre 2026 (décisions du lot 1, de sa correction après recette, des lots 2 et 3, de la correction après recette du lot 3 et du plan du lot 3 bis intégrées, voir `docs/DECISIONS.md`, D-001 à D-118). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
 En cas de contradiction entre un prompt et ce document, ou entre deux sections de ce document : s'arrêter et demander, ne jamais trancher seul.
 
 ## 0. Conventions du document
@@ -62,7 +62,7 @@ Les tests de bout en bout sont dans `e2e/`, à la racine du dépôt (D-027).
 
 ### 3.3 Principes d'architecture
 
-1. **Pureté.** `evaluate(play, branchPath, t, settings, caches) -> SceneState` est une fonction pure (`settings` : allures et vitesse de passe de `reglages.json`, D-003) : aucune lecture d'horloge, aucun aléa, aucun état global. Les caches sont passés en paramètre et indexés par un hachage du contenu.
+1. **Pureté.** `evaluate(play, branchPath, t, settings, caches) -> SceneState` est une fonction pure (`settings` : allures, vitesse de passe, profil de vitesse et seuils de vitesse de `reglages.json`, D-003, D-105, D-111) : aucune lecture d'horloge, aucun aléa, aucun état global. Les caches sont passés en paramètre et indexés par un hachage du contenu.
 2. **Rendu unique.** `render(ctx, state, viewport, theme, layers)` dessine une image. `renderSchematic(ctx, play, branchPath, phaseId, viewport, theme, settings, caches)` dessine un temps à l'arrêt (D-003). Les deux fonctionnent sur un canvas affiché, sur un `OffscreenCanvas` et sur tout objet compatible avec le contexte 2D, dont celui de jsPDF : aucun chemin n'y est construit sous une transformation (ballon en courbes de Bézier) et les vignettes y sont découpées explicitement (D-071).
 3. **Aplats uniquement.** Le rendu n'utilise ni dégradé, ni motif, ni flou d'ombre. Raison : le contexte 2D de jsPDF ne gère ni dégradés ni motifs en trait (établi), et les GIF sont limités à une palette.
 4. **Viewport.** Seule couche qui connaît les pixels. Il gère la conversion mètres vers pixels, le cadrage (terrain complet, demi-terrain, cadre libre, cadrage automatique) et l'orientation (paysage : terrain fixe, x vers la droite, sens d'attaque montré par des flèches sur la ligne d'avantage ; portrait avec rotation de 90° et attaque vers le haut de l'image ; carré comme le portrait). Une rotation supplémentaire de 180° existe : les GIF paysage attaquent toujours vers la droite (D-006). Des marges intérieures cadrent le terrain d'un GIF sous son en-tête et son bandeau (D-073).
@@ -84,7 +84,7 @@ Les tests de bout en bout sont dans `e2e/`, à la racine du dépôt (D-027).
 - Brouillon : écrit à chaque modification, effacé après un enregistrement réussi ; au démarrage, s'il diffère de la version enregistrée, « Restaurer le brouillon » ou « Ignorer » sont proposés (D-025).
 - localStorage contient les préférences propres à chaque poste (calques, vitesse, boucle, pause entre les temps, « S'arrêter aux options », orientation, panneau replié), non synchronisées (D-026).
 
-## 4. Modèle de données (schemaVersion 2)
+## 4. Modèle de données (schemaVersion 3)
 
 ### 4.1 Types
 
@@ -94,7 +94,7 @@ type Vec2 = { x: number; y: number }      // mètres, repère terrain (4.2)
 type Id = string                          // UUID v4
 
 interface Play {
-  schemaVersion: 2                       // 1 aux lots 1 et 2 (D-094)
+  schemaVersion: 3                       // 1 aux lots 1 et 2, 2 au lot 3 (D-094, D-104)
   id: Id
   createdAt: string                       // ISO 8601
   updatedAt: string
@@ -131,17 +131,48 @@ interface Phase {
   actions: Action[]
 }
 
-type Action =
-  | { id: Id; type: 'run'; entityId: Id; waypoints: Vec2[]; pace: 'walk' | 'jog' | 'sprint'; durationOverride?: number; delay: number }
-  | { id: Id; type: 'pass'; fromId: Id; toId: Id; delay: number; ballSpeed?: number }
+type Action = RunAction | PassAction
   | KickAction                            // lot 3
   | BreakdownAction                       // lot 3
   | GroupRunAction                        // lot 5
+
+type Pace = 'walk' | 'jog' | 'sprint'
+type SegmentSpeed = Pace | number         // allure nommée, ou vitesse en m/s (lot 3 bis)
+
+/** Point de passage ; `speed` : vitesse du segment qui arrive à ce point (lot 3 bis, D-114). */
+interface Waypoint extends Vec2 { speed?: SegmentSpeed }
+
+interface RunAction {
+  id: Id; type: 'run'; entityId: Id
+  waypoints: Waypoint[]                   // segment i : du point i-1 (départ pour i = 0) au point i
+  pace: Pace                              // allure de la course : segments sans `speed`
+  durationOverride?: number               // durée imposée (5.3, D-107)
+  delay: number                           // ignoré tant qu'un lien en départ différé s'applique (5.8)
+  endsAtSpeed?: true                      // « Finit lancée » (5.2, D-106)
+  sync?: RunSync                          // lien de synchronisation (5.8)
+}
+
+interface RunSync {
+  target: SyncTarget
+  at?: number                             // point de passage de cette course au rendez-vous ; absent : sa fin
+  adjust: 'delay' | 'speed'               // départ différé ou vitesse ajustée
+}
+
+type SyncTarget =
+  | { actionId: Id; event: 'runEnd' }
+  | { actionId: Id; event: 'runPoint'; index: number }
+  | { actionId: Id; event: 'release' | 'arrival' }   // passe ou jeu au pied
+  | { actionId: Id; event: 'formation' }             // regroupement
+
+interface PassAction {
+  id: Id; type: 'pass'; fromId: Id; toId: Id; delay: number; ballSpeed?: number
+  release?: 'onReceipt'                   // absent : instant fixe ; à la réception + délai (5.4, D-110)
+}
 ```
 
 Libellés d'interface des catégories : `scrum` mêlée, `lineout` touche, `restart` coup d'envoi/renvoi, `phasePlay` ruck/jeu courant, `drill` exercice.
 
-Les types marqués lot 4 et 5 sont déclarés dans le code et présents dans les unions, mais le schéma zod les rejette, comme `defenseSettings` : ils arriveront avec une nouvelle version du schéma et sa migration. Le moteur les ignore en le signalant (D-004). La version 2 (lot 3) accepte `KickAction` et `BreakdownAction` (10.3, 10.4) ; un fichier en version 1 est migré en mémoire sans changement de contenu et réécrit en version 2 au prochain enregistrement (D-094).
+Les types marqués lot 4 et 5 sont déclarés dans le code et présents dans les unions, mais le schéma zod les rejette, comme `defenseSettings` : ils arriveront avec une nouvelle version du schéma et sa migration. Le moteur les ignore en le signalant (D-004). La version 2 (lot 3) accepte `KickAction` et `BreakdownAction` (10.3, 10.4) ; un fichier en version 1 est migré en mémoire sans changement de contenu et réécrit en version 2 au prochain enregistrement (D-094). La version 3 (lot 3 bis) ajoute les vitesses de segment, la course lancée, les liens de synchronisation et le lâcher à la réception (D-104) ; un fichier en version 1 ou 2 est migré en mémoire et réécrit en version 3 au prochain enregistrement (4.5).
 
 Précisions :
 - `setup.positions` ne contient que les joueuses ; le ballon au départ est donné par `ballCarrierId` ou `ballPosition`. `ballPosition` sans porteuse est le ballon au sol au départ : éditable depuis le lot 3 (« Poser le ballon au sol », déplacé à la souris au temps 1) et ramassé comme après un jeu au pied (D-007, D-083, D-095).
@@ -166,6 +197,7 @@ Précisions :
 - Numéros en double dans une équipe : avertissement, pas d'erreur (D-016). Dimensions du terrain hors des bornes de la Règle 1 : avertissement (D-017).
 - Repli du moteur : deux courses d'une joueuse dans un temps, seule la première s'applique ; passe vers l'autre équipe, exécutée et signalée ; passeuse sans ballon au lâcher, passe ignorée et signalée ; deux passes au même instant de lâcher, seule la première s'applique (D-013).
 - Lot 3 : participantes d'un regroupement inexistantes ou en double, soutien ou relayeur d'une autre équipe que la plaquée, cible d'un jeu au pied inexistante, frappeuse qui se vise elle-même : signalés. Repli du moteur : jeu au pied d'une frappeuse sans ballon, ignoré et signalé ; regroupement dont la plaquée n'a pas le ballon à la formation, ignoré entièrement et signalé ; une passe et un jeu au pied lâchés au même instant suivent la règle des passes simultanées (D-079, D-094).
+- Lot 3 bis : lien de synchronisation dont la cible n'existe pas ou n'est pas dans le même temps (« cible supprimée »), de type incompatible avec l'événement, dont l'index de point n'existe pas, qui vise sa propre course, ou qui forme un cycle avec d'autres liens : signalé ; le moteur l'ignore (5.8). Le graphe des dépendances (`model/syncGraph.ts`) relie : un lien à sa cible ; l'arrivée d'une passe à son lâcher et aux courses de la passeuse et de la receveuse ; l'arrivée d'un jeu au pied à son lâcher ; un lâcher à la réception à tout ce qui peut amener le ballon à la joueuse dans le temps. Seul un cycle qui passe par un lien de course est une erreur (D-108, D-110).
 - Les invalidités n'interrompent jamais le programme : elles sont listées et affichées sur l'élément concerné.
 
 ### 4.4 Fichiers
@@ -173,7 +205,7 @@ Précisions :
 - Combinaison : `combinaisons/<nom-court>--<id>.combi.json`. Le nom court est le nom en minuscules, sans accents, chaque suite de caractères autres que lettres et chiffres remplacée par un tiret, sans tiret au début ni à la fin, 40 caractères au plus ; un nom vide donne `sans-nom` (D-023).
 - Lot de combinaisons (import/export manuel) : `.combipack.json`, tableau de `Play`.
 - Modèle de placement (lot 3) : `modeles/<nom-court>--<id>.preset.json`, format `PlacementPreset` version 1 (10.1) ; lu, écrit, renommé et mis en corbeille comme une combinaison (D-092).
-- Réglages : `reglages.json` à la racine du dossier, synchronisé entre les deux PC (allures, vitesse de passe, thème, préférences d'export, réglages de défense par défaut). Version 1 (lot 1) : allures, vitesse de passe, thème (D-026). Version 2 (lot 2) : plus les préférences d'export (GIF : orientation, options, vitesse, qualité, thème, allègement ; PDF : mise en page, couleur) ; un fichier en version 1 est migré en mémoire à la lecture et réécrit en version 2 au prochain enregistrement des réglages (D-068, D-072). Un `reglages.json` invalide ou d'une version plus récente n'est jamais réécrit.
+- Réglages : `reglages.json` à la racine du dossier, synchronisé entre les deux PC (allures, vitesse de passe, thème, préférences d'export, réglages de défense par défaut). Version 1 (lot 1) : allures, vitesse de passe, thème (D-026). Version 2 (lot 2) : plus les préférences d'export (GIF : orientation, options, vitesse, qualité, thème, allègement ; PDF : mise en page, couleur) ; un fichier en version 1 est migré en mémoire à la lecture et réécrit en version 2 au prochain enregistrement des réglages (D-068, D-072). Version 3 (lot 3 bis) : plus le profil de vitesse (`motion` : accélération, freinage, accélération latérale, en m/s²) et les seuils de vitesse (`speedAlert` : orange et rouge, en m/s) ; migration des versions 1 et 2 avec les valeurs par défaut ; un sprint à 7 m/s exactement (ancien défaut) devient 5,5 m/s, avec un message unique à l'ouverture (D-105, D-111). Un `reglages.json` invalide ou d'une version plus récente n'est jamais réécrit.
 - Lecture : validation zod, puis migrations successives jusqu'à la version courante. Un fichier invalide est signalé et n'est jamais modifié ni déplacé automatiquement. Un fichier qui contient une clé inconnue est invalide ; un fichier d'une version plus récente que l'application est signalé (« recharger la page ») et jamais modifié (D-024).
 - Écriture : JSON indenté de 2 espaces, clés dans un ordre stable, alphabétique (différences lisibles dans l'historique Drive, D-040).
 
@@ -181,28 +213,43 @@ Précisions :
 
 - Toute modification du schéma incrémente `schemaVersion`, ajoute une fonction de migration `vN -> vN+1`, une fixture de la version précédente et un test de migration.
 - Une fixture « version 0 » fictive est fournie dès le lot 1 pour éprouver le mécanisme.
-- Version 2 (lot 3) : migration v1 vers v2 sans changement de contenu ; fixtures figées `play-v1-7v7-options.json` (migration) et `play-v2-lot3.json` (pour les migrations des lots 4 et 5) (D-094).
+- Version 2 (lot 3) : migration v1 vers v2 sans changement de contenu ; fixtures figées `play-v1-7v7-options.json` (migration) et `play-v2-lot3.json` (D-094).
+- Version 3 (lot 3 bis) : migration v2 vers v3 ; contenu identique, plus `endsAtSpeed: true` sur chaque course que toutes les options du temps suivant prolongent (même joueuse, première course du temps, délai 0), règle structurelle sans moteur ; aucune migration vers le lâcher à la réception. Fixtures figées `play-v2-lot3.json` (migration) et `play-v3-lot3bis.json` (pour les migrations des lots 4 et 5) ; `reglages-v2.json` pour les réglages (D-104).
 
 ## 5. Moteur
 
 ### 5.1 Lignes et temps
 
 - Une **ligne** est un chemin de la racine à une feuille de l'arbre (`branchPath`).
-- Durée d'une phase = `max(delay + durée)` de ses actions, 0 si aucune action : une passe ou un jeu au pied compte jusqu'à son arrivée, un regroupement jusqu'à la sortie de balle, une course arrêtée par un regroupement jusqu'à son arrêt (D-094). Durée d'une ligne = somme des durées de ses phases.
-- Les actions d'une phase démarrent ensemble au début de la phase, décalées de leur `delay`.
+- Durée d'une phase = `max(delay + durée)` de ses actions, 0 si aucune action : une course compte jusqu'à la fin de son profil de vitesse (5.3), une passe ou un jeu au pied jusqu'à son arrivée, un regroupement jusqu'à la sortie de balle, une course arrêtée par un regroupement jusqu'à son arrêt (D-094). Durée d'une ligne = somme des durées de ses phases.
+- Les actions d'une phase démarrent ensemble au début de la phase, décalées de leur `delay` ; une course liée en départ différé démarre au délai calculé (5.8) ; un lâcher à la réception a lieu à la réception du ballon, plus son délai (5.4).
 
 ### 5.2 Continuité
 
 - La position de départ d'une entité au début d'une phase est sa position finale dans la phase parente (ou `setup.positions` pour la racine).
 - Le premier point d'une course n'est pas stocké : c'est cette position de départ. Modifier une phase n'altère jamais les points de passage de ses descendantes ; seul leur point de départ se déplace.
 - Toutes les options héritent du même tronc : pour un même `t` dans le tronc, toutes les lignes donnent le même état.
+- **Course qui finit lancée** (lot 3 bis, D-106) : drapeau explicite « Finit lancée » (`endsAtSpeed`), qui ne dépend que de la phase où est la course.
+  - La course finit à la vitesse de son dernier segment au lieu de freiner jusqu'à l'arrêt.
+  - Sans effet si elle finit avant la fin de sa phase (la joueuse attend la fin des autres actions) : freinage normal, sans alerte, avec la mention « Sans effet : attente de x s avant le temps suivant ». Calcul en deux passes : phase compilée avec les courses lancées, puis recompilée avec un freinage normal pour celles qui finissaient avant la fin de la phase ; pas de nouvelle bascule.
+  - Prolongée dans la phase suivante d'une ligne quand la joueuse y a sa première course avec un délai effectif nul (lien compris) : cette course part à la vitesse de fin, et dans la direction d'arrivée de la course parente : son premier segment devient une courbe de Bézier cubique dont la tangente de départ est celle d'arrivée de la course parente et la tangente au premier point celle de la spline d'origine. Ses points de passage et la phase parente ne changent pas.
+  - Non prolongée (aucune course, ou délai effectif positif) : arrêt net à la frontière des phases dans cette option, avertissement sur la course lancée nommant l'option ; aucune alerte dans une feuille.
+  - Un départ différé qui prolonge une course lancée est calculé d'abord avec le départ lancé ; si le délai est positif, il est recalculé avec un départ arrêté.
+  - Posé automatiquement par la migration v2 vers v3 (4.5) et par l'outil Course (6.2), modifiable dans l'inspecteur.
 
 ### 5.3 Trajectoires
 
-- Spline de Catmull-Rom centripète (alpha 0,5) passant par le point de départ et les points de passage.
-- Reparamétrage par abscisse curviligne (table de longueurs, au moins 64 échantillons par segment) : vitesse constante le long de la courbe.
-- Durée = longueur / allure, sauf `durationOverride`.
-- Allures par défaut : marche 2 m/s, trot 4 m/s, sprint 7 m/s (HYPOTHÈSE, réglables dans `reglages.json`).
+- Spline de Catmull-Rom centripète (alpha 0,5) passant par le point de départ et les points de passage ; table de longueurs d'au moins 64 échantillons par segment (abscisse curviligne). Premier segment raccordé quand la course prolonge une course lancée (5.2).
+- **Profil de vitesse** (lot 3 bis, D-105) : trapèze généralisé calculé sur ces échantillons.
+  - Plafond à chaque échantillon : la vitesse cible de son segment, et `sqrt(accélération latérale / courbure)` borné en bas par la vitesse minimale en virage (courbure par le cercle de trois échantillons voisins).
+  - Départ à l'arrêt, ou à la vitesse de fin de la course lancée qu'elle prolonge ; arrivée à l'arrêt, ou au plafond si elle finit lancée.
+  - Passe avant (accélération bornée), puis passe arrière (freinage borné) ; la vitesse de départ imposée prime.
+  - Temps de chaque intervalle à accélération constante ; position, vitesse et instant de passage à un point en formule fermée : une lecture continue et un saut direct à `t` donnent le même état.
+  - Valeurs (HYPOTHÈSES) : accélération 3 m/s², freinage 4 m/s², accélération latérale 4 m/s², réglables dans `reglages.json` ; vitesse minimale en virage 1 m/s.
+- **Vitesse d'un segment** (D-114) : celle du point qui le termine (`Waypoint.speed`, allure ou m/s), sinon l'allure de la course. C'est une vitesse de pointe : la durée découle du profil.
+- **Facteur de vitesse** : un même solveur multiplie les vitesses cibles d'un ensemble de segments pour qu'un point soit atteint à un instant donné (dichotomie à nombre fixe d'itérations ; plafond : vitesse cible maximale égale au seuil rouge, 5.9). Il sert à la durée imposée, à la vitesse ajustée (5.8) et au relayeur en retard (10.3).
+- **Durée imposée** (`durationOverride`, D-107) : toutes les vitesses de la course sont multipliées par un même facteur pour qu'elle dure exactement cette durée, profil compris ; alerte si elle est inatteignable sous le seuil rouge. Exclusive avec un lien en vitesse ajustée.
+- Allures par défaut : marche 2 m/s, trot 4 m/s, sprint 5,5 m/s (HYPOTHÈSE, réglables dans `reglages.json` ; 7 m/s avant le lot 3 bis, D-111).
 - Une entité sans action dans une phase reste immobile.
 - Deux courses de la même entité dans la même phase : invalide, signalé ; seule la première s'applique (D-013).
 
@@ -215,7 +262,10 @@ Précisions :
   - `inBreakdown(pos)` : dans un regroupement, de la formation à la sortie de balle (10.3).
 - Passe : départ à la position de la passeuse à l'instant du lâcher ; arrivée à la position de la receveuse évaluée à `arrivalT`. Vol rectiligne à vitesse constante. `arrivalT = releaseT + distance / ballSpeed`, résolu par point fixe (5 itérations, D-037 ; convergence tant que la receveuse est plus lente que le ballon ; le ballon finit toujours exactement sur la receveuse). Vitesse de passe par défaut 12 m/s (HYPOTHÈSE).
 - Validations : passe vers l'autre équipe ; passeuse sans ballon au lâcher ; deux passes simultanées du même ballon (même instant de lâcher) ; frappeuse sans ballon ; plaquée sans ballon à la formation. Chaque cas est signalé sur l'action ; repli du moteur : voir 4.3 (D-013, D-094).
-- Ordre des événements (lot 3) : lâchers de passe, frappes au pied et formations de regroupement sont traités dans l'ordre chronologique ; arrivées, sorties de balle et ramassages sont résolus entre deux événements ; le ramassage est cherché à pas fixe de 1/100 s puis par bissection (D-094).
+- Ordre des événements (lot 3) : lâchers de passe, frappes au pied et formations de regroupement sont traités dans l'ordre chronologique ; arrivées, sorties de balle et ramassages sont résolus entre deux événements ; le ramassage est cherché à pas fixe de 1/100 s puis par bissection (D-094). Lot 3 bis : file d'événements ; une transition (arrivée, sortie, ramassage) est résolue avant tout événement de même instant ou plus tardif ; une réception peut programmer un lâcher (ci-dessous).
+- **Lâcher d'une passe ou d'un jeu au pied** (lot 3 bis, D-110), deux modes enregistrés dans l'action :
+  - à un instant fixe (`release` absent) : début de la phase + délai. Tolérance : si la joueuse n'a pas le ballon à cet instant mais le reçoit au plus 0,5 s après (HYPOTHÈSE), le lâcher a lieu à la réception, sans alerte, l'instant réel étant affiché ; au-delà, passe ignorée et signalée (D-013) ;
+  - à la réception (`release: 'onReceipt'`) : à l'instant où la joueuse reçoit le ballon dans la phase (arrivée d'une passe ou d'un jeu au pied vers elle, sortie d'un regroupement dont elle est le relayeur), plus le délai (temps de contrôle, >= 0). Les lâchers à la réception d'une même joueuse prennent ses réceptions dans l'ordre chronologique, dans l'ordre du tableau. Sans réception dans la phase : ignoré et signalé (sans ballon). Pas de tolérance.
 
 ### 5.5 Traces
 
@@ -232,14 +282,43 @@ Précisions :
 
 - Principe établi : une passe est jugée en avant si elle part vers l'avant depuis les mains ; la trajectoire du ballon dans le repère du terrain n'entre pas en compte. On raisonne donc dans le repère de la passeuse.
 - Calcul : vitesse du ballon (repère terrain) moins vitesse de la passeuse au lâcher (dérivée de sa trajectoire). Si la composante dans le sens d'attaque dépasse 0,5 m/s (HYPOTHÈSE), la passe est marquée « en avant probable ».
-- Sens d'attaque : celui de l'équipe de la passeuse. Vitesse de la passeuse : dérivée à gauche de sa trajectoire au lâcher, lue sur la fin du temps parent pour un lâcher au tout début d'un temps (D-085).
+- Sens d'attaque : celui de l'équipe de la passeuse. Vitesse de la passeuse : dérivée à gauche de sa trajectoire au lâcher, lue sur la fin du temps parent pour un lâcher au tout début d'un temps (D-085) ; depuis le lot 3 bis, lue sur le profil de vitesse (5.3).
 - C'est une aide visuelle, jamais un blocage.
+
+### 5.8 Synchronisation et rendez-vous (lot 3 bis)
+
+- **Lien** (`RunSync`, D-108) : permanent, entre une course et une autre action de la même phase ; la course liée suit quand l'autre action change.
+  - Cible : fin d'une course, point de passage d'une course, lâcher ou arrivée d'une passe ou d'un jeu au pied, formation d'un regroupement.
+  - Point de la course liée qui doit coïncider : sa fin, ou l'un de ses points de passage (rendez-vous, `at`).
+  - Réglage « Départ différé » : délai calculé = instant de la cible − début de la phase − temps de la course jusqu'au point ; le délai enregistré est ignoré tant que le lien s'applique.
+  - Réglage « Vitesse ajustée » : facteur commun (5.3) sur les segments situés avant le point de rendez-vous ; les suivants gardent leurs vitesses ; le délai enregistré s'applique.
+- **Résolution** : courses de base avec leurs délais et vitesses enregistrés ; puis courses liées dans l'ordre du graphe des dépendances (4.3) ; pour chacune, simulation de la phase avec les mouvements courants et lecture de l'instant de la cible (arrêt par un regroupement, report et lâcher à la réception compris), puis ajustement ; enfin compilation de la phase. Limite assumée : un lien qui change le ramassage d'un ballon au sol peut décaler une cible déjà résolue ; le résultat reste déterministe.
+- **Cas impossibles** : alerte sur la course et dans la liste des actions ; l'édition n'est jamais bloquée.
+
+| Cas | Repli | Alerte |
+|---|---|---|
+| Délai calculé négatif | départ à 0, arrivée en retard | retard en secondes |
+| Vitesse nécessaire au-delà du seuil rouge, ou cible avant le départ | facteur plafonné au seuil rouge | vitesse nécessaire |
+| Cible supprimée, de type incompatible, point inexistant, cible jamais atteinte | lien ignoré : délai et vitesses enregistrés | cible supprimée ou invalide |
+| Cycle (fichier modifié à la main) | liens du cycle ignorés | cycle |
+
+- **Édition** (D-108, D-109) :
+  - création par « Caler sur… » dans l'inspecteur (6.5) ; un lien qui créerait un cycle ou viserait sa propre course est refusé avec un message ;
+  - supprimer l'action cible garde le lien (alerte) ; supprimer un point de passage qui porte un lien (rendez-vous ou cible) retire ce lien, avec un message ; « Dupliquer » une phase recopie ses liens vers les copies ;
+  - retirer un lien en départ différé fige le délai calculé ; durée imposée et vitesse ajustée s'excluent.
+- **Affichage** : quand la course liée ou sa cible est sélectionnée, trait fin en tirets (couleur de sélection) entre le point de rendez-vous et le point de la cible, dans la surcouche d'édition seulement, jamais exporté.
+
+### 5.9 Vitesses irréalistes (lot 3 bis)
+
+- Deux seuils sur la vitesse de pointe réelle (profil) de chaque segment de course, réglables dans `reglages.json` : orange au-delà de 20 km/h (avertissement), rouge au-delà de 25 km/h (erreur) (HYPOTHÈSES, choix du coach, D-111). Jamais bloquant.
+- Affichage (D-112) : inspecteur et liste des actions ; pastille ronde orange ou rouge à « ! » au milieu du segment, toujours dans l'éditeur, selon le calque « Vitesses » dans le lecteur ; jamais dans les GIF, les PDF ni les vignettes de la bibliothèque.
+- Le seuil rouge plafonne aussi le facteur de vitesse (5.3).
 
 ## 6. Éditeur (lot 1)
 
 ### 6.1 Disposition de l'écran
 
-- Barre d'outils en haut ; bibliothèque repliable à gauche ; terrain au centre ; inspecteur à droite ; arbre des temps et commandes de lecture en bas.
+- Barre d'outils en haut ; bibliothèque repliable à gauche ; terrain au centre ; inspecteur à droite ; commandes de lecture sous le terrain ; en bas, une bande de hauteur fixe partagée entre l'arbre des temps (à gauche, 2/5 de la largeur) et la liste des actions du temps (à droite, 3/5, 6.7, lot 3 bis, D-113).
 - La zone du terrain ne dépend pas du contenu des autres panneaux : barre d'outils, commandes de lecture et arbre des temps ont une hauteur fixe (défilement interne si la place manque) ; bibliothèque et inspecteur ont une largeur fixe avec défilement interne ; bandeau, messages et boutons d'option s'affichent en surimpression du terrain (D-048, D-050).
 - L'échelle et le cadrage du terrain ne changent que par une action volontaire : molette, Espace + glisser ou bouton du milieu, choix de la vue enregistrée, orientation, ouverture d'une combinaison, « Ajuster », « Zone utile ». Quand la zone du terrain change de taille (fenêtre redimensionnée, bibliothèque repliée, plein écran), l'échelle et le point central sont conservés (D-048).
 - PC uniquement : souris et clavier. Aucune contrainte tactile.
@@ -251,13 +330,15 @@ Précisions :
 | Sélection | V | Clic, multi-sélection au cadre, Maj+clic pour ajouter. Glisser pour déplacer : placements de départ au temps 1, points de passage dans tout temps ; une position héritée d'un temps précédent ne se déplace pas (D-009). Un mouvement de moins de 4 px entre l'appui et le relâchement n'est pas un glisser : le clic sélectionne sans rien déplacer (D-051). |
 | Placer joueuse A | A | Clic sur le terrain ; numéro suivant libre ; le clic fixe son placement de départ, quel que soit le temps affiché (D-009). |
 | Placer joueuse B | B | Idem pour B. |
-| Course | R | Clic sur une joueuse, puis un clic par point de passage ; Entrée ou double clic pour terminer ; Échap pour annuler. Points déplaçables ensuite ; clic droit sur un point pour le supprimer (supprimer le dernier point supprime la course). Sur une joueuse qui court déjà dans le temps, la course est prolongée (D-015). |
-| Passe | P | Clic sur la passeuse, puis sur la receveuse. Délai par défaut : instant où la passeuse obtient le ballon dans le temps (D-015). |
-| Jeu au pied | J | Clic sur la frappeuse, puis sur une joueuse (receveuse) ou sur le terrain (point visé, aimanté si la grille est active) ; cliquer à nouveau sur la frappeuse annule. Délai par défaut : l'instant où elle a le ballon ; type « Coup d'envoi/renvoi » si la catégorie l'est, sinon « Long/recentrage » (D-093, D-095). |
+| Course | R | Clic sur une joueuse, puis un clic par point de passage ; Entrée ou double clic pour terminer ; Échap pour annuler. Points déplaçables ensuite ; clic droit sur un point pour le supprimer (supprimer le dernier point supprime la course). Sur une joueuse qui court déjà dans le temps, la course est prolongée (D-015). Lot 3 bis : quand la course tracée (délai 0) fait que toutes les options du temps suivant prolongent la course de la joueuse au temps précédent, celle-ci reçoit « Finit lancée », dans la même étape d'annulation (D-106). |
+| Passe | P | Clic sur la passeuse, puis sur la receveuse. Lâcher « à la réception », délai 0, quand la passeuse n'a pas le ballon au début du temps ; sinon instant fixe, délai par défaut : instant où elle obtient le ballon dans le temps (D-015, D-110). |
+| Jeu au pied | J | Clic sur la frappeuse, puis sur une joueuse (receveuse) ou sur le terrain (point visé, aimanté si la grille est active) ; cliquer à nouveau sur la frappeuse annule. Lâcher comme une passe ; type « Coup d'envoi/renvoi » si la catégorie l'est, sinon « Long/recentrage » (D-093, D-095, D-110). |
 | Regroupement | G | Clic sur une joueuse qui a le ballon dans le temps affiché : ruck formé à la fin de sa course (ou à la réception si elle est plus tardive), soutien et relayeur proposés (D-081) ; refus avec message sinon. |
 | Supprimer | Suppr | Sur la sélection ; supprimer une joueuse supprime ses courses et les passes, jeux au pied et regroupements qui la concernent, dans tous les temps (D-014). |
 
-Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suivant libre, décalage de 2 m, sans actions) ; flèches pour décaler de 0,5 m, Maj+flèches de 5 m, sans aimantation (D-015) ; L lecture/pause ; F ajuster sur la vue enregistrée (D-049) ; Ctrl+Z / Ctrl+Y ; Ctrl+S enregistrer ; molette pour zoomer ; Espace+glisser ou bouton du milieu pour se déplacer. Les raccourcis restent actifs quand le focus est sur une case à cocher ou un bouton ; ils sont ignorés dans les champs de texte, les listes et le curseur temporel (D-056).
+Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suivant libre, décalage de 2 m, sans actions) ; flèches pour décaler de 0,5 m, Maj+flèches de 5 m, sans aimantation (D-015) ; L lecture/pause ; appui bref sur Espace (relâchée sans glisser, en moins de 0,5 s, HYPOTHÈSE) lecture/pause (D-116) ; 1, 2, 3 marche, trot, sprint du segment sélectionné, 0 allure de la course pour ce segment ; sans segment sélectionné, 1, 2, 3 règlent l'allure de la course sélectionnée (D-114) ; F ajuster sur la vue enregistrée (D-049) ; Ctrl+Z / Ctrl+Y ; Ctrl+S enregistrer ; molette pour zoomer ; Espace+glisser ou bouton du milieu pour se déplacer, sans lecture ni pause. Les raccourcis restent actifs quand le focus est sur une case à cocher ou un bouton ; ils sont ignorés dans les champs de texte, les listes et le curseur temporel (D-056). Espace n'active ni ne coche jamais le bouton, la case ou le `summary` qui a le focus (`preventDefault` à l'appui et au relâchement), et elle est ignorée quand un dialogue est ouvert.
+
+Lot 3 bis : un clic sur le trait d'une course sélectionne la course et le segment sous le pointeur ; un point de passage sélectionné désigne le segment qui arrive à ce point (D-114).
 
 ### 6.3 Comportements
 
@@ -283,23 +364,37 @@ Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suiva
 
 - Combinaison, en tête, toujours affichée et repliable (état replié mémorisé par poste, D-052) : nom (appliqué à la validation du champ, D-005), catégorie, notes, équipe qui attaque, ajout ou retrait du ballon (D-007), porteuse au départ ou ballon au sol (« Poser le ballon au sol », D-083), « Déplacer la combinaison » et « Retourner » (D-090), dimensions du terrain (bornées à la Règle 1, D-017), vue (cadre libre réglé par « Enregistrer la vue actuelle comme cadre » et des champs numériques, D-019). Choisir la vue enregistrée recadre le terrain sur elle.
 - Joueuse : numéro, couleur, mode défense (manuel ; auto au lot 4), porteuse du ballon au départ (D-007).
-- Course : allure, durée imposée, délai.
-- Passe : délai, vitesse de passe ; alerte « En-avant probable » (5.7).
-- Jeu au pied (lot 3) : type, cible (receveuse ou point x, y), délai, temps de vol (vide : défaut du type) (D-095).
+- Course : allure (avec m/s et km/h), délai (calculé et non modifiable sous un lien en départ différé), durée imposée, « Finit lancée » (avec « Sans effet : attente de x s avant le temps suivant » quand elle finit avant la fin du temps) ; bloc « Segment n » pour le segment sélectionné : « Allure de la course », Marche, Trot, Sprint ou « Vitesse saisie » en km/h ; synchronisation : « Caler sur… » (bandeau en surimpression, puis clic sur la cible, Échap pour annuler, 5.8), ou la cible, le point de rendez-vous, le réglage, le résultat (délai calculé ou facteur) et « Retirer le lien » ; longueur, durée, vitesses moyenne et de pointe, vitesse de chaque segment ; alertes (lot 3 bis, D-106 à D-109, D-114).
+- Passe : lâcher « à un instant fixe » (délai) ou « à la réception » (+ délai), instant réel du lâcher, vitesse de passe ; alerte « En-avant probable » (5.7).
+- Jeu au pied (lot 3) : type, cible (receveuse ou point x, y), lâcher comme une passe (lot 3 bis), temps de vol (vide : défaut du type) (D-095, D-110).
 - Regroupement (lot 3) : type (ruck, maul), soutien et relayeur parmi les coéquipières de la plaquée, instant de formation, durée, défense au regroupement (« Par défaut », « Garde », « Gratteur ») (D-078, D-095).
-- Réglages de `reglages.json` (thème, allures, vitesse de passe), modifiables depuis l'inspecteur.
+- Réglages de `reglages.json` (thème, allures, vitesse de passe ; lot 3 bis : profil de vitesse en m/s², seuils orange et rouge en km/h), modifiables depuis l'inspecteur.
+- Lot 3 bis : toute vitesse est affichée en m/s et en km/h ; vitesses de segment et seuils se saisissent en km/h ; le code et les fichiers restent en m/s (D-117).
 
 ### 6.6 Départ d'une nouvelle combinaison
 
 - Deux placements fournis : équipe A seule en ligne ; 7 contre 7 en ligne. A sur x = 40 m, n° 1 à 7 de y = 5 m à y = 65 m tous les 10 m ; en 7 contre 7, B en face sur x = 50 m ; ballon à A n° 4 ; A attaque ; nom « Nouvelle combinaison », catégorie ruck/jeu courant, vue terrain complet (D-008).
 - S'y ajoutent les modèles de placement enregistrés : en choisir un crée une combinaison sans joueuses (avec un ballon si le modèle en a un), puis lance la pose du modèle (ancre, côté ouvert) (D-091). Elle n'est enregistrée qu'une fois l'ancre validée ; jusque-là, rien n'est écrit (Ctrl+S compris) et aucun brouillon n'est gardé. Échap, « Annuler », un changement d'outil ou une autre pose l'abandonnent : la combinaison ouverte avant est relue dans le dossier (ou IndexedDB) et rouverte, ou l'éditeur reste vide si elle n'existe plus (D-101).
 
+### 6.7 Liste des actions du temps (lot 3 bis)
+
+- Dans la bande du bas, à droite de l'arbre des temps (6.1, D-113) ; défilement interne ; le terrain ne change ni de taille ni de cadrage.
+- Temps affiché : le temps sélectionné en édition, le temps à `t` en lecture. Une ligne par action (courses, passes, jeux au pied, regroupements), triée par instant de début, puis ordre du tableau ; en-tête gradué en secondes sur la durée du temps.
+- Chaque ligne : type et acteurs ; barre de temps (début et fin sur l'échelle du temps) ; détails principaux ; pastilles d'alerte (en-avant, vitesse, synchronisation impossible, validations existantes) ; tous les détails en infobulle et dans l'inspecteur. Une action ignorée est marquée en erreur.
+- Détails, vitesses en km/h et en m/s :
+  - course : joueuse, longueur, départ, arrivée, durée, vitesse moyenne et de pointe, vitesse de chaque segment (allure ou saisie), lien, fin lancée (ou sans effet) ;
+  - passe : passeuse, receveuse, mode et instant réel du lâcher, arrivée, distance, temps de vol, en-avant probable ;
+  - jeu au pied : frappeuse, cible (receveuse ou point), mode et instant réel du lâcher, distance, temps de vol ;
+  - regroupement : type, plaquée, formation, sortie de balle.
+- Clic : sélectionne l'action sur le terrain et dans l'inspecteur (en lecture, retour au mode édition du temps affiché) ; survol : halo sur le terrain ; Suppr : suppression, une étape d'annulation ; la ligne de l'action sélectionnée est mise en évidence.
+
 ## 7. Lecteur (lot 1)
 
 - Intégré à l'éditeur, avec un mode plein écran.
 - Commandes : lecture/pause, temps précédent/suivant, curseur temporel, vitesse 0,5x / 1x / 2x, boucle, pause automatique entre les temps.
 - Point d'option : bascule « S'arrêter aux options », activée par défaut et indépendante de la pause entre les temps ; activée, pause et un bouton par option, libellé par sa condition ; désactivée, l'option par défaut ; un bouton revient au point d'option pour lire une autre option (D-011).
-- Calques activables séparément : traces (temps en cours appuyé, temps précédents estompés) ; consigne en bandeau ; ligne d'avantage en tirets fins ; « En-avant » (icône des passes en avant probables, activé par défaut, D-085). Lots suivants : indicateurs de défense, ligne de hors-jeu.
+- Calques activables séparément : traces (temps en cours appuyé, temps précédents estompés) ; consigne en bandeau ; ligne d'avantage en tirets fins ; « En-avant » (icône des passes en avant probables, activé par défaut, D-085) ; « Vitesses » (pastilles des segments au-delà d'un seuil, activé par défaut, lot 3 bis, D-112). Lots suivants : indicateurs de défense, ligne de hors-jeu.
+- Lecture et pause : bouton, L, appui bref sur Espace (6.2, D-116).
 - Une seule vue (centre et échelle) pour l'édition et la lecture : lancer la lecture, choisir une option ou revenir à l'édition ne la change pas. À l'ouverture d'une combinaison, la vue enregistrée ; puis zoom et déplacement libres, en édition comme en lecture. « Ajuster » (F) recadre sur la vue enregistrée ; « Zone utile » recadre sur la boîte englobante de toutes les positions de la ligne lue, plus 5 m de marge (D-049, remplace la partie cadrage de D-019).
 - Aperçu d'orientation : paysage, portrait, carré (prépare les exports du lot 2), disponible aussi en édition (D-019).
 - `requestAnimationFrame` uniquement pendant la lecture ; rendu à la demande sinon.
@@ -508,7 +603,7 @@ Comportement :
 
 Précisions (lot 3, D-078 à D-081) :
 - Seule la défense au regroupement (`contest`) est enregistrée ; le plaqueur et la joueuse au ras sont désignés par la simulation du lot 4.
-- La plaquée et le soutien s'immobilisent là où leurs courses les ont amenées ; le relayeur rejoint en ligne droite, au sprint des réglages, le point situé 1 m derrière le ballon du côté de l'équipe de la plaquée ; trop loin, il arrive exactement à la sortie de balle (vitesse augmentée), avec une alerte.
+- La plaquée et le soutien s'immobilisent là où leurs courses les ont amenées ; le relayeur rejoint en ligne droite, au sprint des réglages, le point situé 1 m derrière le ballon du côté de l'équipe de la plaquée ; trop loin, il arrive exactement à la sortie de balle (vitesse augmentée), avec une alerte. Lot 3 bis : ce déplacement suit le profil de vitesse (départ arrêté), la vitesse augmentée par le facteur de vitesse (5.3).
 - Les courses des trois participantes s'arrêtent à la formation : la partie ultérieure est ignorée, dessinée en rouge et signalée ; une passe ou un jeu au pied du relayeur après la sortie reste possible dans le même temps.
 - Plaquée sans ballon à la formation : regroupement entièrement ignoré et signalé, sans recalage de la ligne d'avantage.
 - Maul : identique au ruck et immobile au lot 3 ; seul `kind` change.
@@ -527,6 +622,7 @@ interface KickAction {
   target: { receiverId: Id } | { point: Vec2 }
   delay: number
   flightTime?: number    // défaut : restart 3,0 s ; long 3,5 s (HYPOTHÈSES)
+  release?: 'onReceipt'  // lot 3 bis : lâcher à la réception + délai, comme une passe (5.4, D-110)
 }
 ```
 
@@ -537,7 +633,7 @@ interface KickAction {
 ### 10.5 Contrôle d'en-avant
 
 - Voir 5.7. Pastille ronde au milieu de la passe concernée (jaune à « ! » noir ; noire à « ! » blanc en N&B) et alerte « En-avant probable » dans l'inspecteur ; toujours affichée dans l'éditeur, selon le calque « En-avant » dans le lecteur (D-084, D-085).
-- Jamais dans les exports, ni GIF ni PDF, quel que soit le calque, ni dans les vignettes de la bibliothèque : c'est une aide pour le coach, pas une information pour les joueuses (D-086).
+- Jamais dans les exports, ni GIF ni PDF, quel que soit le calque, ni dans les vignettes de la bibliothèque : c'est une aide pour le coach, pas une information pour les joueuses (D-086). Même règle pour les pastilles de vitesse (5.9, D-112) et les liens de synchronisation (5.8).
 
 ## 11. Défense simulée (lot 4)
 
@@ -634,7 +730,7 @@ interface DefenseSettings {
 type EquipmentEntity = { id: Id; kind: 'equipment'; type: 'cone' | 'disc' | 'shield' | 'tackleBag' | 'pole'; color: string; position: Vec2 }
 type ZoneEntity = { id: Id; kind: 'zone'; min: Vec2; max: Vec2; color: string; label: string; showDimensions: boolean }
 type AnnotationEntity = { id: Id; kind: 'annotation'; position: Vec2; text: string }
-type GroupRunAction = { id: Id; type: 'groupRun'; entityIds: Id[]; waypoints: Vec2[]; pace: 'walk' | 'jog' | 'sprint'; durationOverride?: number; delay: number }
+type GroupRunAction = { id: Id; type: 'groupRun'; entityIds: Id[]; waypoints: Waypoint[]; pace: 'walk' | 'jog' | 'sprint'; durationOverride?: number; delay: number }  // Waypoint depuis le lot 3 bis (D-104)
 ```
 
 Note : la position des équipements, zones et annotations est portée par l'entité elle-même (ils ne bougent pas), pas par `setup.positions`.
@@ -659,7 +755,8 @@ Note : la position des équipements, zones et annotations est portée par l'enti
 
 | Élément | Tracé |
 |---|---|
-| Course | Trait plein fléché |
+| Course | Trait plein fléché ; segment à l'allure sprint des réglages ou plus vite : trait plus épais (lot 3 bis, D-115) |
+| Lien de synchronisation | Tirets fins, couleur de sélection, surcouche d'édition seulement (lot 3 bis) |
 | Passe | Pointillés fléchés |
 | Jeu au pied | Tirets longs, ombre au sol |
 | Course groupée | Trait plein double |
@@ -675,7 +772,12 @@ Note : la position des équipements, zones et annotations est portée par l'enti
 | Écartement des poteaux | 5,6 m | Hypothèse |
 | Placements de départ | A sur x = 40 m, B sur x = 50 m, tous les 10 m depuis y = 5 m | Choix de l'utilisateur (D-008) |
 | Décalage de Ctrl+D | 2 m | Hypothèse |
-| Allures | 2 / 4 / 7 m/s | Hypothèse |
+| Allures | 2 / 4 / 5,5 m/s (sprint à 7 m/s avant le lot 3 bis) | Hypothèse |
+| Profil de vitesse : accélération, freinage, accélération latérale | 3 / 4 / 4 m/s², réglables | Hypothèse (D-105) |
+| Vitesse minimale en virage | 1 m/s | Hypothèse |
+| Seuils de vitesse irréaliste | 20 km/h (orange), 25 km/h (rouge), réglables | Hypothèse, choix du coach (D-111) |
+| Tolérance de réception d'un lâcher à instant fixe | 0,5 s | Hypothèse (D-110) |
+| Appui bref sur Espace | moins de 0,5 s, sans glisser | Hypothèse (D-116) |
 | Vitesse de passe | 12 m/s | Hypothèse |
 | Seuil d'en-avant | 0,5 m/s | Hypothèse |
 | Durée d'un regroupement | 3 s | Établi (fourni par l'utilisateur) |
@@ -778,3 +880,5 @@ Technique :
 17. Décisions prises pendant le lot 2 (15 octobre 2026) : entrées D-057 à D-077 (PDF vectoriel, GIF enchaîné, cartons et maintiens, habillage, lisibilité sur téléphone, thèmes d'impression, mise en page et cahier de jeu, exports déjà présents, noms, version allégée, préférences d'export dans `reglages.json`, Worker).
 18. Décisions prises pendant le lot 3 (16 octobre 2026) : entrées D-078 à D-096 (regroupements, maul, ligne d'avantage en mode schéma, ballon au sol et ramassage, conventions graphiques, calque « En-avant » jamais exporté, modèles de placement : type et catégorie, ancre et côté ouvert, enregistrement, synchronisation ; déplacer et retourner ; nouvelle combinaison depuis un modèle ; raccourcis J et G ; schéma v2 ; interfaces de pose).
 19. Décisions prises pendant la correction après recette du lot 3 (23 octobre 2026) : entrées D-097 à D-101 (concurrence par l'empreinte du contenu, versions écrites par la page et retours en arrière de Drive, aucune sauvegarde automatique pendant un glisser, journal de synchronisation, nouvelle combinaison depuis un modèle enregistrée à la validation de la pose).
+20. Exploitation du dépôt (23 octobre 2026) : entrée D-102 (le dépôt reste public).
+21. Décisions du plan du lot 3 bis, courses réalistes (23 octobre 2026) : entrées D-103 à D-118 (portée, combinaison v3, profil de vitesse, course qui finit lancée et raccord de tangente, durée imposée, liens de synchronisation et leur création, lâcher à la réception et tolérance, vitesses irréalistes et réglages v3, calque « Vitesses », liste des actions du temps, vitesse par segment, segments rapides, barre d'espace, km/h, pistes reportées).
