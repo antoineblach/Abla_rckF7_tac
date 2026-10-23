@@ -175,7 +175,7 @@ Les 4 garde-fous passent : date seule changée, vraie modification extérieure (
 
 **Après correction :** 467 tests unitaires verts.
 
-### [x] Étape 2 : décision sur la combinaison ouverte et glisser (commit « Étape 2 : décision par l'empreinte, glisser sans sauvegarde »)
+### [x] Étape 2 : décision sur la combinaison ouverte et glisser (`57e843d`)
 C, D, `session.ts` ; tests de la cause 2.
 
 - `decideExternalChange` décide par l'empreinte et l'origine ; chaque décision va au journal.
@@ -183,8 +183,17 @@ C, D, `session.ts` ; tests de la cause 2.
 - **Résultat sur le code de `main`** (même test, câblé comme sur `main`) : les 2 tests du glisser échouent, avec une écriture pendant le geste (3 écritures au lieu de 2).
 - **Après correction :** 470 tests unitaires verts.
 
-### [ ] Étape 3 : modèles
+### [x] Étape 3 : modèles (commit « Étape 3 : modèles et versions écrites par la page »)
 E ; tests « Modèles ».
+
+- `fresh()` ne refuse plus une version écrite par la page ; chaque refus est consigné au journal.
+- **Résultat sur le code de `main`** : 4 tests échouent comme prévu.
+  - « Modèle changé ailleurs » après un retour en arrière (dupliquer).
+  - « Mettre à jour » après un retour en arrière.
+  - Liste en retard sur une écriture de la page.
+  - Changement signalé au lieu de la réécriture dans `modeles/`.
+- Le garde-fou « Mettre à jour » après une date changée passe.
+- **Après correction :** 475 tests unitaires verts.
 
 ### [ ] Étape 4 : D-096 révisée
 G ; tests unitaires et e2e de la pose.

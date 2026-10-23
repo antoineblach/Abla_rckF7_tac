@@ -11,6 +11,7 @@ import { serialize } from '../io/serialize'
 import type { PlacementPreset } from '../model/preset'
 import { isPlayer, type Play } from '../model/types'
 import { lineoutPreset, P, sequentialIds, sevenVsSevenWithOptions, uuid } from '../test/builders'
+import { driveGivesBack, driveTouchesDate } from '../test/driveSim'
 import { createMemoryFs, type MemoryFs } from '../test/memoryFs'
 import { TEXT } from '../ui/strings'
 import { editorPointerDown, useInteractionStore } from './editorActions'
@@ -263,6 +264,89 @@ describe('managing presets (SPEC 10.1, D-092)', () => {
     await startApplyPreset(entry())
     expect(useEditorStore.getState().placement).toBeNull()
     expect(useEditorStore.getState().notice).toBe('readOnly')
+  })
+})
+
+describe('versions of a preset written by the page (D-097, D-098)', () => {
+  let clock = 0
+  const later = () => new Date((clock += 1000))
+  const path = () => filePath(lineoutPreset())
+  const updateForm = {
+    request: {
+      name: 'Touche à 4',
+      type: 'lineout' as const,
+      playerIds: [P.A(1)],
+      includeBall: false,
+    },
+    openSide: 'auto' as const,
+  }
+
+  beforeEach(async () => {
+    // Each write gets its own updatedAt, as in real use.
+    clock = Date.UTC(2026, 9, 23, 12)
+    folder = await FolderStore.open(fs.root, { now: later, ids: sequentialIds(5000) })
+    configurePresetSession({
+      store: () => folder,
+      rescan: async () => {
+        await folder.changesSince(0)
+      },
+      savePlay: () => Promise.resolve(),
+      now: later,
+      ids: sequentialIds(9000),
+    })
+  })
+
+  it('given back by Drive to an older version of the page: no refusal, last version written back', async () => {
+    await stored(lineoutPreset())
+    const v1 = fs.read(path()) ?? ''
+    await stored({ ...entry().preset, positions: [] })
+    const v2 = fs.read(path()) ?? ''
+    const shown = entry()
+    driveGivesBack(fs, path(), v1)
+    await duplicatePreset(shown)
+    expect(messages()).toEqual([TEXT.presetDuplicated])
+    expect(fs.read(path())).toBe(v2)
+    expect(entries().map((e) => e.preset.positions)).toEqual([[], []])
+    driveGivesBack(fs, path(), v1)
+    await startApplyPreset(entry())
+    expect(useEditorStore.getState().placement?.kind).toBe('applyPreset')
+    expect(fs.read(path())).toBe(v2)
+  })
+
+  it('« Mettre à jour » after a date changed by Drive', async () => {
+    await stored(lineoutPreset())
+    await openUpdatePresetDialog(entry())
+    driveTouchesDate(fs, path())
+    startSavePreset(lastDialog(), updateForm)
+    down({ x: 40, y: 1 })
+    await vi.waitFor(() => {
+      expect(messages()).toContain(TEXT.presetUpdated('Touche à 4'))
+    })
+  })
+
+  it('« Mettre à jour » after Drive gave back an older version of the page', async () => {
+    await stored(lineoutPreset())
+    const v1 = fs.read(path()) ?? ''
+    await stored({ ...entry().preset, positions: [] })
+    await openUpdatePresetDialog(entry())
+    driveGivesBack(fs, path(), v1)
+    startSavePreset(lastDialog(), updateForm)
+    down({ x: 40, y: 1 })
+    await vi.waitFor(() => {
+      expect(messages()).toContain(TEXT.presetUpdated('Touche à 4'))
+    })
+    expect(entry().preset.positions).toEqual([
+      { role: 'attack', number: 1, forward: 0, openSide: 5 },
+    ])
+  })
+
+  it('a list late on a write of the page: no refusal, the stored version is used', async () => {
+    await stored(lineoutPreset())
+    const shown = entry()
+    await folder.putPreset({ ...shown.preset, positions: [] })
+    await renamePreset(shown, 'Touche longue')
+    expect(messages()).toEqual([TEXT.presetRenamed])
+    expect(entry().preset).toMatchObject({ name: 'Touche longue', positions: [] })
   })
 })
 

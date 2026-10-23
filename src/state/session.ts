@@ -75,6 +75,10 @@ export function currentStore(): LibraryStore | null {
   return store
 }
 
+export function currentSyncLog(): SyncLog {
+  return syncLog
+}
+
 /** Where the exports go: exports/ of the chosen folder, else a download (SPEC 9.1). */
 export function currentExportTarget(): ExportTarget {
   return store instanceof FolderStore

@@ -2,7 +2,7 @@
 
 - Mise à jour : 2026-10-23
 - Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), non poussée
-- Dernier commit : « Étape 2 : décision par l'empreinte, glisser sans sauvegarde » (après `b772508`, étape 1)
+- Dernier commit : « Étape 3 : modèles et versions écrites par la page » (après `57e843d`, étape 2)
 - `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; seule branche sur GitHub ; protection vérifiée (D-055)
 - Écarts constatés à la reprise du 23/10, corrigés : ce fichier indiquait la PR #4 ouverte ; références locales `origin/lot-*` périmées (`git fetch --prune`) ; `docs/PASSATION.md` non suivi (commité tel quel).
 
@@ -19,7 +19,8 @@
   - `decideExternalChange` par empreinte et origine ;
   - sauvegarde automatique différée pendant un geste (`SyncController.gestureEnded`, `state/syncBridge.ts`) ;
   - décisions consignées au journal.
-- Prochaine action : étape 3 (modèles : `fresh()` par empreinte et origine).
+- Étape 3 faite : `fresh()` (`state/presetSession.ts`) ne refuse plus une version écrite par la page ; refus consignés (`currentSyncLog`).
+- Prochaine action : étape 4 (D-101 : nouvelle combinaison depuis un modèle enregistrée à la validation de la pose, la précédente relue à l'abandon).
 
 ## Fait
 
