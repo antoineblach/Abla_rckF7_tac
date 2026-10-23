@@ -465,6 +465,16 @@ export function saveNow(): Promise<void> {
   return sync?.saveNow() ?? Promise.resolve()
 }
 
+/** « Copier le journal de synchronisation » (D-100): to the clipboard, nothing in the folder. */
+export async function copySyncLog(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(syncLog.toText())
+    notify(TEXT.syncLogCopied)
+  } catch {
+    notify(TEXT.syncLogNotCopied, 'error')
+  }
+}
+
 export async function updateSettings(settings: Settings): Promise<void> {
   if (!store || !useSettingsStore.getState().writable) return
   useSettingsStore.setState({ settings })

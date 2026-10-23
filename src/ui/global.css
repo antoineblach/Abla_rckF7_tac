@@ -568,6 +568,18 @@ kbd {
   color: var(--muted);
 }
 
+/* Discreet action of the settings: copy of the synchronisation log (D-100). */
+.inspector__discreet {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .form-row {
   display: flex;
   flex-direction: column;

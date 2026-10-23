@@ -2,7 +2,7 @@
 
 - Mise à jour : 2026-10-23
 - Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), non poussée
-- Dernier commit : « Étape 4 : nouvelle combinaison enregistrée à la validation de la pose » (après `c807c98`, étape 3)
+- Dernier commit : « Étape 5 : journal de synchronisation dans les réglages » (après `d18d676`, étape 4)
 - `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; seule branche sur GitHub ; protection vérifiée (D-055)
 - Écarts constatés à la reprise du 23/10, corrigés : ce fichier indiquait la PR #4 ouverte ; références locales `origin/lot-*` périmées (`git fetch --prune`) ; `docs/PASSATION.md` non suivi (commité tel quel).
 
@@ -24,7 +24,8 @@
   - `pendingCreation` dans `editorStore`, fin de pose unique ;
   - aucune écriture ni brouillon avant l'ancre ;
   - à l'abandon, la précédente est relue dans le dossier (`presetSession.reopenPrevious`).
-- Prochaine action : étape 5 (bouton « Copier le journal de synchronisation », e2e `sync-own-writes.chromium`).
+- Étape 5 faite : bouton « Copier le journal de synchronisation » (réglages de l'inspecteur) ; e2e `sync-own-writes.chromium` (échouait sur `main`).
+- Prochaine action : étape 6 (SPEC 1.5, ARCHITECTURE, RECETTE, recette automatisable complète, PR).
 
 ## Fait
 

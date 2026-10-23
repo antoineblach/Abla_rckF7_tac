@@ -128,6 +128,10 @@ export const TEXT = {
   needsPermission: 'Le dossier n’est plus autorisé.',
   reloaded: 'Combinaison rechargée depuis le dossier.',
   saveError: 'Enregistrement impossible.',
+  // Synchronisation log (D-100).
+  copySyncLog: 'Copier le journal de synchronisation',
+  syncLogCopied: 'Journal de synchronisation copié.',
+  syncLogNotCopied: 'Le journal n’a pas pu être copié dans le presse-papiers.',
   invalidSettings:
     'reglages.json est invalide : il ne sera pas modifié, valeurs par défaut utilisées.',
   exportCancelled: 'Export annulé : aucun fichier écrit.',

@@ -195,7 +195,7 @@ E ; tests « Modèles ».
 - Le garde-fou « Mettre à jour » après une date changée passe.
 - **Après correction :** 475 tests unitaires verts.
 
-### [x] Étape 4 : D-096 révisée (commit « Étape 4 : nouvelle combinaison enregistrée à la validation de la pose »)
+### [x] Étape 4 : D-096 révisée (`d18d676`)
 G ; tests unitaires et e2e de la pose.
 
 - **`editorStore` :**
@@ -207,8 +207,12 @@ G ; tests unitaires et e2e de la pose.
 - **Résultat sur le code de `main`** : l'e2e `placement.chromium` échoue (après Échap, l'éditeur reste sur « Nouvelle combinaison », le fichier vide est écrit).
 - **Après correction :** 481 tests unitaires verts ; `placement.chromium` vert.
 
-### [ ] Étape 5 : bouton du journal et bout en bout
+### [x] Étape 5 : bouton du journal et bout en bout (commit « Étape 5 : journal de synchronisation dans les réglages »)
 F (interface) ; `sync-own-writes.chromium.spec.ts`.
+
+- Bouton `inspector__discreet` en bas de « Réglages », `session.copySyncLog` (presse-papiers, notification).
+- **Résultat sur le code de `main`** : l'e2e échoue à la sauvegarde qui suit deux annulations et une date touchée (« Modifications en cours » : écriture refusée, dialogue).
+- **Après correction :** l'e2e est vert ; le journal copié contient « retour en arrière » et « sauvegarde différée », et aucune « écriture refusée ».
 
 ### [ ] Étape 6 : documents et clôture
 - **SPEC 1.5 :**
