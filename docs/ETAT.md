@@ -1,46 +1,34 @@
 # État du projet
 
 - Mise à jour : 2026-10-23
-- Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), non poussée
-- Dernier commit : « Étape 5 : journal de synchronisation dans les réglages » (après `d18d676`, étape 4)
-- `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; seule branche sur GitHub ; protection vérifiée (D-055)
+- Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`) ; PR vers `main` à ouvrir à la fin de l'étape 6
+- Dernier commit : « Étape 6 : documents de la correction du lot 3 » (après `5740327`, étape 5)
+- `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; protection vérifiée (D-055)
 - Écarts constatés à la reprise du 23/10, corrigés : ce fichier indiquait la PR #4 ouverte ; références locales `origin/lot-*` périmées (`git fetch --prune`) ; `docs/PASSATION.md` non suivi (commité tel quel).
 
 ## En cours
 
-- Correction après recette du lot 3 (`docs/plans/lot-3-corrections.md`, D-097 à D-101) : dialogue « Version plus récente dans le dossier » qui apparaît en travaillant seul (concurrence confirmée par `updatedAt`, que l'annulation et les glissers remettent en arrière ; sauvegarde automatique pendant un glisser ; retours en arrière de Drive), et nouvelle combinaison depuis un modèle enregistrée seulement à la validation de la pose.
-- Étapes 0 et 1 faites :
-  - jeton `{ lastModified, size, contentHash }`, l'empreinte étant celle de l'élément relu du texte ;
-  - `io/ownWrites.ts` (écritures de la page, référence), `io/syncLog.ts` (journal, branché dans `session.ts`) ;
-  - retour en arrière réécrit dans `FileCollection.scan` ;
-  - `IdbStore` relit l'entrée avant d'écrire ;
-  - tests `state/syncSession.test.ts` : 7 sur 11 échouaient sur `main`.
-- Étape 2 faite :
-  - `decideExternalChange` par empreinte et origine ;
-  - sauvegarde automatique différée pendant un geste (`SyncController.gestureEnded`, `state/syncBridge.ts`) ;
-  - décisions consignées au journal.
-- Étape 3 faite : `fresh()` (`state/presetSession.ts`) ne refuse plus une version écrite par la page ; refus consignés (`currentSyncLog`).
-- Étape 4 faite (D-101) :
-  - `pendingCreation` dans `editorStore`, fin de pose unique ;
-  - aucune écriture ni brouillon avant l'ancre ;
-  - à l'abandon, la précédente est relue dans le dossier (`presetSession.reopenPrevious`).
-- Étape 5 faite : bouton « Copier le journal de synchronisation » (réglages de l'inspecteur) ; e2e `sync-own-writes.chromium` (échouait sur `main`).
-- Prochaine action : étape 6 (SPEC 1.5, ARCHITECTURE, RECETTE, recette automatisable complète, PR).
+- Correction après recette du lot 3 (`docs/plans/lot-3-corrections.md`, D-097 à D-101), étapes 0 à 6 faites. Elle traite le dialogue « Version plus récente dans le dossier » qui apparaissait en travaillant seul, et la nouvelle combinaison depuis un modèle.
+- En attente de l'utilisateur : fusion de la PR (CI verte), puis Ctrl+F5 sur les deux PC, 2 vérifications manuelles (`docs/RECETTE.md`, section « Lot 3 : correction après recette ») et suite de la séance d'usage.
+- Prochaine action : retour de recette (journal de synchronisation copié si un dialogue réapparaît), ou le lot 4 sur demande.
 
 ## Fait
 
-- Lots 1, 2 et 3 : PR #1 à #4 fusionnées.
-- Lot 3, étapes 0 à 2 : plan ; `Play` v2 (schéma v1 figé, migration), `model/preset.ts`, fixtures figées `play-v2-lot3.json` et `preset-v1-touche.json` ; moteur (`engine/timeline.ts`, `engine/ballEvents.ts` : courses arrêtées, relais, boucle d'événements, ramassage, en-avant, ligne d'avantage).
-- Constat : le scénario de référence du lot 1 contient une passe en avant au sens de 5.7 (option B, `uuid(231)`) ; les tests l'attendent désormais.
-- Lot 3, étapes 3 à 6 : géométrie des modèles et de la combinaison entière ; rendu (tirets longs, ombre, regroupement, pastille d'en-avant) ; `io/collection.ts` et `modeles/` ; outils J et G, inspecteur, ballon au sol, calque « En-avant » (D-095).
-- Lot 3, étape 7 (D-096) : `editor/placementMode.ts`, `state/presetSession.ts`, onglets de la bibliothèque, dialogues des modèles, bandeau de pose, « Déplacer la combinaison » et « Retourner » ; e2e `placement.chromium` et `presets.firefox`.
-- Lot 3, étape 8 : `export/setPieces.test.ts` (image de GIF avec un jeu au pied en vol, tirets longs relus dans le PDF N&B, aucune icône d'en-avant dans le GIF ni le PDF, calque activé ; 2 images de référence vérifiées à l'œil), `pageDashes` dans `test/pdfInspect.ts`, export GIF et PDF dans `breakdown-kick.chromium` ; SPEC 1.4 (dont 10.5 corrigée selon D-086), ARCHITECTURE, RECETTE (section Lot 3), README (modèles, rechargement après déploiement).
-- Recette automatisable : lint, typecheck, format, 438 tests unitaires, 32 tests de bout en bout (Chromium et Firefox), build ; aucun test désactivé ; fixtures v1 et v2 inchangées ; `bundle.chromium.spec.ts` vert.
+- Lots 1, 2 et 3 : PR #1 à #4 fusionnées (détail des lots dans leurs plans, `docs/plans/`).
+- Correction du lot 3 :
+  - concurrence par l'empreinte du contenu relu (`VersionToken.contentHash`, D-097) ;
+  - versions écrites par la page et retour en arrière de Drive réécrit (`io/ownWrites.ts`, `FileCollection.scan`, D-098) ;
+  - aucune sauvegarde automatique pendant un glisser (`SyncController.gestureEnded`, `state/syncBridge.ts`, D-099) ;
+  - journal de synchronisation (`io/syncLog.ts`, bouton dans les réglages, D-100) ;
+  - nouvelle combinaison depuis un modèle écrite à la validation de la pose, précédente relue à l'abandon (`pendingCreation`, D-101) ;
+  - SPEC 1.5 (6.6, 8.1, 8.3, 8.4, 10.1, 14, 16), ARCHITECTURE, RECETTE, README.
+- Chaque test « échoue avant » a été exécuté sur `main` (arbre de travail temporaire) et y échouait comme prévu (détail par étape dans le plan).
+- Recette automatisable : lint, typecheck, format, 481 tests unitaires, 33 tests de bout en bout (Chromium et Firefox), build ; aucun test désactivé ; fixtures v1 et v2 inchangées ; `bundle.chromium.spec.ts` vert.
 
 ## Reste à faire
 
-- Correction du lot 3 : étapes 1 à 6 du plan, puis PR.
-- Lot 3, en attente de l'utilisateur : 3 vérifications manuelles (modèle synchronisé entre les deux PC, GIF sur le téléphone, PDF N&B sur la laser) ; suite de la séance d'usage libre.
+- Correction du lot 3, en attente de l'utilisateur : fusion de la PR ; 2 vérifications manuelles (15 minutes d'édition sur Drive réel en mode diffusion sans dialogue ; vraie modification sur l'autre PC) ; suite de la séance d'usage libre.
+- Lot 3, en attente de l'utilisateur : 3 vérifications manuelles (modèle synchronisé entre les deux PC, GIF sur le téléphone, PDF N&B sur la laser).
 - Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
 - Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
 
@@ -52,6 +40,8 @@
 
 - Aucun test désactivé.
 - Fixture figée `src/test/fixtures/play-v1-7v7-options.json` : ne plus la modifier (migration v1 vers v2 du lot 3).
+- Limite de D-098 : une ancienne version remise à l'identique depuis l'autre PC (historique de Drive, import) est défaite tant que la page qui l'avait écrite est ouverte (README : recharger avant de restaurer).
+- Les hypothèses 3 et 4 sur Drive (date changée après l'envoi, version antérieure rendue) restent à constater : le journal de synchronisation le dira.
 - Le seuil « traits >= 3 px » du thème Contraste fort est testé sur `render`, pas sur la surcouche d'édition (jamais exportée).
 - À 1280 px de large, la seconde rangée du transport défile horizontalement ; sous 1500 px, le titre de l'application est masqué (D-077).
 - En portrait, une combinaison large laisse du terrain vide au-dessus et au-dessous dans les GIF (D-061).

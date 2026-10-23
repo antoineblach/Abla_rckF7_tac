@@ -207,14 +207,19 @@ G ; tests unitaires et e2e de la pose.
 - **Résultat sur le code de `main`** : l'e2e `placement.chromium` échoue (après Échap, l'éditeur reste sur « Nouvelle combinaison », le fichier vide est écrit).
 - **Après correction :** 481 tests unitaires verts ; `placement.chromium` vert.
 
-### [x] Étape 5 : bouton du journal et bout en bout (commit « Étape 5 : journal de synchronisation dans les réglages »)
+### [x] Étape 5 : bouton du journal et bout en bout (`5740327`)
 F (interface) ; `sync-own-writes.chromium.spec.ts`.
 
 - Bouton `inspector__discreet` en bas de « Réglages », `session.copySyncLog` (presse-papiers, notification).
 - **Résultat sur le code de `main`** : l'e2e échoue à la sauvegarde qui suit deux annulations et une date touchée (« Modifications en cours » : écriture refusée, dialogue).
 - **Après correction :** l'e2e est vert ; le journal copié contient « retour en arrière » et « sauvegarde différée », et aucune « écriture refusée ».
 
-### [ ] Étape 6 : documents et clôture
+### [x] Étape 6 : documents et clôture (commit « Étape 6 : documents de la correction du lot 3 »)
+
+Fait : SPEC 1.5 (6.6, 8.1, 8.3, 8.4, 10.1, 14, 16) ; ARCHITECTURE ; RECETTE (section « Lot 3 : correction après recette ») ; README (synchronisation, journal, nouvelle combinaison depuis un modèle, restauration par l'historique de Drive) ; ETAT.
+Recette automatisable verte : format, lint, typecheck, 481 tests unitaires, 33 tests de bout en bout (Chromium et Firefox), build.
+
+Prévu :
 - **SPEC 1.5 :**
   - 8.3 : empreinte du contenu, écritures de la page, retour en arrière, pas de sauvegarde automatique pendant un glisser, journal ;
   - 8.4 : modification extérieure = contenu jamais écrit par la page ;
