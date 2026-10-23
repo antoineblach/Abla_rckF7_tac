@@ -1,18 +1,19 @@
 # État du projet
 
-- Mise à jour : 2026-10-16
-- Branche : `lot-3` (depuis `main` à `855a804`), poussée ; PR #4 vers `main` ouverte, CI verte (16/10)
-- Dernier commit : « État : PR #4 et CI verte » (après `119b9cd`, « Étape 8 : exports et clôture du lot 3 »)
-- `main` : lots 1 et 2 fusionnés (PR #1, #2, #3 `855a804`), déployés sur Pages, CI verte ; protection vérifiée (D-055)
+- Mise à jour : 2026-10-23
+- Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), non poussée
+- Dernier commit : « Plan de correction après recette du lot 3 » (étape 0)
+- `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; seule branche sur GitHub ; protection vérifiée (D-055)
+- Écarts constatés à la reprise du 23/10, corrigés : ce fichier indiquait la PR #4 ouverte ; références locales `origin/lot-*` périmées (`git fetch --prune`) ; `docs/PASSATION.md` non suivi (commité tel quel).
 
 ## En cours
 
-- Lot 3 (mise en place) : étapes 0 à 8 faites (`docs/plans/lot-3.md`), décisions D-078 à D-096. En attente de l'utilisateur : fusion de la PR #4 (CI verte), puis 3 vérifications manuelles (`docs/RECETTE.md`, section Lot 3) et séance d'usage libre.
-- Prochaine action : après la fusion (déploiement sur Pages, puis recharger la page sur les deux PC), le retour de recette du lot 3 (prompt « Correction après recette »), ou le lot 4 sur demande.
+- Correction après recette du lot 3 (`docs/plans/lot-3-corrections.md`, D-097 à D-101) : dialogue « Version plus récente dans le dossier » qui apparaît en travaillant seul (concurrence confirmée par `updatedAt`, que l'annulation et les glissers remettent en arrière ; sauvegarde automatique pendant un glisser ; retours en arrière de Drive), et nouvelle combinaison depuis un modèle enregistrée seulement à la validation de la pose.
+- Étape 0 faite. Prochaine action : étape 1 (base de concurrence par l'empreinte du contenu, écritures de la page, journal, côté `io`).
 
 ## Fait
 
-- Lots 1 et 2 : PR #1, #2 et #3 fusionnées.
+- Lots 1, 2 et 3 : PR #1 à #4 fusionnées.
 - Lot 3, étapes 0 à 2 : plan ; `Play` v2 (schéma v1 figé, migration), `model/preset.ts`, fixtures figées `play-v2-lot3.json` et `preset-v1-touche.json` ; moteur (`engine/timeline.ts`, `engine/ballEvents.ts` : courses arrêtées, relais, boucle d'événements, ramassage, en-avant, ligne d'avantage).
 - Constat : le scénario de référence du lot 1 contient une passe en avant au sens de 5.7 (option B, `uuid(231)`) ; les tests l'attendent désormais.
 - Lot 3, étapes 3 à 6 : géométrie des modèles et de la combinaison entière ; rendu (tirets longs, ombre, regroupement, pastille d'en-avant) ; `io/collection.ts` et `modeles/` ; outils J et G, inspecteur, ballon au sol, calque « En-avant » (D-095).
@@ -22,7 +23,8 @@
 
 ## Reste à faire
 
-- Lot 3 : fusion de la PR par l'utilisateur ; 3 vérifications manuelles (modèle synchronisé entre les deux PC, GIF sur le téléphone, PDF N&B sur la laser) ; séance d'usage libre.
+- Correction du lot 3 : étapes 1 à 6 du plan, puis PR.
+- Lot 3, en attente de l'utilisateur : 3 vérifications manuelles (modèle synchronisé entre les deux PC, GIF sur le téléphone, PDF N&B sur la laser) ; suite de la séance d'usage libre.
 - Lot 2, en attente de l'utilisateur : vérifications manuelles (GIF sur le téléphone et WhatsApp avec et sans allègement, PDF N&B sur la laser, cahier sur le téléphone) ; retour de la séance d'usage libre. Une correction irait sur une branche `lot-2-corrections` (section « Chantiers en parallèle »).
 - Lot 1, en attente de l'utilisateur : synchronisation Drive réelle entre les deux PC, conflit Drive réel, séance d'usage libre.
 

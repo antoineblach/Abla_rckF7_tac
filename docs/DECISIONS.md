@@ -309,6 +309,7 @@ Les décisions structurantes initiales sont dans `SPEC.md`, section 16. Les entr
 - Raison : 8.3 (date, taille, puis contenu) ; règle 9 (jamais de perte) ; un fichier seulement « touché » par Drive ne doit pas bloquer l'enregistrement.
 - Alternatives écartées : confirmation par `updatedAt` seul (manquerait une retouche à la main) ; suppression avant vérification de la copie.
 - Origine : choix technique, couvert par les tests de `FolderStore`.
+- Confirmation par `updatedAt` à l'enregistrement, et version d'une entrée en mode navigateur, remplacées par D-097 (empreinte du contenu).
 
 ### D-044 : couche d'état et interactions
 - Date : 2026-10-14
@@ -690,3 +691,43 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : plan du lot 3 (section 4) ; SPEC 6.6, 10.1, 10.2 ; D-050 (bandeaux en surimpression) ; D-087 à D-092.
 - Alternatives écartées : pose sur le temps affiché ; message de refus ajouté à la consigne (bandeau sur deux lignes au-dessus du terrain) ; modèles dans la même liste que les combinaisons.
 - Origine : choix technique (étape 7).
+- Enregistrement immédiat d'une nouvelle combinaison depuis un modèle remplacé par D-101.
+
+## Lot 3 : correction après recette
+
+Plan : `docs/plans/lot-3-corrections.md`, validé le 23 octobre 2026 avec les réponses Q1 à Q3 et trois compléments.
+
+### D-097 : base de concurrence par l'empreinte du contenu
+- Date : 2026-10-23
+- Décision : le jeton de version (`VersionToken`) porte, en plus de la date et de la taille, l'empreinte du contenu (`contentHash`) de la version du fichier dont part l'éditeur. Il est gardé hors de l'objet `Play` (`EditorState.version`) ; il est mis à jour à l'ouverture, après chaque écriture réussie, à chaque rechargement et à chaque résolution de conflit ou de fichier retiré ; annuler, rétablir et les glissers n'y touchent pas. Avant d'écrire, une date et une taille égales au jeton suffisent ; sinon le fichier est relu et l'écriture est acceptée si son empreinte est celle du jeton ou celle d'une version écrite par la page (D-098), refusée sinon. Une date ou une taille différente ne prouve jamais un conflit. L'empreinte est calculée d'une seule façon partout : `contentHash` de l'élément obtenu en relisant le texte écrit ou lu (lecture et migration), jamais de l'objet en mémoire avant sérialisation. Même règle en mode navigateur, où l'entrée est relue dans IndexedDB juste avant d'écrire. `updatedAt` reste écrit à chaque sauvegarde, sans rôle dans la concurrence. Remplace la confirmation par `updatedAt` de D-043.
+- Raison : annuler, rétablir et un glisser commencé avant une sauvegarde rendent un `updatedAt` antérieur ; dès que Drive change la date du fichier, la version écrite par la page passait pour un conflit (dialogue « Version plus récente dans le dossier » en travaillant seul). En mode navigateur, annuler au-delà d'une sauvegarde suffisait.
+- Alternatives écartées : remettre à jour `updatedAt` dans l'historique d'annulation (les instantanés restent des copies fidèles) ; confirmation par la date seule.
+- Origine : retour de recette de l'utilisateur ; correction demandée par l'utilisateur, complément « empreinte calculée d'une seule façon ».
+
+### D-098 : écritures de la page et retour en arrière de Drive
+- Date : 2026-10-23
+- Décision : chaque collection (combinaisons, modèles) garde, par identifiant, les empreintes des 50 dernières versions écrites par la page (`OWN_WRITES_KEPT`, HYPOTHÈSE) et une référence : le texte de la dernière version tenue pour courante, écrite par la page ou lue depuis l'extérieur. Un fichier relu dont le contenu est une version écrite par la page n'est jamais une modification extérieure : ni dialogue, ni rechargement, ni refus d'action sur un modèle. Si ce n'est pas la référence (retour en arrière de Drive), la référence est réécrite à l'identique dans le même fichier, sans toucher aux modifications en cours, et l'événement est consigné au journal (D-100) ; seulement si le nom du fichier est celui de la référence, si l'identifiant n'a pas de copie de conflit et si le fichier, relu juste avant, n'a pas encore changé. Le rechargement silencieux et le dialogue restent réservés aux contenus jamais écrits par la page, avec leur comportement de SPEC 8.4. Limite : toute remise volontaire à l'identique d'une ancienne version depuis l'autre PC (historique de Drive, ou import qui rendrait à l'identique une version écrite par cette page) est défaite tant que la page qui l'avait écrite est ouverte ; recharger la page avant.
+- Raison : Drive en mode diffusion peut restituer brièvement une version antérieure (hypothèse) ; sans modification en cours, l'outil la rechargeait en silence. Réécrire la référence plutôt que la dernière écriture de la page évite d'écraser une version de l'autre PC lue entre-temps.
+- Alternatives écartées : réécrire toujours la dernière version écrite par la page (écraserait une version extérieure lue depuis) ; oublier les écritures de la page à chaque rechargement (un retour en arrière vers l'une d'elles serait rechargé).
+- Origine : demande de l'utilisateur ; réponse Q1 (référence) ; complément sur la limite.
+
+### D-099 : aucune sauvegarde automatique pendant un glisser
+- Date : 2026-10-23
+- Décision : si le délai de la sauvegarde automatique expire pendant un geste (glisser), rien n'est écrit ; la sauvegarde part à la fin du geste, ou à son annulation s'il restait des modifications non enregistrées. Ctrl+S reste immédiat.
+- Raison : le minuteur armé par la modification précédente écrivait l'état intermédiaire du geste.
+- Alternatives écartées : différer aussi Ctrl+S ; relancer le délai de 2 s à la fin du geste.
+- Origine : demande de l'utilisateur.
+
+### D-100 : journal de synchronisation
+- Date : 2026-10-23
+- Décision : un journal en mémoire garde les 200 derniers événements de synchronisation (`SYNC_LOG_SIZE`) : relecture, écriture, vérification avant écriture, changement détecté, décision, retour en arrière corrigé, sauvegarde différée, refus sur un modèle ; une seule ligne à l'ouverture du dossier. Champs : heure de l'événement et date de modification du fichier en heure locale du PC avec les millisecondes, collection, fichier, taille, `updatedAt` tel qu'il est dans le fichier, empreinte courte (8 caractères), origine retenue (« cette page » ou « extérieure »), détail. Bouton discret « Copier le journal de synchronisation » en bas de la section « Réglages » de l'inspecteur. Rien n'est écrit dans le dossier.
+- Raison : diagnostiquer un dialogue qui réapparaîtrait avec Drive réel.
+- Alternatives écartées : journal écrit dans le dossier.
+- Origine : demande de l'utilisateur ; complément sur les heures.
+
+### D-101 : nouvelle combinaison depuis un modèle enregistrée à la validation de la pose
+- Date : 2026-10-23
+- Décision : choisir un modèle dans « Nouvelle combinaison » enregistre la combinaison ouverte, puis ouvre la nouvelle sans l'écrire ; tant que la pose n'est pas validée, rien n'est écrit (Ctrl+S compris) et aucun brouillon n'est gardé. L'ancre validée fait une étape d'annulation, puis la combinaison est enregistrée aussitôt (D-044 : la création est la validation). Échap, « Annuler », un changement d'outil ou une autre pose abandonnent la nouvelle combinaison ; la combinaison précédente est relue dans le dossier (ou dans IndexedDB) et rouverte comme depuis la bibliothèque ; si elle n'existe plus, l'éditeur reste vide. Remplace l'enregistrement immédiat de D-096 ; les deux autres choix de D-096 sont inchangés (toute pose affiche le temps 1 ; un modèle en lecture seule peut être appliqué, pas modifié).
+- Raison : Échap laissait une combinaison vide dans la bibliothèque. La précédente est relue, car elle a pu changer sur l'autre PC pendant la pose.
+- Alternatives écartées : rouvrir la précédente depuis un instantané de l'éditeur ; laisser l'éditeur vide.
+- Origine : demande de l'utilisateur (passation du 16/10) ; réponse Q2.
