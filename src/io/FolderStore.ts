@@ -41,6 +41,7 @@ import {
 import { readPlayText } from './readPlay'
 import { readPresetText } from './readPreset'
 import { parseJson, serialize } from './serialize'
+import type { SyncLog } from './syncLog'
 
 export { InvalidStoredFileError, type ReadCacheData } from './collection'
 
@@ -48,6 +49,8 @@ export interface FolderStoreOptions {
   now: () => Date
   ids: IdFactory
   cache?: ReadCacheData
+  /** Synchronisation log of the page (D-100). */
+  log?: SyncLog
 }
 
 /**
@@ -78,6 +81,7 @@ export class FolderStore implements LibraryStore {
     this.plays = new FileCollection<Play>(
       root,
       {
+        collection: 'plays',
         dir: PLAYS_DIR,
         cachePrefix: '',
         fileName: playFileName,
@@ -92,6 +96,7 @@ export class FolderStore implements LibraryStore {
     this.presets = new FileCollection<PlacementPreset>(
       root,
       {
+        collection: 'presets',
         dir: PRESETS_DIR,
         cachePrefix: `${PRESETS_DIR}/`,
         fileName: presetFileName,
@@ -168,6 +173,10 @@ export class FolderStore implements LibraryStore {
 
   versionOf(id: Id): VersionToken | null {
     return this.plays.versionOf(id)
+  }
+
+  isOwnWrite(collection: Collection, id: Id, hash: string): boolean {
+    return (collection === 'plays' ? this.plays : this.presets).isOwnWrite(id, hash)
   }
 
   issues(): Promise<LibraryIssue[]> {

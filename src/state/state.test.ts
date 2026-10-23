@@ -87,11 +87,9 @@ describe('editor store (SPEC 6.3)', () => {
     applyEdit((p) => ({ ...p, notes: 'a' }))
     const savedFrom = current()
     const saved = { ...savedFrom, updatedAt: '2026-10-14T20:00:00.000Z' }
-    markSaved({ play: saved, fileName: 'x', version: { lastModified: 1, size: 2 } }, savedFrom)
-    expect(useEditorStore.getState()).toMatchObject({
-      dirty: false,
-      version: { lastModified: 1, size: 2 },
-    })
+    const version = { lastModified: 1, size: 2, contentHash: 'h' }
+    markSaved({ play: saved, fileName: 'x', version }, savedFrom)
+    expect(useEditorStore.getState()).toMatchObject({ dirty: false, version })
     expect(current()).toBe(saved)
     applyEdit((p) => ({ ...p, notes: 'b' }))
     const from = current()

@@ -39,6 +39,11 @@ export interface EditorState {
   kickFromId: Id | null
   /** Placement in progress: preset applied or saved, play moved (lot 3, D-096). */
   placement: PlacementMode | null
+  /**
+   * New play from a preset, never written until its placement is validated (D-101), with the play
+   * open before it; null otherwise.
+   */
+  pendingCreation: { previousId: Id | null } | null
   snap: boolean
   notice: EditorNotice
 }
@@ -57,11 +62,29 @@ const initial: EditorState = {
   passFromId: null,
   kickFromId: null,
   placement: null,
+  pendingCreation: null,
   snap: false,
   notice: null,
 }
 
 export const useEditorStore = create<EditorState>(() => initial)
+
+/** What follows the placement of a new play from a preset (D-101): set by the preset session. */
+export interface CreationListeners {
+  /** The anchor was validated: the new play is saved at once. */
+  validated(): void
+  /** The placement ended otherwise: the new play is dropped, the previous one opened again. */
+  abandoned(previousId: Id | null): void
+}
+
+let creationListeners: CreationListeners = {
+  validated: () => undefined,
+  abandoned: () => undefined,
+}
+
+export function setCreationListeners(listeners: CreationListeners): void {
+  creationListeners = listeners
+}
 
 /** Called after every local change (automatic save, draft): set by the session. */
 let changeListener: () => void = () => undefined
@@ -109,6 +132,40 @@ export function openPlay(
 export function closePlay(): void {
   useEditorStore.setState((state) => ({ ...initial, tool: state.tool, snap: state.snap }))
   resetView()
+}
+
+/**
+ * Opens a new play from a preset without saving it (D-101): nothing is written until its
+ * placement is validated; any other end of the placement drops it.
+ */
+export function openPendingPlay(play: Play, previousId: Id | null): void {
+  openPlay(play, null, false)
+  useEditorStore.setState({ pendingCreation: { previousId } })
+}
+
+/** True when ending the placement in progress would drop a new play (D-101). */
+export function placementDropsCreation(): boolean {
+  const state = useEditorStore.getState()
+  return state.pendingCreation !== null && state.placement !== null
+}
+
+/** The new play is dropped, nothing written; the session opens the previous one again (D-101). */
+function dropCreation(): void {
+  const previousId = useEditorStore.getState().pendingCreation?.previousId ?? null
+  closePlay()
+  creationListeners.abandoned(previousId)
+}
+
+/** The anchor of the new play was validated: it becomes an ordinary play (D-101). */
+export function validateCreation(): boolean {
+  if (!useEditorStore.getState().pendingCreation) return false
+  useEditorStore.setState({ pendingCreation: null })
+  return true
+}
+
+/** Called once the validated placement is applied: the new play is saved at once (D-101). */
+export function creationValidated(): void {
+  creationListeners.validated()
 }
 
 /** Applies one editing step (one undo step). Returns false when nothing changed. */
@@ -221,6 +278,8 @@ export function selectPhase(phaseId: Id): void {
 }
 
 export function setTool(tool: ToolId): void {
+  // A tool change ends the placement: a new play still waiting for it is dropped (D-101).
+  if (placementDropsCreation()) dropCreation()
   useEditorStore.setState({
     tool,
     runDraft: null,
@@ -231,8 +290,15 @@ export function setTool(tool: ToolId): void {
   })
 }
 
-/** Starts or ends a placement (D-096); the tool drafts in progress are dropped. */
+/**
+ * Starts or ends a placement (D-096); the tool drafts in progress are dropped. Ending it (Escape,
+ * « Annuler ») or starting another one drops a new play still waiting for its anchor (D-101).
+ */
 export function setPlacement(placement: PlacementMode | null): void {
+  if (placementDropsCreation()) {
+    dropCreation()
+    return
+  }
   useEditorStore.setState({
     placement,
     runDraft: null,

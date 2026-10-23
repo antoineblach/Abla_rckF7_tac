@@ -42,12 +42,12 @@ import {
   runDuration,
   siblingsOf,
 } from '../../state/selectors'
-import { updateSettings } from '../../state/session'
+import { copySyncLog, updateSettings } from '../../state/session'
 import { setPlaySectionCollapsed, usePanelsStore } from '../../state/panelsStore'
 import { useSettingsStore } from '../../state/settingsStore'
 import { useViewStore } from '../../state/viewStore'
 import { CheckboxField, CommitTextField, NumberField, SelectField } from '../common/fields'
-import { CATEGORY_LABELS, issueMessage, PACE_LABELS, phaseLabel } from '../strings'
+import { CATEGORY_LABELS, issueMessage, PACE_LABELS, phaseLabel, TEXT } from '../strings'
 import { BallAtStart, BreakdownInspector, KickInspector } from './SetPieceInspectors'
 
 const fmt = (seconds: number) => `${seconds.toFixed(1).replace('.', ',')} s`
@@ -552,6 +552,9 @@ function SettingsSection({ settings }: { settings: Settings }) {
           save({ ...settings, passSpeed })
         }}
       />
+      <button type="button" className="inspector__discreet" onClick={() => void copySyncLog()}>
+        {TEXT.copySyncLog}
+      </button>
     </details>
   )
 }

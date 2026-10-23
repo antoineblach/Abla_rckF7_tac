@@ -182,6 +182,20 @@ test('adds a defence preset saved from a selection, and creates a play from a pr
   expect(positionOf(play, 'A', 3)).toEqual({ x: 40, y: 25 })
   expect(play.category).toBe('phasePlay')
 
+  // New play from a preset, then Escape (D-101): nothing written, the previous play reopened.
+  const before = await listFolder(page, 'combinaisons')
+  await library(page).getByRole('tab', { name: 'Combinaisons' }).click()
+  await page.getByRole('button', { name: 'Nouvelle combinaison', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Défense (Libre)' }).click()
+  await expect(banner(page)).toContainText('Modèle « Défense »')
+  await page.keyboard.press('Escape')
+  await expect(banner(page)).toHaveCount(0)
+  await expect(inspector(page).getByLabel('Nom', { exact: true })).toHaveValue('Attaque seule')
+  // No automatic save is left behind (2 s).
+  await page.waitForTimeout(2500)
+  expect(await listFolder(page, 'combinaisons')).toEqual(before)
+  await expect(library(page).getByRole('button', { name: /^Ouvrir / })).toHaveCount(before.length)
+
   // New play from a preset (D-091): no players, then the anchor.
   await library(page).getByRole('tab', { name: 'Combinaisons' }).click()
   await page.getByRole('button', { name: 'Nouvelle combinaison', exact: true }).click()

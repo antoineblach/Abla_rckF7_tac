@@ -133,7 +133,7 @@ Tests unitaires dans `src/` (Vitest), tests de bout en bout dans `e2e/` (Playwri
 | Association par rôle et numéro : existantes déplacées, manquantes créées, autres inchangées ; numéros en double ; modèle d'attaque puis modèle de défense | `editor/presets.test.ts` ; `placement.chromium.spec.ts` |
 | Catégorie de la combinaison mise à jour selon le type du modèle | `editor/presets.test.ts`, `state/placement.test.ts` ; `placement.chromium.spec.ts`, `presets.firefox.spec.ts` |
 | Renommer, dupliquer, mettre à jour (identifiant, nom et type gardés), supprimer (corbeille) un modèle ; modèle de l'autre PC relu au focus ; action refusée, avec un message, sur un modèle changé ailleurs | `state/presetSession.test.ts`, `io/presets.test.ts` ; `placement.chromium.spec.ts` |
-| Nouvelle combinaison depuis un modèle | `editor/placementMode.test.ts`, `state/presetSession.test.ts` ; `placement.chromium.spec.ts` |
+| Nouvelle combinaison depuis un modèle (enregistrée à la validation de la pose depuis la correction, D-101) | `editor/placementMode.test.ts`, `state/presetSession.test.ts` ; `placement.chromium.spec.ts` |
 | Déplacer (deux clics, grille) et retourner une combinaison : positions, points de passage, points visés, ballon au sol, cadre ; deux symétries ou un aller-retour redonnent la combinaison ; une étape d'annulation, Échap annule | `editor/transform.test.ts`, `editor/placementMode.test.ts`, `state/placement.test.ts` ; `placement.chromium.spec.ts` |
 | Ruck posé sur la porteuse (G), soutien et relayeur proposés puis changés, refus avec un message | `editor/setPieces.test.ts`, `state/setPieces.test.ts` ; `breakdown-kick.chromium.spec.ts` |
 | Regroupement : ballon dans le regroupement pendant la durée (3 s par défaut, modifiable), relayeur porteuse à la fin, temps suivant à la sortie de balle, ligne d'avantage recalée, courses des participantes arrêtées et signalées, relayeur en retard ; maul identique ; garde ou gratteur enregistré | `engine/breakdown.test.ts`, `editor/setPieces.test.ts` ; `breakdown-kick.chromium.spec.ts` |
@@ -154,6 +154,36 @@ Indispensables et impossibles à automatiser (synchronisation Drive réelle, té
 ### Séance d'usage libre
 
 Préparer quelques mises en place (modèles de mêlée, de touche, de renvoi et de ruck, appliqués des deux côtés et quand B attaque ; combinaisons avec regroupements, jeux au pied et ballon au sol), les lire, les exporter, puis faire un retour avec le prompt « Correction après recette ».
+
+## Lot 3 : correction après recette
+
+Dialogue « Version plus récente dans le dossier » en travaillant seul, et nouvelle combinaison depuis un modèle (`docs/plans/lot-3-corrections.md`, D-097 à D-101). Drive est simulé sur le faux système de fichiers (`src/test/driveSim.ts`) et, en bout en bout, sur le dossier simulé.
+
+### Comportements couverts par les tests
+
+| Comportement | Tests |
+|---|---|
+| Annuler ou rétablir au-delà d'une sauvegarde, puis date du fichier changée par Drive, puis sauvegarde : aucun conflit ; de même en mode navigateur, sans Drive | `state/syncSession.test.ts`, `io/FolderStore.test.ts` ; `sync-own-writes.chromium.spec.ts` |
+| Glisser commencé avant une sauvegarde, date changée, sauvegarde : aucun conflit | `state/syncSession.test.ts` ; `sync-own-writes.chromium.spec.ts` |
+| Date seule changée : ni dialogue ni rechargement, avec ou sans modification en cours | `state/syncSession.test.ts`, `io/FolderStore.test.ts` |
+| Fichier revenu à une version écrite plus tôt par la page, sans ou avec modification en cours, vu à la relecture ou seulement à l'écriture : ni dialogue ni rechargement en arrière, dernière version (la référence) réécrite à l'identique ; jamais sur une copie de conflit, un autre fichier ou un fichier invalide | `state/syncSession.test.ts`, `io/FolderStore.test.ts`, `io/ownWrites.test.ts` ; `sync-own-writes.chromium.spec.ts` |
+| Version de l'autre PC rechargée, puis retour en arrière vers une version de la page : la version de l'autre PC est réécrite (Q1) | `state/syncSession.test.ts`, `io/FolderStore.test.ts` |
+| Vraie modification par une autre instance : rechargement silencieux sans modification en cours, dialogue sinon, sauvegarde suivante refusée ; un autre onglet en mode navigateur | `state/syncSession.test.ts`, `io/io.test.ts` (table de décision), `io/FolderStore.test.ts` ; `external-changes.chromium.spec.ts` |
+| Empreinte unique : celle de l'écriture est celle du fichier relu (fixtures v1 et v2, coordonnées non entières) | `io/FolderStore.test.ts` |
+| Glisser plus long que le délai de sauvegarde : aucune écriture avant la fin du geste ; à l'annulation, écriture seulement s'il restait des modifications | `state/syncSession.test.ts` ; `sync-own-writes.chromium.spec.ts` |
+| Modèles : retour en arrière puis action, « Mettre à jour » après une date changée ou un retour en arrière, liste en retard sur une écriture de la page : aucun refus ; vraie modification extérieure : refus | `state/presetSession.test.ts`, `io/presets.test.ts` |
+| Nouvelle combinaison depuis un modèle : rien d'écrit avant l'ancre (Ctrl+S, modification dans l'inspecteur), écrite aussitôt l'ancre validée ; Échap, « Annuler », changement d'outil ou autre pose : rien d'écrit, précédente relue (modifiée sur l'autre PC entre-temps) ou éditeur vide | `state/presetSession.test.ts` ; `placement.chromium.spec.ts` |
+| Journal de synchronisation : 200 événements, heures locales avec millisecondes, champs, texte copié depuis les réglages | `io/syncLog.test.ts` ; `sync-own-writes.chromium.spec.ts` |
+
+### Vérifications manuelles
+
+Indispensables et impossibles à automatiser (Drive réel en mode diffusion), après avoir rechargé la page (Ctrl+F5) sur les deux PC :
+- [ ] Une séance de 15 minutes sur un PC (glissers, annulations, sauvegardes rapprochées) : le dialogue « Version plus récente dans le dossier » n'apparaît pas. S'il apparaît, « Copier le journal de synchronisation » (Réglages de l'inspecteur) et transmettre le texte.
+- [ ] Vraie modification sur l'autre PC : rechargement silencieux sans modification en cours, dialogue sinon (avec la vérification Drive restante du lot 1).
+
+### Séance d'usage libre
+
+Reprendre la séance du lot 3 (mises en place, modèles, nouvelles combinaisons depuis un modèle, Échap pendant la pose), puis faire un retour avec le prompt « Correction après recette ».
 
 ## Lot 4 : défense simulée
 

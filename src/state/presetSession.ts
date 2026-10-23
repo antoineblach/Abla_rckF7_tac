@@ -1,7 +1,8 @@
 // Placement presets in the library (SPEC 10.1, D-087 to D-092, D-096): save from the starting
 // placement, apply, rename, duplicate, update, remove, new play from a preset. An action on a
 // preset changed on the other computer since it was read is refused, with a message, and the list
-// is read again (D-092). Connects io and editor/ to the stores; no React here.
+// is read again (D-092); a version written by this page is never changed elsewhere (D-098).
+// Connects io and editor/ to the stores; no React here.
 import { keepBothCopy } from '../io/conflicts'
 import {
   ConflictError,
@@ -11,17 +12,25 @@ import {
   type PresetEntry,
   type VersionToken,
 } from '../io/LibraryStore'
+import { shortHash, type SyncLog } from '../io/syncLog'
 import { presetToSave, type SavePresetRequest } from '../editor/placementMode'
 import { createPlayForPreset } from '../editor/placements'
 import type { OpenSideChoice } from '../editor/presets'
 import { contentHash } from '../model/canonical'
 import { randomIds, type IdFactory } from '../model/ids'
 import type { PlacementPreset } from '../model/preset'
+import type { Id } from '../model/types'
 import { TEXT } from '../ui/strings'
 import { setPresetAnchorHandler, startPlacement } from './editorActions'
-import { openPlay, setNotice, useEditorStore } from './editorStore'
+import {
+  openPendingPlay,
+  openPlay,
+  setCreationListeners,
+  setNotice,
+  useEditorStore,
+} from './editorStore'
 import { closeDialog, notify, pushDialog, type LibraryDialog } from './libraryState'
-import { currentStore, loadLibraryFrom, rescanNow, saveNow } from './session'
+import { currentStore, currentSyncLog, loadLibraryFrom, rescanNow, saveNow } from './session'
 
 export interface PresetSessionDeps {
   store(): LibraryStore | null
@@ -29,6 +38,8 @@ export interface PresetSessionDeps {
   rescan(): Promise<void>
   /** Saves the open play (before another one is opened, and a new one at once). */
   savePlay(): Promise<void>
+  /** Synchronisation log of the page (D-100). */
+  log(): SyncLog | null
   now(): Date
   ids: IdFactory
 }
@@ -37,6 +48,7 @@ const DEFAULT_DEPS: PresetSessionDeps = {
   store: currentStore,
   rescan: rescanNow,
   savePlay: saveNow,
+  log: currentSyncLog,
   now: () => new Date(),
   ids: randomIds,
 }
@@ -48,8 +60,22 @@ export function configurePresetSession(next: Partial<PresetSessionDeps>): void {
   deps = { ...DEFAULT_DEPS, ...next }
 }
 
+/** An action refused on a preset changed elsewhere, or vanished (D-092), noted in the log. */
+function refused(entry: PresetEntry, stored: PlacementPreset | null, detail: string): void {
+  deps.log()?.add('refused', {
+    collection: 'presets',
+    fileName: entry.fileName,
+    updatedAt: stored?.updatedAt ?? null,
+    hash: stored ? contentHash(stored) : null,
+    origin: stored ? 'external' : null,
+    detail,
+  })
+  notify(TEXT.presetChanged, 'error')
+}
+
 function failed(error: unknown): void {
   if (error instanceof ConflictError) {
+    // The store noted the refused write in the log.
     notify(TEXT.presetChanged, 'error')
   } else if (error instanceof ReadOnlyError) {
     notify(TEXT.presetReadOnly, 'error')
@@ -65,7 +91,9 @@ async function reload(store: LibraryStore): Promise<void> {
 
 /**
  * The preset as stored now, after a rescan, with its version; null (and a message) when it changed
- * or vanished since `entry` was read, or when it is read only and `write` is asked (D-092, D-022).
+ * elsewhere or vanished since `entry` was read, or when it is read only and `write` is asked
+ * (D-092, D-022). A version written by this page never counts as changed elsewhere (D-098): the
+ * action goes on with the stored version.
  */
 async function fresh(
   entry: PresetEntry,
@@ -78,8 +106,19 @@ async function fresh(
   const current = (await store.listPresets()).find(
     (e) => e.preset.id === entry.preset.id && e.fileName === entry.fileName,
   )
-  if (!current || contentHash(current.preset) !== contentHash(entry.preset)) {
-    notify(TEXT.presetChanged, 'error')
+  // Both hashes are those of items read back from their files (D-097).
+  const shown = contentHash(entry.preset)
+  if (!current) {
+    refused(entry, null, 'modèle retiré depuis sa lecture : action refusée')
+    return null
+  }
+  const hash = contentHash(current.preset)
+  if (hash !== shown && !store.isOwnWrite('presets', current.preset.id, hash)) {
+    refused(
+      entry,
+      current.preset,
+      `modèle changé ailleurs depuis sa lecture (lu ${shortHash(shown)}) : action refusée`,
+    )
     return null
   }
   if (write && current.readOnly) {
@@ -207,15 +246,39 @@ export async function resolvePresetDuplicate(
 }
 
 /**
- * « Nouvelle combinaison » from a preset (D-091): a play without players, with a ball when the
- * preset has one, then the anchor of the preset.
+ * The new play from a preset was dropped (D-101): the play open before is read again from the
+ * storage, as when opened from the library, since it may have changed on the other computer
+ * meanwhile (Q2); when it no longer exists, the editor stays empty.
+ */
+async function reopenPrevious(previousId: Id | null): Promise<void> {
+  const store = deps.store()
+  if (!store || previousId === null) return
+  await deps.rescan()
+  await reload(store)
+  const play = await store.get(previousId).catch(() => null)
+  // Another play opened meanwhile wins.
+  if (!play || useEditorStore.getState().play) return
+  const readOnly = (await store.list()).find((s) => s.id === previousId)?.readOnly ?? false
+  openPlay(play, store.versionOf(previousId), readOnly)
+}
+
+/**
+ * « Nouvelle combinaison » from a preset (D-091, D-101): a play without players, with a ball when
+ * the preset has one, then the anchor of the preset. The play is written only once the anchor is
+ * validated; any other end of the placement drops it and opens the previous play again.
  */
 export async function createPlayFromPreset(entry: PresetEntry): Promise<void> {
   const found = await fresh(entry, false)
   if (!found) return
   await deps.savePlay()
+  // A new play still waiting for its anchor was never written: its own previous play is kept.
+  const { play: open, pendingCreation } = useEditorStore.getState()
+  const previousId = pendingCreation ? pendingCreation.previousId : (open?.id ?? null)
   const play = createPlayForPreset(found.entry.preset.ball !== null, deps.ids, deps.now())
-  openPlay(play, null, false, true)
-  await deps.savePlay()
+  setCreationListeners({
+    validated: () => void deps.savePlay(),
+    abandoned: (id) => void reopenPrevious(id),
+  })
+  openPendingPlay(play, previousId)
   startPlacement({ kind: 'applyPreset', preset: found.entry.preset, openSide: 'auto' })
 }

@@ -1,6 +1,6 @@
 # Spécification : outil de combinaisons de rugby à 7 (Abla_rckF7_tac)
 
-Version 1.4 du 16 octobre 2026 (décisions du lot 1, de sa correction après recette, des lots 2 et 3 intégrées, voir `docs/DECISIONS.md`, D-001 à D-096). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
+Version 1.5 du 23 octobre 2026 (décisions du lot 1, de sa correction après recette, des lots 2 et 3 et de la correction après recette du lot 3 intégrées, voir `docs/DECISIONS.md`, D-001 à D-101). Ce document est la source de vérité du projet. À placer dans `docs/SPEC.md`.
 En cas de contradiction entre un prompt et ce document, ou entre deux sections de ce document : s'arrêter et demander, ne jamais trancher seul.
 
 ## 0. Conventions du document
@@ -292,7 +292,7 @@ Autres raccourcis : Ctrl+D dupliquer les joueuses sélectionnées (numéro suiva
 ### 6.6 Départ d'une nouvelle combinaison
 
 - Deux placements fournis : équipe A seule en ligne ; 7 contre 7 en ligne. A sur x = 40 m, n° 1 à 7 de y = 5 m à y = 65 m tous les 10 m ; en 7 contre 7, B en face sur x = 50 m ; ballon à A n° 4 ; A attaque ; nom « Nouvelle combinaison », catégorie ruck/jeu courant, vue terrain complet (D-008).
-- S'y ajoutent les modèles de placement enregistrés : en choisir un crée une combinaison sans joueuses (avec un ballon si le modèle en a un), puis lance la pose du modèle (ancre, côté ouvert) (D-091).
+- S'y ajoutent les modèles de placement enregistrés : en choisir un crée une combinaison sans joueuses (avec un ballon si le modèle en a un), puis lance la pose du modèle (ancre, côté ouvert) (D-091). Elle n'est enregistrée qu'une fois l'ancre validée ; jusque-là, rien n'est écrit (Ctrl+S compris) et aucun brouillon n'est gardé. Échap, « Annuler », un changement d'outil ou une autre pose l'abandonnent : la combinaison ouverte avant est relue dans le dossier (ou IndexedDB) et rouverte, ou l'éditeur reste vide si elle n'existe plus (D-101).
 
 ## 7. Lecteur (lot 1)
 
@@ -320,7 +320,7 @@ interface LibraryStore {
 
 Deux implémentations : `FolderStore` (principale) et `IdbStore` (mode dégradé). Les modèles de placement (lot 3) et les réglages passent par la même couche.
 
-Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit), `resolveDuplicate(id, choix)`, `getSettings()` et `putSettings()`, `versionOf(id)`, `put(play, { expected, archivePrevious })` pour la concurrence optimiste et le remplacement à l'import. `stamp` est un compteur de relectures, pas une heure (les horloges des deux PC et les dates posées par Drive peuvent diverger) ; chaque `Change` porte son `stamp`.
+Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit), `resolveDuplicate(id, choix)`, `getSettings()` et `putSettings()`, `versionOf(id)`, `put(play, { expected, archivePrevious })` pour la concurrence optimiste et le remplacement à l'import. `stamp` est un compteur de relectures, pas une heure (les horloges des deux PC et les dates posées par Drive peuvent diverger) ; chaque `Change` porte son `stamp`. Correction du lot 3 : le jeton de version porte l'empreinte du contenu (`{ lastModified, size, contentHash }`, D-097) et `isOwnWrite(collection, id, empreinte)` dit si un contenu est une version écrite par la page (D-098).
 
 ### 8.2 Dossier
 
@@ -340,13 +340,17 @@ Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit)
 ### 8.3 Lecture, écriture, détection des changements
 
 - Relecture complète au démarrage, à chaque retour du focus sur la fenêtre, et toutes les 30 s tant que la fenêtre est visible (HYPOTHÈSE de période). La relecture prend tout fichier `*.json` de `combinaisons/` et de `modeles/` (lot 3, D-092), copies de conflit comprises, et ignore les autres, dont les fichiers temporaires `.crswap` de Chrome (D-023).
-- Un changement est détecté par la date de modification et la taille du fichier, puis confirmé par le contenu (`updatedAt`). Avant d'écrire, l'outil vérifie que le fichier n'a pas changé depuis sa lecture ; sinon il propose les choix de 8.4 au lieu d'écraser (D-043).
-- Sauvegarde automatique 2 s après la dernière modification, plus Ctrl+S.
+- Un changement est détecté par la date de modification et la taille du fichier, puis confirmé par l'empreinte du contenu. L'empreinte se calcule d'une seule façon : `contentHash` de l'élément obtenu en relisant le texte écrit ou lu (lecture et migration), jamais de l'objet en mémoire (D-097).
+- Avant d'écrire, l'outil vérifie que le fichier n'a pas changé depuis la version dont part l'éditeur : date et taille égales à celles de cette version, ou contenu relu dont l'empreinte est celle de cette version ou d'une version écrite par cette page. Une date ou une taille différente ne prouve jamais un conflit. Sinon, il propose les choix de 8.4 au lieu d'écraser (D-043, D-097). L'empreinte de départ est gardée par l'éditeur hors de la combinaison : elle change à l'ouverture, après chaque écriture réussie, à chaque rechargement et à chaque résolution de conflit ou de fichier retiré ; annuler, rétablir et glisser n'y touchent pas.
+- Versions écrites par la page (D-098) : pour chaque combinaison et chaque modèle, la page garde les empreintes des 50 dernières versions qu'elle a écrites (HYPOTHÈSE) et une référence, la dernière version tenue pour courante (écrite par la page, ou lue depuis l'extérieur après). Un fichier relu dont le contenu est l'une de ces versions n'est jamais une modification extérieure : ni dialogue, ni rechargement, ni refus d'action sur un modèle. Si ce n'est pas la référence, la synchronisation est revenue en arrière : la référence est réécrite à l'identique dans le même fichier, sans toucher aux modifications en cours (pas si une copie de conflit porte le même identifiant, ni si le fichier a encore changé). Limite : une ancienne version remise volontairement à l'identique depuis l'autre PC (historique de Drive, import) est défaite tant que la page qui l'avait écrite est ouverte ; recharger la page avant.
+- Sauvegarde automatique 2 s après la dernière modification, plus Ctrl+S. Jamais pendant un glisser : elle part à la fin du geste, ou à son annulation s'il restait des modifications non enregistrées ; Ctrl+S reste immédiat (D-099).
+- Journal de synchronisation (D-100) : les 200 derniers événements, en mémoire seulement (relecture, écriture, vérification avant écriture, changement détecté, décision, retour en arrière corrigé, sauvegarde différée, refus sur un modèle), avec l'heure et la date du fichier en heure locale du PC (millisecondes comprises), le fichier, la taille, `updatedAt` tel qu'il est dans le fichier, une empreinte courte et l'origine retenue (« cette page » ou « extérieure »). Bouton discret « Copier le journal de synchronisation » dans les réglages de l'inspecteur ; rien n'est écrit dans le dossier.
 - Écriture via `createWritable()` puis `close()` : l'écriture passe par un fichier temporaire (`.crswap`) et n'est validée qu'à la fermeture (vérifié en recette le 15/10/2026 sur le lecteur Drive : aucun `.crswap` résiduel).
 - Renommer une combinaison renomme son fichier : écrire le nouveau, puis déplacer l'ancien en corbeille, toujours ; le renommage n'a lieu qu'à la validation du nom (D-005).
 
 ### 8.4 Conflits
 
+- **Modification extérieure** : un contenu jamais écrit par cette page, différent de la version dont part l'éditeur (D-097, D-098). Une version écrite par la page n'en est jamais une, quoi que la synchronisation fasse ensuite de la date ou du contenu du fichier (8.3).
 - **Modification extérieure sans modification locale en cours** : rechargement silencieux, notification discrète.
 - **Modification extérieure avec modification locale non enregistrée** : choix « Garder la version du dossier », « Garder la mienne », « Garder les deux ». « Garder les deux » : ma version reçoit un nouvel `id` et le suffixe « (copie) » (D-022).
 - **Deux fichiers portant le même `id`** (copie de conflit créée par la synchronisation, établi pour Drive pour ordinateur) : signalement dans la bibliothèque, choix « Garder les deux » (nouvel `id` pour l'une, nom suffixé « (copie) ») ou « Choisir celle-ci », qui déplace l'autre fichier en corbeille. Tant que le doublon n'est pas résolu, la combinaison est en lecture seule (D-022).
@@ -454,7 +458,8 @@ Précisions (lot 3) :
 - **Enregistrer** : dialogue (nom, type, « Placement de départ entier » ou « Sélection », « Inclure le ballon » cochée pour le placement entier ou quand la porteuse est sélectionnée, côté ouvert), puis clic de l'ancre ; rôle selon l'équipe (l'équipe qui attaque = attaque) ; « Mettre à jour » garde l'identifiant, le nom et le type (D-089, D-096).
 - **Appliquer** : bandeau en surimpression, jetons fantômes au pointeur, une seule étape d'annulation, temps 1 sélectionné ; numéros en double : la k-ième position d'un numéro va à la k-ième joueuse de ce numéro ; joueuses créées en couleur d'équipe et défense manuelle ; un modèle sans ballon laisse le ballon de la combinaison (D-089, D-096).
 - **Catégorie** : appliquer un modèle met la catégorie à mêlée, touche, coup d'envoi/renvoi ou ruck/jeu courant selon son type ; un modèle libre la laisse inchangée (D-087).
-- **Synchronisation** : comme les combinaisons (8.3 à 8.5) ; une action sur un modèle changé sur l'autre PC depuis sa lecture est refusée avec un message, et la liste est relue ; pas d'import ni d'export de modèles (D-092).
+- **Synchronisation** : comme les combinaisons (8.3 à 8.5) ; une action sur un modèle changé sur l'autre PC depuis sa lecture est refusée avec un message, et la liste est relue ; une version écrite par la page n'est jamais un modèle changé ailleurs : l'action continue avec la version enregistrée (D-098) ; pas d'import ni d'export de modèles (D-092).
+- **Nouvelle combinaison depuis un modèle** : enregistrée seulement à la validation de l'ancre (6.6, D-101).
 
 ```ts
 interface PlacementPreset {
@@ -685,6 +690,8 @@ Note : la position des équipements, zones et annotations est portée par l'enti
 | Marge du cadrage automatique | 5 m | Hypothèse |
 | Sauvegarde automatique | 2 s après la dernière modification | Hypothèse |
 | Relecture du dossier | 30 s, fenêtre visible | Hypothèse |
+| Versions écrites par la page, gardées par combinaison et par modèle | 50 | Hypothèse (D-098) |
+| Journal de synchronisation | 200 événements | Choix de l'utilisateur (D-100) |
 | GIF standard | 540 px de petit côté, 12 images/s | Hypothèse |
 | GIF haute qualité | 720 px de petit côté, 15 images/s | Hypothèse |
 | Alerte de poids GIF | 8 Mo | Hypothèse |
@@ -770,3 +777,4 @@ Technique :
 16. Décisions prises après le lot 1 et pendant sa correction après recette (15 octobre 2026) : entrées D-046 à D-056 (terrain stable, vue unique, bandeau en surimpression, seuil de glisser, inspecteur, CI, règle de recette, raccourcis).
 17. Décisions prises pendant le lot 2 (15 octobre 2026) : entrées D-057 à D-077 (PDF vectoriel, GIF enchaîné, cartons et maintiens, habillage, lisibilité sur téléphone, thèmes d'impression, mise en page et cahier de jeu, exports déjà présents, noms, version allégée, préférences d'export dans `reglages.json`, Worker).
 18. Décisions prises pendant le lot 3 (16 octobre 2026) : entrées D-078 à D-096 (regroupements, maul, ligne d'avantage en mode schéma, ballon au sol et ramassage, conventions graphiques, calque « En-avant » jamais exporté, modèles de placement : type et catégorie, ancre et côté ouvert, enregistrement, synchronisation ; déplacer et retourner ; nouvelle combinaison depuis un modèle ; raccourcis J et G ; schéma v2 ; interfaces de pose).
+19. Décisions prises pendant la correction après recette du lot 3 (23 octobre 2026) : entrées D-097 à D-101 (concurrence par l'empreinte du contenu, versions écrites par la page et retours en arrière de Drive, aucune sauvegarde automatique pendant un glisser, journal de synchronisation, nouvelle combinaison depuis un modèle enregistrée à la validation de la pose).

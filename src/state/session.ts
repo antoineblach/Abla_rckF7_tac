@@ -27,6 +27,7 @@ import {
 } from '../io/packFiles'
 import { loadReadCache, saveReadCache } from '../io/readCache'
 import { SyncController, type ExternalChange } from '../io/sync'
+import { SyncLog } from '../io/syncLog'
 import { createNewPlay, type StartingPlacement } from '../editor/placements'
 import { randomIds } from '../model/ids'
 import type { ExportPrefs, Settings } from '../model/settings'
@@ -50,8 +51,12 @@ import {
 } from './libraryState'
 import { showPhaseInPlayer, syncLineWithPlay } from './playerStore'
 import { useSettingsStore } from './settingsStore'
+import { onGestureEnd, openPlayForSync } from './syncBridge'
 
 const now = (): Date => new Date()
+
+/** Synchronisation log of the page, kept in memory only (D-100). */
+const syncLog = new SyncLog(now)
 
 let kv: KeyValueStore | null = null
 let store: LibraryStore | null = null
@@ -68,6 +73,10 @@ function getKv(): KeyValueStore {
 
 export function currentStore(): LibraryStore | null {
   return store
+}
+
+export function currentSyncLog(): SyncLog {
+  return syncLog
 }
 
 /** Where the exports go: exports/ of the chosen folder, else a download (SPEC 9.1). */
@@ -104,8 +113,9 @@ export function rescanNow(): Promise<void> {
 function scheduleDraft(): void {
   if (draftTimer !== null) clearTimeout(draftTimer)
   draftTimer = setTimeout(() => {
-    const play = useEditorStore.getState().play
-    if (play) void saveDraft(getKv(), play).catch(() => undefined)
+    const { play, pendingCreation } = useEditorStore.getState()
+    // A new play waiting for its placement leaves nothing behind, not even a draft (D-101).
+    if (play && !pendingCreation) void saveDraft(getKv(), play).catch(() => undefined)
   }, 500)
 }
 
@@ -143,12 +153,7 @@ async function activateStore(next: LibraryStore): Promise<void> {
   sync = new SyncController(
     next,
     {
-      getOpen: () => {
-        const s = useEditorStore.getState()
-        return s.play
-          ? { play: s.play, version: s.version, dirty: s.dirty, readOnly: s.readOnly }
-          : null
-      },
+      getOpen: openPlayForSync,
       saved: (result, savedFrom) => {
         markSaved(result, savedFrom)
         void clearDraft(getKv()).catch(() => undefined)
@@ -162,7 +167,7 @@ async function activateStore(next: LibraryStore): Promise<void> {
       },
       error: reportError,
     },
-    { isVisible: () => document.visibilityState === 'visible' },
+    { isVisible: () => document.visibilityState === 'visible', log: syncLog },
   )
   sync.start()
   const settings = await next.getSettings()
@@ -184,6 +189,8 @@ function attachListeners(): void {
     scheduleDraft()
   })
   setSaveRequest(() => void sync?.saveNow())
+  // The automatic save held back by a gesture leaves at its end (D-099).
+  onGestureEnd(() => void sync?.gestureEnded())
   useEditorStore.subscribe((state, previous) => {
     if (state.selectedPhaseId !== previous.selectedPhaseId && state.selectedPhaseId) {
       showPhaseInPlayer(state.selectedPhaseId)
@@ -199,6 +206,7 @@ async function openFolder(handle: FileSystemDirectoryHandle): Promise<void> {
   const folder = await FolderStore.open(asFsDirectory(handle), {
     now,
     ids: randomIds,
+    log: syncLog,
     ...(cache ? { cache } : {}),
   })
   useLibraryState.setState({ status: 'folder', folderName: handle.name })
@@ -207,7 +215,7 @@ async function openFolder(handle: FileSystemDirectoryHandle): Promise<void> {
 
 async function openBrowser(): Promise<void> {
   useLibraryState.setState({ status: 'browser', folderName: null })
-  await activateStore(await IdbStore.open(getKv(), now))
+  await activateStore(await IdbStore.open(getKv(), now, syncLog))
 }
 
 async function offerDraft(): Promise<void> {
@@ -455,6 +463,16 @@ export async function resolveDraft(dialog: LibraryDialog, restore: boolean): Pro
 
 export function saveNow(): Promise<void> {
   return sync?.saveNow() ?? Promise.resolve()
+}
+
+/** « Copier le journal de synchronisation » (D-100): to the clipboard, nothing in the folder. */
+export async function copySyncLog(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(syncLog.toText())
+    notify(TEXT.syncLogCopied)
+  } catch {
+    notify(TEXT.syncLogNotCopied, 'error')
+  }
 }
 
 export async function updateSettings(settings: Settings): Promise<void> {

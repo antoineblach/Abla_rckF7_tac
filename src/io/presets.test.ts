@@ -123,6 +123,29 @@ describe('presets in the folder (modeles/)', () => {
     ).rejects.toBeInstanceOf(ConflictError)
   })
 
+  it('writes back the last version when Drive gives back an older one written by the page (D-098)', async () => {
+    const { fs, open } = setup()
+    const store = await open()
+    const { preset: saved } = await store.putPreset(lineoutPreset())
+    const v1 = fs.read(path(saved)) ?? ''
+    const second = await store.putPreset(
+      { ...saved, positions: [] },
+      { expected: store.presetVersionOf(saved.id) },
+    )
+    const v2 = fs.read(path(saved)) ?? ''
+    fs.writeExternal(path(saved), v1)
+    // Seen when writing: a version of the page is not a change from elsewhere.
+    await store.putPreset(
+      { ...second.preset, positions: saved.positions.slice(0, 1) },
+      { expected: second.version },
+    )
+    const v3 = fs.read(path(saved)) ?? ''
+    fs.writeExternal(path(saved), v2)
+    // Seen by a rescan: the last version is written back, and nothing is reported.
+    expect(await store.changesSince(store.stamp)).toEqual([])
+    expect(fs.read(path(saved))).toBe(v3)
+  })
+
   it('makes conflict copies read only; « Garder les deux » and « Choisir celle-ci »', async () => {
     const { fs, open } = setup()
     const a = lineoutPreset()

@@ -1,5 +1,5 @@
-// Conflict decisions (SPEC 8.4, DECISIONS Q22 / D-022). Pure functions.
-import type { Id, Play } from '../model/types'
+// Conflict decisions (SPEC 8.4, DECISIONS Q22 / D-022, D-097, D-098). Pure functions.
+import type { Id } from '../model/types'
 
 export const COPY_SUFFIX = ' (copie)'
 
@@ -23,13 +23,14 @@ export function keepBothCopy<
 export type ExternalChangeDecision = 'ignore' | 'reload' | 'ask'
 
 /**
- * What to do when the stored version of the open play changed:
- * same content, nothing; no local change in progress, silent reload; otherwise, ask.
+ * What to do when the stored content of the open play changed. A version written by this page, or
+ * the version the editor started from, is never an external change (D-097, D-098); otherwise,
+ * without a local change in progress, silent reload; with one, ask.
  */
 export function decideExternalChange(
-  open: { play: Play; dirty: boolean },
-  stored: Play,
+  open: { baseHash: string | null; dirty: boolean },
+  stored: { hash: string; own: boolean },
 ): ExternalChangeDecision {
-  if (stored.updatedAt === open.play.updatedAt) return 'ignore'
+  if (stored.own || stored.hash === open.baseHash) return 'ignore'
   return open.dirty ? 'ask' : 'reload'
 }
