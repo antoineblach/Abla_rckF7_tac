@@ -114,6 +114,15 @@ export const AUTOSAVE_DELAY_SECONDS = 2
 /** HYPOTHÈSE: folder rescan period while the window is visible, in seconds (SPEC 8.3). */
 export const FOLDER_RESCAN_PERIOD_SECONDS = 30
 
+/**
+ * HYPOTHÈSE: versions written by the page remembered per play and per preset (D-098), at least
+ * 100 s of continuous editing with one save every 2 s.
+ */
+export const OWN_WRITES_KEPT = 50
+
+/** Events kept by the synchronisation log, chosen by the user (D-100). */
+export const SYNC_LOG_SIZE = 200
+
 /** Undo levels (SPEC 6.3). */
 export const UNDO_LEVELS = 100
 

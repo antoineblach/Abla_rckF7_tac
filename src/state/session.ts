@@ -27,6 +27,7 @@ import {
 } from '../io/packFiles'
 import { loadReadCache, saveReadCache } from '../io/readCache'
 import { SyncController, type ExternalChange } from '../io/sync'
+import { SyncLog } from '../io/syncLog'
 import { createNewPlay, type StartingPlacement } from '../editor/placements'
 import { randomIds } from '../model/ids'
 import type { ExportPrefs, Settings } from '../model/settings'
@@ -52,6 +53,9 @@ import { showPhaseInPlayer, syncLineWithPlay } from './playerStore'
 import { useSettingsStore } from './settingsStore'
 
 const now = (): Date => new Date()
+
+/** Synchronisation log of the page, kept in memory only (D-100). */
+const syncLog = new SyncLog(now)
 
 let kv: KeyValueStore | null = null
 let store: LibraryStore | null = null
@@ -199,6 +203,7 @@ async function openFolder(handle: FileSystemDirectoryHandle): Promise<void> {
   const folder = await FolderStore.open(asFsDirectory(handle), {
     now,
     ids: randomIds,
+    log: syncLog,
     ...(cache ? { cache } : {}),
   })
   useLibraryState.setState({ status: 'folder', folderName: handle.name })
@@ -207,7 +212,7 @@ async function openFolder(handle: FileSystemDirectoryHandle): Promise<void> {
 
 async function openBrowser(): Promise<void> {
   useLibraryState.setState({ status: 'browser', folderName: null })
-  await activateStore(await IdbStore.open(getKv(), now))
+  await activateStore(await IdbStore.open(getKv(), now, syncLog))
 }
 
 async function offerDraft(): Promise<void> {

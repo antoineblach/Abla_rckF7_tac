@@ -156,11 +156,24 @@ Chaque test marqué « échoue avant » est exécuté sur le code non corrigé a
 
 ## Étapes et commits
 
-### [x] Étape 0 : mémoire (commit « Plan de correction après recette du lot 3 »)
+### [x] Étape 0 : mémoire (`dc6fcac`)
 Branche, `git fetch --prune`, `docs/PASSATION.md` tel quel, `ETAT.md` corrigé, ce plan, D-097 à D-101.
 
-### [ ] Étape 1 : base par empreinte, écritures de la page, journal (io)
+### [x] Étape 1 : base par empreinte, écritures de la page, journal (io) (commit « Étape 1 : concurrence par l'empreinte du contenu »)
 A, B, F (partie io), `driveSim.ts` ; tests « Stockage », « Empreinte unique », combinaisons (causes 1, 3, 4) et mode navigateur.
+
+**Résultat sur le code de `main`** (arbre de travail temporaire, `src/state/syncSession.test.ts` copié) : 7 tests échouent sur 11, comme prévu.
+- Annuler puis date touchée : conflit.
+- Glisser commencé avant une sauvegarde, puis date touchée : conflit.
+- Retour en arrière sans modification en cours : rechargement en arrière.
+- Retour en arrière avec une modification en cours : conflit.
+- Retour en arrière vu seulement à l'écriture : conflit.
+- Retour en arrière après une version de l'autre PC : second rechargement, en arrière.
+- Mode navigateur, annuler au-delà d'une sauvegarde : conflit.
+
+Les 4 garde-fous passent : date seule changée, vraie modification extérieure (rechargement, dialogue, conflit après une annulation).
+
+**Après correction :** 467 tests unitaires verts.
 
 ### [ ] Étape 2 : décision sur la combinaison ouverte et glisser
 C, D, `session.ts` ; tests de la cause 2.

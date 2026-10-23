@@ -2,14 +2,20 @@
 
 - Mise à jour : 2026-10-23
 - Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), non poussée
-- Dernier commit : « Plan de correction après recette du lot 3 » (étape 0)
+- Dernier commit : « Étape 1 : concurrence par l'empreinte du contenu » (après `dc6fcac`, étape 0)
 - `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; seule branche sur GitHub ; protection vérifiée (D-055)
 - Écarts constatés à la reprise du 23/10, corrigés : ce fichier indiquait la PR #4 ouverte ; références locales `origin/lot-*` périmées (`git fetch --prune`) ; `docs/PASSATION.md` non suivi (commité tel quel).
 
 ## En cours
 
 - Correction après recette du lot 3 (`docs/plans/lot-3-corrections.md`, D-097 à D-101) : dialogue « Version plus récente dans le dossier » qui apparaît en travaillant seul (concurrence confirmée par `updatedAt`, que l'annulation et les glissers remettent en arrière ; sauvegarde automatique pendant un glisser ; retours en arrière de Drive), et nouvelle combinaison depuis un modèle enregistrée seulement à la validation de la pose.
-- Étape 0 faite. Prochaine action : étape 1 (base de concurrence par l'empreinte du contenu, écritures de la page, journal, côté `io`).
+- Étapes 0 et 1 faites :
+  - jeton `{ lastModified, size, contentHash }`, l'empreinte étant celle de l'élément relu du texte ;
+  - `io/ownWrites.ts` (écritures de la page, référence), `io/syncLog.ts` (journal, branché dans `session.ts`) ;
+  - retour en arrière réécrit dans `FileCollection.scan` ;
+  - `IdbStore` relit l'entrée avant d'écrire ;
+  - tests `state/syncSession.test.ts` : 7 sur 11 échouaient sur `main`.
+- Prochaine action : étape 2 (décision par l'empreinte et l'origine dans `SyncController`, sauvegarde automatique différée pendant un glisser).
 
 ## Fait
 

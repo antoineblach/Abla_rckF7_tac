@@ -17,10 +17,18 @@ export interface PlaySummary {
   readOnly: boolean
 }
 
-/** Version of a stored play, used for optimistic concurrency. */
+/**
+ * Version of a stored play or preset, used for optimistic concurrency. Kept in memory only (editor,
+ * dialogs), never written.
+ */
 export interface VersionToken {
   lastModified: number
   size: number
+  /**
+   * Content hash of the item read back from the stored text (D-097): the base of the concurrency.
+   * A different date or size never proves a conflict.
+   */
+  contentHash: string
 }
 
 export type LibraryIssue =
@@ -51,8 +59,9 @@ export interface PresetEntry {
 
 export interface PutOptions {
   /**
-   * Version known by the caller. If the stored play changed since (other computer), the write
-   * is refused with a ConflictError. Undefined: no check (« Garder la mienne »).
+   * Version known by the caller. If the stored play changed since (other computer: a content that
+   * is neither this version nor a version written by this page, D-097, D-098), the write is
+   * refused with a ConflictError. Undefined: no check (« Garder la mienne »).
    */
   expected?: VersionToken | null
   /** Move the previous version to the trash before writing (import « Remplacer », D-022). */
@@ -122,6 +131,11 @@ export interface LibraryStore {
   resolveDuplicate(id: Id, resolution: DuplicateResolution): Promise<void>
   /** Version of the stored play, as known after the last read or write. */
   versionOf(id: Id): VersionToken | null
+  /**
+   * True when `hash` is one of the last versions of this play or preset written by this page: such
+   * a content is never an external change (D-098).
+   */
+  isOwnWrite(collection: Collection, id: Id, hash: string): boolean
   getSettings(): Promise<SettingsResult>
   putSettings(settings: Settings): Promise<void>
   // Placement presets (lot 3, SPEC 10.1, D-092).

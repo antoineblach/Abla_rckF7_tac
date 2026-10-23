@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { contentHash } from '../model/canonical'
 import { defaultSettings } from '../model/settings'
 import type { Play } from '../model/types'
 import { basePlay, sequentialIds, sevenVsSevenWithOptions, uuid } from '../test/builders'
@@ -7,7 +8,9 @@ import { createMemoryFs, type MemoryFs } from '../test/memoryFs'
 import { playFileName } from './fileNames'
 import { FolderStore, InvalidStoredFileError } from './FolderStore'
 import { ConflictError, ReadOnlyError } from './LibraryStore'
+import { readPlayText } from './readPlay'
 import { serialize } from './serialize'
+import { SyncLog } from './syncLog'
 
 const NOW = new Date(2026, 9, 14, 15, 30, 5)
 const v0Text = readFileSync(new URL('../test/fixtures/play-v0.json', import.meta.url), 'utf8')
@@ -271,6 +274,176 @@ describe('external changes (SPEC 8.3)', () => {
     const { play, version } = await store.put(sevenVsSevenWithOptions())
     fs.touch(playPath(play))
     await expect(store.put({ ...play, notes: 'ok' }, { expected: version })).resolves.toBeDefined()
+  })
+})
+
+describe('concurrency by the content hash (D-097)', () => {
+  let clock = 0
+  const later = () => new Date((clock += 1000))
+  const openLater = (log?: SyncLog) =>
+    FolderStore.open(fs.root, { now: later, ids: sequentialIds(5000), ...(log ? { log } : {}) })
+
+  beforeEach(() => {
+    clock = Date.UTC(2026, 9, 23, 12)
+  })
+
+  it('accepts a play whose updatedAt is older than the file, when the file is the starting version', async () => {
+    const store = await openLater()
+    const first = await store.put(sevenVsSevenWithOptions())
+    const second = await store.put({ ...first.play, notes: 'b' }, { expected: first.version })
+    fs.touch(playPath(first.play))
+    // Undo: the play in memory carries the updatedAt of the first save.
+    await expect(
+      store.put({ ...first.play, notes: 'annulé' }, { expected: second.version }),
+    ).resolves.toBeDefined()
+    expect(JSON.parse(fs.read(playPath(first.play)) ?? '{}')).toMatchObject({ notes: 'annulé' })
+  })
+
+  it('accepts a file holding an older version written by this page', async () => {
+    const store = await openLater()
+    const first = await store.put(sevenVsSevenWithOptions())
+    const v1 = fs.read(playPath(first.play)) ?? ''
+    const second = await store.put({ ...first.play, notes: 'b' }, { expected: first.version })
+    fs.writeExternal(playPath(first.play), v1)
+    await store.put({ ...second.play, notes: 'c' }, { expected: second.version })
+    expect(JSON.parse(fs.read(playPath(first.play)) ?? '{}')).toMatchObject({ notes: 'c' })
+  })
+
+  it('refuses a content never written by this page, with its version and hash', async () => {
+    const store = await openLater()
+    const { play, version } = await store.put(sevenVsSevenWithOptions())
+    const remote = serialize({ ...play, notes: 'PC 2', updatedAt: '2030-01-01T00:00:00.000Z' })
+    fs.writeExternal(playPath(play), remote)
+    const error = await store
+      .put({ ...play, notes: 'PC 1' }, { expected: version })
+      .catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ConflictError)
+    const read = readPlayText(remote)
+    expect((error as ConflictError).currentVersion).toEqual({
+      ...fs.stat(playPath(play)),
+      contentHash: read.ok ? contentHash(read.play) : '',
+    })
+    expect(fs.read(playPath(play))).toBe(remote)
+  })
+
+  it('never writes over a file that became invalid', async () => {
+    const store = await openLater()
+    const { play, version } = await store.put(sevenVsSevenWithOptions())
+    fs.writeExternal(playPath(play), '{ broken')
+    await expect(store.put(play, { expected: version })).rejects.toBeInstanceOf(
+      InvalidStoredFileError,
+    )
+    expect(fs.read(playPath(play))).toBe('{ broken')
+  })
+})
+
+describe('Drive gives back an older version written by the page (D-098)', () => {
+  let clock = 0
+  const later = () => new Date((clock += 1000))
+  let log: SyncLog
+  const openLater = () => FolderStore.open(fs.root, { now: later, ids: sequentialIds(5000), log })
+
+  beforeEach(() => {
+    clock = Date.UTC(2026, 9, 23, 12)
+    log = new SyncLog(later)
+  })
+
+  async function twoVersions(store: FolderStore) {
+    const first = await store.put(sevenVsSevenWithOptions())
+    const v1 = fs.read(playPath(first.play)) ?? ''
+    const second = await store.put({ ...first.play, notes: 'b' }, { expected: first.version })
+    const v2 = fs.read(playPath(first.play)) ?? ''
+    return { play: second.play, v1, v2 }
+  }
+
+  it('writes back the exact text of the last version, without reporting a change', async () => {
+    const store = await openLater()
+    const { play, v1, v2 } = await twoVersions(store)
+    const stamp = store.stamp
+    fs.writeExternal(playPath(play), v1)
+    expect(await store.changesSince(stamp)).toEqual([])
+    expect(fs.read(playPath(play))).toBe(v2)
+    expect((await store.get(play.id)).notes).toBe('b')
+    expect(log.entries().map((e) => e.kind)).toContain('rollback')
+    const read = readPlayText(v1)
+    expect(read.ok && store.isOwnWrite('plays', play.id, contentHash(read.play))).toBe(true)
+  })
+
+  it('writes nothing back while a conflict copy carries the same id', async () => {
+    const store = await openLater()
+    const { play, v1, v2 } = await twoVersions(store)
+    const copy = playPath(play).replace('.combi.json', ' (1).combi.json')
+    fs.writeExternal(copy, v2)
+    await store.changesSince(store.stamp)
+    fs.writeExternal(playPath(play), v1)
+    await store.changesSince(store.stamp)
+    expect(fs.read(playPath(play))).toBe(v1)
+    expect(fs.read(copy)).toBe(v2)
+  })
+
+  it('writes nothing back in another file than the reference', async () => {
+    const store = await openLater()
+    const { play, v1, v2 } = await twoVersions(store)
+    const other = playPath(play).replace('.combi.json', ' (1).combi.json')
+    fs.writeExternal(other, v1)
+    const changes = await store.changesSince(store.stamp)
+    expect(changes.map((c) => c.kind)).toEqual(['added', 'issues'])
+    expect(fs.read(other)).toBe(v1)
+    expect(fs.read(playPath(play))).toBe(v2)
+  })
+
+  it('reports a content never written by the page, which becomes the reference (Q1)', async () => {
+    const store = await openLater()
+    const { play, v2 } = await twoVersions(store)
+    const remote = serialize({ ...play, notes: 'PC 2', updatedAt: '2030-01-01T00:00:00.000Z' })
+    fs.writeExternal(playPath(play), remote)
+    expect((await store.changesSince(store.stamp)).map((c) => c.kind)).toEqual(['modified'])
+    fs.writeExternal(playPath(play), v2)
+    expect(await store.changesSince(store.stamp)).toEqual([])
+    expect(fs.read(playPath(play))).toBe(remote)
+  })
+})
+
+describe('one content hash everywhere (D-097)', () => {
+  const v2Text = readFileSync(
+    new URL('../test/fixtures/play-v2-lot3.json', import.meta.url),
+    'utf8',
+  )
+  const readBack = (path: string) => {
+    const result = readPlayText(fs.read(path) ?? '')
+    if (!result.ok) throw new Error('unreadable')
+    return contentHash(result.play)
+  }
+
+  it.each([
+    ['fixture v1', v1Text],
+    ['fixture v2', v2Text],
+    [
+      'coordinates that are not integers',
+      serialize({
+        ...sevenVsSevenWithOptions(),
+        setup: {
+          ...sevenVsSevenWithOptions().setup,
+          positions: {
+            ...sevenVsSevenWithOptions().setup.positions,
+            [uuid(1)]: { x: 40.123456789, y: 1 / 3 },
+            [uuid(2)]: { x: 0.1 + 0.2, y: 15.000000000000002 },
+          },
+        },
+      }),
+    ],
+  ])('%s: the hash recorded at the write is the hash of the file read back', async (_, text) => {
+    const parsed = readPlayText(text)
+    if (!parsed.ok) throw new Error('unreadable fixture')
+    const path = playPath(parsed.play)
+    fs.writeExternal(path, text)
+    const store = await open()
+    expect(store.versionOf(parsed.play.id)?.contentHash).toBe(readBack(path))
+    const { version } = await store.put(parsed.play, {
+      expected: store.versionOf(parsed.play.id),
+    })
+    expect(version?.contentHash).toBe(readBack(path))
+    expect((await open()).versionOf(parsed.play.id)?.contentHash).toBe(version?.contentHash)
   })
 })
 
