@@ -43,7 +43,9 @@ import {
   applyEdit,
   beginGesture,
   cancelGesture,
+  creationValidated,
   endGesture,
+  placementDropsCreation,
   previewGesture,
   redoEdit,
   selectPhase,
@@ -53,6 +55,7 @@ import {
   setTool,
   undoEdit,
   useEditorStore,
+  validateCreation,
 } from './editorStore'
 import {
   enterEditMode,
@@ -245,6 +248,11 @@ function showRootPhase(play: Play): void {
 
 /** Starts a placement on the first phase, the selection tool active (D-096). */
 export function startPlacement(mode: PlacementMode): void {
+  // Another placement drops a new play still waiting for its anchor (D-101).
+  if (placementDropsCreation()) {
+    setPlacement(null)
+    return
+  }
   const play = useEditorStore.getState().play
   if (!play) return
   setTool('select')
@@ -261,11 +269,15 @@ function placementPointerDown(play: Play, mode: PlacementMode, pos: Vec2): void 
     case 'continue':
       setPlacement(step.mode)
       return
-    case 'edit':
+    case 'edit': {
+      // The anchor of a new play from a preset: the play is created now, and saved (D-101).
+      const created = mode.kind === 'applyPreset' && validateCreation()
       setPlacement(null)
       applyEdit(() => step.play)
       if (mode.kind === 'applyPreset') showRootPhase(play)
+      if (created) creationValidated()
       return
+    }
     case 'save':
       if (mode.kind !== 'savePreset') return
       setPlacement(null)
@@ -521,12 +533,9 @@ export function handleKey(input: KeyInput): boolean {
     case 'cancel':
       cancelGesture()
       drag = null
-      useEditorStore.setState({
-        runDraft: null,
-        passFromId: null,
-        kickFromId: null,
-        placement: null,
-      })
+      // Ends the placement; a new play still waiting for its anchor is dropped (D-101).
+      if (useEditorStore.getState().placement) setPlacement(null)
+      useEditorStore.setState({ runDraft: null, passFromId: null, kickFromId: null })
       useInteractionStore.setState({ selectionBox: null })
       setSelection(EMPTY_SELECTION)
       return true

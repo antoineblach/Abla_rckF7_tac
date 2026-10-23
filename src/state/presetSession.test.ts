@@ -4,18 +4,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Hit } from '../editor/hitTest'
 import { wholePlacementIds } from '../editor/placementMode'
-import { presetFileName } from '../io/fileNames'
+import { playFileName, presetFileName } from '../io/fileNames'
 import { FolderStore } from '../io/FolderStore'
 import type { PresetEntry } from '../io/LibraryStore'
 import { serialize } from '../io/serialize'
+import { SyncController } from '../io/sync'
 import type { PlacementPreset } from '../model/preset'
 import { isPlayer, type Play } from '../model/types'
 import { lineoutPreset, P, sequentialIds, sevenVsSevenWithOptions, uuid } from '../test/builders'
 import { driveGivesBack, driveTouchesDate } from '../test/driveSim'
 import { createMemoryFs, type MemoryFs } from '../test/memoryFs'
 import { TEXT } from '../ui/strings'
-import { editorPointerDown, useInteractionStore } from './editorActions'
-import { openPlay, setTool, useEditorStore } from './editorStore'
+import {
+  editorPointerDown,
+  handleKey,
+  setSaveRequest,
+  startMovePlay,
+  useInteractionStore,
+} from './editorActions'
+import {
+  applyEdit,
+  closePlay,
+  markSaved,
+  openPlay,
+  setPlacement,
+  setTool,
+  useEditorStore,
+} from './editorStore'
 import { pushDialog, useLibraryState } from './libraryState'
 import { usePlayerStore } from './playerStore'
 import {
@@ -30,13 +45,13 @@ import {
   startSavePreset,
 } from './presetSession'
 import { loadLibraryFrom } from './session'
+import { openPlayForSync } from './syncBridge'
 
 const NOW = new Date(2026, 9, 16, 15, 0, 0)
 const STAMP = NOW.toISOString()
 
 let fs: MemoryFs
 let folder: FolderStore
-let saves = 0
 
 const down = (pos: { x: number; y: number }, hit: Hit = null) => {
   editorPointerDown({ pos, hit, shift: false })
@@ -77,16 +92,12 @@ function lastDialog() {
 beforeEach(async () => {
   fs = createMemoryFs()
   folder = await FolderStore.open(fs.root, { now: () => NOW, ids: sequentialIds(5000) })
-  saves = 0
   configurePresetSession({
     store: () => folder,
     rescan: async () => {
       await folder.changesSince(0)
     },
-    savePlay: () => {
-      saves++
-      return Promise.resolve()
-    },
+    savePlay: () => Promise.resolve(),
     now: () => NOW,
     ids: sequentialIds(9000),
   })
@@ -350,22 +361,126 @@ describe('versions of a preset written by the page (D-097, D-098)', () => {
   })
 })
 
-describe('new play from a preset (SPEC 6.6, D-091)', () => {
-  it('opens a play without players, with a ball, then lays the preset by its anchor', async () => {
+describe('new play from a preset (SPEC 6.6, D-091, D-101)', () => {
+  let sync: SyncController
+  let previous: Play
+  const plays = () => fs.list('combinaisons')
+  const previousFile = () => playFileName(previous)
+  const press = (k: string, ctrl = false) => handleKey({ key: k, ctrl, shift: false, alt: false })
+
+  beforeEach(async () => {
+    // The saves go through the synchronisation controller, as in the application.
+    sync = new SyncController(folder, {
+      getOpen: openPlayForSync,
+      saved: markSaved,
+      externalChange: () => undefined,
+      libraryChanged: () => undefined,
+      error: (error: unknown) => {
+        throw error
+      },
+    })
+    configurePresetSession({
+      store: () => folder,
+      rescan: async () => {
+        await folder.changesSince(0)
+      },
+      savePlay: () => sync.saveNow(),
+      now: () => NOW,
+      ids: sequentialIds(9000),
+    })
+    setSaveRequest(() => void sync.saveNow())
+    const saved = await folder.put(sevenVsSevenWithOptions())
+    previous = saved.play
+    openPlay(previous, saved.version, false)
     await stored(lineoutPreset())
-    const previous = current().id
+  })
+
+  it('opens a play without players, with a ball, written only once the anchor is validated', async () => {
     await createPlayFromPreset(entry())
     const created = current()
-    expect(created.id).not.toBe(previous)
+    expect(created.id).not.toBe(previous.id)
     expect(created.entities).toEqual([{ id: expect.any(String) as string, kind: 'ball' }])
-    expect(saves).toBe(2)
     expect(useEditorStore.getState().placement?.kind).toBe('applyPreset')
+    expect(plays()).toEqual([previousFile()])
+    // Ctrl+S and a change in the inspector write nothing during the placement.
+    press('s', true)
+    applyEdit((p) => ({ ...p, notes: 'pendant la pose' }))
+    await sync.saveNow()
+    expect(plays()).toEqual([previousFile()])
     down({ x: 50, y: 69 })
     const play = current()
+    await vi.waitFor(() => {
+      expect(plays()).toEqual([playFileName(play), previousFile()].sort())
+    })
     expect(play.entities.filter(isPlayer)).toHaveLength(7)
     expect(play.category).toBe('lineout')
     const carrier = play.entities.find((e) => e.id === play.setup.ballCarrierId)
     expect(isPlayer(carrier) && `${carrier.team}${String(carrier.number)}`).toBe('A2')
-    expect(useEditorStore.getState().history.past).toHaveLength(1)
+    expect(useEditorStore.getState()).toMatchObject({ dirty: false, pendingCreation: null })
+    expect(useEditorStore.getState().history.past).toHaveLength(2)
+    expect(JSON.parse(fs.read(`combinaisons/${playFileName(play)}`) ?? '{}')).toMatchObject({
+      notes: 'pendant la pose',
+    })
+  })
+
+  it.each([
+    [
+      'Escape',
+      () => {
+        press('Escape')
+      },
+    ],
+    [
+      '« Annuler »',
+      () => {
+        setPlacement(null)
+      },
+    ],
+    [
+      'a tool change',
+      () => {
+        setTool('placeA')
+      },
+    ],
+    [
+      'another placement',
+      () => {
+        startMovePlay()
+      },
+    ],
+  ])('%s drops it: nothing written, the previous play read again (Q2)', async (_, end) => {
+    await createPlayFromPreset(entry())
+    // Changed on the other computer during the placement.
+    fs.writeExternal(
+      `combinaisons/${previousFile()}`,
+      serialize({ ...previous, notes: 'PC 2', updatedAt: '2030-01-01T00:00:00.000Z' }),
+    )
+    end()
+    await vi.waitFor(() => {
+      expect(useEditorStore.getState().play?.id).toBe(previous.id)
+    })
+    expect(current().notes).toBe('PC 2')
+    expect(useEditorStore.getState()).toMatchObject({ placement: null, pendingCreation: null })
+    expect(plays()).toEqual([previousFile()])
+    expect(useLibraryState.getState().summaries.map((s) => s.id)).toEqual([previous.id])
+  })
+
+  it('leaves the editor empty when the previous play no longer exists', async () => {
+    await createPlayFromPreset(entry())
+    await (await fs.root.getDirectoryHandle('combinaisons')).removeEntry(previousFile())
+    press('Escape')
+    await vi.waitFor(() => {
+      expect(useLibraryState.getState().summaries).toEqual([])
+    })
+    expect(useEditorStore.getState().play).toBeNull()
+    expect(plays()).toEqual([])
+  })
+
+  it('leaves the editor empty when no play was open before', async () => {
+    closePlay()
+    await createPlayFromPreset(entry())
+    press('Escape')
+    expect(useEditorStore.getState().play).toBeNull()
+    expect(plays()).toEqual([previousFile()])
   })
 })

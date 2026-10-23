@@ -22,6 +22,8 @@ export interface OpenPlay {
   readOnly: boolean
   /** A gesture (drag) is in progress: the automatic save waits for its end (D-099). */
   gesture: boolean
+  /** New play from a preset whose placement is not validated: never written (D-101). */
+  awaitingPlacement: boolean
 }
 
 export type ExternalChange =
@@ -141,7 +143,7 @@ export class SyncController {
     }
     return this.run(async () => {
       const open = this.hooks.getOpen()
-      if (!open?.dirty || open.readOnly) return
+      if (!open?.dirty || open.readOnly || open.awaitingPlacement) return
       try {
         const result = await this.store.put(open.play, { expected: open.version })
         this.hooks.saved(result, open.play)

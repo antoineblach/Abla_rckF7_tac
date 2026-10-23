@@ -19,9 +19,16 @@ import type { OpenSideChoice } from '../editor/presets'
 import { contentHash } from '../model/canonical'
 import { randomIds, type IdFactory } from '../model/ids'
 import type { PlacementPreset } from '../model/preset'
+import type { Id } from '../model/types'
 import { TEXT } from '../ui/strings'
 import { setPresetAnchorHandler, startPlacement } from './editorActions'
-import { openPlay, setNotice, useEditorStore } from './editorStore'
+import {
+  openPendingPlay,
+  openPlay,
+  setCreationListeners,
+  setNotice,
+  useEditorStore,
+} from './editorStore'
 import { closeDialog, notify, pushDialog, type LibraryDialog } from './libraryState'
 import { currentStore, currentSyncLog, loadLibraryFrom, rescanNow, saveNow } from './session'
 
@@ -239,15 +246,39 @@ export async function resolvePresetDuplicate(
 }
 
 /**
- * « Nouvelle combinaison » from a preset (D-091): a play without players, with a ball when the
- * preset has one, then the anchor of the preset.
+ * The new play from a preset was dropped (D-101): the play open before is read again from the
+ * storage, as when opened from the library, since it may have changed on the other computer
+ * meanwhile (Q2); when it no longer exists, the editor stays empty.
+ */
+async function reopenPrevious(previousId: Id | null): Promise<void> {
+  const store = deps.store()
+  if (!store || previousId === null) return
+  await deps.rescan()
+  await reload(store)
+  const play = await store.get(previousId).catch(() => null)
+  // Another play opened meanwhile wins.
+  if (!play || useEditorStore.getState().play) return
+  const readOnly = (await store.list()).find((s) => s.id === previousId)?.readOnly ?? false
+  openPlay(play, store.versionOf(previousId), readOnly)
+}
+
+/**
+ * « Nouvelle combinaison » from a preset (D-091, D-101): a play without players, with a ball when
+ * the preset has one, then the anchor of the preset. The play is written only once the anchor is
+ * validated; any other end of the placement drops it and opens the previous play again.
  */
 export async function createPlayFromPreset(entry: PresetEntry): Promise<void> {
   const found = await fresh(entry, false)
   if (!found) return
   await deps.savePlay()
+  // A new play still waiting for its anchor was never written: its own previous play is kept.
+  const { play: open, pendingCreation } = useEditorStore.getState()
+  const previousId = pendingCreation ? pendingCreation.previousId : (open?.id ?? null)
   const play = createPlayForPreset(found.entry.preset.ball !== null, deps.ids, deps.now())
-  openPlay(play, null, false, true)
-  await deps.savePlay()
+  setCreationListeners({
+    validated: () => void deps.savePlay(),
+    abandoned: (id) => void reopenPrevious(id),
+  })
+  openPendingPlay(play, previousId)
   startPlacement({ kind: 'applyPreset', preset: found.entry.preset, openSide: 'auto' })
 }

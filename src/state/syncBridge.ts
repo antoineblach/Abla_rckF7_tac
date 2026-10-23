@@ -1,5 +1,6 @@
 // What the synchronisation controller sees of the editor (SPEC 8.3): the open play, the version it
-// started from (D-097), and the gestures in progress (D-099). Used by the session and its tests.
+// started from (D-097), the gestures in progress (D-099) and a new play waiting for its placement
+// (D-101). Used by the session and its tests.
 import type { OpenPlay } from '../io/sync'
 import { useEditorStore } from './editorStore'
 
@@ -12,6 +13,7 @@ export function openPlayForSync(): OpenPlay | null {
         dirty: s.dirty,
         readOnly: s.readOnly,
         gesture: s.gestureStart !== null,
+        awaitingPlacement: s.pendingCreation !== null,
       }
     : null
 }

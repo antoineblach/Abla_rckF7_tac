@@ -113,8 +113,9 @@ export function rescanNow(): Promise<void> {
 function scheduleDraft(): void {
   if (draftTimer !== null) clearTimeout(draftTimer)
   draftTimer = setTimeout(() => {
-    const play = useEditorStore.getState().play
-    if (play) void saveDraft(getKv(), play).catch(() => undefined)
+    const { play, pendingCreation } = useEditorStore.getState()
+    // A new play waiting for its placement leaves nothing behind, not even a draft (D-101).
+    if (play && !pendingCreation) void saveDraft(getKv(), play).catch(() => undefined)
   }, 500)
 }
 

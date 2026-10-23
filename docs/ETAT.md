@@ -2,7 +2,7 @@
 
 - Mise à jour : 2026-10-23
 - Branche : `lot-3-corrections` (depuis `main` à `f1f4fcc`), non poussée
-- Dernier commit : « Étape 3 : modèles et versions écrites par la page » (après `57e843d`, étape 2)
+- Dernier commit : « Étape 4 : nouvelle combinaison enregistrée à la validation de la pose » (après `c807c98`, étape 3)
 - `main` : lots 1, 2 et 3 fusionnés (PR #1 à #4, `f1f4fcc` le 16/10), déployés sur Pages, CI verte ; seule branche sur GitHub ; protection vérifiée (D-055)
 - Écarts constatés à la reprise du 23/10, corrigés : ce fichier indiquait la PR #4 ouverte ; références locales `origin/lot-*` périmées (`git fetch --prune`) ; `docs/PASSATION.md` non suivi (commité tel quel).
 
@@ -20,7 +20,11 @@
   - sauvegarde automatique différée pendant un geste (`SyncController.gestureEnded`, `state/syncBridge.ts`) ;
   - décisions consignées au journal.
 - Étape 3 faite : `fresh()` (`state/presetSession.ts`) ne refuse plus une version écrite par la page ; refus consignés (`currentSyncLog`).
-- Prochaine action : étape 4 (D-101 : nouvelle combinaison depuis un modèle enregistrée à la validation de la pose, la précédente relue à l'abandon).
+- Étape 4 faite (D-101) :
+  - `pendingCreation` dans `editorStore`, fin de pose unique ;
+  - aucune écriture ni brouillon avant l'ancre ;
+  - à l'abandon, la précédente est relue dans le dossier (`presetSession.reopenPrevious`).
+- Prochaine action : étape 5 (bouton « Copier le journal de synchronisation », e2e `sync-own-writes.chromium`).
 
 ## Fait
 

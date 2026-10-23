@@ -204,7 +204,14 @@ describe('synchronisation controller (SPEC 8.3, 8.4)', () => {
     const fs = createMemoryFs()
     const store = await FolderStore.open(fs.root, { now: () => NOW, ids: sequentialIds() })
     const { play, version } = await store.put(sevenVsSevenWithOptions())
-    let open: OpenPlay = { play, version, dirty: false, readOnly: false, gesture: false }
+    let open: OpenPlay = {
+      play,
+      version,
+      dirty: false,
+      readOnly: false,
+      gesture: false,
+      awaitingPlacement: false,
+    }
     const events: ExternalChange[] = []
     const saves: Play[] = []
     let visible = true
@@ -220,6 +227,7 @@ describe('synchronisation controller (SPEC 8.3, 8.4)', () => {
             dirty: false,
             readOnly: false,
             gesture: false,
+            awaitingPlacement: false,
           }
         },
         externalChange: (change) => events.push(change),

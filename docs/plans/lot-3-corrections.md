@@ -183,7 +183,7 @@ C, D, `session.ts` ; tests de la cause 2.
 - **Résultat sur le code de `main`** (même test, câblé comme sur `main`) : les 2 tests du glisser échouent, avec une écriture pendant le geste (3 écritures au lieu de 2).
 - **Après correction :** 470 tests unitaires verts.
 
-### [x] Étape 3 : modèles (commit « Étape 3 : modèles et versions écrites par la page »)
+### [x] Étape 3 : modèles (`c807c98`)
 E ; tests « Modèles ».
 
 - `fresh()` ne refuse plus une version écrite par la page ; chaque refus est consigné au journal.
@@ -195,8 +195,17 @@ E ; tests « Modèles ».
 - Le garde-fou « Mettre à jour » après une date changée passe.
 - **Après correction :** 475 tests unitaires verts.
 
-### [ ] Étape 4 : D-096 révisée
+### [x] Étape 4 : D-096 révisée (commit « Étape 4 : nouvelle combinaison enregistrée à la validation de la pose »)
 G ; tests unitaires et e2e de la pose.
+
+- **`editorStore` :**
+  - `pendingCreation`, `openPendingPlay`, `setCreationListeners` ;
+  - `placementDropsCreation` : `setTool`, `setPlacement(null)` et `startPlacement` abandonnent la nouvelle combinaison ;
+  - `validateCreation` et `creationValidated` sur l'ancre validée.
+- **`OpenPlay.awaitingPlacement`** bloque les écritures ; aucun brouillon.
+- **`presetSession.reopenPrevious`** relit le dossier, puis rouvre la précédente.
+- **Résultat sur le code de `main`** : l'e2e `placement.chromium` échoue (après Échap, l'éditeur reste sur « Nouvelle combinaison », le fichier vide est écrit).
+- **Après correction :** 481 tests unitaires verts ; `placement.chromium` vert.
 
 ### [ ] Étape 5 : bouton du journal et bout en bout
 F (interface) ; `sync-own-writes.chromium.spec.ts`.
