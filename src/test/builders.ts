@@ -16,6 +16,7 @@ import type {
   RunAction,
   Team,
   Vec2,
+  Waypoint,
 } from '../model/types'
 
 /** Valid deterministic UUID v4 number n. */
@@ -42,7 +43,7 @@ export function ball(id: Id): BallEntity {
 export function run(
   id: Id,
   entityId: Id,
-  waypoints: Vec2[],
+  waypoints: Waypoint[],
   extra: Partial<RunAction> = {},
 ): RunAction {
   return { id, type: 'run', entityId, waypoints, pace: 'jog', delay: 0, ...extra }
@@ -123,7 +124,7 @@ export function phase(
 
 export function basePlay(extra: Partial<Play> = {}): Play {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: uuid(9999),
     createdAt: FIXED_DATE,
     updatedAt: FIXED_DATE,
@@ -274,6 +275,117 @@ export function setPiecesPlay(): Play {
       phase(uuid(104), P.t3b, [
         kick(uuid(440), P.A(3), { receiverId: P.B(7) }, 0.2, { kind: 'restart', flightTime: 2.5 }),
       ]),
+    ],
+  }
+}
+
+/**
+ * Realistic runs of lot 3 bis, source of the frozen fixture `play-v3-lot3bis.json` (never change
+ * it: the fixture must stay equal to it). 7 v 7 in line, A4 carries the ball.
+ * T1: A4 runs (sprint to her second point) and ends at speed, prolonged in T2; A5 runs, her end
+ * on the end of A4's run (delayed start); A2 meets A4's first point at her first point; A6 has an
+ * imposed duration; A4 passes to A5.
+ * T2: A4 goes on; A5 passes to A6, whose first point meets the arrival (adjusted speed); A6
+ * passes on receipt to A7, whose run starts with the release (delayed start) and ends at speed.
+ * T3 option A (default): A7 goes on, ruck on A7 (support A6, relayer A5); A3 reaches her point at
+ * the formation; A5 kicks on receipt to B4. T3 option B: A7 does not go on; she kicks to a point,
+ * A6 reaches the landing point with the ball (adjusted speed).
+ */
+export function realisticRunsPlay(): Play {
+  const play = sevenVsSevenWithOptions()
+  const t1Run4 = uuid(500)
+  const t2Pass = uuid(511)
+  const t2PassOn = uuid(513)
+  const t3aRuck = uuid(521)
+  const t3bKick = uuid(530)
+  return {
+    ...play,
+    name: 'Courses réalistes',
+    phases: [
+      phase(P.t1, null, [
+        run(
+          t1Run4,
+          P.A(4),
+          [
+            { x: 44, y: 36 },
+            { x: 46, y: 40, speed: 'sprint' },
+          ],
+          { endsAtSpeed: true },
+        ),
+        run(
+          uuid(501),
+          P.A(5),
+          [
+            { x: 42, y: 48 },
+            { x: 47, y: 50, speed: 6.2 },
+          ],
+          { sync: { target: { actionId: t1Run4, event: 'runEnd' }, adjust: 'delay' } },
+        ),
+        run(
+          uuid(502),
+          P.A(2),
+          [
+            { x: 43, y: 20 },
+            { x: 48, y: 22 },
+          ],
+          {
+            pace: 'walk',
+            sync: {
+              target: { actionId: t1Run4, event: 'runPoint', index: 0 },
+              at: 0,
+              adjust: 'delay',
+            },
+          },
+        ),
+        run(uuid(503), P.A(6), [{ x: 44, y: 58 }], { durationOverride: 2.5 }),
+        pass(uuid(504), P.A(4), P.A(5), 0.8),
+      ]),
+      phase(P.t2, P.t1, [
+        run(uuid(510), P.A(4), [{ x: 50, y: 42 }], { pace: 'sprint' }),
+        pass(t2Pass, P.A(5), P.A(6), 0.3),
+        run(
+          uuid(512),
+          P.A(6),
+          [
+            { x: 50, y: 60 },
+            { x: 54, y: 62 },
+          ],
+          {
+            sync: { target: { actionId: t2Pass, event: 'arrival' }, at: 0, adjust: 'speed' },
+          },
+        ),
+        pass(t2PassOn, P.A(6), P.A(7), 0.2, { release: 'onReceipt' }),
+        run(uuid(514), P.A(7), [{ x: 52, y: 66 }], {
+          pace: 'sprint',
+          endsAtSpeed: true,
+          sync: { target: { actionId: t2PassOn, event: 'release' }, adjust: 'delay' },
+        }),
+      ]),
+      phase(
+        P.t3a,
+        P.t2,
+        [
+          run(uuid(520), P.A(7), [{ x: 60, y: 66 }], { pace: 'sprint' }),
+          breakdown(t3aRuck, P.A(7), P.A(6), P.A(5), 1.5),
+          run(uuid(522), P.A(3), [{ x: 55, y: 50 }], {
+            sync: { target: { actionId: t3aRuck, event: 'formation' }, adjust: 'delay' },
+          }),
+          kick(uuid(523), P.A(5), { receiverId: P.B(4) }, 0.3, { release: 'onReceipt' }),
+        ],
+        { isDefault: true, condition: 'Ailière seule', instruction: 'On va au contact' },
+      ),
+      phase(
+        P.t3b,
+        P.t2,
+        [
+          kick(t3bKick, P.A(7), { point: { x: 75, y: 60 } }, 0.5),
+          run(uuid(531), P.A(6), [{ x: 74, y: 60 }], {
+            pace: 'sprint',
+            sync: { target: { actionId: t3bKick, event: 'arrival' }, adjust: 'speed' },
+          }),
+        ],
+        { condition: 'Défense montée', instruction: 'Par-dessus' },
+      ),
     ],
   }
 }

@@ -27,7 +27,11 @@ import type { SceneState } from './sceneState'
 import { compileLine, compileLineUncached } from './timeline'
 import { distance } from './vec'
 
-const settings: EngineSettings = engineSettingsOf(defaultSettings())
+// Paces of lots 1 to 3 (sprint 7 m/s), which these timings were written for.
+const settings: EngineSettings = {
+  ...engineSettingsOf(defaultSettings()),
+  paces: { walk: 2, jog: 4, sprint: 7 },
+}
 const LINE_A = [P.t1, P.t2, P.t3a]
 const LINE_B = [P.t1, P.t2, P.t3b]
 

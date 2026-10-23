@@ -4,6 +4,7 @@ import type { Pace } from '../model/types'
 import type { ReadError } from '../io/readPlay'
 import type { EditorNotice } from '../state/editorStore'
 import type { ToolId } from '../editor/tools/types'
+import { formatKmh, formatSeconds } from './format'
 
 export { CATEGORY_LABELS, phaseLabel } from '../model/labels'
 
@@ -29,6 +30,16 @@ export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
   breakdownNoBall:
     'Regroupement : cliquez une joueuse qui a le ballon dans ce temps (la porteuse plaquée).',
   breakdownTeammates: 'Regroupement : il faut deux coéquipières pour le soutien et le relayeur.',
+}
+
+/** « 1,2 s » from a number of seconds carried by an issue. */
+function seconds(value: string | number | undefined): string {
+  return typeof value === 'number' ? formatSeconds(value) : '?'
+}
+
+/** « 23,4 km/h » from a speed in m/s carried by an issue. */
+function kmh(value: string | number | undefined): string {
+  return typeof value === 'number' ? formatKmh(value) : '?'
 }
 
 export function issueMessage(issue: Issue): string {
@@ -96,6 +107,24 @@ export function issueMessage(issue: Issue): string {
       return 'Relayeur trop loin : il n’arrive au ballon qu’à la sortie, en accélérant.'
     case 'forwardPass':
       return 'En-avant probable : la passe part vers l’avant depuis les mains.'
+    case 'syncTargetMissing':
+      return 'Lien de synchronisation : cible supprimée, lien ignoré.'
+    case 'syncTargetInvalid':
+      return 'Lien de synchronisation invalide (cible ou point inexistant) : lien ignoré.'
+    case 'syncCycle':
+      return 'Liens de synchronisation en boucle : liens ignorés.'
+    case 'syncLate':
+      return `Synchronisation impossible : départ immédiat, arrivée en retard de ${seconds(p.late)}.`
+    case 'syncSpeedCapped':
+      return `Synchronisation impossible : il faudrait ${kmh(p.needed)} ; vitesse plafonnée au seuil rouge.`
+    case 'durationCapped':
+      return `Durée imposée inatteignable sous le seuil rouge : la course dure ${seconds(p.duration)}.`
+    case 'runSpeedHigh':
+      return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil orange.`
+    case 'runSpeedTooHigh':
+      return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil rouge : irréaliste.`
+    case 'runNotContinued':
+      return `Course lancée non prolongée dans ${p.phase ?? 'le temps suivant'} : arrêt net à la fin du temps.`
   }
 }
 

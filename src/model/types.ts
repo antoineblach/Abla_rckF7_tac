@@ -1,4 +1,5 @@
-// Data model, schemaVersion 2 (SPEC 4.1, lot 3: kicks and breakdowns). Units: metres, seconds.
+// Data model, schemaVersion 3 (SPEC 4.1; lot 3: kicks and breakdowns; lot 3 bis: segment speeds,
+// runs ending at speed, synchronisation links, release on receipt). Units: metres, seconds, m/s.
 import type {
   AnnotationEntity,
   DefenseSettings,
@@ -67,23 +68,71 @@ export type Entity =
   | ZoneEntity // lot 5
   | AnnotationEntity // lot 5
 
+/** Speed of a run segment: a named pace (settings), or a speed in m/s (lot 3 bis, D-114). */
+export type SegmentSpeed = Pace | number
+
+/** Waypoint; `speed` is the speed of the segment that ARRIVES at this point (D-114). */
+export interface Waypoint extends Vec2 {
+  speed?: SegmentSpeed
+}
+
+/** Event of another action of the same phase that a run is synchronised with (SPEC 5.8). */
+export type SyncTarget =
+  | { actionId: Id; event: 'runEnd' }
+  | { actionId: Id; event: 'runPoint'; index: number }
+  | { actionId: Id; event: 'release' }
+  | { actionId: Id; event: 'arrival' }
+  | { actionId: Id; event: 'formation' }
+
+export type SyncEvent = SyncTarget['event']
+
+export const SYNC_EVENTS: readonly SyncEvent[] = [
+  'runEnd',
+  'runPoint',
+  'release',
+  'arrival',
+  'formation',
+]
+
+/** Synchronisation link of a run (SPEC 5.8, D-108). */
+export interface RunSync {
+  target: SyncTarget
+  /** Waypoint of this run that meets the target (rendez-vous); absent: its end. */
+  at?: number
+  /** « Départ différé » (computed delay) or « Vitesse ajustée » (common speed factor). */
+  adjust: 'delay' | 'speed'
+}
+
 export interface RunAction {
   id: Id
   type: 'run'
   entityId: Id
-  waypoints: Vec2[]
+  /** Segment i goes from point i - 1 (the start position for i = 0) to point i. */
+  waypoints: Waypoint[]
+  /** Pace of the run: speed of the segments without their own speed. */
   pace: Pace
+  /** Imposed duration: every speed scaled by a common factor (D-107). */
   durationOverride?: number
+  /** Ignored while a « départ différé » link applies (SPEC 5.8). */
   delay: number
+  /** « Finit lancée » (SPEC 5.2, D-106). */
+  endsAtSpeed?: true
+  sync?: RunSync
 }
+
+/** Release of a pass or a kick on receipt of the ball, plus the delay (SPEC 5.4, D-110). */
+export type ReleaseMode = 'onReceipt'
 
 export interface PassAction {
   id: Id
   type: 'pass'
   fromId: Id
   toId: Id
+  /** Fixed release: from the phase start; on receipt: control time after the reception. */
   delay: number
   ballSpeed?: number
+  /** Absent: release at a fixed instant (D-110). */
+  release?: ReleaseMode
 }
 
 export type KickKind = 'restart' | 'long'
@@ -99,9 +148,12 @@ export interface KickAction {
   kickerId: Id
   kind: KickKind
   target: KickTarget
+  /** Fixed release: from the phase start; on receipt: control time after the reception. */
   delay: number
   /** Default: KICK_FLIGHT_TIME of its kind. */
   flightTime?: number
+  /** Absent: release at a fixed instant (D-110). */
+  release?: ReleaseMode
 }
 
 export type BreakdownKind = 'ruck' | 'maul'
@@ -153,7 +205,7 @@ export interface PlaySetup {
 }
 
 export interface Play {
-  schemaVersion: 2
+  schemaVersion: 3
   id: Id
   createdAt: string
   updatedAt: string

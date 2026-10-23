@@ -2,6 +2,7 @@
 import { FIELD_LIMITS, INSTRUCTION_RECOMMENDED_LENGTH } from '../config/defaults'
 import type { Issue } from './issues'
 import { childrenOf, findPhase } from './phaseTree'
+import { analyseSyncs } from './syncGraph'
 import { isPlayer, isReceiverTarget, type Entity, type Id, type Play } from './types'
 
 export function validatePlay(play: Play): Issue[] {
@@ -10,6 +11,7 @@ export function validatePlay(play: Play): Issue[] {
     ...checkBall(play),
     ...checkTree(play),
     ...checkActions(play),
+    ...checkSyncs(play),
     ...checkSetup(play),
     ...checkNumbers(play),
     ...checkField(play),
@@ -213,6 +215,29 @@ function checkActions(play: Play): Issue[] {
           }
         }
       }
+    }
+  }
+  return issues
+}
+
+/** Synchronisation links (lot 3 bis, SPEC 4.3, 5.8): target, events, waypoints, cycles. */
+function checkSyncs(play: Play): Issue[] {
+  const issues: Issue[] = []
+  for (const phase of play.phases) {
+    const analysis = analyseSyncs(phase)
+    for (const [id, problem] of analysis.problems) {
+      const target = { kind: 'action', id, phaseId: phase.id } as const
+      issues.push(
+        problem === 'missing'
+          ? { code: 'syncTargetMissing', severity: 'error', target }
+          : { code: 'syncTargetInvalid', severity: 'error', target, params: { reason: problem } },
+      )
+    }
+    // In the order of the actions, whatever the order in which the cycles were found.
+    for (const action of phase.actions) {
+      if (!analysis.cyclic.has(action.id)) continue
+      const target = { kind: 'action', id: action.id, phaseId: phase.id } as const
+      issues.push({ code: 'syncCycle', severity: 'error', target })
     }
   }
   return issues

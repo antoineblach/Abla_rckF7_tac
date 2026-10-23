@@ -287,7 +287,7 @@ e2e/                       actions-list.chromium, run-speeds.chromium, space.chr
 Chaque étape finit sur lint, typecheck, test et format verts, un commit (message en français), ETAT.md et la case du plan à jour.
 
 - [x] **Étape 0 : branche, plan, SPEC et décisions.** (commit « Étape 0 : plan du lot 3 bis, SPEC 1.6, D-103 à D-118 », après `e76aa13`) Branche `lot-3bis` depuis `main` (`e76aa13`) ; ce plan avec tes réponses ; SPEC 1.6 ; D-103 à D-118 ; ETAT.md réécrit (écart de la PR #6 corrigé, pistes b, c, d notées).
-- [ ] **Étape 1 : modèle et réglages v3.** Types, schéma v3, v2 figée, migrations (fin lancée posée), graphe des dépendances et cycles, validation, alertes, réglages v3 (profil, seuils, sprint), `defaults.ts`, fixtures. Tests de migration et de validation.
+- [x] **Étape 1 : modèle et réglages v3.** (commit « Étape 1 : modèle v3, réglages v3 et graphe des liens », après `7d34445`) Types, schéma v3, v2 figée, migrations (fin lancée posée), graphe des dépendances et cycles, validation, alertes, réglages v3 (profil, seuils, sprint), `defaults.ts`, fixtures. Tests de migration et de validation.
 - [ ] **Étape 2 : profil de vitesse.** `engine/profile.ts`, facteur de vitesse, raccord de tangente, `RunMotion` avec profil, segments, fin lancée (prolongement, attente sans effet), durée imposée, relayeur, en-avant sur le profil, pointes et seuils. Tests existants du moteur recalculés.
 - [ ] **Étape 3 : synchronisation et lâchers.** File d'événements, lâcher à la réception, tolérance, `engine/sync.ts` (ordre, simulation, deux réglages, replis). Tests.
 - [ ] **Étape 4 : sorties du moteur.** `actionReport.ts`, morceaux rapides des traces et du schéma, pastilles, géométrie des liens. Tests.

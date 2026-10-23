@@ -47,15 +47,30 @@ export type IssueCode =
   | 'runCutByBreakdown'
   | 'relayerLate'
   | 'forwardPass'
+  // Synchronisation links, business validation (lot 3 bis, SPEC 5.8, D-108)
+  | 'syncTargetMissing'
+  | 'syncTargetInvalid'
+  | 'syncCycle'
+  // Engine validation of lot 3 bis (SPEC 5.2, 5.3, 5.8, 5.9)
+  | 'syncLate'
+  | 'syncSpeedCapped'
+  | 'durationCapped'
+  | 'runSpeedHigh'
+  | 'runSpeedTooHigh'
+  | 'runNotContinued'
 
 export interface Issue {
   code: IssueCode
   severity: IssueSeverity
   target: IssueTarget
   params?: Record<string, string | number>
+  /** Tells apart several issues of the same code on the same target (segment, option). */
+  key?: string
 }
 
 export function issueKey(issue: Issue): string {
   const target = issue.target.kind === 'play' ? 'play' : `${issue.target.kind}:${issue.target.id}`
-  return `${issue.code}@${target}`
+  return issue.key === undefined
+    ? `${issue.code}@${target}`
+    : `${issue.code}@${target}#${issue.key}`
 }

@@ -90,12 +90,12 @@ describe('invalid files (CLAUDE.md rule 9, D-024)', () => {
 
   it('never overwrites a file written by a newer version of the application', async () => {
     const play = sevenVsSevenWithOptions()
-    const future = serialize({ ...play, schemaVersion: 3 })
+    const future = serialize({ ...play, schemaVersion: 4 })
     fs.writeExternal(playPath(play), future)
     const store = await open()
     expect((await store.issues())[0]).toMatchObject({
       kind: 'invalid',
-      error: { code: 'futureVersion', version: 3 },
+      error: { code: 'futureVersion', version: 4 },
     })
     await expect(store.put(play)).rejects.toBeInstanceOf(InvalidStoredFileError)
     expect(fs.read(playPath(play))).toBe(future)
@@ -127,7 +127,7 @@ describe('migration on read (SPEC 4.5)', () => {
     )
     const store = await open()
     const play = await store.get('00000000-0000-4000-8000-000000009999')
-    expect(play.schemaVersion).toBe(2)
+    expect(play.schemaVersion).toBe(3)
     expect(play.attackingTeam).toBe('B')
     expect(
       fs.read('combinaisons/ancienne-version--00000000-0000-4000-8000-000000009999.combi.json'),
@@ -138,10 +138,10 @@ describe('migration on read (SPEC 4.5)', () => {
       fs.read('combinaisons/ancienne-version--00000000-0000-4000-8000-000000009999.combi.json') ??
         '{}',
     ) as { schemaVersion: number }
-    expect(written.schemaVersion).toBe(2)
+    expect(written.schemaVersion).toBe(3)
   })
 
-  it('reads a file of lots 1 and 2 (version 1) unchanged, rewritten in version 2 on save', async () => {
+  it('reads a file of lots 1 and 2 (version 1) unchanged, rewritten in version 3 on save', async () => {
     const path = playPath(sevenVsSevenWithOptions())
     fs.writeExternal(path, v1Text)
     const store = await open()
@@ -150,7 +150,7 @@ describe('migration on read (SPEC 4.5)', () => {
     expect(fs.read(path)).toBe(v1Text)
     await store.put(play, { expected: store.versionOf(play.id) })
     const written = JSON.parse(fs.read(path) ?? '{}') as Play
-    expect(written.schemaVersion).toBe(2)
+    expect(written.schemaVersion).toBe(3)
     expect({ ...written, updatedAt: play.updatedAt }).toEqual(play)
   })
 })
@@ -531,7 +531,7 @@ describe('settings (SPEC 4.4)', () => {
     const store = await open()
     const result = await store.getSettings()
     expect(result.ok).toBe(true)
-    expect(result.settings.schemaVersion).toBe(2)
+    expect(result.settings.schemaVersion).toBe(3)
     expect(result.settings.passSpeed).toBe(11)
     expect(result.settings.export).toEqual(defaultSettings().export)
     expect(fs.read('reglages.json')).toBe(v1)
@@ -540,7 +540,7 @@ describe('settings (SPEC 4.4)', () => {
   })
 
   it('never rewrites a settings file of a newer version (D-024)', async () => {
-    const future = serialize({ ...defaultSettings(), schemaVersion: 3, defense: {} })
+    const future = serialize({ ...defaultSettings(), schemaVersion: 4, defense: {} })
     fs.writeExternal('reglages.json', future)
     const store = await open()
     const result = await store.getSettings()

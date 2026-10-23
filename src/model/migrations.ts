@@ -2,12 +2,13 @@
 // Each step validates the data against the schema of its own version, then migrates it;
 // the result is finally validated against the current schema.
 import type { z } from 'zod'
-import { playSchemaV2, type PlayFileV2 } from './schema'
+import { playSchemaV3, type PlayFileV3 } from './schema'
 import { playSchemaV0, type PlayFileV0 } from './schemaV0'
 import { playSchemaV1, type PlayFileV1 } from './schemaV1'
+import { playSchemaV2, type PlayFileV2 } from './schemaV2'
 import type { Play } from './types'
 
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 3
 
 export interface SchemaIssue {
   path: string
@@ -69,9 +70,51 @@ function migrateV1toV2(v1: PlayFileV1): PlayFileV2 {
   return { ...v1, schemaVersion: 2 }
 }
 
+type PhaseV2 = PlayFileV2['phases'][number]
+type RunV2 = Extract<PhaseV2['actions'][number], { type: 'run' }>
+
+/** First run of an entity in a phase: the one the engine applies (D-013). */
+function firstRunOf(phase: PhaseV2, entityId: string): RunV2 | undefined {
+  for (const action of phase.actions) {
+    if (action.type === 'run' && action.entityId === entityId) return action
+  }
+  return undefined
+}
+
+/**
+ * Lot 3 bis (D-104): content unchanged, plus « Finit lancée » on every run that every option of
+ * the next phase prolongs (same player, her first run of the phase, delay 0), so that existing
+ * plays do not stop at phase boundaries. Structural rule, without the engine.
+ */
+function migrateV2toV3(v2: PlayFileV2): PlayFileV3 {
+  const prolonged = new Set<string>()
+  for (const phase of v2.phases) {
+    const children = v2.phases.filter((child) => child.parentId === phase.id)
+    if (children.length === 0) continue
+    for (const action of phase.actions) {
+      if (action.type !== 'run' || firstRunOf(phase, action.entityId) !== action) continue
+      const continued = children.every((child) => firstRunOf(child, action.entityId)?.delay === 0)
+      if (continued) prolonged.add(action.id)
+    }
+  }
+  return {
+    ...v2,
+    schemaVersion: 3,
+    phases: v2.phases.map((phase) => ({
+      ...phase,
+      actions: phase.actions.map((action) =>
+        action.type === 'run' && prolonged.has(action.id)
+          ? { ...action, endsAtSpeed: true as const }
+          : action,
+      ),
+    })),
+  }
+}
+
 const STEPS: readonly MigrationStep[] = [
   { from: 0, schema: playSchemaV0, migrate: migrateV0toV1 },
   { from: 1, schema: playSchemaV1, migrate: migrateV1toV2 },
+  { from: 2, schema: playSchemaV2, migrate: migrateV2toV3 },
 ]
 
 export function toSchemaIssues(error: z.ZodError): SchemaIssue[] {
@@ -115,7 +158,7 @@ export function upgradePlay(raw: unknown): UpgradeResult {
     }
     data = step.migrate(parsed.data as never)
   }
-  const current = playSchemaV2.safeParse(data)
+  const current = playSchemaV3.safeParse(data)
   if (!current.success) {
     return {
       ok: false,

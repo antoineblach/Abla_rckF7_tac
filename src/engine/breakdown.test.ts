@@ -7,7 +7,11 @@ import { evaluate, phaseSchematic } from './evaluate'
 import { compileLine } from './timeline'
 import { distance } from './vec'
 
-const settings: EngineSettings = engineSettingsOf(defaultSettings())
+// Paces of lots 1 to 3 (sprint 7 m/s), which these timings were written for.
+const settings: EngineSettings = {
+  ...engineSettingsOf(defaultSettings()),
+  paces: { walk: 2, jog: 4, sprint: 7 },
+}
 
 // A attacks towards +x. A1 carries the ball and runs into contact in 2 s (3 m/s); A2 arrives in
 // support at the same time; A3 is the relayer, 9.22 m from the relay position.
