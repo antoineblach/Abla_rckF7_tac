@@ -1,4 +1,4 @@
-// Builds the editor overlay (selection, handles, previews) from the editor state.
+// Builds the editor overlay (selection, handles, previews, links, hover) from the editor state.
 import type { Bounds } from '../engine/bounds'
 import type { PhaseSchematic } from '../engine/evaluate'
 import { placementPreview, type PlacementMode } from '../editor/placementMode'
@@ -6,7 +6,7 @@ import type { Selection } from '../editor/selection'
 import { runToolPreview, type RunDraft } from '../editor/tools/runTool'
 import type { ToolId } from '../editor/tools/types'
 import type { Id, Play, Vec2 } from '../model/types'
-import type { EditorOverlay } from '../render/overlay'
+import type { EditorOverlay, OverlayHover, OverlayLink } from '../render/overlay'
 
 export interface OverlayInput {
   play: Play
@@ -19,6 +19,33 @@ export interface OverlayInput {
   placement: PlacementMode | null
   cursor: Vec2 | null
   selectionBox: Bounds | null
+  /** Action hovered in the list of the phase (D-113). */
+  hoveredActionId: Id | null
+}
+
+/** Curves and points of an action of the displayed phase, haloed when hovered in the list. */
+function hoverOf(schematic: PhaseSchematic, actionId: Id | null): OverlayHover | null {
+  if (actionId === null) return null
+  const paths: Vec2[][] = [
+    ...[...schematic.runs, ...schematic.relays]
+      .filter((r) => r.actionId === actionId)
+      .map((r) => [...r.points, ...r.ignoredPoints]),
+    ...schematic.passes.filter((p) => p.actionId === actionId).map((p) => [p.from, p.to]),
+    ...schematic.kicks.filter((k) => k.actionId === actionId).map((k) => [k.from, k.to]),
+  ]
+  const points = schematic.breakdowns.filter((b) => b.actionId === actionId).map((b) => b.pos)
+  return paths.length > 0 || points.length > 0 ? { paths, points } : null
+}
+
+/** Links drawn when the linked run or its target is selected (D-108); unreached targets skipped. */
+function linksOf(schematic: PhaseSchematic, selection: Selection): OverlayLink[] {
+  const links: OverlayLink[] = []
+  for (const link of schematic.syncLinks) {
+    const shown =
+      selection.actions.includes(link.actionId) || selection.actions.includes(link.targetActionId)
+    if (shown && link.to) links.push({ from: link.from, to: link.to })
+  }
+  return links
 }
 
 export function buildOverlay(input: OverlayInput): EditorOverlay {
@@ -48,6 +75,8 @@ export function buildOverlay(input: OverlayInput): EditorOverlay {
       preview: placed.path,
       ghosts: placed.ghosts.map((g) => ({ pos: g.pos, team: g.team, label: String(g.number) })),
       anchor: placed.anchor,
+      syncLinks: [],
+      hover: null,
     }
   }
   const handles =
@@ -73,5 +102,7 @@ export function buildOverlay(input: OverlayInput): EditorOverlay {
     preview,
     ghosts: [],
     anchor: null,
+    syncLinks: linksOf(schematic, selection),
+    hover: hoverOf(schematic, input.hoveredActionId),
   }
 }

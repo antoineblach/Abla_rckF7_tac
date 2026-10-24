@@ -72,6 +72,7 @@ export function FieldCanvas() {
   const settings = useSettingsStore((s) => s.settings)
   const cursor = useInteractionStore((s) => s.cursor)
   const selectionBox = useInteractionStore((s) => s.selectionBox)
+  const hoveredActionId = useInteractionStore((s) => s.hoveredActionId)
   const storedView = useViewStore((s) => s.view)
 
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
@@ -142,8 +143,8 @@ export function FieldCanvas() {
       )
       render(ctx, state, viewport, theme, layers)
     } else if (schematic) {
-      // The editor always shows the forward pass badge (D-085).
-      drawSchematic(ctx, schematic, viewport, theme, { forwardPass: true })
+      // The editor always shows the forward pass and speed badges (D-085, D-112).
+      drawSchematic(ctx, schematic, viewport, theme, { forwardPass: true, speedBadges: true })
       renderOverlay(
         ctx,
         viewport,
@@ -159,6 +160,7 @@ export function FieldCanvas() {
           placement,
           cursor,
           selectionBox,
+          hoveredActionId,
         }),
       )
     }
@@ -179,6 +181,7 @@ export function FieldCanvas() {
     placement,
     cursor,
     selectionBox,
+    hoveredActionId,
     fontReady,
   ])
 

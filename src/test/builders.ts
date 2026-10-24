@@ -431,3 +431,46 @@ export function fourVsTwoNoBall(): Play {
     ],
   })
 }
+
+/** Ids of the lot 3 bis speeds scene (speedsPlay). */
+export const SPEEDS = {
+  A1: uuid(1),
+  A2: uuid(2),
+  A3: uuid(3),
+  T1: uuid(100),
+  RUN_FAST: uuid(200),
+  RUN_WARNING: uuid(201),
+  RUN_LINKED: uuid(202),
+  PASS: uuid(203),
+} as const
+
+/**
+ * One phase (lot 3 bis): A1 walks, then sprints, then runs at 7 m/s (25,2 km/h, red badge); A2 runs
+ * at 6 m/s (21,6 km/h, orange badge); A3 jogs, synchronised on the end of the run of A2; a pass
+ * from A1 to A2.
+ */
+export function speedsPlay(): Play {
+  const { A1, A2, A3 } = SPEEDS
+  return basePlay({
+    entities: [player(A1, 'A', 1), player(A2, 'A', 2), player(A3, 'A', 3), ball(uuid(20))],
+    setup: {
+      positions: { [A1]: { x: 40, y: 30 }, [A2]: { x: 38, y: 40 }, [A3]: { x: 36, y: 20 } },
+      ballCarrierId: A1,
+      ballPosition: null,
+    },
+    phases: [
+      phase(SPEEDS.T1, null, [
+        run(SPEEDS.RUN_FAST, A1, [
+          { x: 50, y: 30, speed: 'walk' },
+          { x: 70, y: 30, speed: 'sprint' },
+          { x: 95, y: 30, speed: 7 },
+        ]),
+        run(SPEEDS.RUN_WARNING, A2, [{ x: 70, y: 42, speed: 6 }]),
+        run(SPEEDS.RUN_LINKED, A3, [{ x: 60, y: 18 }], {
+          sync: { target: { actionId: SPEEDS.RUN_WARNING, event: 'runEnd' }, adjust: 'delay' },
+        }),
+        pass(SPEEDS.PASS, A1, A2, 1),
+      ]),
+    ],
+  })
+}

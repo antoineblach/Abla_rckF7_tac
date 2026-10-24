@@ -225,6 +225,8 @@ export const ORIENTATION_ASPECT = {
  * Lot 3 (D-084): kicks in long dashes (`kickDash`), ground shadow of a kicked ball offset towards
  * the bottom right by up to `kickShadowOffset` at the apex, ring and label of a ruck or a maul,
  * badge of a forward pass (editor and player only, never exported, D-086).
+ * Lot 3 bis: segments at the sprint pace or faster drawn `fastRunWidth` wide (D-115); orange and
+ * red badges of the speed thresholds (editor and player only, never exported, D-112).
  */
 export const THEME_VALUES = {
   screen: {
@@ -279,6 +281,11 @@ export const THEME_VALUES = {
     breakdownWidth: 2,
     forwardFill: '#ffe36e',
     forwardText: '#000000',
+    fastRunWidth: 4.5,
+    speedWarningFill: '#ff9f1c',
+    speedWarningText: '#000000',
+    speedDangerFill: '#d7191c',
+    speedDangerText: '#ffffff',
   },
   highContrast: {
     background: '#002b0b',
@@ -332,6 +339,11 @@ export const THEME_VALUES = {
     breakdownWidth: 3,
     forwardFill: '#ffeb3b',
     forwardText: '#000000',
+    fastRunWidth: 6.5,
+    speedWarningFill: '#ff9100',
+    speedWarningText: '#000000',
+    speedDangerFill: '#ff1744',
+    speedDangerText: '#ffffff',
   },
   // « Impression couleur » (D-062): white background, grey field lines, team colours kept.
   printColor: {
@@ -386,6 +398,11 @@ export const THEME_VALUES = {
     breakdownWidth: 2,
     forwardFill: '#ffe36e',
     forwardText: '#000000',
+    fastRunWidth: 5,
+    speedWarningFill: '#ff9f1c',
+    speedWarningText: '#000000',
+    speedDangerFill: '#d7191c',
+    speedDangerText: '#ffffff',
   },
   // « Impression N&B » (SPEC 9.3, D-062): greys only; team A filled black, team B hollow
   // whatever the player colour; black solid runs, dotted passes, previous phases light grey;
@@ -442,6 +459,11 @@ export const THEME_VALUES = {
     breakdownWidth: 2,
     forwardFill: '#000000',
     forwardText: '#ffffff',
+    fastRunWidth: 5,
+    speedWarningFill: '#ffffff',
+    speedWarningText: '#000000',
+    speedDangerFill: '#000000',
+    speedDangerText: '#ffffff',
   },
 } as const
 

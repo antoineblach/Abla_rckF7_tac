@@ -1,14 +1,14 @@
 # État du projet
 
-- Mise à jour : 2026-10-23
-- Branche : `lot-3bis` (depuis `main` à `e76aa13`), lot 3 bis en cours
+- Mise à jour : 2026-10-24
+- Branche : `lot-3bis` (depuis `main` à `e76aa13`), lot 3 bis en cours, poussée sur `origin` depuis l'étape 5
 - `main` : lots 1, 2 et 3, la correction du lot 3 et la mise à jour de la mémoire fusionnés (PR #1 à #6 ; PR #6 le 23/10, commit de fusion `e76aa13`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` identique à D-055, vérifiée par `gh api` le 23/10 (D-102)
 
 ## En cours
 
 - Lot 3 bis : courses réalistes. Plan validé le 23/10 avec les réponses Q1 à Q13 : `docs/plans/lot-3bis.md` ; décisions D-103 à D-118 ; SPEC 1.6.
-- Étape en cours : 5 (rendu). Étapes 0 à 4 faites.
+- Étape en cours : 6 (éditeur). Étapes 0 à 5 faites.
 - Consigne : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
 
 ## Fait
@@ -20,10 +20,12 @@
 - Lot 3 bis, étape 2 : profil de vitesse (`engine/profile.ts` : trapèze sur les échantillons, inverse exacte, solveur de facteur), vitesses par segment, durée imposée par facteur (inatteignable : `durationCapped`), course lancée (recompilée tant qu'une course lancée attend la fin du temps ; prolongement avec raccord de tangente, `spline.ts` ; `runNotContinued`), relayeur à profil (arrive à la sortie de balle même au-delà des accélérations bornées, D-079), alertes de vitesse. Tests du moteur recalculés sur le profil (`src/test/profileMath.ts`) ; les tests des regroupements gardent des accélérations quasi instantanées (règles, pas profil) ; 14 images de référence régénérées (positions en cours de course, point du ruck de la fixture v2 dont la durée imposée de 1,5 s est inatteignable).
 - Lot 3 bis, étape 3 : file d'événements du ballon (lâcher à la réception programmé par chaque réception, tolérance de 0,5 s pour un lâcher fixe, lâcher à la réception jamais déclenché ignoré et signalé), résolution des liens par simulation dans l'ordre du graphe (`RunMotion.sync` : délai, facteur, statut, points), replis (`syncLate`, `syncSpeedCapped`, `syncTargetInvalid` « unreached »), départ différé qui prolonge une course lancée. Tests : `engine/sync.test.ts`.
 - Lot 3 bis, étape 4 : `engine/actionReport.ts` (`phaseReport` : lignes triées, détails par type, segments, lien, fin lancée, lâcher), morceaux rapides des tracés (`RunTrace.parts`, `SchematicRun.parts`, `partsBetween`), pastilles de vitesse (`SceneState.speedBadges`, `PhaseSchematic.speedBadges`), géométrie des liens (`PhaseSchematic.syncLinks`). Tests : `engine/actionReport.test.ts`.
+- Lot 3 bis, étape 5 : segments rapides plus épais (`fastRunWidth`, 4 thèmes) ; pastilles de vitesse orange et rouge (calque `speedAlert` du lecteur, toujours dans l'éditeur, jamais dans le GIF, le PDF ni les vignettes) ; lien de synchronisation (tirets fins) et halo de survol (tirets) dans la surcouche, `hoveredActionId` du store d'interaction (alimenté par la liste à l'étape 7). Tests : `render/speeds.test.ts`, `export/speeds.test.ts`. 17 images de référence régénérées, 2 nouvelles.
+- Reprise du 24/10 (limite d'usage pendant l'étape 5) : les 7 fichiers modifiés le 23/10 à 19:35:55, 69 s après l'étape 4, étaient un début cohérent de l'étape 5 (clés de thème, segments rapides, pastilles, calque, exclusion du GIF), et non une écriture interrompue : gardés tels quels, seuls deux tests ne compilaient plus.
 
 ## Reste à faire
 
-- Lot 3 bis : étapes 5 à 8 du plan.
+- Lot 3 bis : étapes 6 à 8 du plan.
 - Vérifications de terrain, non bloquantes, pas encore faites :
   - conflit Drive réel, avec la vraie modification sur l'autre PC de la correction du lot 3 ;
   - modèle enregistré sur un PC, visible et appliqué sur l'autre ;
@@ -71,6 +73,7 @@
 - Le morceau principal ne doit importer ni `export/jobSteps.ts` ni les encodeurs : `export/jobs.ts` reste léger (contrôlé par `bundle.chromium.spec.ts`).
 - Vitest coupe un test à 5 s par défaut ; le runner de la CI encode 2 à 3 fois moins vite que ce poste : les groupes de tests qui encodent réellement ont un délai explicite (`ENCODING_TIMEOUT_MS`).
 - Passer le dépôt en privé désactive GitHub Pages et supprime la protection de `main` (compte sans abonnement payant) : le dépôt reste public (D-102). Pour rétablir, voir D-102.
+- La tolérance des images de référence (0,5 % des pixels) masque un trait épaissi ou une petite dérive : après un changement de rendu, régénérer (`UPDATE_SNAPSHOTS=1`) et comparer à `HEAD` pour voir ce qui a bougé.
 - Une branche supprimée sur GitHub reste visible en local (`origin/...`) tant qu'on n'a pas lancé `git fetch --prune`.
 - Vérifier qu'un test attrape un défaut : arbre de travail temporaire sur `main` avec une jonction vers `node_modules` ; supprimer la jonction (`rmdir`) avant `git worktree remove`.
 - **OPFS et tests de bout en bout :**

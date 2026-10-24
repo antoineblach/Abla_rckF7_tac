@@ -70,6 +70,8 @@ import { adjustView, type FitTarget } from './viewStore'
 export interface InteractionState {
   cursor: Vec2 | null
   selectionBox: Bounds | null
+  /** Action hovered in the list of the phase, haloed on the field (D-113). */
+  hoveredActionId: Id | null
   /** Converts a screen-space nudge (arrow keys) to a field vector; set by the canvas. */
   screenToField: (dx: number, dy: number) => Vec2
   /** Metres per CSS pixel of the canvas, for the drag threshold; set by the canvas. */
@@ -79,6 +81,7 @@ export interface InteractionState {
 export const useInteractionStore = create<InteractionState>(() => ({
   cursor: null,
   selectionBox: null,
+  hoveredActionId: null,
   screenToField: (dx, dy) => ({ x: dx, y: dy }),
   metersPerPx: 0,
 }))
