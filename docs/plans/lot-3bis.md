@@ -294,7 +294,7 @@ Chaque étape finit sur lint, typecheck, test et format verts, un commit (messag
 - [x] **Étape 5 : rendu.** (commit « Étape 5 : segments rapides, pastilles de vitesse, lien et survol », après `2fb983e`) Segments rapides (4 thèmes), pastilles (calque et éditeur, jamais exportées), lien et survol dans la surcouche. Images de référence.
 - [x] **Étape 6 : éditeur.** (commit « Étape 6 : commandes des segments et des liens, choix de la cible, raccourcis », après `3504a59`) Commandes (segments, fin lancée, liens avec refus des cycles, index des points, copie des liens, mode de lâcher), outils Passe et Jeu au pied (mode par défaut), sélection du segment, atteinte des cibles, raccourcis 1 2 3 0, choix de la cible, automate d'Espace, fin lancée posée par l'outil Course. Tests unitaires.
 - [x] **Étape 7 : interface.** (commit « Étape 7 : liste des actions, inspecteur de la course, liens, Espace », après `4949252`) Bande du bas et liste, inspecteur de la course, de la passe et du jeu au pied, bandeau « Caler sur… », calque « Vitesses », réglages (profil, seuils, km/h), message du sprint, Espace. Tests de bout en bout.
-- [ ] **Étape 8 : exports et clôture.** GIF et PDF (segments rapides présents, pastilles et liens absents) ; ARCHITECTURE, RECETTE, README ; recette automatisable complète ; push ; PR `lot-3bis` vers `main`. Tu fusionnes.
+- [x] **Étape 8 : exports et clôture.** (commit « Étape 8 : exports vérifiés, architecture, recette et README », après `d0d4b24`) GIF et PDF (segments rapides présents, pastilles et liens absents) ; ARCHITECTURE, RECETTE, README ; recette automatisable complète ; push ; PR `lot-3bis` vers `main`. Tu fusionnes.
 
 ## 15. Dépendances
 

@@ -11,11 +11,22 @@ import { render } from '../render/render'
 import { THEMES, type Theme } from '../render/themes'
 import { sizePx } from '../render/viewport'
 import { SPEEDS, speedsPlay } from '../test/builders'
+import { loadPdfFonts, napiSurface } from '../test/exportFixtures'
+import { compareWithSnapshot } from '../test/imageSnapshot'
+import { openPdf, rasterize } from '../test/pdfInspect'
 import { createRecordingContext, paintEvents, type PaintEvent } from '../test/recordingCtx'
+import { linesFrame } from './framing'
+import { gifExport } from './gif/encode'
 import { drawGifItem, gifLayout } from './gif/frame'
 import { gifTargets, gifTimeline } from './gif/timeline'
+import { thumbRatio } from './pdf/layout'
+import { createPdfDoc, pdfContext } from './pdf/pdfCtx'
 import { drawThumbnail, thumbMmPerPx } from './pdf/thumbnail'
-import type { GifOptions } from './types'
+import { pdfExport } from './pdf/write'
+import type { ExportFile, GifOptions, PdfOptions } from './types'
+
+/** Real encodings: several seconds on the CI runner, slower than a desktop computer. */
+const ENCODING_TIMEOUT_MS = 60_000
 
 const settings = engineSettingsOf(defaultSettings())
 const play = speedsPlay()
@@ -96,5 +107,69 @@ describe('exports: fast segments in, speed badges out (D-112, D-115)', () => {
       expect(hasWidth(events, theme.fastRunWidth * mmPerPx), themeId).toBe(true)
       expect(hasWidth(events, theme.runWidth * mmPerPx), themeId).toBe(true)
     }
+  })
+})
+
+function drain<T>(steps: Generator<unknown, T>): T {
+  let step = steps.next()
+  while (step.done !== true) step = steps.next()
+  return step.value
+}
+
+const base64 = (files: ExportFile[]) => files.map((f) => Buffer.from(f.bytes).toString('base64'))
+
+describe('whole export files (D-112, D-115)', { timeout: ENCODING_TIMEOUT_MS }, () => {
+  it('GIF: the « Vitesses » layer of the player changes no byte', () => {
+    const gif = (speedAlert: boolean) =>
+      drain(
+        gifExport(
+          play,
+          { ...OPTIONS, layers: { ...DEFAULT_LAYERS, speedAlert } },
+          settings,
+          createCaches(),
+          napiSurface,
+        ),
+      )
+    expect(base64(gif(true))).toEqual(base64(gif(false)))
+  })
+
+  it('PDF: no badge on any page, in both layouts', async () => {
+    const fonts = loadPdfFonts()
+    for (const options of [
+      { layout: 'print', color: 'bw' },
+      { layout: 'phone', color: 'color' },
+    ] as const satisfies readonly PdfOptions[]) {
+      const [file] = drain(pdfExport([play], options, null, fonts, settings, createCaches()))
+      if (!file) throw new Error('no PDF')
+      const doc = await openPdf(file.bytes)
+      for (let page = 1; page <= doc.numPages; page++) {
+        const content = await (await doc.getPage(page)).getTextContent()
+        const items = content.items.map((item) => ('str' in item ? item.str.trim() : ''))
+        expect(items).not.toContain('!')
+      }
+    }
+  })
+
+  it('PDF: the N&B thumbnail draws the fast segments thicker (reference image)', async () => {
+    const frame = linesFrame(play, [[SPEEDS.T1]], settings, createCaches())
+    const w = 90
+    const h = w * thumbRatio(frame)
+    const doc = createPdfDoc(loadPdfFonts(), w, h)
+    const theme = THEMES.printBw
+    drawThumbnail(
+      pdfContext(doc),
+      play,
+      SPEEDS.T1,
+      { x: 0, y: 0, w, h },
+      frame,
+      theme,
+      thumbMmPerPx('print', theme),
+      settings,
+      createCaches(),
+    )
+    const bytes = new Uint8Array(doc.output('arraybuffer'))
+    const canvas = await rasterize(await openPdf(bytes), 1, 6)
+    const result = await compareWithSnapshot(canvas, 'pdf-thumbnail-speeds-printBw')
+    expect(result.pass, result.message).toBe(true)
   })
 })
