@@ -1,5 +1,6 @@
-// Keyboard shortcuts (SPEC 6.2; lot 3: J and G, D-093). Pure mapping from a key event to an
-// editor command.
+// Keyboard shortcuts (SPEC 6.2; lot 3: J and G, D-093; lot 3 bis: 1, 2, 3 and 0, D-114). Pure
+// mapping from a key event to an editor command.
+import type { Pace } from '../model/types'
 import type { ToolId } from './tools/types'
 
 export type ShortcutCommand =
@@ -14,12 +15,30 @@ export type ShortcutCommand =
   | { kind: 'finish' }
   | { kind: 'cancel' }
   | { kind: 'fit' }
+  /** Speed of the selected segment, or pace of the selected runs; null: « Allure de la course ». */
+  | { kind: 'speed'; speed: Pace | null }
 
 export interface KeyInput {
   key: string
+  /** Physical key (KeyboardEvent.code): digits of an AZERTY keyboard without Shift. */
+  code?: string
   ctrl: boolean
   shift: boolean
   alt: boolean
+}
+
+const SPEED_KEYS: Record<string, Pace | null> = {
+  '1': 'walk',
+  '2': 'jog',
+  '3': 'sprint',
+  '0': null,
+}
+
+/** Digit of the top row or of the keypad, whatever the layout, or null. */
+function digitOf(input: KeyInput): string | null {
+  if (/^[0-9]$/.test(input.key)) return input.key
+  const match = /^(?:Digit|Numpad)([0-9])$/.exec(input.code ?? '')
+  return match?.[1] ?? null
 }
 
 /** Screen-space nudge: the caller converts it to metres with the viewport orientation. */
@@ -37,6 +56,9 @@ export function shortcutFor(
     if (key === 'd') return { kind: 'duplicate' }
     return null
   }
+  const digit = digitOf(input)
+  if (digit !== null && digit in SPEED_KEYS)
+    return { kind: 'speed', speed: SPEED_KEYS[digit] ?? null }
   const step = input.shift ? nudgeLarge : nudgeSmall
   switch (key) {
     case 'v':

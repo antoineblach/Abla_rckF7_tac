@@ -1,7 +1,7 @@
 // Hit testing on the schematic of the displayed phase, in metres (tolerances given in metres by
 // the caller from the viewport scale).
 import type { Bounds } from '../engine/bounds'
-import type { PhaseSchematic } from '../engine/evaluate'
+import type { PhaseSchematic, SchematicRun } from '../engine/evaluate'
 import type { Id, Vec2 } from '../model/types'
 
 export type Hit =
@@ -11,7 +11,8 @@ export type Hit =
   /** Ball on the ground at the start of the phase (lot 3, D-083). */
   | { kind: 'ball' }
   | { kind: 'player'; id: Id }
-  | { kind: 'run'; actionId: Id }
+  /** Line of a run, with the input segment under the pointer (D-114). */
+  | { kind: 'run'; actionId: Id; segment: number }
   | { kind: 'pass'; actionId: Id }
   | { kind: 'kick'; actionId: Id }
   | { kind: 'breakdown'; actionId: Id }
@@ -31,6 +32,36 @@ export function distanceToPolyline(p: Vec2, points: readonly Vec2[]): number {
     best = Math.min(best, distanceToSegment(p, points[i - 1] as Vec2, points[i] as Vec2))
   }
   return best
+}
+
+/** Distance along a polyline to its point closest to `p`. */
+export function arcLengthAt(p: Vec2, points: readonly Vec2[]): number {
+  let best = Infinity
+  let bestS = 0
+  let travelled = 0
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Vec2
+    const b = points[i] as Vec2
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const len = Math.hypot(dx, dy)
+    const k =
+      len === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len ** 2))
+    const d = Math.hypot(p.x - (a.x + k * dx), p.y - (a.y + k * dy))
+    if (d < best) {
+      best = d
+      bestS = travelled + k * len
+    }
+    travelled += len
+  }
+  return bestS
+}
+
+/** Input segment of a run under `p` (segment i arrives at waypoint i), ignored part included. */
+export function segmentAt(run: SchematicRun, p: Vec2): number {
+  const s = arcLengthAt(p, [...run.points, ...run.ignoredPoints])
+  const index = run.segmentEnds.findIndex((end) => s <= end + 1e-9)
+  return index === -1 ? Math.max(0, run.segmentEnds.length - 1) : index
 }
 
 export interface HitTolerances {
@@ -89,7 +120,7 @@ export function hitTest(schematic: PhaseSchematic, p: Vec2, tol: HitTolerances):
   if (player) return player
   return closest<Hit>([
     ...schematic.runs.map((r) => ({
-      value: { kind: 'run' as const, actionId: r.actionId },
+      value: { kind: 'run' as const, actionId: r.actionId, segment: segmentAt(r, p) },
       d: distanceToPolyline(p, [...r.points, ...r.ignoredPoints]),
       max: tol.line,
     })),

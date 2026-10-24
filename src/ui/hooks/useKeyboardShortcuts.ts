@@ -10,7 +10,14 @@ export function useKeyboardShortcuts(): void {
       const saving = ctrl && event.key.toLowerCase() === 's'
       if (isTypingTarget(event.target) && !saving) return
       if (isDialogOpen()) return
-      if (handleKey({ key: event.key, ctrl, shift: event.shiftKey, alt: event.altKey })) {
+      const input = {
+        key: event.key,
+        code: event.code,
+        ctrl,
+        shift: event.shiftKey,
+        alt: event.altKey,
+      }
+      if (handleKey(input)) {
         event.preventDefault()
       }
     }

@@ -30,6 +30,10 @@ export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
   breakdownNoBall:
     'Regroupement : cliquez une joueuse qui a le ballon dans ce temps (la porteuse plaquée).',
   breakdownTeammates: 'Regroupement : il faut deux coéquipières pour le soutien et le relayeur.',
+  syncSelf: 'Une course ne peut pas être calée sur elle-même : cliquez une autre action.',
+  syncCycle: 'Lien refusé : il créerait une boucle de liens. Cliquez une autre action.',
+  syncInvalid: 'Cette action ne peut pas servir de cible : cliquez une autre action.',
+  syncLinkRemoved: 'Le point portait un lien de synchronisation : le lien a été retiré.',
 }
 
 /** « 1,2 s » from a number of seconds carried by an issue. */

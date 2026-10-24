@@ -861,3 +861,22 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : choix de l'utilisateur.
 - Alternatives écartées : tout faire dans ce lot.
 - Origine : réponse Q13.
+
+### D-119 : lâcher posé par les outils pour une joueuse qui ramasse le ballon
+- Date : 2026-10-24
+- Décision : précision de D-110. Les outils Passe et Jeu au pied posent « à la réception », délai 0, quand la joueuse n'a pas le ballon au début du temps, y compris quand elle ne le reçoit pas encore (la passe attend une réception tracée ensuite) ; **sauf** si elle l'obtient en le ramassant au sol : lâcher à instant fixe, à l'instant du ramassage, comme avant (D-015). Une joueuse qui a le ballon au début du temps garde l'instant fixe.
+- Raison : un ramassage n'est pas une réception (D-110 : arrivée d'une passe ou d'un jeu au pied, sortie d'un regroupement) ; « à la réception » ne se déclencherait jamais et l'outil créerait une passe en erreur, là où l'instant fixe marchait (combinaisons du lot 3 avec ballon au sol).
+- Alternatives écartées : compter le ramassage comme une réception dans le moteur (change la règle de D-110) ; « à la réception » sans exception (passe en erreur).
+- Origine : cas non couvert par le plan, constaté à l'étape 6 ; signalé à l'utilisateur.
+
+### D-120 : précisions de l'éditeur des liens et des segments
+- Date : 2026-10-24
+- Décision :
+  - durée imposée posée sur une course dont le lien est en « Vitesse ajustée » : le lien est retiré (D-107, « poser l'une retire l'autre ») ; un lien en « Départ différé » est gardé ;
+  - « Caler sur… » : un clic refusé (la course elle-même, boucle, cible inutilisable) affiche le message et laisse le choix de la cible en cours ; un clic dans le vide ou sur une joueuse ne fait rien ; Échap, un changement d'outil, de temps ou une pose l'annulent ; un lien remplacé garde son réglage, un nouveau lien est en « Départ différé » ;
+  - point de rendez-vous : le dernier point sélectionné vaut « Fin » (`at` absent), qui suit la fin quand on prolonge la course ;
+  - raccourcis 1, 2, 3 et 0 : lus aussi sur la touche physique (`code` : Digit, Numpad), pour un clavier AZERTY sans Maj ; sans segment sélectionné, 1, 2, 3 règlent toutes les courses sélectionnées ;
+  - suppression du dernier point d'une course (la course disparaît) : les liens visant ce point sont retirés, ceux visant sa fin sont gardés (« cible supprimée », comme pour une action supprimée).
+- Raison : cohérence avec D-107 à D-109 et D-114 ; aucun geste bloqué ; clavier français.
+- Alternatives écartées : sortir du choix de la cible au premier refus ; touches lues sur le caractère seulement (Maj nécessaire en AZERTY).
+- Origine : écriture de l'étape 6.

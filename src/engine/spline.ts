@@ -248,6 +248,25 @@ export function endDirection(spline: Spline): Vec2 | null {
   return null
 }
 
+/**
+ * Arc length at the end of each of the `count` input segments (segment i ends at input point
+ * i + 1); a segment dropped as a duplicate point ends where the previous one does.
+ */
+export function inputSegmentEnds(spline: Spline, count: number): number[] {
+  const { cumulative, samplesPerSegment, sourceSegments } = spline
+  const ends: number[] = []
+  let last = 0
+  for (let i = 0; i < count; i++) {
+    sourceSegments.forEach((source, j) => {
+      if (source === i) {
+        last = cumulative[Math.min((j + 1) * samplesPerSegment, cumulative.length - 1)] ?? last
+      }
+    })
+    ends.push(last)
+  }
+  return ends
+}
+
 /** A polyline of the curve with the flag of its spline segments (fast segments, D-115). */
 export interface CurvePart {
   points: Vec2[]

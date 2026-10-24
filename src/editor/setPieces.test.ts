@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { BREAKDOWN_DURATION_DEFAULT } from '../config/defaults'
 import { createCaches } from '../engine/caches'
-import { phaseSchematic } from '../engine/evaluate'
+import { compiledPhaseOf, phaseSchematic } from '../engine/evaluate'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
 import type { BreakdownAction, KickAction, Play } from '../model/types'
 import {
@@ -68,10 +68,15 @@ describe('kick commands (SPEC 10.4)', () => {
       target: { point: { x: 80, y: 30 } },
       delay: 0,
     })
-    // A5 receives the pass of T1: her kick starts at the arrival of the ball.
-    const second = addKick(play, P.t1, P.A(5), { receiverId: P.B(5) }, ctx())
-    const delay = (actionsOf(second.play).at(-1) as KickAction).delay
-    expect(delay).toBeGreaterThan(0.8)
+    // A5 receives the pass of T1: her kick leaves on receipt of the ball (D-110).
+    const c = ctx()
+    const second = addKick(play, P.t1, P.A(5), { receiverId: P.B(5) }, c)
+    const kick = actionsOf(second.play).at(-1) as KickAction
+    expect(kick).toMatchObject({ delay: 0, release: 'onReceipt' })
+    const compiled = compiledPhaseOf(second.play, P.t1, c.settings, c.caches)
+    const kicked = compiled?.kicks.find((k) => k.actionId === kick.id)
+    expect(kicked?.applied).toBe(true)
+    expect((kicked?.releaseT ?? 0) - (compiled?.start ?? 0)).toBeGreaterThan(0.8)
     const restart = addKick(
       { ...play, category: 'restart' },
       P.t1,
@@ -272,6 +277,7 @@ describe('kick tool, shortcuts and hit testing', () => {
     expect(hitTest(schematic, { x: 35, y: 25 }, { token: 1, handle: 0.6, line: 0.4 })).toEqual({
       kind: 'run',
       actionId: uuid(402),
+      segment: 0,
     })
   })
 })

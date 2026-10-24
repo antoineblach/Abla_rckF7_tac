@@ -1,12 +1,12 @@
 // Moving or flipping a whole play (SPEC 10.2, D-090): the same transformation applies to the
 // starting positions, the ball on the ground, the waypoints, the kick target points and the
-// saved free frame. Pure.
+// saved free frame; waypoints keep their segment speed (D-114). Pure.
 import type { Action, FieldView, Play, Vec2 } from '../model/types'
 
 function mapAction(action: Action, f: (p: Vec2) => Vec2): Action {
   switch (action.type) {
     case 'run':
-      return { ...action, waypoints: action.waypoints.map(f) }
+      return { ...action, waypoints: action.waypoints.map((w) => ({ ...w, ...f(w) })) }
     case 'kick':
       return 'point' in action.target
         ? { ...action, target: { point: f(action.target.point) } }

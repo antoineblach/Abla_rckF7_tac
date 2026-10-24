@@ -18,7 +18,13 @@ import type {
   SceneState,
   SpeedBadge,
 } from './sceneState'
-import { partsBetween, pathFromDistance, pathUpToDistance, pointAtDistance } from './spline'
+import {
+  inputSegmentEnds,
+  partsBetween,
+  pathFromDistance,
+  pathUpToDistance,
+  pointAtDistance,
+} from './spline'
 import {
   compileLine,
   gainLineAt,
@@ -253,6 +259,8 @@ export interface SchematicRun {
   duration: number
   /** The applied curve cut by speed (fast segments drawn thicker, D-115). */
   parts: RunPart[]
+  /** Arc length from the start at each waypoint: end of each input segment (D-114). */
+  segmentEnds: number[]
 }
 
 /** A synchronisation link drawn in the editor overlay only (SPEC 5.8, D-108). */
@@ -345,6 +353,7 @@ function schematicRun(motion: RunMotion, phaseId: Id): SchematicRun {
     waypoints: motion.waypoints.map(copy),
     duration: motion.duration,
     parts: runParts(motion, 0, cut ? s : motion.spline.length),
+    segmentEnds: inputSegmentEnds(motion.spline, motion.waypoints.length),
   }
 }
 
