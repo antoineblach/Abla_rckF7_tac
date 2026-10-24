@@ -29,7 +29,7 @@ function contactPlay(): Play {
   return {
     ...play,
     phases: [
-      phase(P.t1, null, [run(uuid(400), P.A(4), [{ x: 46, y: 36 }], { durationOverride: 1.5 })]),
+      phase(P.t1, null, [run(uuid(400), P.A(4), [{ x: 46, y: 36 }], { durationOverride: 3 })]),
     ],
   }
 }
@@ -76,7 +76,7 @@ describe('breakdown tool (G)', () => {
       tackledId: P.A(4),
       supportId: P.A(5),
       relayerId: P.A(3),
-      delay: 1.5,
+      delay: 3,
     })
     expect(useEditorStore.getState().selection.actions).toEqual([ruck?.id])
     expect(useEditorStore.getState().history.past).toHaveLength(1)

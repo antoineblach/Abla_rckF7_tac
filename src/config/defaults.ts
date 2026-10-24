@@ -39,12 +39,57 @@ export const FIELD_MARKINGS = {
   goalPostSpacing: 5.6,
 } as const
 
-/** Paces in m/s (SPEC 5.3). HYPOTHÈSE: walk 2, jog 4, sprint 7, adjustable in reglages.json. */
+/**
+ * Paces in m/s (SPEC 5.3), peak speeds of the speed profile. HYPOTHÈSE: walk 2, jog 4,
+ * sprint 5.5 (19.8 km/h, below the orange threshold; 7 before lot 3 bis, D-111), adjustable in
+ * reglages.json.
+ */
 export const PACE_DEFAULTS = {
   walk: 2,
   jog: 4,
-  sprint: 7,
+  sprint: 5.5,
 } as const
+
+/** Default sprint pace of lots 1 to 3, replaced by the new default when reglages.json moves to
+ * version 3 (D-111). */
+export const LEGACY_SPRINT_PACE = 7
+
+/**
+ * HYPOTHÈSE: speed profile of the runs, in m/s² (SPEC 5.3, D-105): acceleration, braking and
+ * lateral acceleration in turns (radius 5 m: 4.5 m/s, 16 km/h). Adjustable in reglages.json.
+ */
+export const MOTION_DEFAULTS = {
+  accel: 3,
+  decel: 4,
+  lateralAccel: 4,
+} as const
+
+/** HYPOTHÈSE: lowest speed of a run in a tight turn, in m/s (SPEC 5.3, D-105). */
+export const MIN_CORNER_SPEED = 1
+
+/**
+ * HYPOTHÈSE, choice of the coach: thresholds on the peak speed of a run segment, in m/s
+ * (SPEC 5.9, D-111): orange beyond 20 km/h, red beyond 25 km/h. Adjustable in reglages.json.
+ */
+export const SPEED_ALERT_DEFAULTS = {
+  warning: 20 / 3.6,
+  danger: 25 / 3.6,
+} as const
+
+/**
+ * Speed factor solver (SPEC 5.3): bisection on the logarithm of the factor, with a fixed number
+ * of iterations (determinism), between `minFactor` and the cap of the red threshold.
+ */
+export const SPEED_FACTOR_SEARCH = {
+  iterations: 50,
+  minFactor: 1e-3,
+} as const
+
+/**
+ * HYPOTHÈSE: a pass or a kick released at a fixed instant waits for a reception arriving at most
+ * this late, in seconds (SPEC 5.4, D-110).
+ */
+export const PASS_RECEIPT_TOLERANCE = 0.5
 
 /** Pass speed in m/s (SPEC 5.4). HYPOTHÈSE, adjustable in reglages.json. */
 export const PASS_SPEED_DEFAULT = 12
@@ -126,6 +171,9 @@ export const SYNC_LOG_SIZE = 200
 /** Undo levels (SPEC 6.3). */
 export const UNDO_LEVELS = 100
 
+/** HYPOTHÈSE: longest press of the space bar counted as a tap (play or pause), in ms (D-116). */
+export const SPACE_TAP_MAX_MS = 500
+
 /** Snap grid step in metres (SPEC 6.3). */
 export const SNAP_GRID_STEP = 1
 
@@ -177,6 +225,8 @@ export const ORIENTATION_ASPECT = {
  * Lot 3 (D-084): kicks in long dashes (`kickDash`), ground shadow of a kicked ball offset towards
  * the bottom right by up to `kickShadowOffset` at the apex, ring and label of a ruck or a maul,
  * badge of a forward pass (editor and player only, never exported, D-086).
+ * Lot 3 bis: segments at the sprint pace or faster drawn `fastRunWidth` wide (D-115); orange and
+ * red badges of the speed thresholds (editor and player only, never exported, D-112).
  */
 export const THEME_VALUES = {
   screen: {
@@ -231,6 +281,11 @@ export const THEME_VALUES = {
     breakdownWidth: 2,
     forwardFill: '#ffe36e',
     forwardText: '#000000',
+    fastRunWidth: 4.5,
+    speedWarningFill: '#ff9f1c',
+    speedWarningText: '#000000',
+    speedDangerFill: '#d7191c',
+    speedDangerText: '#ffffff',
   },
   highContrast: {
     background: '#002b0b',
@@ -284,6 +339,11 @@ export const THEME_VALUES = {
     breakdownWidth: 3,
     forwardFill: '#ffeb3b',
     forwardText: '#000000',
+    fastRunWidth: 6.5,
+    speedWarningFill: '#ff9100',
+    speedWarningText: '#000000',
+    speedDangerFill: '#ff1744',
+    speedDangerText: '#ffffff',
   },
   // « Impression couleur » (D-062): white background, grey field lines, team colours kept.
   printColor: {
@@ -338,6 +398,11 @@ export const THEME_VALUES = {
     breakdownWidth: 2,
     forwardFill: '#ffe36e',
     forwardText: '#000000',
+    fastRunWidth: 5,
+    speedWarningFill: '#ff9f1c',
+    speedWarningText: '#000000',
+    speedDangerFill: '#d7191c',
+    speedDangerText: '#ffffff',
   },
   // « Impression N&B » (SPEC 9.3, D-062): greys only; team A filled black, team B hollow
   // whatever the player colour; black solid runs, dotted passes, previous phases light grey;
@@ -394,6 +459,11 @@ export const THEME_VALUES = {
     breakdownWidth: 2,
     forwardFill: '#000000',
     forwardText: '#ffffff',
+    fastRunWidth: 5,
+    speedWarningFill: '#ffffff',
+    speedWarningText: '#000000',
+    speedDangerFill: '#000000',
+    speedDangerText: '#ffffff',
   },
 } as const
 

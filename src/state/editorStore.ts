@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { EMPTY_HISTORY, record, redo, undo, type History } from '../editor/history'
 import type { PlacementMode } from '../editor/placementMode'
 import type { OpenSideChoice } from '../editor/presets'
+import type { SyncPick } from '../editor/syncPick'
 import { EMPTY_SELECTION, pruneSelection, type Selection } from '../editor/selection'
 import type { RunDraft } from '../editor/tools/runTool'
 import type { ToolId } from '../editor/tools/types'
@@ -20,6 +21,12 @@ export type EditorNotice =
   // Breakdown tool (D-081): no ball in the phase, fewer than two teammates.
   | 'breakdownNoBall'
   | 'breakdownTeammates'
+  // Links (D-108, D-109): the run itself, a loop, a target that cannot apply, a link removed with
+  // its point.
+  | 'syncSelf'
+  | 'syncCycle'
+  | 'syncInvalid'
+  | 'syncLinkRemoved'
   | null
 
 export interface EditorState {
@@ -39,6 +46,8 @@ export interface EditorState {
   kickFromId: Id | null
   /** Placement in progress: preset applied or saved, play moved (lot 3, D-096). */
   placement: PlacementMode | null
+  /** « Caler sur… » waiting for the click on the target (D-109). */
+  syncPick: SyncPick | null
   /**
    * New play from a preset, never written until its placement is validated (D-101), with the play
    * open before it; null otherwise.
@@ -62,6 +71,7 @@ const initial: EditorState = {
   passFromId: null,
   kickFromId: null,
   placement: null,
+  syncPick: null,
   pendingCreation: null,
   snap: false,
   notice: null,
@@ -273,6 +283,7 @@ export function selectPhase(phaseId: Id): void {
     runDraft: null,
     passFromId: null,
     kickFromId: null,
+    syncPick: null,
     notice: null,
   })
 }
@@ -286,6 +297,7 @@ export function setTool(tool: ToolId): void {
     passFromId: null,
     kickFromId: null,
     placement: null,
+    syncPick: null,
     notice: null,
   })
 }
@@ -304,6 +316,7 @@ export function setPlacement(placement: PlacementMode | null): void {
     runDraft: null,
     passFromId: null,
     kickFromId: null,
+    syncPick: null,
     notice: null,
   })
 }
@@ -314,6 +327,17 @@ export function setPlacementOpenSide(openSide: OpenSideChoice): void {
   if (placement && placement.kind !== 'movePlay') {
     useEditorStore.setState({ placement: { ...placement, openSide } })
   }
+}
+
+/** Starts or ends « Caler sur… » (D-109); the tool drafts in progress are dropped. */
+export function setSyncPick(syncPick: SyncPick | null): void {
+  useEditorStore.setState({
+    syncPick,
+    runDraft: null,
+    passFromId: null,
+    kickFromId: null,
+    notice: null,
+  })
 }
 
 export function setSelection(selection: Selection): void {

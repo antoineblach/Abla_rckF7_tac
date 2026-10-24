@@ -23,6 +23,17 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 - **Combinaison entière** (section Combinaison de l'inspecteur) : « Déplacer la combinaison » (deux clics, départ puis arrivée) et « Retourner » (symétrie gauche-droite).
 - **Regroupements et jeu au pied** : outils « Regroupement » (G) et « Jeu au pied » (J) ; le calque « En-avant » du lecteur signale les passes en avant probables (jamais dans les exports).
 
+### Courses réalistes (lot 3 bis)
+
+- **Profil de vitesse** : une joueuse accélère, freine et ralentit dans les virages ; l'allure d'une course est une vitesse de pointe. Accélération, freinage et accélération latérale se règlent dans les réglages de l'inspecteur (m/s²). Allures par défaut : marche 2 m/s, trot 4 m/s, sprint 5,5 m/s (19,8 km/h) ; un ancien `reglages.json` au sprint de 7 m/s passe à 5,5 m/s, avec un message.
+- **Vitesse d'un segment** : clic sur le trait d'une course (le segment sous le pointeur est sélectionné) ou sur un point (le segment qui y arrive), puis touches 1 (marche), 2 (trot), 3 (sprint), 0 (allure de la course), ou bloc « Segment n » de l'inspecteur, avec une vitesse saisie en km/h. Un segment au sprint ou plus vite est tracé plus épais, exports compris.
+- **Finit lancée** (inspecteur de la course) : la course finit sans freiner et la joueuse repart lancée au temps suivant, dans la même direction. Posée automatiquement quand toutes les options du temps suivant prolongent la course.
+- **Caler sur…** (inspecteur de la course) : puis cliquer la cible sur le terrain (point ou trait d'une autre course, passe ou jeu au pied près de son départ ou de son arrivée, regroupement). Réglage « Départ différé » (délai calculé) ou « Vitesse ajustée ». Échap annule. Un lien qui créerait une boucle est refusé.
+- **Lâcher d'une passe ou d'un jeu au pied** : « à un instant fixe » (délai) ou « à la réception » (temps de contrôle) ; les outils choisissent « à la réception » quand la joueuse n'a pas le ballon au début du temps.
+- **Actions du temps** (bande du bas, à droite de l'arbre) : une ligne par action avec sa barre de temps et ses alertes ; clic pour sélectionner, survol pour la repérer sur le terrain, Suppr pour la supprimer.
+- **Vitesses irréalistes** : au-delà de 20 km/h (orange) et 25 km/h (rouge), seuils réglables ; pastille dans l'éditeur, calque « Vitesses » dans le lecteur, jamais dans les exports.
+- **Barre d'espace** : un appui bref lance ou met en pause la lecture ; maintenue avec un glisser, elle déplace le terrain.
+
 ### Exports GIF et PDF
 
 - **GIF** (« Exporter GIF », combinaison ouverte) : orientation (portrait, paysage, carré), un GIF enchaîné ou un GIF par option, ralenti puis vitesse réelle (ou une seule vitesse), qualité standard ou haute, thème (Contraste fort par défaut). La case « Alléger le fichier » (cochée par défaut) rend le GIF 3 à 7 fois plus léger ; la décocher si WhatsApp le rend mal.
@@ -85,4 +96,4 @@ npm run preview            # prévisualisation du build : http://localhost:4173/
 - Le dépôt doit rester public : sans abonnement payant, passer en privé désactive GitHub Pages et supprime la protection de `main` (incident du 23/10/2026, D-102).
 - Travail par lot : une branche `lot-N`, une PR vers `main`, fusion après la recette du lot (`docs/RECETTE.md` : tests automatisés, au plus 5 vérifications manuelles, séance d'usage libre).
 - La base de Vite est `/Abla_rckF7_tac/` (casse exacte) : la changer seulement si le dépôt est renommé.
-- Après un déploiement qui change le format des fichiers (lot 3 : combinaisons en version 2), recharger la page sur les deux PC : une page restée ouverte sur l'ancienne version signale les nouveaux fichiers comme « créés par une version plus récente » et ne les modifie pas.
+- Après un déploiement qui change le format des fichiers (lot 3 : combinaisons en version 2 ; lot 3 bis : combinaisons et `reglages.json` en version 3), recharger la page (Ctrl+F5) sur les deux PC : une page restée ouverte sur l'ancienne version signale les nouveaux fichiers comme « créés par une version plus récente » et ne les modifie pas. Les anciens fichiers sont réécrits dans la nouvelle version au premier enregistrement.

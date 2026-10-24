@@ -1,7 +1,8 @@
-// zod schemas of the file format, schemaVersion 2 (SPEC 4.1, 4.4; lot 3: kicks and breakdowns,
-// D-094). Objects are strict: an unknown key makes the file invalid, so that it is never
+// zod schemas of the file format, schemaVersion 3 (SPEC 4.1, 4.4; lot 3: kicks and breakdowns,
+// D-094; lot 3 bis: segment speeds, runs ending at speed, synchronisation links, release on
+// receipt, D-104). Objects are strict: an unknown key makes the file invalid, so that it is never
 // rewritten without that key (DECISIONS Q24). Types of lots 4 and 5 are rejected (DECISIONS Q4).
-// The frozen version 1 is in schemaV1.ts.
+// The frozen versions 1 and 2 are in schemaV1.ts and schemaV2.ts.
 import { z } from 'zod'
 import type { Play } from './types'
 
@@ -39,15 +40,44 @@ const ballSchema = z.strictObject({ id: idSchema, kind: z.literal('ball') })
 
 export const entitySchema = z.discriminatedUnion('kind', [playerSchema, ballSchema])
 
+/** Speed of a segment: a named pace, or a speed in m/s (D-114). */
+export const segmentSpeedSchema = z.union([paceSchema, z.number().positive()])
+
+export const waypointSchema = z.strictObject({
+  x: z.number(),
+  y: z.number(),
+  speed: segmentSpeedSchema.optional(),
+})
+
+const indexSchema = z.number().int().nonnegative()
+
+export const syncTargetSchema = z.discriminatedUnion('event', [
+  z.strictObject({ actionId: idSchema, event: z.literal('runEnd') }),
+  z.strictObject({ actionId: idSchema, event: z.literal('runPoint'), index: indexSchema }),
+  z.strictObject({ actionId: idSchema, event: z.literal('release') }),
+  z.strictObject({ actionId: idSchema, event: z.literal('arrival') }),
+  z.strictObject({ actionId: idSchema, event: z.literal('formation') }),
+])
+
+export const runSyncSchema = z.strictObject({
+  target: syncTargetSchema,
+  at: indexSchema.optional(),
+  adjust: z.enum(['delay', 'speed']),
+})
+
 export const runSchema = z.strictObject({
   id: idSchema,
   type: z.literal('run'),
   entityId: idSchema,
-  waypoints: z.array(vec2Schema).min(1),
+  waypoints: z.array(waypointSchema).min(1),
   pace: paceSchema,
   durationOverride: z.number().positive().optional(),
   delay: z.number().nonnegative(),
+  endsAtSpeed: z.literal(true).optional(),
+  sync: runSyncSchema.optional(),
 })
+
+const releaseSchema = z.literal('onReceipt').optional()
 
 export const passSchema = z.strictObject({
   id: idSchema,
@@ -56,6 +86,7 @@ export const passSchema = z.strictObject({
   toId: idSchema,
   delay: z.number().nonnegative(),
   ballSpeed: z.number().positive().optional(),
+  release: releaseSchema,
 })
 
 const kickSchema = z.strictObject({
@@ -69,9 +100,10 @@ const kickSchema = z.strictObject({
   ]),
   delay: z.number().nonnegative(),
   flightTime: z.number().positive().optional(),
+  release: releaseSchema,
 })
 
-const breakdownSchema = z.strictObject({
+export const breakdownSchema = z.strictObject({
   id: idSchema,
   type: z.literal('breakdown'),
   kind: z.enum(['ruck', 'maul']),
@@ -106,8 +138,8 @@ export const setupSchema = z.strictObject({
   ballPosition: vec2Schema.nullable(),
 })
 
-export const playSchemaV2 = z.strictObject({
-  schemaVersion: z.literal(2),
+export const playSchemaV3 = z.strictObject({
+  schemaVersion: z.literal(3),
   id: idSchema,
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -121,7 +153,7 @@ export const playSchemaV2 = z.strictObject({
   phases: z.array(phaseSchema),
 })
 
-export type PlayFileV2 = z.infer<typeof playSchemaV2>
+export type PlayFileV3 = z.infer<typeof playSchemaV3>
 
-// Compile-time check: every valid v2 file is a Play.
-export const asPlay = (file: PlayFileV2): Play => file
+// Compile-time check: every valid v3 file is a Play.
+export const asPlay = (file: PlayFileV3): Play => file

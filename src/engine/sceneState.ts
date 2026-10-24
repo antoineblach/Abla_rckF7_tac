@@ -30,6 +30,12 @@ export interface ScenePlayer {
   pos: Vec2
 }
 
+/** A polyline of a run, fast when at the sprint pace of the settings or faster (D-115). */
+export interface RunPart {
+  points: Vec2[]
+  fast: boolean
+}
+
 export interface RunTrace {
   actionId: Id
   entityId: Id
@@ -39,6 +45,17 @@ export interface RunTrace {
   /** True when the run is finished (drawn with its arrow head). */
   completed: boolean
   points: Vec2[]
+  /** The same polyline cut by speed (fast segments drawn thicker, D-115). */
+  parts: RunPart[]
+}
+
+/** Badge of a run segment beyond a speed threshold, in its middle (SPEC 5.9, D-112). */
+export interface SpeedBadge {
+  actionId: Id
+  /** Input segment of the run (from point segment - 1 to point segment). */
+  segment: number
+  pos: Vec2
+  level: 'warning' | 'danger'
 }
 
 export interface PassTrace {
@@ -95,6 +112,8 @@ export interface SceneState {
   passTraces: PassTrace[]
   kickTraces: KickTrace[]
   breakdowns: SceneBreakdown[]
+  /** Segments beyond a speed threshold already entered at t (calque « Vitesses », D-112). */
+  speedBadges: SpeedBadge[]
   /** Abscissa of the gain line at t (ball at t = 0, then each ruck or maul), null without ball. */
   gainLineX: number | null
   issues: Issue[]

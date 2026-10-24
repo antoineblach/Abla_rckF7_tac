@@ -1,0 +1,24 @@
+{
+  "export": {
+    "gif": {
+      "lines": "chained",
+      "optimizeUnchanged": true,
+      "orientation": "portrait",
+      "quality": "standard",
+      "speed": "both",
+      "theme": "highContrast"
+    },
+    "pdf": {
+      "color": "color",
+      "layout": "print"
+    }
+  },
+  "paces": {
+    "jog": 4,
+    "sprint": 7,
+    "walk": 2
+  },
+  "passSpeed": 12,
+  "schemaVersion": 2,
+  "theme": "screen"
+}

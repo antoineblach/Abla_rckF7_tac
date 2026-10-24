@@ -1,7 +1,7 @@
 // render(ctx, state, viewport, theme, layers): draws one image of a scene (SPEC 3.3.2).
 // Pure: same inputs, same drawing calls.
 import { KICK_APEX_SCALE, TEAM_COLORS } from '../config/defaults'
-import type { BallState, SceneState } from '../engine/sceneState'
+import type { BallState, RunPart, SceneState, SpeedBadge } from '../engine/sceneState'
 import { drawField } from '../field/drawField'
 import { BREAKDOWN_KIND_LABELS } from '../model/labels'
 import { attackDirection, type BreakdownKind, type Id, type Team, type Vec2 } from '../model/types'
@@ -190,6 +190,26 @@ export function drawBreakdownLabel(
   ctx.fillText(BREAKDOWN_KIND_LABELS[kind], center.x, center.y - radius - sizePx(viewport, 2))
 }
 
+/** Round badge « ! » at a point of the field. */
+function drawBadge(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  pos: Vec2,
+  fill: string,
+  text: string,
+): void {
+  const center = toPx(viewport, pos)
+  const radius = sizePx(viewport, theme.tokenRadius) * 0.75
+  fillCircle(ctx, center, radius, fill)
+  strokeCircle(ctx, center, radius, text, sizePx(viewport, theme.tokenStrokeWidth))
+  ctx.fillStyle = text
+  ctx.font = `bold ${sizePx(viewport, theme.tokenFontSize)}px ${theme.font}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('!', center.x, center.y + sizePx(viewport, 0.5))
+}
+
 /** Badge « ! » in the middle of a forward pass (SPEC 10.5, D-084). */
 export function drawForwardBadge(
   ctx: Ctx2D,
@@ -198,15 +218,38 @@ export function drawForwardBadge(
   from: Vec2,
   to: Vec2,
 ): void {
-  const center = toPx(viewport, { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 })
-  const radius = sizePx(viewport, theme.tokenRadius) * 0.75
-  fillCircle(ctx, center, radius, theme.forwardFill)
-  strokeCircle(ctx, center, radius, theme.forwardText, sizePx(viewport, theme.tokenStrokeWidth))
-  ctx.fillStyle = theme.forwardText
-  ctx.font = `bold ${sizePx(viewport, theme.tokenFontSize)}px ${theme.font}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('!', center.x, center.y + sizePx(viewport, 0.5))
+  const middle = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
+  drawBadge(ctx, viewport, theme, middle, theme.forwardFill, theme.forwardText)
+}
+
+/** Orange or red badge « ! » of a segment beyond a speed threshold (SPEC 5.9, D-112). */
+export function drawSpeedBadge(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  badge: Pick<SpeedBadge, 'pos' | 'level'>,
+): void {
+  const danger = badge.level === 'danger'
+  const fill = danger ? theme.speedDangerFill : theme.speedWarningFill
+  const text = danger ? theme.speedDangerText : theme.speedWarningText
+  drawBadge(ctx, viewport, theme, badge.pos, fill, text)
+}
+
+/** A run cut by speed: segments at the sprint pace or faster drawn thicker (D-115). */
+export function drawRunParts(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  parts: readonly RunPart[],
+  color: string,
+): void {
+  for (const part of parts) {
+    strokePolyline(ctx, viewport, part.points, {
+      color,
+      width: part.fast ? theme.fastRunWidth : theme.runWidth,
+      cap: 'round',
+    })
+  }
 }
 
 function drawTraces(ctx: Ctx2D, viewport: Viewport, theme: Theme, state: SceneState): void {
@@ -216,7 +259,7 @@ function drawTraces(ctx: Ctx2D, viewport: Viewport, theme: Theme, state: SceneSt
     for (const trace of state.traces.filter((tr) => tr.current === current)) {
       const base = runColor(theme, colorOf(state.players, trace.entityId))
       const color = current ? base : mixColors(base, theme.grass, theme.fadeTowardsGrass)
-      strokePolyline(ctx, viewport, trace.points, { color, width: theme.runWidth, cap: 'round' })
+      drawRunParts(ctx, viewport, theme, trace.parts, color)
       if (trace.completed) {
         arrowAtEnd(ctx, viewport, trace.points, color, theme.arrowSize, tokenRadius)
       }
@@ -288,6 +331,9 @@ export function render(
     for (const pass of state.passTraces) {
       if (pass.forward) drawForwardBadge(ctx, viewport, theme, pass.from, pass.target)
     }
+  }
+  if (layers.speedAlert) {
+    for (const badge of state.speedBadges) drawSpeedBadge(ctx, viewport, theme, badge)
   }
   if (layers.instruction) drawBanner(ctx, viewport, theme, state.instruction)
   ctx.restore()

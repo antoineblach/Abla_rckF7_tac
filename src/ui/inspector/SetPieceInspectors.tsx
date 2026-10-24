@@ -16,8 +16,9 @@ import {
 } from '../../model/types'
 import { commandContext } from '../../state/editorActions'
 import { applyEdit } from '../../state/editorStore'
-import { kickLanding, playerName, teammatesOf } from '../../state/selectors'
+import { actionReportOf, kickLanding, playerName, teammatesOf } from '../../state/selectors'
 import { CheckboxField, NumberField, SelectField } from '../common/fields'
+import { ReleaseFields } from './ReleaseFields'
 
 const POINT = 'point'
 const fmt = (seconds: number) => `${seconds.toFixed(1).replace('.', ',')} s`
@@ -37,6 +38,7 @@ export function KickInspector({
 }) {
   const target = isReceiverTarget(kick.target) ? kick.target.receiverId : POINT
   const receivers = play.entities.filter((e) => isPlayer(e) && e.id !== kick.kickerId)
+  const report = actionReportOf(play, phaseId, kick.id, settings)
   return (
     <section className="inspector__section" aria-label="Jeu au pied">
       <h3>Jeu au pied de {playerName(play, kick.kickerId)}</h3>
@@ -94,14 +96,13 @@ export function KickInspector({
           />
         </>
       )}
-      <NumberField
-        label="Délai"
-        unit="s"
-        min={0}
-        max={60}
-        value={kick.delay}
+      <ReleaseFields
+        release={kick.release}
+        delay={kick.delay}
+        report={report?.kind === 'kick' ? report : null}
         disabled={disabled}
-        onCommit={(delay) => applyEdit((p) => updateKick(p, kick.id, { delay }))}
+        onRelease={(release) => applyEdit((p) => updateKick(p, kick.id, { release }))}
+        onDelay={(delay) => applyEdit((p) => updateKick(p, kick.id, { delay }))}
       />
       <CheckboxField
         label="Temps de vol propre"

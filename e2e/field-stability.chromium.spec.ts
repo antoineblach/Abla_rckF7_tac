@@ -84,6 +84,17 @@ for (const size of [
       await expect(inspector(page).getByRole('heading', { name: 'Passe' })).toBeVisible()
       await expectUnchanged(page, before, 'sélection d’une passe')
 
+      // The list of the actions of the phase (D-113): hover and click move nothing.
+      const listed = page
+        .getByRole('region', { name: 'Actions du temps' })
+        .getByTestId('action-row')
+        .filter({ hasText: 'Course A 1' })
+      await listed.hover()
+      await expectUnchanged(page, before, 'survol d’une ligne de la liste des actions')
+      await listed.click()
+      await expect(listed).toHaveAttribute('aria-pressed', 'true')
+      await expectUnchanged(page, before, 'sélection depuis la liste des actions')
+
       await selectPhase(page, 'Temps 2')
       await expect(page.getByTestId('current-phase')).toContainText('Temps 2')
       await expectUnchanged(page, before, 'sélection d’un temps')

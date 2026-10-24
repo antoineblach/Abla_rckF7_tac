@@ -1,5 +1,8 @@
-// Centripetal Catmull-Rom spline (alpha 0.5) through the control points, reparameterised by
-// arc length with a sampled length table (SPEC 5.3). Constant speed along the curve.
+// Centripetal Catmull-Rom spline (alpha 0.5) through the control points, with a sampled arc
+// length table (SPEC 5.3); the speed along the curve comes from the speed profile (profile.ts).
+// A run that prolongs a run ending at speed starts in its arrival direction: its first segment is
+// then a cubic Bézier curve whose tangents are that direction and the Catmull-Rom tangent at its
+// first waypoint (D-106).
 import type { Vec2 } from '../model/types'
 import { distance, equals, lerp, sub } from './vec'
 
@@ -8,6 +11,10 @@ const ALPHA = 0.5
 export interface Spline {
   /** Control points, consecutive duplicates removed. */
   readonly points: readonly Vec2[]
+  /** Index of the input segment (from input point i to i + 1) of each spline segment. */
+  readonly sourceSegments: readonly number[]
+  /** Unit direction imposed at the start (tangent junction, D-106), or null. */
+  readonly startDirection: Vec2 | null
   /** Samples: `samplesPerSegment` per segment, plus the final point. */
   readonly samples: readonly Vec2[]
   /** Cumulative length at each sample (first is 0). */
@@ -16,13 +23,18 @@ export interface Spline {
   readonly length: number
 }
 
-function dedupe(points: readonly Vec2[]): Vec2[] {
+/** Points without consecutive duplicates, with the input index of each kept point. */
+function dedupe(points: readonly Vec2[]): { points: Vec2[]; indices: number[] } {
   const result: Vec2[] = []
-  for (const point of points) {
+  const indices: number[] = []
+  points.forEach((point, index) => {
     const last = result[result.length - 1]
-    if (!last || !equals(last, point)) result.push({ x: point.x, y: point.y })
-  }
-  return result
+    if (!last || !equals(last, point)) {
+      result.push({ x: point.x, y: point.y })
+      indices.push(index)
+    }
+  })
+  return { points: result, indices }
 }
 
 /** Control point i, with reflected phantom points beyond both ends. */
@@ -72,17 +84,78 @@ export function segmentPoint(points: readonly Vec2[], segment: number, u: number
   return mix(b1, b2, t1, t2, t)
 }
 
-export function buildSpline(input: readonly Vec2[], samplesPerSegment: number): Spline {
-  const points = dedupe(input)
+/** Unit tangent of the Catmull-Rom curve at points[1] (start of its second segment). */
+function tangentAtSecondPoint(points: readonly Vec2[]): Vec2 | null {
+  const p0 = points[0]
+  const p1 = points[1]
+  if (!p0 || !p1) return null
+  const ahead = points.length >= 3 ? segmentPoint(points, 1, 1e-4) : null
+  const d = ahead ? sub(ahead, p1) : sub(p1, p0)
+  const len = Math.hypot(d.x, d.y)
+  if (len <= 1e-12) return null
+  return { x: d.x / len, y: d.y / len }
+}
+
+/** First segment as a cubic Bézier curve leaving in `direction` (D-106). */
+function junctionPoint(points: readonly Vec2[], direction: Vec2, u: number): Vec2 {
+  const p0 = points[0] as Vec2
+  const p3 = points[1] as Vec2
+  const reach = distance(p0, p3) / 3
+  const end = tangentAtSecondPoint(points) ?? direction
+  const p1 = { x: p0.x + direction.x * reach, y: p0.y + direction.y * reach }
+  const p2 = { x: p3.x - end.x * reach, y: p3.y - end.y * reach }
+  const w = 1 - u
+  const a = w * w * w
+  const b = 3 * w * w * u
+  const c = 3 * w * u * u
+  const d = u * u * u
+  return {
+    x: a * p0.x + b * p1.x + c * p2.x + d * p3.x,
+    y: a * p0.y + b * p1.y + c * p2.y + d * p3.y,
+  }
+}
+
+/** Point of spline segment `segment` at local u in [0, 1]. */
+function curvePoint(spline: Pick<Spline, 'points' | 'startDirection'>, segment: number, u: number) {
+  if (segment === 0 && spline.startDirection && spline.points.length >= 2) {
+    return junctionPoint(spline.points, spline.startDirection, u)
+  }
+  return segmentPoint(spline.points, segment, u)
+}
+
+function unit(direction: Vec2 | null | undefined): Vec2 | null {
+  if (!direction) return null
+  const len = Math.hypot(direction.x, direction.y)
+  return len > 1e-12 ? { x: direction.x / len, y: direction.y / len } : null
+}
+
+export function buildSpline(
+  input: readonly Vec2[],
+  samplesPerSegment: number,
+  startDirection: Vec2 | null = null,
+): Spline {
+  const kept = dedupe(input)
+  const points = kept.points
   const segments = Math.max(0, points.length - 1)
+  const sourceSegments = kept.indices.slice(1).map((index) => index - 1)
+  const direction = segments > 0 ? unit(startDirection) : null
   const samples: Vec2[] = []
   const cumulative: number[] = []
   if (points.length === 0) {
-    return { points, samples, cumulative, samplesPerSegment, length: 0 }
+    return {
+      points,
+      sourceSegments,
+      startDirection: direction,
+      samples,
+      cumulative,
+      samplesPerSegment,
+      length: 0,
+    }
   }
+  const shape = { points, startDirection: direction }
   for (let segment = 0; segment < segments; segment++) {
     for (let j = 0; j < samplesPerSegment; j++) {
-      samples.push(segmentPoint(points, segment, j / samplesPerSegment))
+      samples.push(curvePoint(shape, segment, j / samplesPerSegment))
     }
   }
   samples.push(points[points.length - 1] as Vec2)
@@ -92,7 +165,15 @@ export function buildSpline(input: readonly Vec2[], samplesPerSegment: number): 
     total += distance(samples[k - 1] as Vec2, samples[k] as Vec2)
     cumulative.push(total)
   }
-  return { points, samples, cumulative, samplesPerSegment, length: total }
+  return {
+    points,
+    sourceSegments,
+    startDirection: direction,
+    samples,
+    cumulative,
+    samplesPerSegment,
+    length: total,
+  }
 }
 
 /** Index k such that cumulative[k] <= s < cumulative[k + 1] (clamped). */
@@ -124,7 +205,7 @@ export function pointAtDistance(spline: Spline, s: number): Vec2 {
   if (segment >= points.length - 1)
     return lerp(samples[k] as Vec2, samples[k + 1] as Vec2, fraction)
   const u = (k - segment * samplesPerSegment + fraction) / samplesPerSegment
-  return segmentPoint(points, segment, Math.min(1, u))
+  return curvePoint(spline, segment, Math.min(1, u))
 }
 
 /** Polyline of the curve from the start up to arc length s (at least the start point). */
@@ -165,4 +246,63 @@ export function endDirection(spline: Spline): Vec2 | null {
     if (len > 1e-6) return { x: d.x / len, y: d.y / len }
   }
   return null
+}
+
+/**
+ * Arc length at the end of each of the `count` input segments (segment i ends at input point
+ * i + 1); a segment dropped as a duplicate point ends where the previous one does.
+ */
+export function inputSegmentEnds(spline: Spline, count: number): number[] {
+  const { cumulative, samplesPerSegment, sourceSegments } = spline
+  const ends: number[] = []
+  let last = 0
+  for (let i = 0; i < count; i++) {
+    sourceSegments.forEach((source, j) => {
+      if (source === i) {
+        last = cumulative[Math.min((j + 1) * samplesPerSegment, cumulative.length - 1)] ?? last
+      }
+    })
+    ends.push(last)
+  }
+  return ends
+}
+
+/** A polyline of the curve with the flag of its spline segments (fast segments, D-115). */
+export interface CurvePart {
+  points: Vec2[]
+  flag: boolean
+}
+
+/**
+ * Polylines of the curve between arc lengths `from` and `to`, consecutive spline segments with
+ * the same flag grouped together.
+ */
+export function partsBetween(
+  spline: Spline,
+  from: number,
+  to: number,
+  flags: readonly boolean[],
+): CurvePart[] {
+  const { cumulative, samples, samplesPerSegment } = spline
+  const parts: CurvePart[] = []
+  const segments = Math.max(0, spline.points.length - 1)
+  for (let j = 0; j < segments; j++) {
+    const firstSample = j * samplesPerSegment
+    const lastSample = Math.min((j + 1) * samplesPerSegment, cumulative.length - 1)
+    const lo = Math.max(cumulative[firstSample] ?? 0, from)
+    const hi = Math.min(cumulative[lastSample] ?? 0, to)
+    if (hi <= lo) continue
+    const points: Vec2[] = [pointAtDistance(spline, lo)]
+    for (let k = firstSample; k <= lastSample; k++) {
+      const c = cumulative[k] ?? 0
+      const p = samples[k]
+      if (p && c > lo && c < hi) points.push({ x: p.x, y: p.y })
+    }
+    points.push(pointAtDistance(spline, hi))
+    const flag = flags[j] ?? false
+    const previous = parts[parts.length - 1]
+    if (previous && previous.flag === flag) previous.points.push(...points.slice(1))
+    else parts.push({ points, flag })
+  }
+  return parts
 }

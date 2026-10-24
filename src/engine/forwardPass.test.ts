@@ -41,19 +41,19 @@ const sprint = (id: string, to: Vec2, extra = {}) =>
 
 describe('forward pass check (SPEC 5.7)', () => {
   it('does not flag a flat pass from a running passer', () => {
-    // Both sprint side by side at 7 m/s: the ball moves forward in the field frame only by the
-    // speed of the passer.
+    // Both sprint side by side, at full speed (5.5 m/s) after 3 s: the ball moves forward in the
+    // field frame only by the speed of the passer.
     const play = passPlay({ x: 40, y: 30 }, { x: 40, y: 25 }, [
       sprint(P1, { x: 80, y: 30 }),
       sprint(P2, { x: 80, y: 25 }),
-      pass(PASS, P1, P2, 1),
+      pass(PASS, P1, P2, 3),
     ])
     expect(forward(play)).toBe(false)
     // Hands backwards: still not flagged.
     const backwards = passPlay({ x: 40, y: 30 }, { x: 38, y: 25 }, [
       sprint(P1, { x: 80, y: 30 }),
       sprint(P2, { x: 78, y: 25 }),
-      pass(PASS, P1, P2, 1),
+      pass(PASS, P1, P2, 3),
     ])
     expect(forward(backwards)).toBe(false)
   })
@@ -62,10 +62,10 @@ describe('forward pass check (SPEC 5.7)', () => {
     const play = passPlay({ x: 40, y: 30 }, { x: 43, y: 25 }, [
       sprint(P1, { x: 80, y: 30 }),
       sprint(P2, { x: 83, y: 25 }),
-      pass(PASS, P1, P2, 1),
+      pass(PASS, P1, P2, 3),
     ])
     expect(forward(play)).toBe(true)
-    const state = evaluate(play, [T1], 1.2, settings, createCaches())
+    const state = evaluate(play, [T1], 3.2, settings, createCaches())
     expect(state.passTraces[0]?.forward).toBe(true)
     expect(phaseSchematic(play, T1, settings, createCaches())?.passes[0]?.forward).toBe(true)
   })
@@ -86,25 +86,26 @@ describe('forward pass check (SPEC 5.7)', () => {
   })
 
   it('reads the passer speed at the end of the parent phase for a release at a phase start', () => {
-    // Phase 1: both sprint 7 m in 1 s. Phase 2: the passer stops and passes at once, the receiver
-    // keeps running: the ball keeps the speed the passer had when she let go.
+    // Phase 1: both sprint 15 m and end at speed (D-106). Phase 2: the passer stops and passes at
+    // once, the receiver keeps running: the ball keeps the speed the passer had when she let go.
     const play = passPlay(
       { x: 40, y: 30 },
       { x: 40, y: 25 },
       [
-        run(uuid(40), P1, [{ x: 47, y: 30 }], { durationOverride: 1 }),
-        run(uuid(41), P2, [{ x: 47, y: 25 }], { durationOverride: 1 }),
+        sprint(P1, { x: 55, y: 30 }, { endsAtSpeed: true }),
+        sprint(P2, { x: 55, y: 25 }, { endsAtSpeed: true }),
       ],
-      [sprint(P2, { x: 80, y: 25 }), pass(PASS, P1, P2, 0)],
+      [sprint(P2, { x: 90, y: 25 }), pass(PASS, P1, P2, 0)],
     )
     expect(forward(play, [T1, T2])).toBe(false)
   })
 
   it('flags the same pass when the passer had already stopped', () => {
+    // The passer stops after 2.9 s; the receiver still runs at full speed at 4 s.
     const play = passPlay({ x: 40, y: 30 }, { x: 40, y: 25 }, [
-      run(uuid(40), P1, [{ x: 47, y: 30 }], { durationOverride: 1 }),
-      run(uuid(41), P2, [{ x: 87, y: 25 }], { durationOverride: 6.7143 }),
-      pass(PASS, P1, P2, 2),
+      sprint(P1, { x: 47, y: 30 }),
+      sprint(P2, { x: 87, y: 25 }),
+      pass(PASS, P1, P2, 4),
     ])
     expect(forward(play)).toBe(true)
   })

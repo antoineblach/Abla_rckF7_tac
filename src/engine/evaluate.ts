@@ -6,19 +6,29 @@ import type { EngineSettings } from '../model/settings'
 import type { BreakdownKind, Id, Play, Vec2 } from '../model/types'
 import { kickLift } from './ballEvents'
 import type { EvalCaches } from './caches'
+import { timeAtSegmentEnd } from './profile'
 import type {
   BallState,
   KickTrace,
   PassTrace,
+  RunPart,
   RunTrace,
   SceneBreakdown,
   ScenePlayer,
   SceneState,
+  SpeedBadge,
 } from './sceneState'
-import { pathFromDistance, pathUpToDistance } from './spline'
+import {
+  inputSegmentEnds,
+  partsBetween,
+  pathFromDistance,
+  pathUpToDistance,
+  pointAtDistance,
+} from './spline'
 import {
   compileLine,
   gainLineAt,
+  motionDistance,
   motionEnd,
   motionPosition,
   motionProgress,
@@ -27,6 +37,7 @@ import {
   type CompiledLine,
   type CompiledPhase,
   type RunMotion,
+  type RunSyncResult,
 } from './timeline'
 import { copy, lerp } from './vec'
 
@@ -88,10 +99,19 @@ function ballAt(
   }
 }
 
+/** Parts of a motion between two arc lengths, fast segments flagged (D-115). */
+function runParts(motion: RunMotion, from: number, to: number): RunPart[] {
+  return partsBetween(motion.spline, from, to, motion.fastSegments).map((part) => ({
+    points: part.points,
+    fast: part.flag,
+  }))
+}
+
 function runTrace(motion: RunMotion, phaseId: Id, current: boolean, t: number): RunTrace | null {
   if (t < motion.start) return null
   const progress = motionProgress(motion, t)
-  const points = pathUpToDistance(motion.spline, progress * motion.spline.length)
+  const reached = progress * motion.spline.length
+  const points = pathUpToDistance(motion.spline, reached)
   if (points.length < 2) return null
   return {
     actionId: motion.actionId,
@@ -100,7 +120,33 @@ function runTrace(motion: RunMotion, phaseId: Id, current: boolean, t: number): 
     current,
     completed: t >= motionEnd(motion),
     points,
+    parts: runParts(motion, 0, reached),
   }
+}
+
+/**
+ * Badges of the segments of a run beyond a speed threshold (SPEC 5.9, D-112), those entered at t
+ * (every one reached by the run for t = Infinity).
+ */
+function speedBadgesOf(motion: RunMotion, t: number): SpeedBadge[] {
+  if (motion.source !== 'run') return []
+  const badges: SpeedBadge[] = []
+  const { spline, profile } = motion
+  const reach = motionDistance(motion, Infinity)
+  motion.speedLevels.forEach((level, segment) => {
+    if (!level) return
+    const enters = motion.start + (segment === 0 ? 0 : timeAtSegmentEnd(profile, segment - 1))
+    const from = spline.cumulative[segment * spline.samplesPerSegment] ?? 0
+    if (t < enters || from > reach) return
+    const to = spline.cumulative[(segment + 1) * spline.samplesPerSegment] ?? spline.length
+    badges.push({
+      actionId: motion.actionId,
+      segment: spline.sourceSegments[segment] ?? segment,
+      pos: pointAtDistance(spline, (from + Math.min(to, reach)) / 2),
+      level,
+    })
+  })
+  return badges
 }
 
 /** Samples a compiled line at time t. */
@@ -116,12 +162,14 @@ export function sampleLine(compiled: CompiledLine, rawT: number): SceneState {
   const traces: RunTrace[] = []
   const passTraces: PassTrace[] = []
   const kickTraces: KickTrace[] = []
+  const speedBadges: SpeedBadge[] = []
   for (let i = 0; i <= index; i++) {
     const ph = compiled.phases[i] as CompiledPhase
     const current = i === index
     for (const motion of ph.motions) {
       const trace = runTrace(motion, ph.phaseId, current, t)
       if (trace) traces.push(trace)
+      speedBadges.push(...speedBadgesOf(motion, t))
     }
     for (const p of ph.passes) {
       if (!p.applied || p.releaseT > t) continue
@@ -179,6 +227,7 @@ export function sampleLine(compiled: CompiledLine, rawT: number): SceneState {
     passTraces,
     kickTraces,
     breakdowns,
+    speedBadges,
     gainLineX: gainLineAt(compiled, t),
     issues: [...compiled.issues],
   }
@@ -208,6 +257,22 @@ export interface SchematicRun {
   /** Stored waypoints (the start point is not stored, SPEC 5.2). */
   waypoints: Vec2[]
   duration: number
+  /** The applied curve cut by speed (fast segments drawn thicker, D-115). */
+  parts: RunPart[]
+  /** Arc length from the start at each waypoint: end of each input segment (D-114). */
+  segmentEnds: number[]
+}
+
+/** A synchronisation link drawn in the editor overlay only (SPEC 5.8, D-108). */
+export interface SchematicSyncLink {
+  /** The linked run. */
+  actionId: Id
+  /** The action it is synchronised with. */
+  targetActionId: Id
+  /** Point of the run that meets the target, and point of the target (null when unreached). */
+  from: Vec2
+  to: Vec2 | null
+  result: RunSyncResult
 }
 
 export interface SchematicPass {
@@ -258,6 +323,10 @@ export interface PhaseSchematic {
   passes: SchematicPass[]
   kicks: SchematicKick[]
   breakdowns: SchematicBreakdown[]
+  /** Segments of the runs of the phase beyond a speed threshold (editor, D-112). */
+  speedBadges: SpeedBadge[]
+  /** Synchronisation links of the runs of the phase (editor overlay, D-108). */
+  syncLinks: SchematicSyncLink[]
   /** Applied runs and relays of the ancestors (applied parts only). */
   ancestorRuns: SchematicRun[]
   ancestorPasses: SchematicPass[]
@@ -283,7 +352,27 @@ function schematicRun(motion: RunMotion, phaseId: Id): SchematicRun {
     ignoredPoints: cut ? pathFromDistance(motion.spline, s) : [],
     waypoints: motion.waypoints.map(copy),
     duration: motion.duration,
+    parts: runParts(motion, 0, cut ? s : motion.spline.length),
+    segmentEnds: inputSegmentEnds(motion.spline, motion.waypoints.length),
   }
+}
+
+function schematicSyncLinks(play: Play, phase: CompiledPhase): SchematicSyncLink[] {
+  const actions = play.phases.find((p) => p.id === phase.phaseId)?.actions ?? []
+  return phase.motions.flatMap((motion) => {
+    const action = actions.find((a) => a.id === motion.actionId)
+    const result = motion.sync
+    if (motion.source !== 'run' || action?.type !== 'run' || !action.sync || !result) return []
+    return [
+      {
+        actionId: motion.actionId,
+        targetActionId: action.sync.target.actionId,
+        from: copy(result.meetPoint),
+        to: result.targetPoint ? copy(result.targetPoint) : null,
+        result,
+      },
+    ]
+  })
 }
 
 function schematicRuns(phase: CompiledPhase): SchematicRun[] {
@@ -375,6 +464,8 @@ export function phaseSchematic(
     passes: schematicPasses(phase),
     kicks: schematicKicks(phase),
     breakdowns: schematicBreakdowns(phase),
+    speedBadges: phase.motions.flatMap((m) => speedBadgesOf(m, Infinity)),
+    syncLinks: schematicSyncLinks(play, phase),
     ancestorRuns: ancestors.flatMap((a) =>
       a.motions.map((m) => ({ ...schematicRun(m, a.phaseId), ignoredPoints: [] })),
     ),

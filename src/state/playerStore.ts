@@ -146,7 +146,7 @@ export function setTransportFlag(
 }
 
 export function setLayer(
-  layer: 'traces' | 'instruction' | 'gainLine' | 'forwardPass',
+  layer: 'traces' | 'instruction' | 'gainLine' | 'forwardPass' | 'speedAlert',
   value: boolean,
 ): void {
   const layers = { ...usePlayerStore.getState().layers, [layer]: value }
