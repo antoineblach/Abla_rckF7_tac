@@ -6,10 +6,13 @@ import { ExportWindows } from './export/ExportProgress'
 import { StatusBanner, Toasts } from './feedback/StatusBanner'
 import { FieldCanvas } from './field/FieldCanvas'
 import { PlacementBanner } from './field/PlacementBanner'
+import { SyncBanner } from './field/SyncBanner'
 import { useAnimationLoop } from './hooks/useAnimationLoop'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useSpaceKey } from './hooks/useSpaceKey'
 import { Inspector } from './inspector/Inspector'
 import { LibraryPanel } from './library/LibraryPanel'
+import { ActionList } from './phases/ActionList'
 import { PhaseTree } from './phases/PhaseTree'
 import { OptionChooser, TransportBar } from './player/TransportBar'
 import { NOTICES } from './strings'
@@ -35,11 +38,13 @@ function EditorNotice() {
 }
 
 /** Screen layout (SPEC 6.1): toolbar on top, library on the left, field in the centre,
- * inspector on the right, phase tree and playback controls at the bottom. Every bar has a fixed
- * size; banner, notices and option buttons float over the field (D-048, D-050). */
+ * inspector on the right, playback controls under the field, and at the bottom a band of fixed
+ * height shared by the phase tree (2/5) and the actions of the phase (3/5, D-113). Every bar has a
+ * fixed size; banners, notices and option buttons float over the field (D-048, D-050). */
 export function App() {
   const stageRef = useRef<HTMLElement>(null)
   useKeyboardShortcuts()
+  useSpaceKey()
   useAnimationLoop()
   useEffect(() => {
     void startSession()
@@ -55,6 +60,7 @@ export function App() {
             <div className="stage__overlay stage__overlay--top">
               <StatusBanner />
               <PlacementBanner />
+              <SyncBanner />
               <EditorNotice />
             </div>
             <div className="stage__overlay stage__overlay--bottom">
@@ -65,7 +71,10 @@ export function App() {
         </section>
         <Inspector />
       </main>
-      <PhaseTree />
+      <div className="bottom-band">
+        <PhaseTree />
+        <ActionList />
+      </div>
       <Dialogs />
       <ExportWindows />
       <Toasts />

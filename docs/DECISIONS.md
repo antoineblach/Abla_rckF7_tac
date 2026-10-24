@@ -880,3 +880,16 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : cohérence avec D-107 à D-109 et D-114 ; aucun geste bloqué ; clavier français.
 - Alternatives écartées : sortir du choix de la cible au premier refus ; touches lues sur le caractère seulement (Maj nécessaire en AZERTY).
 - Origine : écriture de l'étape 6.
+
+### D-121 : précisions de l'interface du lot 3 bis
+- Date : 2026-10-24
+- Décision :
+  - message du sprint ramené à 5,5 m/s (D-111) : affiché une fois par poste (mémorisé dans le navigateur), même tant que `reglages.json` reste en version 2 (réécrit en v3 au prochain enregistrement des réglages, comme prévu) ;
+  - liste des actions : titre « Actions du temps : Temps n » ; une pastille par gravité (erreur, avertissement), avec leur nombre et les messages en infobulle ; une action ignorée est barrée en rouge ;
+  - survol d'une ligne : halo aussi pendant la lecture, sur la scène à `t` ;
+  - inspecteur de la course : « Changer la cible » à côté de « Retirer le lien » ; sous un lien en départ différé appliqué, le champ « Délai » est remplacé par « Délai calculé par le lien » ; pour un lâcher à la réception, le délai s'appelle « Temps de contrôle » ;
+  - Espace : un seul fichier de bout en bout, `space.spec.ts`, joué dans Chromium et Firefox (le plan prévoyait deux fichiers) ;
+  - avec la case « Vitesses », la seconde rangée de la barre de lecture défile aussi à 1440 px (écart connu à 1280 px, D-077).
+- Raison : un message à chaque ouverture serait pénible ; lisibilité de la liste dans 176 px ; mêmes tests dans les deux navigateurs sans duplication.
+- Alternatives écartées : réécrire `reglages.json` en v3 à l'ouverture (le plan veut la réécriture au prochain enregistrement) ; message à chaque ouverture.
+- Origine : écriture de l'étape 7.

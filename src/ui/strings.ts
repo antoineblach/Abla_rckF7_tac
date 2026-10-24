@@ -211,6 +211,10 @@ export const TEXT = {
   placementMoveEnd: 'Déplacer la combinaison : cliquez le point d’arrivée.',
   placementRefused: 'Marque de touche à moins de 5 m d’une ligne de but : refusée.',
   placementEscape: 'Échap pour annuler.',
+  // Lot 3 bis (D-109, D-111).
+  syncPick: (what: string) => `Caler la ${what} : cliquez la cible.`,
+  sprintReset:
+    'Allure sprint ramenée de 7 à 5,5 m/s (19,8 km/h), nouvelle valeur par défaut. Modifiable dans les réglages.',
 } as const
 
 /** « Côté ouvert » of a preset, seen by the attacking team facing the opposing goal (D-088). */

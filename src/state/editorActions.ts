@@ -40,6 +40,13 @@ import {
 } from '../editor/selection'
 import { shortcutFor, type KeyInput } from '../editor/shortcuts'
 import { maybeSnap } from '../editor/snap'
+import {
+  spaceHeld,
+  spaceStep,
+  SPACE_UP,
+  type SpaceEvent,
+  type SpaceState,
+} from '../editor/spaceKey'
 import { pickRendezVous, syncPickClick, type SyncPick } from '../editor/syncPick'
 import { kickToolClick } from '../editor/tools/kickTool'
 import { passToolClick } from '../editor/tools/passTool'
@@ -84,6 +91,8 @@ export interface InteractionState {
   selectionBox: Bounds | null
   /** Action hovered in the list of the phase, haloed on the field (D-113). */
   hoveredActionId: Id | null
+  /** Space bar: short press plays or pauses, held with a drag pans (D-116). */
+  space: SpaceState
   /** Converts a screen-space nudge (arrow keys) to a field vector; set by the canvas. */
   screenToField: (dx: number, dy: number) => Vec2
   /** Metres per CSS pixel of the canvas, for the drag threshold; set by the canvas. */
@@ -94,9 +103,22 @@ export const useInteractionStore = create<InteractionState>(() => ({
   cursor: null,
   selectionBox: null,
   hoveredActionId: null,
+  space: SPACE_UP,
   screenToField: (dx, dy) => ({ x: dx, y: dy }),
   metersPerPx: 0,
 }))
+
+/** A space bar event (D-116): a short press without drag plays or pauses. */
+export function spaceEvent(event: SpaceEvent): void {
+  const step = spaceStep(useInteractionStore.getState().space, event)
+  useInteractionStore.setState({ space: step.state })
+  if (step.toggle) playPause()
+}
+
+/** True while the space bar is held: a drag pans the field. */
+export function isSpaceHeld(): boolean {
+  return spaceHeld(useInteractionStore.getState().space)
+}
 
 /** Called with the request to save now (Ctrl+S): set by the session. */
 let saveRequest: () => void = () => undefined
@@ -159,6 +181,22 @@ function leavePlayback(): boolean {
   }
   enterEditMode()
   return true
+}
+
+/**
+ * Click on a row of the list of the actions (D-113): selects the action, on the field and in the
+ * inspector; during playback, back to edit mode on the displayed phase first.
+ */
+export function selectListedAction(actionId: Id): void {
+  leavePlayback()
+  setSelection(actionsSelection([actionId]))
+}
+
+/** Row of the list under the pointer: its action is haloed on the field (D-113). */
+export function hoverListedAction(actionId: Id | null): void {
+  if (useInteractionStore.getState().hoveredActionId !== actionId) {
+    useInteractionStore.setState({ hoveredActionId: actionId })
+  }
 }
 
 function anchorOf(play: Play, phaseId: Id, schematic: PhaseSchematic | null) {

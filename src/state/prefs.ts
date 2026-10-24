@@ -41,6 +41,22 @@ export function loadPrefs(): Prefs {
   }
 }
 
+const SPRINT_NOTICE_KEY = 'abla-rck7:sprintResetNoticeShown'
+
+/**
+ * The message of the sprint pace reset by the settings migration is shown once per computer
+ * (D-111, D-121), even while reglages.json stays in version 2.
+ */
+export function takeSprintResetNotice(): boolean {
+  try {
+    if (globalThis.localStorage.getItem(SPRINT_NOTICE_KEY)) return false
+    globalThis.localStorage.setItem(SPRINT_NOTICE_KEY, '1')
+    return true
+  } catch {
+    return true
+  }
+}
+
 export function savePrefs(prefs: Prefs): void {
   try {
     globalThis.localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))

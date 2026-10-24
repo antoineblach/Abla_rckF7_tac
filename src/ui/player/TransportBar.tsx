@@ -232,6 +232,13 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
             setLayer('forwardPass', v)
           }}
         />
+        <CheckboxField
+          label="Vitesses"
+          checked={layers.speedAlert}
+          onChange={(v) => {
+            setLayer('speedAlert', v)
+          }}
+        />
       </div>
     </div>
   )

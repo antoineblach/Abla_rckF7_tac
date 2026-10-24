@@ -6,7 +6,12 @@ import type { Selection } from '../editor/selection'
 import { runToolPreview, type RunDraft } from '../editor/tools/runTool'
 import type { ToolId } from '../editor/tools/types'
 import type { Id, Play, Vec2 } from '../model/types'
-import type { EditorOverlay, OverlayHover, OverlayLink } from '../render/overlay'
+import {
+  EMPTY_OVERLAY,
+  type EditorOverlay,
+  type OverlayHover,
+  type OverlayLink,
+} from '../render/overlay'
 
 export interface OverlayInput {
   play: Play
@@ -46,6 +51,11 @@ function linksOf(schematic: PhaseSchematic, selection: Selection): OverlayLink[]
     if (shown && link.to) links.push({ from: link.from, to: link.to })
   }
   return links
+}
+
+/** Only the halo of the action hovered in the list, over the scene during playback (D-113). */
+export function hoverOverlay(schematic: PhaseSchematic, hoveredActionId: Id | null): EditorOverlay {
+  return { ...EMPTY_OVERLAY, hover: hoverOf(schematic, hoveredActionId) }
 }
 
 export function buildOverlay(input: OverlayInput): EditorOverlay {

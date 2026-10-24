@@ -568,6 +568,33 @@ kbd {
   color: var(--muted);
 }
 
+/* Blocks of a run (lot 3 bis): segment and synchronisation, framed inside the section. */
+.inspector__block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-alt);
+}
+
+.inspector__facts {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inspector__fact--warning {
+  color: #8a5a00;
+}
+
+.inspector__fact--danger {
+  color: var(--error);
+  font-weight: 700;
+}
+
 /* Discreet action of the settings: copy of the synchronisation log (D-100). */
 .inspector__discreet {
   align-self: flex-start;
@@ -645,16 +672,204 @@ kbd {
   background: var(--warning-bg);
 }
 
+/* Bottom band (D-113): fixed height, the phase tree on 2/5 and the actions of the phase on 3/5;
+   both scroll inside, nothing around the field changes size. */
+.bottom-band {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  height: var(--tree-h);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
 /* Phase tree: fixed height; the action row stays, the drawing of the phases scrolls. */
 .phase-tree {
   height: var(--tree-h);
+  min-width: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 6px;
   padding: 6px 10px;
   overflow: hidden;
   background: var(--panel);
-  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+/* Actions of the phase (SPEC 6.7): title, time scale, rows scrolling inside. The columns of the
+   scale and of the rows are the same: title, bar, summary, badges. */
+.action-list {
+  height: var(--tree-h);
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 4px;
+  padding: 6px 10px;
+  overflow: hidden;
+}
+
+.action-list__title {
+  margin: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-list__empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.action-list__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.action-list__scale,
+.action-row {
+  display: grid;
+  grid-template-columns: 120px minmax(80px, 1fr) minmax(0, 220px) 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-list__scale {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 18px;
+  background: var(--panel);
+  padding-right: 52px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.action-list__ticks {
+  position: relative;
+  height: 100%;
+  border-bottom: 1px solid var(--border);
+}
+
+.action-list__tick {
+  position: absolute;
+  bottom: 1px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.action-list__tick:first-child {
+  transform: none;
+}
+
+.action-list__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.action-row {
+  width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.action-row:hover,
+.action-row--hovered {
+  border-color: var(--border);
+  background: var(--panel-alt);
+}
+
+.action-row--selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.action-row--ignored .action-row__title {
+  color: var(--error);
+  text-decoration: line-through;
+}
+
+.action-row__title,
+.action-row__summary {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-row__title {
+  font-weight: 700;
+}
+
+.action-row__summary {
+  color: var(--muted);
+}
+
+.action-row__track {
+  position: relative;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+}
+
+.action-row__bar {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  min-width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.action-row--pass .action-row__bar,
+.action-row--kick .action-row__bar {
+  background: #8a5a00;
+}
+
+.action-row--breakdown .action-row__bar {
+  background: var(--muted);
+}
+
+.action-row--ignored .action-row__bar {
+  background: var(--error);
+}
+
+.action-row__badges {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+.action-row__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.action-row__badge--error {
+  background: var(--error);
+  color: #ffffff;
+}
+
+.action-row__badge--warning {
+  background: var(--warning-border);
+  color: #000000;
 }
 
 .phase-tree__actions {
