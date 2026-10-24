@@ -1,7 +1,7 @@
 # État du projet
 
 - Mise à jour : 2026-10-24
-- Branche : `lot-3bis` (depuis `main` à `e76aa13`), poussée sur `origin` ; lot 3 bis terminé, PR vers `main` à fusionner par l'utilisateur après la CI
+- Branche : `lot-3bis` (depuis `main` à `e76aa13`), poussée sur `origin` ; lot 3 bis terminé, PR #7 vers `main` ouverte le 24/10, à fusionner par l'utilisateur quand la CI est verte
 - `main` : lots 1, 2 et 3, la correction du lot 3 et la mise à jour de la mémoire fusionnés (PR #1 à #6 ; PR #6 le 23/10, commit de fusion `e76aa13`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` identique à D-055, vérifiée par `gh api` le 23/10 (D-102)
 
