@@ -169,26 +169,18 @@ describe('render: flat colours and determinism (SPEC 3.3.3, 3.3.6)', () => {
       drawScene(recording.ctx, 'landscape', 'screen', layers)
       return recording.calls.length
     }
+    const off: Layers = {
+      traces: false,
+      instruction: false,
+      gainLine: false,
+      forwardPass: false,
+      speedAlert: false,
+    }
     const all = count(DEFAULT_LAYERS)
-    const none = count({ traces: false, instruction: false, gainLine: false, forwardPass: false })
-    const onlyTraces = count({
-      traces: true,
-      instruction: false,
-      gainLine: false,
-      forwardPass: false,
-    })
-    const onlyInstruction = count({
-      traces: false,
-      instruction: true,
-      gainLine: false,
-      forwardPass: false,
-    })
-    const onlyGain = count({
-      traces: false,
-      instruction: false,
-      gainLine: true,
-      forwardPass: false,
-    })
+    const none = count(off)
+    const onlyTraces = count({ ...off, traces: true })
+    const onlyInstruction = count({ ...off, instruction: true })
+    const onlyGain = count({ ...off, gainLine: true })
     expect(onlyTraces).toBeGreaterThan(none)
     expect(onlyInstruction).toBeGreaterThan(none)
     expect(onlyGain).toBeGreaterThan(none)

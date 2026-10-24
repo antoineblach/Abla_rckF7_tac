@@ -4,6 +4,7 @@ import type { Pace } from '../model/types'
 import type { ReadError } from '../io/readPlay'
 import type { EditorNotice } from '../state/editorStore'
 import type { ToolId } from '../editor/tools/types'
+import { formatKmh, formatSeconds } from './format'
 
 export { CATEGORY_LABELS, phaseLabel } from '../model/labels'
 
@@ -29,6 +30,20 @@ export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
   breakdownNoBall:
     'Regroupement : cliquez une joueuse qui a le ballon dans ce temps (la porteuse plaquée).',
   breakdownTeammates: 'Regroupement : il faut deux coéquipières pour le soutien et le relayeur.',
+  syncSelf: 'Une course ne peut pas être calée sur elle-même : cliquez une autre action.',
+  syncCycle: 'Lien refusé : il créerait une boucle de liens. Cliquez une autre action.',
+  syncInvalid: 'Cette action ne peut pas servir de cible : cliquez une autre action.',
+  syncLinkRemoved: 'Le point portait un lien de synchronisation : le lien a été retiré.',
+}
+
+/** « 1,2 s » from a number of seconds carried by an issue. */
+function seconds(value: string | number | undefined): string {
+  return typeof value === 'number' ? formatSeconds(value) : '?'
+}
+
+/** « 23,4 km/h » from a speed in m/s carried by an issue. */
+function kmh(value: string | number | undefined): string {
+  return typeof value === 'number' ? formatKmh(value) : '?'
 }
 
 export function issueMessage(issue: Issue): string {
@@ -96,6 +111,28 @@ export function issueMessage(issue: Issue): string {
       return 'Relayeur trop loin : il n’arrive au ballon qu’à la sortie, en accélérant.'
     case 'forwardPass':
       return 'En-avant probable : la passe part vers l’avant depuis les mains.'
+    case 'syncTargetMissing':
+      return 'Lien de synchronisation : cible supprimée, lien ignoré.'
+    case 'syncTargetInvalid':
+      return p.reason === 'unreached'
+        ? 'Lien de synchronisation : la cible n’a jamais lieu (action ignorée ou point non atteint), lien ignoré.'
+        : 'Lien de synchronisation invalide (cible ou point inexistant) : lien ignoré.'
+    case 'syncCycle':
+      return 'Liens de synchronisation en boucle : liens ignorés.'
+    case 'syncLate':
+      return `Synchronisation impossible : départ immédiat, arrivée en retard de ${seconds(p.late)}.`
+    case 'syncSpeedCapped':
+      return p.needed === undefined
+        ? 'Synchronisation impossible : la cible arrive avant le départ de la course ; vitesse plafonnée au seuil rouge.'
+        : `Synchronisation impossible : il faudrait ${kmh(p.needed)} de moyenne ; vitesse plafonnée au seuil rouge.`
+    case 'durationCapped':
+      return `Durée imposée inatteignable (accélérations, seuil rouge) : la course dure ${seconds(p.duration)}.`
+    case 'runSpeedHigh':
+      return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil orange.`
+    case 'runSpeedTooHigh':
+      return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil rouge : irréaliste.`
+    case 'runNotContinued':
+      return `Course lancée non prolongée dans ${p.phase ?? 'le temps suivant'} : arrêt net à la fin du temps.`
   }
 }
 
@@ -174,6 +211,10 @@ export const TEXT = {
   placementMoveEnd: 'Déplacer la combinaison : cliquez le point d’arrivée.',
   placementRefused: 'Marque de touche à moins de 5 m d’une ligne de but : refusée.',
   placementEscape: 'Échap pour annuler.',
+  // Lot 3 bis (D-109, D-111).
+  syncPick: (what: string) => `Caler la ${what} : cliquez la cible.`,
+  sprintReset:
+    'Allure sprint ramenée de 7 à 5,5 m/s (19,8 km/h), nouvelle valeur par défaut. Modifiable dans les réglages.',
 } as const
 
 /** « Côté ouvert » of a preset, seen by the attacking team facing the opposing goal (D-088). */

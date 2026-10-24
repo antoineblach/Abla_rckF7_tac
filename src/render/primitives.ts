@@ -125,19 +125,22 @@ export function fillCircle(ctx: Ctx2D, center: Vec2, radius: number, color: stri
   ctx.fill()
 }
 
+/** Circle outline; `dashPx`: dash pattern in device pixels, solid when empty. */
 export function strokeCircle(
   ctx: Ctx2D,
   center: Vec2,
   radius: number,
   color: string,
   width: number,
+  dashPx: readonly number[] = [],
 ): void {
   ctx.strokeStyle = color
   ctx.lineWidth = width
-  ctx.setLineDash([])
+  ctx.setLineDash([...dashPx])
   ctx.beginPath()
   ctx.arc(center.x, center.y, radius, 0, Math.PI * 2)
   ctx.stroke()
+  if (dashPx.length > 0) ctx.setLineDash([])
 }
 
 /**

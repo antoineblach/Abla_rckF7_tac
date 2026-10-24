@@ -1,7 +1,7 @@
 // Frozen version 1 of the file format (lots 1 and 2), kept to validate files before their
 // migration to version 2 (SPEC 4.5, D-094). It differs from version 2 only by its actions: runs
-// and passes. The shared building blocks of schema.ts are reused while they are identical in
-// both versions; a later change to one of them must first be copied here.
+// and passes. The shared building blocks of schema.ts and schemaV2.ts are reused while they are
+// identical in both versions; a later change to one of them must first be copied here.
 import { z } from 'zod'
 import {
   categorySchema,
@@ -9,13 +9,12 @@ import {
   fieldSchema,
   idSchema,
   isoDateSchema,
-  passSchema,
-  runSchema,
   setupSchema,
   teamSchema,
 } from './schema'
+import { passSchemaV2, runSchemaV2 } from './schemaV2'
 
-const actionSchemaV1 = z.discriminatedUnion('type', [runSchema, passSchema])
+const actionSchemaV1 = z.discriminatedUnion('type', [runSchemaV2, passSchemaV2])
 
 const phaseSchemaV1 = z.strictObject({
   id: idSchema,

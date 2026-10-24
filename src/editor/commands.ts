@@ -4,13 +4,15 @@
 import { BREAKDOWN_DURATION_DEFAULT, DUPLICATE_OFFSET, TEAM_COLORS } from '../config/defaults'
 import type { EvalCaches } from '../engine/caches'
 import { ballObtainedAt, compiledPhaseOf } from '../engine/evaluate'
-import { motionEnd, positionInPhase } from '../engine/timeline'
+import { motionEnd, positionInPhase, type CompiledPhase } from '../engine/timeline'
 import type { IdFactory } from '../model/ids'
 import { childrenOf, descendantsOf, findPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
+import { createsCycle, syncProblem } from '../model/syncGraph'
 import {
   isPlayer,
   isReceiverTarget,
+  PACES,
   type Action,
   type BreakdownContest,
   type BreakdownKind,
@@ -24,6 +26,10 @@ import {
   type Play,
   type PlayCategory,
   type PlayerEntity,
+  type ReleaseMode,
+  type RunAction,
+  type RunSync,
+  type SegmentSpeed,
   type Team,
   type Vec2,
 } from '../model/types'
@@ -271,6 +277,7 @@ export function addRun(
   }
 }
 
+/** Drags a waypoint; its segment speed is kept (D-114). */
 export function moveWaypoint(play: Play, actionId: Id, index: number, pos: Vec2): Play {
   return mapActions(play, (action) => {
     if (
@@ -280,21 +287,131 @@ export function moveWaypoint(play: Play, actionId: Id, index: number, pos: Vec2)
       index >= action.waypoints.length
     )
       return action
-    const waypoints = action.waypoints.map((p, i) => (i === index ? { x: pos.x, y: pos.y } : p))
+    const waypoints = action.waypoints.map((p, i) =>
+      i === index ? { ...p, x: pos.x, y: pos.y } : p,
+    )
     return { ...action, waypoints }
   })
 }
 
-/** Right click on a point: removes it; removing the last point removes the run (D-015). */
-export function deleteWaypoint(play: Play, actionId: Id, index: number): Play {
+function withoutSync(run: RunAction): RunAction {
+  const next = { ...run }
+  delete next.sync
+  return next
+}
+
+/** Phase holding an action, and the action. */
+function locateAction(play: Play, actionId: Id): { phase: Phase; action: Action } | null {
+  for (const phase of play.phases) {
+    const action = phase.actions.find((a) => a.id === actionId)
+    if (action) return { phase, action }
+  }
+  return null
+}
+
+function locateRun(play: Play, runId: Id): { phase: Phase; run: RunAction } | null {
+  const found = locateAction(play, runId)
+  return found?.action.type === 'run' ? { phase: found.phase, run: found.action } : null
+}
+
+/**
+ * Right click on a point: removes it; removing the last point removes the run (D-015). A link
+ * carried by the point (rendez-vous of this run, or target of another run) is removed, and the
+ * point indices of the other links of the run are shifted (D-108); `removedLinks` counts the
+ * removed links for the message.
+ */
+export function deleteWaypoint(
+  play: Play,
+  actionId: Id,
+  index: number,
+): { play: Play; removedLinks: number } {
+  const found = locateRun(play, actionId)
+  if (!found || index < 0 || index >= found.run.waypoints.length) return { play, removedLinks: 0 }
+  let removedLinks = 0
+  const shift = (run: RunAction): RunAction => {
+    let next = run
+    const at = next.sync?.at
+    if (next.id === actionId && next.sync && at !== undefined) {
+      if (at === index) {
+        removedLinks++
+        next = withoutSync(next)
+      } else if (at > index) {
+        next = { ...next, sync: { ...next.sync, at: at - 1 } }
+      }
+    }
+    const target = next.sync?.target
+    if (next.sync && target?.event === 'runPoint' && target.actionId === actionId) {
+      if (target.index === index) {
+        removedLinks++
+        next = withoutSync(next)
+      } else if (target.index > index) {
+        next = { ...next, sync: { ...next.sync, target: { ...target, index: target.index - 1 } } }
+      }
+    }
+    return next
+  }
+  const result = mapActions(play, (action, phase) => {
+    if (phase.id !== found.phase.id || action.type !== 'run') return action
+    if (action.id !== actionId) return shift(action)
+    const waypoints = action.waypoints.filter((_, i) => i !== index)
+    // The run disappears with its own link; links aimed at it stay (« cible supprimée »).
+    return waypoints.length === 0 ? null : shift({ ...action, waypoints })
+  })
+  return { play: result, removedLinks }
+}
+
+/** Speed of segment `index` of a run (the segment arriving at point `index`); null: run pace. */
+export function setSegmentSpeed(
+  play: Play,
+  actionId: Id,
+  index: number,
+  speed: SegmentSpeed | null,
+): Play {
+  if (typeof speed === 'number' && !(speed > 0 && Number.isFinite(speed))) return play
+  // Nothing to change: the same play, so that no empty undo step is recorded.
+  const point = locateRun(play, actionId)?.run.waypoints[index]
+  if (!point || (speed === null ? point.speed === undefined : point.speed === speed)) return play
   return mapActions(play, (action) => {
     if (action.id !== actionId || action.type !== 'run') return action
-    const waypoints = action.waypoints.filter((_, i) => i !== index)
-    return waypoints.length === 0 ? null : { ...action, waypoints }
+    const waypoints = action.waypoints.map((p, i) => {
+      if (i !== index) return p
+      const next = { ...p }
+      if (speed === null) delete next.speed
+      else next.speed = speed
+      return next
+    })
+    return { ...action, waypoints }
   })
 }
 
-/** Adds a pass; its delay is the instant the passer obtains the ball in this phase (D-015). */
+/**
+ * Release laid by the pass and kick tools (D-110, D-119): on receipt with no control time when the
+ * player does not carry the ball at the start of the phase, unless she picks it up from the ground
+ * (a pickup is not a reception): then at the instant she obtains it, as before (D-015).
+ */
+function toolRelease(
+  play: Play,
+  phaseId: Id,
+  playerId: Id,
+  ctx: CommandContext,
+): { delay: number; release?: ReleaseMode } {
+  const obtained = ballObtainedAt(play, phaseId, playerId, ctx.settings, ctx.caches)
+  const phase = compiledPhaseOf(play, phaseId, ctx.settings, ctx.caches)
+  const fixed = { delay: Math.max(0, obtained ?? 0) }
+  if (!phase) return fixed
+  const start = phase.holderAtStart
+  if (start.kind === 'carried' && start.carrierId === playerId) return fixed
+  if (picksUpBall(phase, playerId)) return fixed
+  return { delay: 0, release: 'onReceipt' }
+}
+
+/** True when the player first obtains the ball in the phase from the ground (D-083). */
+function picksUpBall(phase: CompiledPhase, playerId: Id): boolean {
+  const index = phase.ball.findIndex((s) => s.kind === 'carried' && s.carrierId === playerId)
+  return index > 0 && phase.ball[index - 1]?.kind === 'loose'
+}
+
+/** Adds a pass; its release follows the ball of the passer in the phase (D-015, D-110). */
 export function addPass(
   play: Play,
   phaseId: Id,
@@ -306,7 +423,7 @@ export function addPass(
   const from = play.entities.find((e) => e.id === fromId)
   const to = play.entities.find((e) => e.id === toId)
   if (!phase || fromId === toId || !isPlayer(from) || !isPlayer(to)) return { play, actionId: null }
-  const delay = ballObtainedAt(play, phaseId, fromId, ctx.settings, ctx.caches) ?? 0
+  const release = toolRelease(play, phaseId, fromId, ctx)
   const actionId = ctx.ids()
   return {
     actionId,
@@ -314,10 +431,7 @@ export function addPass(
       p.id === phaseId
         ? {
             ...p,
-            actions: [
-              ...p.actions,
-              { id: actionId, type: 'pass', fromId, toId, delay: Math.max(0, delay) },
-            ],
+            actions: [...p.actions, { id: actionId, type: 'pass', fromId, toId, ...release }],
           }
         : p,
     ),
@@ -326,26 +440,34 @@ export function addPass(
 
 export interface RunPatch {
   pace?: Pace
-  /** null clears the imposed duration. */
+  /** null clears the imposed duration; a duration removes a link with an adjusted speed (D-107). */
   durationOverride?: number | null
   delay?: number
+  /** « Finit lancée » (D-106). */
+  endsAtSpeed?: boolean
 }
 
 export interface PassPatch {
   delay?: number
   /** null returns to the speed of the settings. */
   ballSpeed?: number | null
+  /** null: release at a fixed instant (D-110). */
+  release?: ReleaseMode | null
 }
 
 export function updateRun(play: Play, actionId: Id, patch: RunPatch): Play {
   return mapActions(play, (action) => {
     if (action.id !== actionId || action.type !== 'run') return action
-    const next = { ...action }
-    if (patch.pace !== undefined) next.pace = patch.pace
+    let next = { ...action }
+    if (patch.pace !== undefined && PACES.includes(patch.pace)) next.pace = patch.pace
     if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
     if (patch.durationOverride === null) delete next.durationOverride
-    else if (patch.durationOverride !== undefined && patch.durationOverride > 0)
+    else if (patch.durationOverride !== undefined && patch.durationOverride > 0) {
       next.durationOverride = patch.durationOverride
+      if (next.sync?.adjust === 'speed') next = withoutSync(next)
+    }
+    if (patch.endsAtSpeed === true) next.endsAtSpeed = true
+    else if (patch.endsAtSpeed === false) delete next.endsAtSpeed
     return next
   })
 }
@@ -357,8 +479,112 @@ export function updatePass(play: Play, actionId: Id, patch: PassPatch): Play {
     if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
     if (patch.ballSpeed === null) delete next.ballSpeed
     else if (patch.ballSpeed !== undefined && patch.ballSpeed > 0) next.ballSpeed = patch.ballSpeed
+    if (patch.release === null) delete next.release
+    else if (patch.release !== undefined) next.release = patch.release
     return next
   })
+}
+
+// ---------------------------------------------------------------------------
+// Synchronisation links (SPEC 5.8, D-108, D-109)
+
+/** Why a link was refused: the run itself, a loop of links, or a target that cannot apply. */
+export type SyncRefusal = 'self' | 'cycle' | 'invalid'
+
+/**
+ * Gives a link to a run (« Caler sur… »). Refused when it targets the run itself, when it closes
+ * a loop of links, or when it cannot apply (target missing, incompatible, point out of range). A
+ * link with an adjusted speed removes the imposed duration (D-107).
+ */
+export function setRunSync(
+  play: Play,
+  runId: Id,
+  sync: RunSync,
+): { play: Play; refused: SyncRefusal | null } {
+  const found = locateRun(play, runId)
+  if (!found) return { play, refused: 'invalid' }
+  const problem = syncProblem(found.phase, found.run, sync)
+  if (problem === 'self') return { play, refused: 'self' }
+  if (problem) return { play, refused: 'invalid' }
+  if (createsCycle(found.phase, runId, sync)) return { play, refused: 'cycle' }
+  const copy: RunSync = structuredClone(sync)
+  return {
+    refused: null,
+    play: mapActions(play, (action) => {
+      if (action.id !== runId || action.type !== 'run') return action
+      const next = { ...action, sync: copy }
+      if (copy.adjust === 'speed') delete next.durationOverride
+      return next
+    }),
+  }
+}
+
+export interface RunSyncPatch {
+  /** Rendez-vous point; null: the end of the run. */
+  at?: number | null
+  adjust?: RunSync['adjust']
+}
+
+/** « Point de rendez-vous » and « Réglage » of a link; an adjusted speed removes the imposed duration. */
+export function updateRunSync(play: Play, runId: Id, patch: RunSyncPatch): Play {
+  return mapActions(play, (action) => {
+    if (action.id !== runId || action.type !== 'run' || !action.sync) return action
+    const sync = { ...action.sync }
+    if (patch.at === null) delete sync.at
+    else if (patch.at !== undefined) {
+      if (patch.at < 0 || patch.at >= action.waypoints.length) return action
+      sync.at = patch.at
+    }
+    if (patch.adjust !== undefined) sync.adjust = patch.adjust
+    const next = { ...action, sync }
+    if (sync.adjust === 'speed') delete next.durationOverride
+    return next
+  })
+}
+
+/**
+ * « Retirer le lien »: a « Départ différé » link that applies leaves its computed delay as the
+ * stored delay; otherwise the stored delay and speeds are kept (D-108).
+ */
+export function removeRunSync(play: Play, runId: Id, ctx: CommandContext): Play {
+  const found = locateRun(play, runId)
+  if (!found?.run.sync) return play
+  const compiled = compiledPhaseOf(play, found.phase.id, ctx.settings, ctx.caches)
+  const result = compiled?.motions.find((m) => m.actionId === runId)?.sync
+  const frozen =
+    found.run.sync.adjust === 'delay' && result && result.status !== 'unreached'
+      ? Math.max(0, result.delay)
+      : null
+  return mapActions(play, (action) => {
+    if (action.id !== runId || action.type !== 'run') return action
+    const next = withoutSync(action)
+    if (frozen !== null) next.delay = frozen
+    return next
+  })
+}
+
+/** First run of a player in a phase: the one the engine applies (D-013). */
+function firstRunOf(phase: Phase, entityId: Id): RunAction | undefined {
+  for (const action of phase.actions) {
+    if (action.type === 'run' && action.entityId === entityId) return action
+  }
+  return undefined
+}
+
+/**
+ * « Finit lancée » laid by the run tool (D-106): when every option of the phase now prolongs the
+ * run of the player in the previous phase (her first run there, delay 0), that run ends at
+ * speed. Never removes the flag.
+ */
+export function markProlongedRun(play: Play, phaseId: Id, entityId: Id): Play {
+  const phase = findPhase(play, phaseId)
+  if (!phase?.parentId) return play
+  const parent = findPhase(play, phase.parentId)
+  const parentRun = parent ? firstRunOf(parent, entityId) : undefined
+  if (!parent || !parentRun || parentRun.endsAtSpeed) return play
+  const options = childrenOf(play, parent.id)
+  if (!options.every((option) => firstRunOf(option, entityId)?.delay === 0)) return play
+  return updateRun(play, parentRun.id, { endsAtSpeed: true })
 }
 
 export function deleteActions(play: Play, ids: readonly Id[]): Play {
@@ -374,8 +600,9 @@ function appendAction(play: Play, phaseId: Id, action: Action): Play {
 }
 
 /**
- * Adds a kick to a receiver or to a point; its delay is the instant the kicker obtains the ball;
- * a restart in a play of category restart, a long kick otherwise (D-093 tools, SPEC 10.4).
+ * Adds a kick to a receiver or to a point; its release follows the ball of the kicker in the
+ * phase (D-015, D-110); a restart in a play of category restart, a long kick otherwise (D-093
+ * tools, SPEC 10.4).
  */
 export function addKick(
   play: Play,
@@ -391,7 +618,7 @@ export function addKick(
     const receiver = play.entities.find((e) => e.id === target.receiverId)
     if (!isPlayer(receiver) || receiver.id === kickerId) return { play, actionId: null }
   }
-  const delay = ballObtainedAt(play, phaseId, kickerId, ctx.settings, ctx.caches) ?? 0
+  const release = toolRelease(play, phaseId, kickerId, ctx)
   const actionId = ctx.ids()
   const kind: KickKind = play.category === 'restart' ? 'restart' : 'long'
   const copy: KickTarget = isReceiverTarget(target)
@@ -405,7 +632,7 @@ export function addKick(
       kickerId,
       kind,
       target: copy,
-      delay: Math.max(0, delay),
+      ...release,
     }),
   }
 }
@@ -416,6 +643,8 @@ export interface KickPatch {
   /** null returns to the default flight time of the kind. */
   flightTime?: number | null
   target?: KickTarget
+  /** null: release at a fixed instant (D-110). */
+  release?: ReleaseMode | null
 }
 
 export function updateKick(play: Play, actionId: Id, patch: KickPatch): Play {
@@ -435,6 +664,8 @@ export function updateKick(play: Play, actionId: Id, patch: KickPatch): Play {
         next.target = { point: { x: target.point.x, y: target.point.y } }
       }
     }
+    if (patch.release === null) delete next.release
+    else if (patch.release !== undefined) next.release = patch.release
     return next
   })
 }
@@ -608,7 +839,10 @@ export function createOption(
   return { phaseId: id, play: addSibling(play, phaseId, emptyPhase(id, phase.parentId, false)) }
 }
 
-/** « Dupliquer »: a sibling with a copy of the actions (new ids), without descendants. */
+/**
+ * « Dupliquer »: a sibling with a copy of the actions (new ids), without descendants; the links
+ * between actions of the phase follow the copies (D-108).
+ */
 export function duplicatePhase(
   play: Play,
   phaseId: Id,
@@ -617,12 +851,24 @@ export function duplicatePhase(
   const phase = findPhase(play, phaseId)
   if (!phase || !canCreateOption(play, phaseId)) return { play, phaseId: null }
   const id = ctx.ids()
+  const newIds = new Map(phase.actions.map((a) => [a.id, ctx.ids()]))
+  const copyOf = (action: Action): Action => {
+    const copied = { ...structuredClone(action), id: newIds.get(action.id) ?? ctx.ids() }
+    if (copied.type !== 'run' || !copied.sync) return copied
+    const targetId = newIds.get(copied.sync.target.actionId)
+    // A link aimed at an action missing from the phase stays as it is (« cible supprimée »).
+    if (targetId === undefined) return copied
+    return {
+      ...copied,
+      sync: { ...copied.sync, target: { ...copied.sync.target, actionId: targetId } },
+    }
+  }
   const copy: Phase = {
     ...structuredClone(phase),
     id,
     isDefault: false,
     label: '',
-    actions: phase.actions.map((a) => ({ ...structuredClone(a), id: ctx.ids() })),
+    actions: phase.actions.map(copyOf),
   }
   return { phaseId: id, play: addSibling(play, phaseId, copy) }
 }

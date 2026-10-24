@@ -109,6 +109,7 @@ describe('applying a preset by its anchor (SPEC 10.1, D-088)', () => {
       placement: state.placement,
       cursor: useInteractionStore.getState().cursor,
       selectionBox: null,
+      hoveredActionId: null,
     })
     expect(overlay.ghosts).toHaveLength(7)
     expect(overlay.ghosts[0]).toEqual({ pos: { x: 29.5, y: -1 }, team: 'A', label: '2' })

@@ -50,6 +50,7 @@ import {
   type LibraryDialog,
 } from './libraryState'
 import { showPhaseInPlayer, syncLineWithPlay } from './playerStore'
+import { takeSprintResetNotice } from './prefs'
 import { useSettingsStore } from './settingsStore'
 import { onGestureEnd, openPlayForSync } from './syncBridge'
 
@@ -173,6 +174,7 @@ async function activateStore(next: LibraryStore): Promise<void> {
   const settings = await next.getSettings()
   useSettingsStore.setState({ settings: settings.settings, writable: settings.ok })
   if (!settings.ok) notify(settings.future ? TEXT.futureSettings : TEXT.invalidSettings, 'error')
+  else if (settings.sprintReset && takeSprintResetNotice()) notify(TEXT.sprintReset)
   await refreshLibrary()
   scheduleCacheSave()
 }

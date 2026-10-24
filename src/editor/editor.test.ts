@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createCaches } from '../engine/caches'
-import { phaseSchematic } from '../engine/evaluate'
+import { compiledPhaseOf, phaseSchematic } from '../engine/evaluate'
 import { childrenOf, phaseLabelParts } from '../model/phaseTree'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
 import { isPlayer, type Play, type RunAction } from '../model/types'
@@ -151,21 +151,26 @@ describe('runs and passes (SPEC 6.2, D-015)', () => {
     play = moveWaypoint(play, uuid(200), 1, { x: 47, y: 41 })
     const run = play.phases[0]?.actions.find((a) => a.id === uuid(200)) as RunAction
     expect(run.waypoints[1]).toEqual({ x: 47, y: 41 })
-    play = deleteWaypoint(play, uuid(200), 0)
-    play = deleteWaypoint(play, uuid(200), 0)
+    play = deleteWaypoint(play, uuid(200), 0).play
+    play = deleteWaypoint(play, uuid(200), 0).play
     expect(play.phases[0]?.actions.some((a) => a.id === uuid(200))).toBe(false)
   })
 
-  it('gives a new pass the instant the passer obtains the ball as delay', () => {
+  it('releases a new pass at a fixed instant from the carrier, on receipt otherwise (D-110)', () => {
     const c = ctx()
     const play = sevenVsSevenWithOptions()
     const fromCarrier = addPass(play, P.t1, P.A(4), P.A(3), c)
     expect(
       fromCarrier.play.phases[0]?.actions.find((a) => a.id === fromCarrier.actionId),
     ).toMatchObject({ delay: 0 })
+    // A5 receives the pass of T1: her pass leaves on receipt, without control time.
     const fromReceiver = addPass(play, P.t1, P.A(5), P.A(6), c)
     const pass = fromReceiver.play.phases[0]?.actions.find((a) => a.id === fromReceiver.actionId)
-    expect(pass?.type === 'pass' && pass.delay).toBeGreaterThan(0.8)
+    expect(pass).toMatchObject({ delay: 0, release: 'onReceipt' })
+    const compiled = compiledPhaseOf(fromReceiver.play, P.t1, c.settings, c.caches)
+    const released = compiled?.passes.find((p) => p.actionId === fromReceiver.actionId)
+    expect(released?.applied).toBe(true)
+    expect((released?.releaseT ?? 0) - (compiled?.start ?? 0)).toBeGreaterThan(0.8)
     expect(addPass(play, P.t1, P.A(5), P.A(5), c).actionId).toBeNull()
   })
 
@@ -336,6 +341,7 @@ describe('selection, hit test and snapping', () => {
       players: [],
       actions: [uuid(200)],
       waypoint: null,
+      segment: null,
     })
     const boxed = playersInBox(schematic, { min: { x: 35, y: 0 }, max: { x: 45, y: 16 } })
     expect(boxed).toEqual([P.A(1), P.A(2)])

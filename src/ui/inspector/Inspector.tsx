@@ -11,7 +11,6 @@ import {
   updatePhase,
   updatePlayMeta,
   updatePlayer,
-  updateRun,
 } from '../../editor/commands'
 import { EMPTY_SELECTION } from '../../editor/selection'
 import type { Issue } from '../../model/issues'
@@ -25,7 +24,6 @@ import {
   type Id,
   type PassAction,
   type Play,
-  type RunAction,
 } from '../../model/types'
 import {
   adjustViewTo,
@@ -35,11 +33,11 @@ import {
 } from '../../state/editorActions'
 import { applyEdit, setSelection, useEditorStore } from '../../state/editorStore'
 import {
+  actionReportOf,
   findAction,
   labelParts,
   phaseDurationAt,
   playIssues,
-  runDuration,
   siblingsOf,
 } from '../../state/selectors'
 import { copySyncLog, updateSettings } from '../../state/session'
@@ -47,7 +45,10 @@ import { setPlaySectionCollapsed, usePanelsStore } from '../../state/panelsStore
 import { useSettingsStore } from '../../state/settingsStore'
 import { useViewStore } from '../../state/viewStore'
 import { CheckboxField, CommitTextField, NumberField, SelectField } from '../common/fields'
+import { formatKmh, kmhToMps, mpsToKmh } from '../format'
 import { CATEGORY_LABELS, issueMessage, PACE_LABELS, phaseLabel, TEXT } from '../strings'
+import { ReleaseFields } from './ReleaseFields'
+import { RunInspector } from './RunInspector'
 import { BallAtStart, BreakdownInspector, KickInspector } from './SetPieceInspectors'
 
 const fmt = (seconds: number) => `${seconds.toFixed(1).replace('.', ',')} s`
@@ -135,90 +136,30 @@ function PlayerInspector({
   )
 }
 
-function RunInspector({
+function PassInspector({
   play,
-  run,
+  pass,
   phaseId,
   settings,
   disabled,
 }: {
   play: Play
-  run: RunAction
+  pass: PassAction
   phaseId: Id
   settings: Settings
   disabled: boolean
 }) {
-  const duration = runDuration(play, phaseId, run.id, settings)
-  return (
-    <section className="inspector__section" aria-label="Course">
-      <h3>Course</h3>
-      <SelectField
-        label="Allure"
-        value={run.pace}
-        disabled={disabled}
-        options={PACES.map((p) => ({
-          value: p,
-          label: `${PACE_LABELS[p]} (${settings.paces[p]} m/s)`,
-        }))}
-        onChange={(pace) => applyEdit((p) => updateRun(p, run.id, { pace }))}
-      />
-      <CheckboxField
-        label="Durée imposée"
-        checked={run.durationOverride !== undefined}
-        disabled={disabled}
-        onChange={(checked) =>
-          applyEdit((p) =>
-            updateRun(p, run.id, { durationOverride: checked ? (duration ?? 2) : null }),
-          )
-        }
-      />
-      {run.durationOverride !== undefined ? (
-        <NumberField
-          label="Durée"
-          unit="s"
-          min={0.1}
-          max={60}
-          value={run.durationOverride}
-          disabled={disabled}
-          onCommit={(value) => applyEdit((p) => updateRun(p, run.id, { durationOverride: value }))}
-        />
-      ) : null}
-      <NumberField
-        label="Délai"
-        unit="s"
-        min={0}
-        max={60}
-        value={run.delay}
-        disabled={disabled}
-        onCommit={(delay) => applyEdit((p) => updateRun(p, run.id, { delay }))}
-      />
-      <p className="inspector__info" data-testid="run-duration">
-        Durée de la course : {duration === null ? '?' : fmt(duration)}
-      </p>
-    </section>
-  )
-}
-
-function PassInspector({
-  pass,
-  settings,
-  disabled,
-}: {
-  pass: PassAction
-  settings: Settings
-  disabled: boolean
-}) {
+  const report = actionReportOf(play, phaseId, pass.id, settings)
   return (
     <section className="inspector__section" aria-label="Passe">
       <h3>Passe</h3>
-      <NumberField
-        label="Délai"
-        unit="s"
-        min={0}
-        max={60}
-        value={pass.delay}
+      <ReleaseFields
+        release={pass.release}
+        delay={pass.delay}
+        report={report?.kind === 'pass' ? report : null}
         disabled={disabled}
-        onCommit={(delay) => applyEdit((p) => updatePass(p, pass.id, { delay }))}
+        onRelease={(release) => applyEdit((p) => updatePass(p, pass.id, { release }))}
+        onDelay={(delay) => applyEdit((p) => updatePass(p, pass.id, { delay }))}
       />
       <CheckboxField
         label="Vitesse de passe propre"
@@ -509,6 +450,15 @@ function PhaseInspector({
   )
 }
 
+const MOTION_FIELDS: readonly { key: keyof Settings['motion']; label: string }[] = [
+  { key: 'accel', label: 'Accélération' },
+  { key: 'decel', label: 'Freinage' },
+  { key: 'lateralAccel', label: 'Accélération latérale' },
+]
+
+/** km/h to one decimal, as typed in the settings. */
+const roundKmh = (mps: number) => Math.round(mpsToKmh(mps) * 10) / 10
+
 function SettingsSection({ settings }: { settings: Settings }) {
   const writable = useSettingsStore((s) => s.writable)
   const save = (next: Settings) => void updateSettings(next)
@@ -531,7 +481,7 @@ function SettingsSection({ settings }: { settings: Settings }) {
         <NumberField
           key={pace}
           label={PACE_LABELS[pace]}
-          unit="m/s"
+          unit={`m/s (${formatKmh(settings.paces[pace])})`}
           min={0.5}
           max={12}
           value={settings.paces[pace]}
@@ -550,6 +500,44 @@ function SettingsSection({ settings }: { settings: Settings }) {
         disabled={!writable}
         onCommit={(passSpeed) => {
           save({ ...settings, passSpeed })
+        }}
+      />
+      <h4>Profil de vitesse</h4>
+      {MOTION_FIELDS.map(({ key, label }) => (
+        <NumberField
+          key={key}
+          label={label}
+          unit="m/s²"
+          min={0.5}
+          max={10}
+          value={settings.motion[key]}
+          disabled={!writable}
+          onCommit={(value) => {
+            save({ ...settings, motion: { ...settings.motion, [key]: value } })
+          }}
+        />
+      ))}
+      <h4>Seuils de vitesse</h4>
+      <NumberField
+        label="Seuil orange"
+        unit="km/h"
+        min={5}
+        max={roundKmh(settings.speedAlert.danger)}
+        value={roundKmh(settings.speedAlert.warning)}
+        disabled={!writable}
+        onCommit={(kmh) => {
+          save({ ...settings, speedAlert: { ...settings.speedAlert, warning: kmhToMps(kmh) } })
+        }}
+      />
+      <NumberField
+        label="Seuil rouge"
+        unit="km/h"
+        min={roundKmh(settings.speedAlert.warning)}
+        max={45}
+        value={roundKmh(settings.speedAlert.danger)}
+        disabled={!writable}
+        onCommit={(kmh) => {
+          save({ ...settings, speedAlert: { ...settings.speedAlert, danger: kmhToMps(kmh) } })
         }}
       />
       <button type="button" className="inspector__discreet" onClick={() => void copySyncLog()}>
@@ -594,11 +582,18 @@ export function Inspector() {
           run={found.action}
           phaseId={found.phase.id}
           settings={settings}
+          selection={selection}
           disabled={readOnly}
         />
       ) : null}
       {found?.action.type === 'pass' ? (
-        <PassInspector pass={found.action} settings={settings} disabled={readOnly} />
+        <PassInspector
+          play={play}
+          pass={found.action}
+          phaseId={found.phase.id}
+          settings={settings}
+          disabled={readOnly}
+        />
       ) : null}
       {found?.action.type === 'kick' ? (
         <KickInspector

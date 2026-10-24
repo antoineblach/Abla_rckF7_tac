@@ -8,6 +8,8 @@ export interface Layers {
   gainLine: boolean
   /** Badge on the forward passes (SPEC 5.7, D-085); never in the exports (D-086). */
   forwardPass: boolean
+  /** Badges of the run segments beyond a speed threshold (SPEC 5.9, D-112); never exported. */
+  speedAlert: boolean
   /** Lot 4: defence indicators (declared only). */
   defenseIndicators?: boolean
   /** Lot 4: offside line (declared only). */
@@ -19,4 +21,5 @@ export const DEFAULT_LAYERS: Layers = {
   instruction: true,
   gainLine: true,
   forwardPass: true,
+  speedAlert: true,
 }

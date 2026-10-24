@@ -30,10 +30,12 @@ import {
   editorPointerLeave,
   editorPointerMove,
   editorPointerUp,
+  isSpaceHeld,
+  spaceEvent,
   useInteractionStore,
 } from '../../state/editorActions'
 import { useEditorStore } from '../../state/editorStore'
-import { buildOverlay } from '../../state/overlay'
+import { buildOverlay, hoverOverlay } from '../../state/overlay'
 import { usePlayerStore } from '../../state/playerStore'
 import { appCaches, useSettingsStore } from '../../state/settingsStore'
 import {
@@ -44,7 +46,6 @@ import {
   useViewStore,
 } from '../../state/viewStore'
 import { useElementSize } from '../hooks/useElementSize'
-import { isTypingTarget } from '../hooks/typing'
 import { useFieldFont } from '../hooks/useFieldFont'
 
 const ZOOM_STEP = 1.15
@@ -72,6 +73,7 @@ export function FieldCanvas() {
   const settings = useSettingsStore((s) => s.settings)
   const cursor = useInteractionStore((s) => s.cursor)
   const selectionBox = useInteractionStore((s) => s.selectionBox)
+  const hoveredActionId = useInteractionStore((s) => s.hoveredActionId)
   const storedView = useViewStore((s) => s.view)
 
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
@@ -141,9 +143,17 @@ export function FieldCanvas() {
         appCaches,
       )
       render(ctx, state, viewport, theme, layers)
+      // The action hovered in the list is haloed over the scene too (D-113).
+      const hoveredPhaseId = hoveredActionId
+        ? play.phases.find((p) => p.actions.some((a) => a.id === hoveredActionId))?.id
+        : undefined
+      const hovered = hoveredPhaseId
+        ? phaseSchematic(play, hoveredPhaseId, engineSettingsOf(settings), appCaches)
+        : null
+      if (hovered) renderOverlay(ctx, viewport, theme, hoverOverlay(hovered, hoveredActionId))
     } else if (schematic) {
-      // The editor always shows the forward pass badge (D-085).
-      drawSchematic(ctx, schematic, viewport, theme, { forwardPass: true })
+      // The editor always shows the forward pass and speed badges (D-085, D-112).
+      drawSchematic(ctx, schematic, viewport, theme, { forwardPass: true, speedBadges: true })
       renderOverlay(
         ctx,
         viewport,
@@ -159,6 +169,7 @@ export function FieldCanvas() {
           placement,
           cursor,
           selectionBox,
+          hoveredActionId,
         }),
       )
     }
@@ -179,30 +190,12 @@ export function FieldCanvas() {
     placement,
     cursor,
     selectionBox,
+    hoveredActionId,
     fontReady,
   ])
 
   // Interactions -----------------------------------------------------------
   const panRef = useRef<{ last: Vec2 } | null>(null)
-  const spaceRef = useRef(false)
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === ' ' && !isTypingTarget(e.target)) {
-        spaceRef.current = true
-        e.preventDefault()
-      }
-    }
-    const up = (e: KeyboardEvent) => {
-      if (e.key === ' ') spaceRef.current = false
-    }
-    window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => {
-      window.removeEventListener('keydown', down)
-      window.removeEventListener('keyup', up)
-    }
-  }, [])
 
   const toFieldPoint = (event: { clientX: number; clientY: number }): Vec2 | null => {
     const canvas = canvasRef.current
@@ -250,8 +243,10 @@ export function FieldCanvas() {
     const pos = toFieldPoint(event)
     if (!pos) return
     event.currentTarget.setPointerCapture(event.pointerId)
-    if (event.button === 1 || (event.button === 0 && spaceRef.current)) {
+    if (event.button === 1 || (event.button === 0 && isSpaceHeld())) {
       event.preventDefault()
+      // Space held with a drag pans, without playing or pausing at the release (D-116).
+      if (event.button === 0) spaceEvent({ kind: 'drag' })
       panRef.current = { last: pos }
       return
     }

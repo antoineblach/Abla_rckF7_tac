@@ -1,5 +1,8 @@
 // Derived data for display, computed by the engine and the model (never in React components).
+import { phaseReport, type ActionReport, type PhaseReport } from '../engine/actionReport'
 import { phaseSchematic } from '../engine/evaluate'
+import { compileLine } from '../engine/timeline'
+import type { SyncPick } from '../editor/syncPick'
 import { engineIssues } from '../engine/validate'
 import { issueKey, type Issue } from '../model/issues'
 import { childrenOf, findPhase, phaseLabelParts, type PhaseLabelParts } from '../model/phaseTree'
@@ -85,6 +88,48 @@ export function teammatesOf(play: Play, id: Id): PlayerEntity[] {
   return play.entities.filter(
     (e): e is PlayerEntity => isPlayer(e) && e.team === player.team && e.id !== id,
   )
+}
+
+/**
+ * Phase shown by the list of the actions (SPEC 6.7): the selected phase in edit mode, the phase
+ * at t of the line during playback.
+ */
+export function displayedPhaseId(
+  play: Play,
+  playing: boolean,
+  line: readonly Id[],
+  t: number,
+  selectedPhaseId: Id | null,
+  settings: Settings,
+): Id | null {
+  if (!playing) return selectedPhaseId
+  const compiled = compileLine(play, line, engineSettingsOf(settings), appCaches)
+  let phaseId: Id | null = compiled.phases[0]?.phaseId ?? selectedPhaseId
+  for (const phase of compiled.phases) if (phase.start <= t) phaseId = phase.phaseId
+  return phaseId
+}
+
+/** Report of the actions of a phase (D-113), or null. */
+export function phaseReportOf(play: Play, phaseId: Id, settings: Settings): PhaseReport | null {
+  return phaseReport(play, phaseId, engineSettingsOf(settings), appCaches)
+}
+
+/** Report of one action of a phase, or null. */
+export function actionReportOf(
+  play: Play,
+  phaseId: Id,
+  actionId: Id,
+  settings: Settings,
+): ActionReport | null {
+  return phaseReportOf(play, phaseId, settings)?.rows.find((r) => r.actionId === actionId) ?? null
+}
+
+/** « course de A 5 (fin) », « course de A 5 (point 2) »: the run of « Caler sur… » (D-109). */
+export function syncPickPrompt(play: Play, pick: SyncPick): string {
+  const found = findAction(play, pick.runId)
+  const who = found?.action.type === 'run' ? playerName(play, found.action.entityId) : '?'
+  const where = pick.at === undefined ? 'fin' : `point ${String(pick.at + 1)}`
+  return `course de ${who} (${where})`
 }
 
 /** « A 4 »: team and number of a player, or « ? ». */

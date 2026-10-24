@@ -17,6 +17,8 @@ import {
   drawForwardBadge,
   drawGainLine,
   drawKickPath,
+  drawRunParts,
+  drawSpeedBadge,
 } from './render'
 import { runColor, type Theme } from './themes'
 import { toPx, type Viewport } from './viewport'
@@ -27,9 +29,11 @@ export interface SchematicOptions {
    * library thumbnails (D-086).
    */
   forwardPass: boolean
+  /** Badges of the speed thresholds: the editor only, like the forward passes (D-112). */
+  speedBadges: boolean
 }
 
-const NO_BADGE: SchematicOptions = { forwardPass: false }
+const NO_BADGE: SchematicOptions = { forwardPass: false, speedBadges: false }
 
 /** Draws already computed schematic data (the editor reuses it for hit tests). */
 export function drawSchematic(
@@ -65,7 +69,7 @@ export function drawSchematic(
   }
   for (const run of [...schematic.runs, ...schematic.relays]) {
     const color = runColor(theme, colorOf(schematic.players, run.entityId))
-    strokePolyline(ctx, viewport, run.points, { color, width: theme.runWidth, cap: 'round' })
+    drawRunParts(ctx, viewport, theme, run.parts, color)
     if (run.ignoredPoints.length === 0)
       arrowAtEnd(ctx, viewport, run.points, color, theme.arrowSize)
     // Part of a run ignored after a breakdown formation (D-079).
@@ -117,6 +121,9 @@ export function drawSchematic(
     for (const pass of schematic.passes) {
       if (pass.forward) drawForwardBadge(ctx, viewport, theme, pass.from, pass.to)
     }
+  }
+  if (options.speedBadges) {
+    for (const badge of schematic.speedBadges) drawSpeedBadge(ctx, viewport, theme, badge)
   }
   ctx.restore()
 }

@@ -185,6 +185,40 @@ Indispensables et impossibles à automatiser (Drive réel en mode diffusion), ap
 
 Reprendre la séance du lot 3 (mises en place, modèles, nouvelles combinaisons depuis un modèle, Échap pendant la pose), puis faire un retour avec le prompt « Correction après recette ».
 
+## Lot 3 bis : courses réalistes
+
+Profil de vitesse, vitesse par segment, course qui finit lancée, liens de synchronisation, lâcher à la réception, vitesses irréalistes, liste des actions du temps, barre d'espace (`docs/plans/lot-3bis.md`, D-103 à D-121).
+
+### Comportements couverts par les tests
+
+| Comportement | Tests |
+|---|---|
+| Combinaisons en version 3 : fichiers v1 et v2 migrés (fin lancée posée seulement quand toutes les options prolongent la course), version 4 refusée comme future ; zod strict des liens et du mode de lâcher ; fixture v3 figée | `model/migrations.test.ts`, `model/schema.test.ts` |
+| `reglages.json` v3 : v1 et v2 migrés, sprint de 7 m/s ramené à 5,5 m/s (6,5 gardé), profil et seuils par défaut ; réglages écrits depuis l'inspecteur ; message du sprint | `model/settings.test.ts` ; `run-speeds.chromium.spec.ts` |
+| Graphe des liens : cibles absentes, incompatibles, hors bornes, course calée sur elle-même, cycles (dont par un lâcher à la réception), receveuse calée sur l'arrivée de sa passe acceptée ; alertes de la validation | `model/syncGraph.test.ts`, `editor/links.test.ts` |
+| Profil de vitesse : durée d'une ligne droite (trapèze, triangle), continuité de la position et de la vitesse, virages, réglages du profil, segments de vitesses différentes, vitesse saisie, durée imposée exacte | `engine/profile.test.ts`, `engine/runs.test.ts`, `engine/evaluate.test.ts` |
+| Fin lancée : fin à la vitesse cible, temps suivant parti à cette vitesse et dans la direction d'arrivée (raccord de tangente), option non prolongée (arrêt net, alerte), course finie avant la fin du temps (freinage, attente mesurée), tronc identique dans toutes les options | `engine/runs.test.ts`, `engine/spline.test.ts`, `engine/actionReport.test.ts` |
+| Liens : départ différé et vitesse ajustée au millième, les 5 sortes de cible, chaîne, cible lâchée à la réception, replis (retard, plafond au seuil rouge, cible supprimée ou jamais atteinte, cycle) | `engine/sync.test.ts` |
+| Lâchers : à la réception (+ délai) après une passe, un jeu au pied, une sortie de regroupement, deux lâchers d'une même joueuse, sans réception (erreur) ; tolérance de 0,5 s d'un lâcher fixe ; mode posé par les outils (ramassage au sol : instant fixe, D-119) | `engine/sync.test.ts`, `engine/pass.test.ts`, `editor/segments.test.ts`, `editor/editor.test.ts` ; `run-speeds.chromium.spec.ts` |
+| Seuils de vitesse sur la pointe réelle (19,9 / 20,1 / 25,1 km/h, seuils des réglages) ; pastilles dans l'éditeur, calque « Vitesses » du lecteur mémorisé par poste, jamais dans le GIF, le PDF ni les vignettes | `engine/runs.test.ts`, `render/speeds.test.ts`, `export/speeds.test.ts` ; `run-speeds.chromium.spec.ts` |
+| Segments rapides plus épais dans les 4 thèmes, dans l'éditeur, le lecteur, le GIF et le PDF ; lien et halo dans la surcouche seulement | `render/speeds.test.ts` (images de référence), `export/speeds.test.ts` (vignette PDF N&B de référence) |
+| Édition : vitesse de segment (touches 1 2 3 0, clavier AZERTY compris, vitesse saisie en km/h), gardée par les déplacements et la symétrie ; segment sous le pointeur ; fin lancée posée par l'outil Course dans la même étape d'annulation ; durée imposée et vitesse ajustée exclusives | `editor/segments.test.ts`, `state/links.test.ts` ; `run-speeds.chromium.spec.ts` |
+| « Caler sur… » : choix de la cible (point, fin, trait, extrémité la plus proche d'une passe ou d'un jeu au pied, formation), refus de la course elle-même et des boucles avec un message, Échap ; la course suit quand la passe change ; point portant un lien supprimé (lien retiré, message, index décalés) ; « Dupliquer » recopie les liens ; « Retirer le lien » fige le délai calculé | `editor/links.test.ts`, `state/links.test.ts` ; `run-speeds.chromium.spec.ts` |
+| Liste des actions : lignes triées, barres, détails, pastilles, action ignorée ; clic qui sélectionne (retour à l'édition en lecture), survol avec halo, Suppr puis Ctrl+Z ; temps à `t` en lecture ; terrain inchangé | `engine/actionReport.test.ts`, `ui/describe.test.ts` ; `actions-list.chromium.spec.ts`, `field-stability.chromium.spec.ts` |
+| Espace : appui bref (lecture puis pause), maintenue avec un glisser (déplacement sans lecture), appui long, répétition ; bouton, case et `summary` jamais activés ; espace saisie dans un champ ; curseur temporel ignoré ; Chromium et Firefox | `editor/spaceKey.test.ts` ; `space.spec.ts` |
+| Déterminisme ; saut direct égal à la lecture continue, profil, liens, lâchers à la réception et fin lancée compris | `engine/runs.test.ts` (combinaison réaliste : profils, liens, lâchers à la réception, fin lancée), `engine/evaluate.test.ts` |
+
+### Vérifications manuelles
+
+Indispensables et impossibles à automatiser, après le déploiement et après avoir rechargé la page (Ctrl+F5) sur les deux PC :
+- [ ] Une combinaison existante modifiée sur un PC (vitesse de segment, lien) et `reglages.json` modifié (un seuil) : vus et modifiables sur l'autre PC après la synchronisation Drive ; message du sprint vu une fois sur chaque PC si l'ancien sprint était de 7 m/s.
+- [ ] GIF d'une combinaison existante, plus long qu'avant, envoyé sur WhatsApp : poids acceptable (sinon version allégée) et lecture en boucle.
+- [ ] PDF « Impression » noir et blanc sur la laser : segments au sprint visiblement plus épais que les autres courses.
+
+### Séance d'usage libre
+
+Reprendre deux ou trois combinaisons réelles : ressenti du mouvement (accélérations, virages, courses lancées), profil ajusté dans les réglages si besoin, vitesses par segment, rendez-vous calés sur des passes, liste des actions, barre d'espace ; puis faire un retour avec le prompt « Correction après recette ».
+
 ## Lot 4 : défense simulée
 
 Comportements attendus, à couvrir par les tests (D-054). Les vérifications manuelles (au plus 5) et la séance d'usage libre seront précisées en fin de lot.

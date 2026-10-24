@@ -1,6 +1,7 @@
 // Editor overlay drawn on top of the schematic: selection, waypoint handles, selection box,
-// previews of the tools, ghost tokens and anchor of a placement (lot 3). Pure drawing, flat
-// colours only.
+// previews of the tools, ghost tokens and anchor of a placement (lot 3), synchronisation links
+// and halo of the action hovered in the list (lot 3 bis). Pure drawing, flat colours only; never
+// exported.
 import type { Bounds } from '../engine/bounds'
 import type { Team, Vec2 } from '../model/types'
 import type { Ctx2D } from './ctx2d'
@@ -30,6 +31,18 @@ export interface AnchorMark {
   axes: { forward: Vec2; openSide: Vec2 } | null
 }
 
+/** Synchronisation link: from the meeting point of the run to the point of its target (D-108). */
+export interface OverlayLink {
+  from: Vec2
+  to: Vec2
+}
+
+/** Action hovered in the list of the phase (D-113): its curves and its points, haloed in dashes. */
+export interface OverlayHover {
+  paths: Vec2[][]
+  points: Vec2[]
+}
+
 export interface EditorOverlay {
   /** Positions (metres) of the selected players, at the start of the displayed phase. */
   selectedPlayers: Vec2[]
@@ -43,6 +56,9 @@ export interface EditorOverlay {
   preview: Vec2[] | null
   ghosts: GhostToken[]
   anchor: AnchorMark | null
+  /** Links of the selected runs and of the runs synchronised with a selected action. */
+  syncLinks: OverlayLink[]
+  hover: OverlayHover | null
 }
 
 export const EMPTY_OVERLAY: EditorOverlay = {
@@ -53,6 +69,45 @@ export const EMPTY_OVERLAY: EditorOverlay = {
   preview: null,
   ghosts: [],
   anchor: null,
+  syncLinks: [],
+  hover: null,
+}
+
+/** Dash pattern of the links and of the hover halo, in CSS pixels at scale 1. */
+const LINK_DASH = [5, 4]
+const HOVER_DASH = [6, 5]
+
+function drawSyncLink(ctx: Ctx2D, viewport: Viewport, theme: Theme, link: OverlayLink): void {
+  // Thin: a link reads as an annotation, never as a run or a pass.
+  strokePolyline(ctx, viewport, [link.from, link.to], {
+    color: theme.selection,
+    width: Math.max(1, theme.selectionWidth - 1),
+    dash: LINK_DASH,
+    cap: 'butt',
+  })
+  const dot = sizePx(viewport, theme.handleRadius) * 0.5
+  fillCircle(ctx, toPx(viewport, link.to), dot, theme.selection)
+}
+
+function drawHover(ctx: Ctx2D, viewport: Viewport, theme: Theme, hover: OverlayHover): void {
+  const style = {
+    color: theme.selection,
+    width: theme.runWidth + 6,
+    dash: HOVER_DASH,
+    cap: 'butt' as const,
+  }
+  for (const path of hover.paths) strokePolyline(ctx, viewport, path, style)
+  const radius = sizePx(viewport, theme.tokenRadius + 6)
+  for (const pos of hover.points) {
+    strokeCircle(
+      ctx,
+      toPx(viewport, pos),
+      radius,
+      theme.selection,
+      sizePx(viewport, theme.selectionWidth),
+      HOVER_DASH.map((d) => sizePx(viewport, d)),
+    )
+  }
 }
 
 /** Length of the axes of an anchor mark, in metres. */
@@ -121,6 +176,7 @@ export function renderOverlay(
 ): void {
   ctx.save()
   const selection = { color: theme.selection, width: theme.selectionWidth, cap: 'round' as const }
+  if (overlay.hover) drawHover(ctx, viewport, theme, overlay.hover)
   for (const path of overlay.selectedPaths) {
     strokePolyline(ctx, viewport, path, { ...selection, width: theme.runWidth + 3 })
   }
@@ -134,6 +190,7 @@ export function renderOverlay(
       sizePx(viewport, theme.selectionWidth),
     )
   }
+  for (const link of overlay.syncLinks) drawSyncLink(ctx, viewport, theme, link)
   const handleRadius = sizePx(viewport, theme.handleRadius)
   for (const handle of overlay.handles) {
     const center = toPx(viewport, handle)

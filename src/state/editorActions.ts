@@ -1,5 +1,6 @@
 // Interactions of the field canvas and keyboard shortcuts (SPEC 6.2, 6.3, D-009, D-010,
-// D-015). Positions arrive already converted to metres; the logic is delegated to editor/.
+// D-015; lot 3 bis: segments, speed keys, « Caler sur… », D-109, D-114). Positions arrive already
+// converted to metres; the logic is delegated to editor/.
 import { create } from 'zustand'
 import { DRAG_THRESHOLD_PX, NUDGE_STEP, NUDGE_STEP_LARGE } from '../config/defaults'
 import type { Bounds } from '../engine/bounds'
@@ -14,22 +15,39 @@ import {
   deletePlayers,
   deleteWaypoint,
   duplicatePlayers,
+  markProlongedRun,
   moveBallPosition,
   moveKickTarget,
   moveSetupPositions,
   moveWaypoint,
+  setRunSync,
+  setSegmentSpeed,
+  updateRun,
   type CommandContext,
 } from '../editor/commands'
 import { playersInBox, type Hit } from '../editor/hitTest'
 import { placementClick, type PlacementMode, type SavePresetRequest } from '../editor/placementMode'
 import {
+  actionsSelection,
+  playersSelection,
   selectAction,
   selectPlayer,
   selectPlayersInBox,
+  segmentSelection,
+  selectedSegment,
+  waypointSelection,
   EMPTY_SELECTION,
 } from '../editor/selection'
 import { shortcutFor, type KeyInput } from '../editor/shortcuts'
 import { maybeSnap } from '../editor/snap'
+import {
+  spaceHeld,
+  spaceStep,
+  SPACE_UP,
+  type SpaceEvent,
+  type SpaceState,
+} from '../editor/spaceKey'
+import { pickRendezVous, syncPickClick, type SyncPick } from '../editor/syncPick'
 import { kickToolClick } from '../editor/tools/kickTool'
 import { passToolClick } from '../editor/tools/passTool'
 import { runToolClick, runToolFinish } from '../editor/tools/runTool'
@@ -38,7 +56,7 @@ import { randomIds } from '../model/ids'
 import { findPhase, rootPhase } from '../model/phaseTree'
 import type { PlacementPreset } from '../model/preset'
 import { phaseIndexAtTime } from '../player/transport'
-import type { Id, Play, Vec2 } from '../model/types'
+import type { Id, Pace, Play, Vec2 } from '../model/types'
 import {
   applyEdit,
   beginGesture,
@@ -52,6 +70,7 @@ import {
   setNotice,
   setPlacement,
   setSelection,
+  setSyncPick,
   setTool,
   undoEdit,
   useEditorStore,
@@ -70,6 +89,10 @@ import { adjustView, type FitTarget } from './viewStore'
 export interface InteractionState {
   cursor: Vec2 | null
   selectionBox: Bounds | null
+  /** Action hovered in the list of the phase, haloed on the field (D-113). */
+  hoveredActionId: Id | null
+  /** Space bar: short press plays or pauses, held with a drag pans (D-116). */
+  space: SpaceState
   /** Converts a screen-space nudge (arrow keys) to a field vector; set by the canvas. */
   screenToField: (dx: number, dy: number) => Vec2
   /** Metres per CSS pixel of the canvas, for the drag threshold; set by the canvas. */
@@ -79,9 +102,23 @@ export interface InteractionState {
 export const useInteractionStore = create<InteractionState>(() => ({
   cursor: null,
   selectionBox: null,
+  hoveredActionId: null,
+  space: SPACE_UP,
   screenToField: (dx, dy) => ({ x: dx, y: dy }),
   metersPerPx: 0,
 }))
+
+/** A space bar event (D-116): a short press without drag plays or pauses. */
+export function spaceEvent(event: SpaceEvent): void {
+  const step = spaceStep(useInteractionStore.getState().space, event)
+  useInteractionStore.setState({ space: step.state })
+  if (step.toggle) playPause()
+}
+
+/** True while the space bar is held: a drag pans the field. */
+export function isSpaceHeld(): boolean {
+  return spaceHeld(useInteractionStore.getState().space)
+}
 
 /** Called with the request to save now (Ctrl+S): set by the session. */
 let saveRequest: () => void = () => undefined
@@ -146,6 +183,22 @@ function leavePlayback(): boolean {
   return true
 }
 
+/**
+ * Click on a row of the list of the actions (D-113): selects the action, on the field and in the
+ * inspector; during playback, back to edit mode on the displayed phase first.
+ */
+export function selectListedAction(actionId: Id): void {
+  leavePlayback()
+  setSelection(actionsSelection([actionId]))
+}
+
+/** Row of the list under the pointer: its action is haloed on the field (D-113). */
+export function hoverListedAction(actionId: Id | null): void {
+  if (useInteractionStore.getState().hoveredActionId !== actionId) {
+    useInteractionStore.setState({ hoveredActionId: actionId })
+  }
+}
+
 function anchorOf(play: Play, phaseId: Id, schematic: PhaseSchematic | null) {
   return (entityId: Id): Vec2 | undefined => {
     const existing = findPhase(play, phaseId)?.actions.find(
@@ -170,6 +223,10 @@ export function editorPointerDown(input: PointerInput): void {
   const pos = maybeSnap(input.pos, snap)
   if (state.placement) {
     placementPointerDown(play, state.placement, pos)
+    return
+  }
+  if (state.syncPick) {
+    syncPickPointerDown(play, state.syncPick, input)
     return
   }
   switch (tool) {
@@ -214,7 +271,7 @@ export function editorPointerDown(input: PointerInput): void {
         const actionId = added.actionId
         if (actionId !== null) {
           applyEdit(() => added.play)
-          setSelection({ players: [], actions: [actionId], waypoint: null })
+          setSelection(actionsSelection([actionId]))
         }
       }
       return
@@ -229,13 +286,68 @@ export function editorPointerDown(input: PointerInput): void {
       const actionId = result.actionId
       if (actionId !== null) {
         applyEdit(() => result.play)
-        setSelection({ players: [], actions: [actionId], waypoint: null })
+        setSelection(actionsSelection([actionId]))
       }
       return
     }
     case 'select':
       selectPointerDown(play, selectedPhaseId, input, pos)
   }
+}
+
+/**
+ * « Caler sur… » of the run selected alone (D-109): waits for the click on the target, the
+ * rendez-vous being the selected point of the run, or its end. False when no run is selected.
+ */
+export function startSyncPick(): boolean {
+  const { play, selection, readOnly } = useEditorStore.getState()
+  if (!play) return false
+  if (readOnly) {
+    setNotice('readOnly')
+    return false
+  }
+  const [runId] = selection.actions
+  const run = play.phases.flatMap((p) => p.actions).find((a) => a.id === runId)
+  if (selection.actions.length !== 1 || run?.type !== 'run') return false
+  setSyncPick(pickRendezVous(run.id, run.waypoints.length, selection.waypoint))
+  return true
+}
+
+export function cancelSyncPick(): void {
+  setSyncPick(null)
+}
+
+const SYNC_REFUSALS = { self: 'syncSelf', cycle: 'syncCycle', invalid: 'syncInvalid' } as const
+
+/** Click during « Caler sur… »: the link is made, or refused with a message (D-109). */
+function syncPickPointerDown(play: Play, pick: SyncPick, input: PointerInput): void {
+  const schematic = currentSchematic()
+  if (!schematic) return
+  const result = syncPickClick(pick, schematic, input.hit, input.pos)
+  if (result.kind === 'none') return
+  if (result.kind === 'self') {
+    setNotice('syncSelf')
+    return
+  }
+  const run = play.phases.flatMap((p) => p.actions).find((a) => a.id === pick.runId)
+  if (run?.type !== 'run') {
+    setSyncPick(null)
+    return
+  }
+  // « Départ différé » by default; a link replaced keeps its setting.
+  const sync = {
+    target: result.target,
+    adjust: run.sync?.adjust ?? ('delay' as const),
+    ...(pick.at === undefined ? {} : { at: pick.at }),
+  }
+  const linked = setRunSync(play, pick.runId, sync)
+  if (linked.refused) {
+    setNotice(SYNC_REFUSALS[linked.refused])
+    return
+  }
+  setSyncPick(null)
+  applyEdit(() => linked.play)
+  setSelection(actionsSelection([pick.runId]))
 }
 
 /** Shows the first phase in edit mode: a placement concerns the starting positions. */
@@ -305,11 +417,7 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
   const { selection } = useEditorStore.getState()
   const hit = input.hit
   if (hit?.kind === 'waypoint') {
-    setSelection({
-      players: [],
-      actions: [hit.actionId],
-      waypoint: { actionId: hit.actionId, index: hit.index },
-    })
+    setSelection(waypointSelection(hit.actionId, hit.index))
     drag = {
       kind: 'waypoint',
       actionId: hit.actionId,
@@ -321,7 +429,7 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     return
   }
   if (hit?.kind === 'kickTarget') {
-    setSelection({ players: [], actions: [hit.actionId], waypoint: null })
+    setSelection(actionsSelection([hit.actionId]))
     drag = { kind: 'kickTarget', actionId: hit.actionId, origin: input.pos, started: false }
     beginGesture()
     return
@@ -350,6 +458,11 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     if (!grab) return
     drag = { kind: 'players', ids: next.players, grab, origin: input.pos, started: false }
     beginGesture()
+    return
+  }
+  if (hit?.kind === 'run' && !input.shift) {
+    // A click on the line of a run selects it with the segment under the pointer (D-114).
+    setSelection(segmentSelection(hit.actionId, hit.segment))
     return
   }
   if (
@@ -425,33 +538,64 @@ export function editorDoubleClick(): void {
   if (useEditorStore.getState().tool === 'run') finishRun()
 }
 
+/** Removes a waypoint; a link carried by the point goes with it, with a message (D-108). */
+function removeWaypoint(actionId: Id, index: number): void {
+  let removedLinks = 0
+  applyEdit((p) => {
+    const result = deleteWaypoint(p, actionId, index)
+    removedLinks = result.removedLinks
+    return result.play
+  })
+  if (removedLinks > 0) setNotice('syncLinkRemoved')
+}
+
 /** Right click on a waypoint removes it (SPEC 6.2). */
 export function editorContextMenu(hit: Hit): void {
   if (hit?.kind === 'waypoint') {
-    applyEdit((p) => deleteWaypoint(p, hit.actionId, hit.index))
+    removeWaypoint(hit.actionId, hit.index)
     setSelection(EMPTY_SELECTION)
   }
 }
 
+/** Ends the run tool; « Finit lancée » laid on the run it prolongs, same undo step (D-106). */
 function finishRun(): void {
   const { runDraft, selectedPhaseId } = useEditorStore.getState()
   const result = runToolFinish(runDraft)
   useEditorStore.setState({ runDraft: null })
   if (!result || !selectedPhaseId) return
-  applyEdit(
-    (p) => addRun(p, selectedPhaseId, result.entityId, result.waypoints, commandContext()).play,
-  )
+  applyEdit((p) => {
+    const added = addRun(p, selectedPhaseId, result.entityId, result.waypoints, commandContext())
+    return markProlongedRun(added.play, selectedPhaseId, result.entityId)
+  })
 }
 
 export function deleteSelection(): void {
   const { selection } = useEditorStore.getState()
   const waypoint = selection.waypoint
   if (waypoint) {
-    applyEdit((p) => deleteWaypoint(p, waypoint.actionId, waypoint.index))
+    removeWaypoint(waypoint.actionId, waypoint.index)
   } else {
     applyEdit((p) => deleteActions(deletePlayers(p, selection.players), selection.actions))
   }
   setSelection(EMPTY_SELECTION)
+}
+
+/**
+ * Keys 1, 2, 3 and 0 (D-114): speed of the selected segment (0: « Allure de la course »); without
+ * a segment, 1, 2 and 3 set the pace of the selected runs. False when nothing applies.
+ */
+function applySpeedKey(speed: Pace | null): boolean {
+  const { play, selection } = useEditorStore.getState()
+  if (!play) return false
+  const segment = selectedSegment(selection)
+  if (segment) return applyEdit((p) => setSegmentSpeed(p, segment.actionId, segment.index, speed))
+  if (speed === null) return false
+  const runs = play.phases
+    .flatMap((p) => p.actions)
+    .filter((a) => a.type === 'run' && selection.actions.includes(a.id))
+    .map((a) => a.id)
+  if (runs.length === 0) return false
+  return applyEdit((p) => runs.reduce((acc, id) => updateRun(acc, id, { pace: speed }), p))
 }
 
 function nudge(dx: number, dy: number): void {
@@ -506,7 +650,7 @@ export function handleKey(input: KeyInput): boolean {
         created.push(...result.ids)
         return result.play
       })
-      if (created.length > 0) setSelection({ players: created, actions: [], waypoint: null })
+      if (created.length > 0) setSelection(playersSelection(created))
       return true
     }
     case 'nudge':
@@ -530,9 +674,13 @@ export function handleKey(input: KeyInput): boolean {
     case 'fit':
       adjustViewTo('saved')
       return true
+    case 'speed':
+      return applySpeedKey(command.speed)
     case 'cancel':
       cancelGesture()
       drag = null
+      // Ends « Caler sur… » without a link (D-109).
+      if (useEditorStore.getState().syncPick) setSyncPick(null)
       // Ends the placement; a new play still waiting for its anchor is dropped (D-101).
       if (useEditorStore.getState().placement) setPlacement(null)
       useEditorStore.setState({ runDraft: null, passFromId: null, kickFromId: null })

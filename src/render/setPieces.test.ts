@@ -80,7 +80,7 @@ function drawPhase(
 ): void {
   const schematic = phaseSchematic(play, phaseId, settings, createCaches())
   if (!schematic) throw new Error('no schematic')
-  drawSchematic(ctx, schematic, viewport, THEMES[themeId], { forwardPass })
+  drawSchematic(ctx, schematic, viewport, THEMES[themeId], { forwardPass, speedBadges: false })
 }
 
 const texts = (recording: RecordingContext): unknown[] =>

@@ -82,13 +82,20 @@ export type DuplicateResolution = { kind: 'keepBoth' } | { kind: 'choose'; fileN
  * are used and the stored settings are never rewritten.
  */
 export type SettingsResult =
-  | { ok: true; settings: Settings }
+  | {
+      ok: true
+      settings: Settings
+      /** The migration to version 3 replaced the former default sprint pace (D-111). */
+      sprintReset?: boolean
+    }
   | { ok: false; settings: Settings; message: string; future?: boolean }
 
 /** Settings result of validated and migrated content (SPEC 4.4, D-068). */
 export function settingsResult(read: SettingsReadResult): SettingsResult {
   return read.ok
-    ? { ok: true, settings: read.settings }
+    ? read.sprintReset
+      ? { ok: true, settings: read.settings, sprintReset: true }
+      : { ok: true, settings: read.settings }
     : { ok: false, settings: defaultSettings(), message: read.message, future: read.future }
 }
 
