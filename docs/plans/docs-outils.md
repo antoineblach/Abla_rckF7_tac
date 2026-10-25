@@ -360,7 +360,7 @@ Les blocs ont été validés avec le plan.
 
 ### Bloc 2 : SPEC et mémoire (découpages par script)
 - [x] **Étape 2 : SPEC découpée, index, sections 14 et 16, version 1.7, références.** (commit « Étape 2 : spécification découpée par section, index, version 1.7 », après `0412b51`)
-- [ ] **Étape 3 : ETAT, PIEGES, archive, chemins des plans.**
+- [x] **Étape 3 : ETAT, PIEGES, archive, chemins des plans.** (commit « Étape 3 : état réécrit, pièges par domaine, plans terminés archivés », après `fca9512`)
 
 ### Bloc 3 : outils
 - [ ] **Étape 4 : scripts npm et essais.**

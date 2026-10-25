@@ -2,7 +2,7 @@
 
 État au vendredi 16/10/2026, 14 h 50 (heure de Guyane). Rédigé depuis l'historique complet de la conversation de conception, pour la reprendre dans une nouvelle conversation sans perte.
 
-Ce document complète le dépôt ; il ne le remplace pas. En cas d'écart, le dépôt fait foi (`docs/ETAT.md`, `docs/DECISIONS.md`, `docs/SPEC.md`).
+Ce document complète le dépôt ; il ne le remplace pas. En cas d'écart, le dépôt fait foi (`docs/ETAT.md`, `docs/decisions/`, `docs/spec/`).
 
 ---
 
@@ -35,18 +35,18 @@ Ce document complète le dépôt ; il ne le remplace pas. En cas d'écart, le d�
 | `CLAUDE.md` | Règles de travail, conventions, glossaire français / anglais, procédure de reprise, « Réponds-moi toujours en français. », importe `@docs/ETAT.md` |
 | `docs/ETAT.md` | État courant, mis à jour à chaque commit. Environ 60 lignes, limite indicative : ne rien supprimer de nécessaire |
 | `docs/plans/lot-N.md` | Plan validé de chaque lot |
-| `docs/DECISIONS.md` | Journal des décisions, D-001 à D-096 à ce jour |
-| `docs/SPEC.md` | Spécification, version 1.4 (écrite par Claude en v1.0, tenue à jour par Claude Code) |
+| `docs/decisions/` | Journal des décisions, D-001 à D-096 à ce jour |
+| `docs/spec/` | Spécification, version 1.4 (écrite par Claude en v1.0, tenue à jour par Claude Code) |
 | `docs/ARCHITECTURE.md` | Architecture effective |
 | `docs/RECETTE.md` | Recette par lot. Règle D-054 : au plus 5 vérifications manuelles par lot, plus une séance d'usage libre |
-| `docs/PROMPTS.md` | Prompts des lots 1 à 5 et prompts utilitaires : « Reprise », « Correction après recette », « Changement de spécification » |
+| `.claude/skills/` | Prompts des lots 1 à 5 et prompts utilitaires : « Reprise », « Correction après recette », « Changement de spécification » |
 
 Les valeurs provisoires du code sont dans `src/config/defaults.ts`, marquées `HYPOTHÈSE` ou `SOURCE: <url>`.
 
 ## 4. Méthode avec Claude Code (établie à l'usage)
 
 **Nouveau lot**
-1. Nouvelle conversation Claude Code, mode **Plan** : `Lis docs/PROMPTS.md et exécute le prompt « Lot N : <titre> ».`
+1. Nouvelle conversation Claude Code, mode **Plan** : `Lis .claude/skills/ et exécute le prompt « Lot N : <titre> ».`
 2. Antoine envoie le plan à Claude pour relecture.
 3. Approbation du plan en mode **Auto**, puis message en file d'attente avec les réponses Q par Q, terminé par : `Enchaîne les étapes sans m'attendre ; ne t'arrête que sur une question bloquante.`
 4. Claude Code fait un commit par étape et met `ETAT.md` à jour à chaque commit, puis ouvre une PR.
@@ -83,7 +83,7 @@ Tests au dernier rapport : 438 tests unitaires, 32 tests de bout en bout (Chromi
 
 ## 6. Choix de coach et arbitrages à garder en tête
 
-Ils sont consignés dans `docs/DECISIONS.md` ; rappel des plus structurants.
+Ils sont consignés dans `docs/decisions/` ; rappel des plus structurants.
 
 **Rugby**
 - Ruck, côté attaque : plaquée (qui avait le ballon), soutien, relayeur. Côté défense : plaqueur, puis gratteur ou garde.
@@ -117,12 +117,12 @@ Ils sont consignés dans `docs/DECISIONS.md` ; rappel des plus structurants.
    - 2 ou 3 combinaisons réelles : une sur mêlée ou touche à partir d'un modèle enregistré, une avec un ruck, une sur coup d'envoi ;
    - le GIF de l'une d'elles envoyé sur WhatsApp ;
    - notes en vrac, sans tri.
-3. **Claude** : transformer les notes brutes en demande de correction, à partir du prompt « Correction après recette » de `docs/PROMPTS.md`, en ajoutant la correction déjà notée :
+3. **Claude** : transformer les notes brutes en demande de correction, à partir du prompt « Correction après recette » de `.claude/skills/`, en ajoutant la correction déjà notée :
    - **D-096 à revoir** : une nouvelle combinaison créée depuis un modèle est enregistrée tout de suite ; Échap laisse alors une combinaison vide dans la bibliothèque. Attendu : ne la créer qu'une fois la pose validée.
    - Les deux autres choix de D-096 sont acceptés : toute pose affiche le temps 1 ; un modèle peut être appliqué en lecture seule (copie de conflit non résolue) sans pouvoir être modifié.
 4. **En parallèle, en option** : plan du lot 4 dans une nouvelle conversation Claude Code en mode Plan :
    ```
-   Lis docs/PROMPTS.md et exécute le prompt « Lot 4 : défense simulée ». Prépare seulement le plan : l'implémentation ne commencera qu'après une correction issue de ma séance d'usage.
+   Lis .claude/skills/ et exécute le prompt « Lot 4 : défense simulée ». Prépare seulement le plan : l'implémentation ne commencera qu'après une correction issue de ma séance d'usage.
    ```
    Le plan est relu par Claude, puis validé une fois les corrections fusionnées.
 5. **Lot 4 : défense simulée** : 6+1 ou 7 en ligne, « chacun le sien », plaqueur puis garde ou gratteur au ruck, lignes de hors-jeu en mêlée et en touche, aucune en jeu courant, simulation désactivée au coup d'envoi, glissement, surnombre et franchissement signalés, « Figer » une défenseure pour obtenir des courses éditables, défense identique dans le lecteur, le GIF et le PDF.
@@ -154,5 +154,5 @@ Ils sont consignés dans `docs/DECISIONS.md` ; rappel des plus structurants.
 
 ## 10. Livrables rédigés par Claude
 
-- `CLAUDE.md`, `docs/SPEC.md` (v1.0), `docs/RECETTE.md`, `docs/PROMPTS.md` : tous dans le dépôt ; les versions du dépôt font foi.
+- `CLAUDE.md`, `docs/spec/` (v1.0), `docs/RECETTE.md`, `.claude/skills/` : tous dans le dépôt ; les versions du dépôt font foi.
 - Présentation récapitulative « Outil combinaisons rugby à 7 » (2 diapositives, 16/10) : ce que l'outil sait faire, ce qui vient ensuite.

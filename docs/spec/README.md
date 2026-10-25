@@ -15,7 +15,7 @@ Version 1.7 du 25 octobre 2026. Elle intègre :
 D-119 à D-121 n'y sont pas intégrées. L'index des décisions, [docs/decisions/README.md](../decisions/README.md), marque « non intégrée (x.y) » toute décision qui touche la spécification sans l'avoir mise à jour.
 
 Règle de version :
-- la version d'un fichier est la dernière version globale qui l'a modifié (jusqu'à 1.6, calculée sur l'historique git de l'ancien `docs/SPEC.md`) ;
+- la version d'un fichier est la dernière version globale qui l'a modifié (jusqu'à 1.6, calculée sur l'historique git de l'ancien fichier unique `SPEC.md`) ;
 - toute modification d'un fichier incrémente la version globale, et le fichier modifié prend ce numéro ;
 - cet index est mis à jour dans le même commit : version globale, décisions intégrées, ligne du fichier.
 

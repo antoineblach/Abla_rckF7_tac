@@ -7,6 +7,7 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 - `docs/spec/` : source de vérité (fonctionnel et technique, tous lots). Lire l'index `docs/spec/README.md`, puis les seuls fichiers concernés.
 - `docs/RECETTE.md` : recette manuelle par lot.
 - `docs/ARCHITECTURE.md` : architecture effective, tenue à jour à la fin de chaque lot.
+- `docs/PIEGES.md` : pièges rencontrés, rangés par domaine ; lire la section d'un domaine avant d'y toucher.
 - `docs/decisions/` : journal des décisions prises en cours de route, un fichier par lot ; index `docs/decisions/README.md` (titre, statut et sections de SPEC de chaque décision).
 
 ## Mémoire du projet

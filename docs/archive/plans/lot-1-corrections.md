@@ -54,9 +54,9 @@ Pistes écartées par la mesure :
 
 ### [x] Étape 0 : mémoire (`5057bd3`)
 - Créer la branche `lot-1-corrections`.
-- Créer `docs/plans/lot-1-corrections.md` : copie de ce plan avec des cases.
+- Créer `docs/archive/plans/lot-1-corrections.md` : copie de ce plan avec des cases.
 - Réécrire `docs/ETAT.md` (écart corrigé, PR #1 fusionnée, nouvelle branche).
-- Ajouter à `docs/DECISIONS.md` les décisions D-048 à D-054 (liste plus bas).
+- Ajouter à `docs/decisions/` les décisions D-048 à D-054 (liste plus bas).
 - Commit « Plan de correction après recette du lot 1 ».
 
 ### [x] Étape 1 : CI (`5b2de29`)
@@ -200,20 +200,20 @@ Les hauteurs (`--toolbar-h`, `--transport-h`, `--tree-h`) sont des variables CSS
   - section Lot 1 : un tableau « comportement → test », puis au plus 5 vérifications manuelles (liste plus bas), puis la séance d'usage libre ;
   - sections des lots 2 à 5 : leurs cases deviennent « comportements attendus, à couvrir par les tests », et chaque liste manuelle sera écrite en fin de lot ;
   - le préalable (installation de Drive, favoris) reste tel quel.
-- **`docs/SPEC.md` :**
+- **`docs/spec/` :**
   - 6.1 : hauteurs fixes, surimpressions, vue indépendante des panneaux ;
   - 6.2 : `F` « Ajuster », seuil de glisser ;
   - 6.5 : « Combinaison » en tête, repliable ;
   - 7 : vue unique, « Ajuster », « Zone utile », molette et déplacement pendant la lecture ;
   - 8.2 et 8.6 : bandeau en surimpression, si ces sections le mentionnent ;
   - 16 : journal des décisions.
-- **`docs/PROMPTS.md` :** adapter le prompt « Correction après recette » s'il parle de listes de vérifications.
+- **`.claude/skills/` :** adapter le prompt « Correction après recette » s'il parle de listes de vérifications.
 - **`docs/ARCHITECTURE.md` :** viewport et `viewStore`, surimpressions.
-- **`docs/ETAT.md` et `docs/plans/lot-1-corrections.md` :** tenus à jour à chaque étape.
+- **`docs/ETAT.md` et `docs/archive/plans/lot-1-corrections.md` :** tenus à jour à chaque étape.
 - Recette automatisable : lint, typecheck, tests unitaires, e2e, build, Prettier.
 - Ouverture de la PR. Sa description liste les sections de SPEC et de RECETTE modifiées.
 
-## Décisions à consigner (`docs/DECISIONS.md`)
+## Décisions à consigner (`docs/decisions/`)
 
 | Entrée | Décision | Origine |
 |---|---|---|

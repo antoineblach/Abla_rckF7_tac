@@ -157,7 +157,7 @@ Préparer quelques mises en place (modèles de mêlée, de touche, de renvoi et 
 
 ## Lot 3 : correction après recette
 
-Dialogue « Version plus récente dans le dossier » en travaillant seul, et nouvelle combinaison depuis un modèle (`docs/plans/lot-3-corrections.md`, D-097 à D-101). Drive est simulé sur le faux système de fichiers (`src/test/driveSim.ts`) et, en bout en bout, sur le dossier simulé.
+Dialogue « Version plus récente dans le dossier » en travaillant seul, et nouvelle combinaison depuis un modèle (`docs/archive/plans/lot-3-corrections.md`, D-097 à D-101). Drive est simulé sur le faux système de fichiers (`src/test/driveSim.ts`) et, en bout en bout, sur le dossier simulé.
 
 ### Comportements couverts par les tests
 

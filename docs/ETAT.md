@@ -7,29 +7,22 @@
 
 ## En cours
 
-- Chantier `docs-outils` : réorganisation de la documentation et des outils de travail, sans changement de l'application (`docs/plans/docs-outils.md` ; D-122 à D-128). Étape 0 faite (plan, décisions, règle 1 de CLAUDE.md).
-- Bloc 1 fait : étape 1, journal découpé par lot dans `docs/decisions/` (128 entrées identiques octet pour octet, contrôlées par script), index `docs/decisions/README.md` (titre, statut, sections de SPEC ; D-119 à D-121 « non intégrée »), mentions de D-030 et D-047, références de CLAUDE.md, README, ARCHITECTURE et du plan du lot 3 bis ; `docs/DECISIONS.md` retiré.
-- Bloc 2 en cours. Étape 2 faite : SPEC découpée en 16 fichiers dans `docs/spec/` (sections 0 à 13 et 15 identiques octet pour octet, contrôlées par script), index `docs/spec/README.md` (version 1.7, version de chaque fichier tirée de l'historique git), section 14 réduite au renvoi à `defaults.ts` (D-126), section 16 retirée (D-122), références de CLAUDE.md, README et du plan du lot 3 bis ; `docs/SPEC.md` retiré.
-- Suite : étape 3 (ETAT, PIEGES, archive, chemins des plans), dans la même conversation.
-- Lot 3 bis : recette à faire par l'utilisateur (recharger la page sur les deux PC avec Ctrl+F5, 3 vérifications manuelles et séance d'usage libre de `docs/RECETTE.md`, section « Lot 3 bis »).
+- Chantier `docs-outils` : réorganisation de la documentation et des outils de travail, sans changement de l'application (`docs/plans/docs-outils.md` ; D-122 à D-128).
+- Blocs 0 à 2 faits (étapes 0 à 3).
+- Suite : bloc 3 (étapes 4 et 5), dans une nouvelle conversation : « Exécute le bloc 3 de docs/plans/docs-outils.md ».
 
-## Fait
+## Fait (chantier `docs-outils`, détail dans le plan et les commits)
 
-- Lots 1, 2 et 3, correction du lot 3 : PR #1 à #5 (détail dans les plans, `docs/plans/`).
-- Lot 3 bis, PR #7 (détail par étape dans le plan et les messages de commit) :
-  - modèle v3 et `reglages.json` v3 (profil, seuils, sprint 5,5 m/s), graphe des liens ;
-  - moteur : profil de vitesse, vitesses par segment, durée imposée par facteur, fin lancée avec raccord de tangente, liens résolus dans l'ordre du graphe, lâcher à la réception et tolérance de 0,5 s, alertes de vitesse, rapport des actions ;
-  - rendu : segments rapides plus épais (4 thèmes, exports compris), pastilles de vitesse (jamais exportées), lien et halo dans la surcouche ;
-  - éditeur : commandes des segments, des liens et du lâcher, choix de la cible, raccourcis 1 2 3 0 (AZERTY compris), fin lancée posée par l'outil Course, automate d'Espace ;
-  - interface : liste des actions dans la bande du bas, inspecteur de la course, bandeau « Caler sur… », calque « Vitesses », réglages en km/h, Espace ;
-  - clôture : exports vérifiés sur fichiers complets, ARCHITECTURE, RECETTE (section « Lot 3 bis »), README.
-- Reprise du 24/10 (limite d'usage pendant l'étape 5) : les 7 fichiers modifiés le 23/10 à 19:35:55, 69 s après l'étape 4, étaient un début cohérent de l'étape 5, et non une écriture interrompue : gardés et complétés (commit `3504a59`).
-- Décisions prises seul pendant le lot, à relire : D-119 (ramassage au sol : lâcher à instant fixe), D-120 (précisions des liens et des segments), D-121 (précisions de l'interface).
+- Étape 0 : plan, D-122 à D-128, règle 1 de CLAUDE.md.
+- Étape 1 : journal découpé par lot dans `docs/decisions/`, index `docs/decisions/README.md` ; ancien journal unique retiré.
+- Étape 2 : SPEC découpée par section dans `docs/spec/`, index `docs/spec/README.md` (version 1.7) ; ancienne SPEC d'un seul fichier retirée.
+- Étape 3 : ETAT réécrit ; pièges rangés par domaine dans `docs/PIEGES.md` ; plans des lots 1 à 3 et `PASSATION.md` dans `docs/archive/` ; anciens chemins remplacés.
 
 ## Reste à faire
 
+- Lot 3 bis : les 3 vérifications manuelles de `docs/RECETTE.md`, section « Lot 3 bis » (recharger d'abord la page sur les deux PC avec Ctrl+F5). La séance d'usage libre a eu lieu le 24/10 : son retour a donné 3bis-1 à 3bis-3.
+- D-119 à D-121, prises seul pendant le lot 3 bis : à relire (non intégrées à la SPEC).
 - Vérifications de terrain, non bloquantes, pas encore faites :
-  - lot 3 bis : les 3 vérifications de `docs/RECETTE.md` ;
   - conflit Drive réel, avec la vraie modification sur l'autre PC de la correction du lot 3 ;
   - modèle enregistré sur un PC, visible et appliqué sur l'autre ;
   - GIF sur WhatsApp, avec et sans allègement ; PDF N&B sur la laser ; cahier de jeu sur le téléphone.
@@ -49,7 +42,8 @@
 ## Écarts connus
 
 - Aucun test désactivé.
-- Jusqu'à l'étape 3 de `docs-outils` : les introductions de `docs/decisions/` citent `docs/archive/plans/…`, plans pas encore déplacés ; `PASSATION.md`, `PROMPTS.md` et les anciens plans citent encore `docs/SPEC.md` et `docs/DECISIONS.md` (étapes 3 et 5).
+- Jusqu'à l'étape 5 de `docs-outils` : `docs/RECETTE.md` (ligne 6) cite encore `docs/PROMPTS.md`, et les fichiers archivés citent `.claude/skills/`, pas encore créé.
+- Étape 6 de `docs-outils` : le `git grep` des anciens chemins trouvera aussi D-125 (`docs/decisions/exploitation.md`, mention de l'ancien fichier des prompts), entrée qui ne se modifie pas : exception à ajouter à celles du plan.
 - Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json` et `play-v3-lot3bis.json` ; ne plus les modifier.
 - Limite de D-098 : une ancienne version remise à l'identique depuis l'autre PC (historique de Drive, import) est défaite tant que la page qui l'avait écrite est ouverte (README : recharger avant de restaurer).
 - Les hypothèses 3 et 4 sur Drive (date changée après l'envoi, version antérieure rendue) restent à constater : le journal de synchronisation le dira.
@@ -61,31 +55,7 @@
 
 ## Pièges rencontrés
 
-- `typescript-eslint` refuse TypeScript 7 : rester en 6.0 (D-031). TS 6 : `types` vaut `[]` par défaut.
-- Le lint strict vaut aussi pour les tests : ni `!` non nul ni condition inutile ; passer par de petites fonctions qui lèvent une erreur.
-- `no-restricted-properties` sur `filter` bloquerait `Array.filter` : viser l'affectation.
-- `prettier --write` reformate les fichiers : relire avant un Edit ou un Write.
-- L'outil Bash échoue sur les longs heredocs, et une commande qui lit l'entrée standard (`cat > fichier` sans heredoc) bloque : écrire les gros fichiers avec Write ou Edit, les scripts dans un fichier.
-- Caractères invisibles ou combinants (U+0300 à U+036F, U+202F) : jamais bruts ni en échappement dans le source ; `/\p{Mn}/gu` ou `String.fromCharCode` (ESLint `no-irregular-whitespace`).
-- La règle ESLint des hooks React prend toute fonction `useXxx` pour un hook.
-- Playwright : `fill` refusé sur un curseur hors pas (touche End) ; `selectOption` ne donne pas le focus ; coordonnées de souris arrondies au pixel ; un clic à moins d'un rayon de jeton sélectionne la joueuse (viser plutôt la poignée de fin d'une course courte).
-- Grille CSS : une piste `auto` voisine d'une piste `1fr` suit le contenu des autres cellules en Chrome ; tailles fixes autour du terrain.
-- Contexte 2D de jsPDF : transformations appliquées à l'ajout des points, chemin perdu entre `save` et `restore`, tirets non mis à l'échelle, taille de police arrondie à l'entier inférieur en points, `measureText` renvoie un objet malgré ses types.
-- La police Atkinson Hyperlegible couvre le français sauf U+202F (remplacée par U+00A0, `export/text.ts`) ; son zéro est barré.
-- gifenc : avec `transparent`, `dispose` vaut 2 par défaut : toujours `dispose: 1` ; `quantize` et `applyPalette` lisent tout `t.buffer` : tableaux autonomes.
-- pdf.js renvoie `null` (et non `[]`) pour un PDF sans signets. Une liste de `combinaisons/` pendant une écriture contient le `.crswap` de Chrome : filtrer sur `.combi.json`.
-- Le morceau principal ne doit importer ni `export/jobSteps.ts` ni les encodeurs : `export/jobs.ts` reste léger (contrôlé par `bundle.chromium.spec.ts`).
-- Vitest coupe un test à 5 s par défaut ; le runner de la CI encode 2 à 3 fois moins vite que ce poste : les groupes de tests qui encodent réellement ont un délai explicite (`ENCODING_TIMEOUT_MS`).
-- Passer le dépôt en privé désactive GitHub Pages et supprime la protection de `main` (compte sans abonnement payant) : le dépôt reste public (D-102). Pour rétablir, voir D-102.
-- La tolérance des images de référence (0,5 % des pixels) masque un trait épaissi ou une petite dérive : après un changement de rendu, régénérer (`UPDATE_SNAPSHOTS=1`) et comparer à `HEAD` pour voir ce qui a bougé.
-- Une commande sans effet doit rendre la même combinaison (même référence) : sinon `applyEdit` enregistre une étape d'annulation vide.
-- Une branche supprimée sur GitHub reste visible en local (`origin/...`) tant qu'on n'a pas lancé `git fetch --prune`.
-- Arbre de travail temporaire sur `main` (vérifier qu'un test attrape un défaut, comparer un build) : jonction vers `node_modules` créée par PowerShell (`New-Item -ItemType Junction`, `mklink` échoue depuis Git Bash), supprimée (`rmdir`) avant `git worktree remove`.
-- **OPFS et tests de bout en bout :**
-  - une lecture pendant une écriture de la page échoue (`NotReadableError`, puis `NotFoundError` pendant le remplacement) ; `expect.poll` ne réessaie pas sur une erreur : lire avec `.catch(() => null)` ;
-  - après « Choisir un dossier », attendre « Dossier : Rugby7 » avant de créer une combinaison (sinon elle part dans IndexedDB) ;
-  - `writeFolderFile` suppose le dossier `Rugby7` créé : le créer d'abord pour écrire avant le choix du dossier ;
-  - ces courses ne se voient en local que sous charge : `--repeat-each=40 --workers=10`.
+- Dans `docs/PIEGES.md`, rangés par domaine : lire la section d'un domaine avant d'y toucher.
 
 ## Chantiers en parallèle
 
