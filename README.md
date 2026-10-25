@@ -3,7 +3,7 @@
 Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur PC (Chrome), animation, exports GIF et PDF. Un seul utilisateur, deux ordinateurs, données dans un dossier Google Drive.
 
 - Application en ligne : https://antoineblach.github.io/Abla_rckF7_tac/ (la casse de l'adresse compte).
-- Spécification : [docs/SPEC.md](docs/SPEC.md). Recette : [docs/RECETTE.md](docs/RECETTE.md). Architecture : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Décisions : [docs/decisions/README.md](docs/decisions/README.md) (index, puis un fichier par lot). État du projet : [docs/ETAT.md](docs/ETAT.md).
+- Spécification : [docs/spec/README.md](docs/spec/README.md) (index, puis un fichier par section). Recette : [docs/RECETTE.md](docs/RECETTE.md). Architecture : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Décisions : [docs/decisions/README.md](docs/decisions/README.md) (index, puis un fichier par lot). État du projet : [docs/ETAT.md](docs/ETAT.md).
 
 ## Utilisation au quotidien
 

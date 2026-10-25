@@ -4,7 +4,7 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 
 ## Documents de référence
 
-- `docs/SPEC.md` : source de vérité (fonctionnel et technique, tous lots). À lire en entier avant chaque lot.
+- `docs/spec/` : source de vérité (fonctionnel et technique, tous lots). Lire l'index `docs/spec/README.md`, puis les seuls fichiers concernés.
 - `docs/RECETTE.md` : recette manuelle par lot.
 - `docs/ARCHITECTURE.md` : architecture effective, tenue à jour à la fin de chaque lot.
 - `docs/decisions/` : journal des décisions prises en cours de route, un fichier par lot ; index `docs/decisions/README.md` (titre, statut et sections de SPEC de chaque décision).
@@ -19,7 +19,7 @@ La mémoire du projet vit dans le dépôt, jamais seulement dans la conversation
 - Mettre à jour `docs/ETAT.md` (objectif indicatif de 60 lignes, réécrit et non allongé ; le dépasser plutôt que supprimer une information nécessaire) et le plan (case cochée avec le hash court du commit) dans le commit qui termine chaque étape, ainsi qu'avant toute pause, tout compactage ou toute question posée à l'utilisateur.
 - Toute décision va, au moment où elle est prise, dans le fichier du lot en cours de `docs/decisions/` (chantier `docs-outils` : `exploitation.md`), avec une ligne dans l'index `docs/decisions/README.md` : entrée numérotée (D-001...), date, décision, raison, alternatives écartées, origine. Aucune entrée n'est effacée ; une décision remplacée reçoit une nouvelle entrée qui cite l'ancienne, et son statut change dans l'index. Une décision qui touche la SPEC sans la mettre à jour porte « non intégrée (x.y) » dans l'index.
 - Une seule session active par branche. Une session parallèle travaille sur sa propre branche et s'inscrit dans la section « Chantiers en parallèle » de `docs/ETAT.md`.
-- Ne jamais importer `docs/SPEC.md` dans ce fichier : la lire à la demande.
+- Ne jamais importer `docs/spec/` dans ce fichier : la lire à la demande.
 
 ## Règles de travail
 

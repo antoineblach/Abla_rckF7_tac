@@ -254,7 +254,7 @@ Actions ignorées (deuxième course, passe sans ballon) : ligne marquée en erre
 
 ## 12. SPEC 1.6 et DECISIONS (étape 0)
 
-**`docs/SPEC.md` 1.6**, sections touchées : en-tête ; 3.3.1 ; 4 (modèle v3), 4.3, 4.4 (`reglages.json` v3), 4.5 ; 5.1 ; 5.2 ; 5.3 ; 5.4 ; 5.7 ; nouvelles 5.8 (synchronisation) et 5.9 (vitesses irréalistes) ; 6.1 ; 6.2 ; 6.5 ; nouvelle 6.7 (liste des actions) ; 7 ; 10.5 ; 12 ; 13.3 ; 14 ; 16.
+**`docs/spec/` (SPEC 1.6)**, sections touchées : en-tête ; 3.3.1 ; 4 (modèle v3), 4.3, 4.4 (`reglages.json` v3), 4.5 ; 5.1 ; 5.2 ; 5.3 ; 5.4 ; 5.7 ; nouvelles 5.8 (synchronisation) et 5.9 (vitesses irréalistes) ; 6.1 ; 6.2 ; 6.5 ; nouvelle 6.7 (liste des actions) ; 7 ; 10.5 ; 12 ; 13.3 ; 14 ; 16.
 
 **`docs/decisions/lot-3bis.md`** : section « Lot 3 bis : courses réalistes », entrées D-103 à D-118.
 

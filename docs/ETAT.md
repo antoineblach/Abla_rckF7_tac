@@ -9,7 +9,8 @@
 
 - Chantier `docs-outils` : réorganisation de la documentation et des outils de travail, sans changement de l'application (`docs/plans/docs-outils.md` ; D-122 à D-128). Étape 0 faite (plan, décisions, règle 1 de CLAUDE.md).
 - Bloc 1 fait : étape 1, journal découpé par lot dans `docs/decisions/` (128 entrées identiques octet pour octet, contrôlées par script), index `docs/decisions/README.md` (titre, statut, sections de SPEC ; D-119 à D-121 « non intégrée »), mentions de D-030 et D-047, références de CLAUDE.md, README, ARCHITECTURE et du plan du lot 3 bis ; `docs/DECISIONS.md` retiré.
-- Suite : bloc 2, dans une nouvelle conversation : « Exécute le bloc 2 de docs/plans/docs-outils.md ».
+- Bloc 2 en cours. Étape 2 faite : SPEC découpée en 16 fichiers dans `docs/spec/` (sections 0 à 13 et 15 identiques octet pour octet, contrôlées par script), index `docs/spec/README.md` (version 1.7, version de chaque fichier tirée de l'historique git), section 14 réduite au renvoi à `defaults.ts` (D-126), section 16 retirée (D-122), références de CLAUDE.md, README et du plan du lot 3 bis ; `docs/SPEC.md` retiré.
+- Suite : étape 3 (ETAT, PIEGES, archive, chemins des plans), dans la même conversation.
 - Lot 3 bis : recette à faire par l'utilisateur (recharger la page sur les deux PC avec Ctrl+F5, 3 vérifications manuelles et séance d'usage libre de `docs/RECETTE.md`, section « Lot 3 bis »).
 
 ## Fait
@@ -48,7 +49,7 @@
 ## Écarts connus
 
 - Aucun test désactivé.
-- Jusqu'à l'étape 3 de `docs-outils` : les introductions de `docs/decisions/` citent `docs/archive/plans/…`, plans pas encore déplacés ; `docs/SPEC.md`, `PASSATION.md`, `PROMPTS.md` et les anciens plans citent encore `docs/DECISIONS.md` (étapes 2, 3 et 5).
+- Jusqu'à l'étape 3 de `docs-outils` : les introductions de `docs/decisions/` citent `docs/archive/plans/…`, plans pas encore déplacés ; `PASSATION.md`, `PROMPTS.md` et les anciens plans citent encore `docs/SPEC.md` et `docs/DECISIONS.md` (étapes 3 et 5).
 - Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json` et `play-v3-lot3bis.json` ; ne plus les modifier.
 - Limite de D-098 : une ancienne version remise à l'identique depuis l'autre PC (historique de Drive, import) est défaite tant que la page qui l'avait écrite est ouverte (README : recharger avant de restaurer).
 - Les hypothèses 3 et 4 sur Drive (date changée après l'envoi, version antérieure rendue) restent à constater : le journal de synchronisation le dira.

@@ -359,7 +359,7 @@ Les blocs ont été validés avec le plan.
 - [x] **Étape 1 : décisions découpées, index, mentions de D-030 et D-047, références.** (commit « Étape 1 : journal des décisions découpé par lot, index », après `36eca6a`)
 
 ### Bloc 2 : SPEC et mémoire (découpages par script)
-- [ ] **Étape 2 : SPEC découpée, index, sections 14 et 16, version 1.7, références.**
+- [x] **Étape 2 : SPEC découpée, index, sections 14 et 16, version 1.7, références.** (commit « Étape 2 : spécification découpée par section, index, version 1.7 », après `0412b51`)
 - [ ] **Étape 3 : ETAT, PIEGES, archive, chemins des plans.**
 
 ### Bloc 3 : outils
