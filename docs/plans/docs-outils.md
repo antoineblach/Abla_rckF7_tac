@@ -348,6 +348,17 @@ Ce qui change :
   1. dans une nouvelle conversation, `/` liste les 6 skills et `/reprise` constate l'état ;
   2. `npm run check` sous PowerShell sur l'autre PC.
 
+**Résultats (étape 6).**
+- Liens relatifs : 35 dans 46 fichiers, aucun cassé. Chemins entre accents graves, en plus : les absents sont dans ce plan, l'archive, D-123, D-125, les plans futurs de D-128 ou désignent des dossiers générés.
+- Anciens chemins : ce plan, la table de D-123 et D-125 ; D-029 écrit « SPEC.md » sans `docs/` et n'est pas trouvée.
+- `git diff --stat main -- src` : vide.
+
+| Lecture | Avant | Après (mesuré) | Cible |
+|---|---|---|---|
+| Démarrage | 14 222 o (≈ 4 900 tokens) | 10 319 o (≈ 3 560 tokens) : CLAUDE 5 715, ETAT 3 576, descriptions de 5 skills 1 028 | ≈ 8 000 o |
+| Reprise | 80 621 à 179 238 o | 14 236 o (≈ 4 910 tokens) ; 17 376 o avec la section de l'étape et `/fin-etape` | ≈ 15 Ko |
+| Début du lot 4 | 119 097 o (≈ 41 100 tokens) | 39 944 o (≈ 13 770 tokens) ; 45 005 o avec `/nouveau-lot` et `lot-4.md` | ≈ 40 Ko |
+
 ## Étapes
 
 Les blocs ont été validés avec le plan.
@@ -367,4 +378,4 @@ Les blocs ont été validés avec le plan.
 - [x] **Étape 5 : skills, CLAUDE.md, README.** (commit « Étape 5 : procédures en skills, CLAUDE.md réécrit, README », après `d19ff69`)
 
 ### Bloc 4 : clôture (après le bloc 3 : « /clear puis /reprise »)
-- [ ] **Étape 6 : contrôles, mesures, PR.**
+- [x] **Étape 6 : contrôles, mesures, PR.** (commit « Étape 6 : contrôles des liens et des chemins, mesures », après `b6f4ec0`)
