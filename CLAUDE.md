@@ -7,7 +7,7 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 - `docs/SPEC.md` : source de vérité (fonctionnel et technique, tous lots). À lire en entier avant chaque lot.
 - `docs/RECETTE.md` : recette manuelle par lot.
 - `docs/ARCHITECTURE.md` : architecture effective, tenue à jour à la fin de chaque lot.
-- `docs/DECISIONS.md` : journal des décisions prises en cours de route (date, décision, raison).
+- `docs/decisions/` : journal des décisions prises en cours de route, un fichier par lot ; index `docs/decisions/README.md` (titre, statut et sections de SPEC de chaque décision).
 
 ## Mémoire du projet
 
@@ -15,9 +15,9 @@ La mémoire du projet vit dans le dépôt, jamais seulement dans la conversation
 
 @docs/ETAT.md
 
-- Au début de toute session et après tout compactage : relire `docs/ETAT.md`, le plan du lot en cours (`docs/plans/lot-N.md`), les dernières entrées de `docs/DECISIONS.md`, puis `git log -10` et `git status`. Signaler tout écart entre `ETAT.md` et l'état réel du dépôt avant de continuer.
+- Au début de toute session et après tout compactage : relire `docs/ETAT.md`, le plan du lot en cours (`docs/plans/lot-N.md`), les dernières lignes de l'index `docs/decisions/README.md` (une décision se lit par son numéro : Grep `### D-0xx` avec `-A 12`, jamais un fichier entier), puis `git log -10` et `git status`. Signaler tout écart entre `ETAT.md` et l'état réel du dépôt avant de continuer.
 - Mettre à jour `docs/ETAT.md` (objectif indicatif de 60 lignes, réécrit et non allongé ; le dépasser plutôt que supprimer une information nécessaire) et le plan (case cochée avec le hash court du commit) dans le commit qui termine chaque étape, ainsi qu'avant toute pause, tout compactage ou toute question posée à l'utilisateur.
-- Toute décision va dans `docs/DECISIONS.md` au moment où elle est prise : entrée numérotée (D-001...), date, décision, raison, alternatives écartées, origine. Aucune entrée n'est effacée ; une décision remplacée reçoit une nouvelle entrée qui cite l'ancienne.
+- Toute décision va, au moment où elle est prise, dans le fichier du lot en cours de `docs/decisions/` (chantier `docs-outils` : `exploitation.md`), avec une ligne dans l'index `docs/decisions/README.md` : entrée numérotée (D-001...), date, décision, raison, alternatives écartées, origine. Aucune entrée n'est effacée ; une décision remplacée reçoit une nouvelle entrée qui cite l'ancienne, et son statut change dans l'index. Une décision qui touche la SPEC sans la mettre à jour porte « non intégrée (x.y) » dans l'index.
 - Une seule session active par branche. Une session parallèle travaille sur sa propre branche et s'inscrit dans la section « Chantiers en parallèle » de `docs/ETAT.md`.
 - Ne jamais importer `docs/SPEC.md` dans ce fichier : la lire à la demande.
 
@@ -34,7 +34,7 @@ La mémoire du projet vit dans le dépôt, jamais seulement dans la conversation
 9. Dossier de l'utilisateur : jamais d'effacement définitif. Supprimer = déplacer dans `_corbeille/`. Un fichier invalide n'est jamais modifié ni déplacé automatiquement.
 10. Chaque fonctionnalité arrive avec ses tests. Pas de fusion si la CI est rouge.
 11. Une branche par lot (`lot-1`, `lot-2`...), une PR vers `main`. `main` est déployé sur GitHub Pages.
-12. Fin de lot : mettre à jour `docs/ARCHITECTURE.md` et `docs/DECISIONS.md`, exécuter la recette automatisable. Tout ce qui est automatisable est couvert par les tests. Me lister au plus 5 vérifications manuelles, seulement celles qui sont à la fois indispensables et impossibles à automatiser (section du lot dans `docs/RECETTE.md`) ; le reste de la recette est une séance d'usage libre, dont je te fais un retour.
+12. Fin de lot : mettre à jour `docs/ARCHITECTURE.md` et `docs/decisions/` (fichier du lot et index), exécuter la recette automatisable. Tout ce qui est automatisable est couvert par les tests. Me lister au plus 5 vérifications manuelles, seulement celles qui sont à la fois indispensables et impossibles à automatiser (section du lot dans `docs/RECETTE.md`) ; le reste de la recette est une séance d'usage libre, dont je te fais un retour.
 
 ## Conventions
 

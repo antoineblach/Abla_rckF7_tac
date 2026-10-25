@@ -1,6 +1,6 @@
 # Architecture effective
 
-État à la fin du lot 3 bis, courses réalistes (24 octobre 2026). Mis à jour à la fin de chaque lot. Les choix sont justifiés dans `DECISIONS.md` (références D-xxx).
+État à la fin du lot 3 bis, courses réalistes (24 octobre 2026). Mis à jour à la fin de chaque lot. Les choix sont justifiés dans le journal des décisions, `docs/decisions/` (références D-xxx, index `docs/decisions/README.md`).
 
 ## Vue d'ensemble
 
