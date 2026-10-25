@@ -7,3 +7,4 @@ public/fonts
 src/test/image-snapshots
 docs
 CLAUDE.md
+.claude

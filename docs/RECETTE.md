@@ -3,7 +3,7 @@
 Règle de recette (D-054, `CLAUDE.md` règle 12) :
 - tout ce qui est automatisable est couvert par les tests (unitaires et de bout en bout) ; il n'y a plus de liste de vérifications manuelles à cocher ;
 - en fin de lot, Claude liste au plus 5 vérifications manuelles, seulement celles qui sont à la fois indispensables et impossibles à automatiser ;
-- le reste de la recette est une séance d'usage libre : l'utilisateur se sert de l'outil normalement et fait un retour (prompt « Correction après recette » de `docs/PROMPTS.md`) ;
+- le reste de la recette est une séance d'usage libre : l'utilisateur se sert de l'outil normalement et fait un retour (`/correction-recette`) ;
 - un lot est validé quand la CI est verte, les vérifications manuelles faites et le retour d'usage traité.
 
 ## Préalable (une fois)
@@ -71,7 +71,7 @@ Restantes (impossibles à automatiser : synchronisation réelle par Drive) :
 
 ### Séance d'usage libre
 
-Se servir de l'outil normalement sur les deux PC (préparer, lire, ranger quelques combinaisons), puis faire un retour avec le prompt « Correction après recette ».
+Se servir de l'outil normalement sur les deux PC (préparer, lire, ranger quelques combinaisons), puis faire un retour avec `/correction-recette`.
 
 ## Lot 2 : exports GIF et PDF
 
@@ -115,7 +115,7 @@ Indispensables et impossibles à automatiser (téléphone, WhatsApp, imprimante)
 
 ### Séance d'usage libre
 
-Exporter normalement quelques combinaisons (GIF et PDF, cahier de jeu) sur les deux PC, les envoyer aux joueuses, puis faire un retour avec le prompt « Correction après recette ».
+Exporter normalement quelques combinaisons (GIF et PDF, cahier de jeu) sur les deux PC, les envoyer aux joueuses, puis faire un retour avec `/correction-recette`.
 
 ## Lot 3 : mise en place
 
@@ -153,11 +153,11 @@ Indispensables et impossibles à automatiser (synchronisation Drive réelle, té
 
 ### Séance d'usage libre
 
-Préparer quelques mises en place (modèles de mêlée, de touche, de renvoi et de ruck, appliqués des deux côtés et quand B attaque ; combinaisons avec regroupements, jeux au pied et ballon au sol), les lire, les exporter, puis faire un retour avec le prompt « Correction après recette ».
+Préparer quelques mises en place (modèles de mêlée, de touche, de renvoi et de ruck, appliqués des deux côtés et quand B attaque ; combinaisons avec regroupements, jeux au pied et ballon au sol), les lire, les exporter, puis faire un retour avec `/correction-recette`.
 
 ## Lot 3 : correction après recette
 
-Dialogue « Version plus récente dans le dossier » en travaillant seul, et nouvelle combinaison depuis un modèle (`docs/plans/lot-3-corrections.md`, D-097 à D-101). Drive est simulé sur le faux système de fichiers (`src/test/driveSim.ts`) et, en bout en bout, sur le dossier simulé.
+Dialogue « Version plus récente dans le dossier » en travaillant seul, et nouvelle combinaison depuis un modèle (`docs/archive/plans/lot-3-corrections.md`, D-097 à D-101). Drive est simulé sur le faux système de fichiers (`src/test/driveSim.ts`) et, en bout en bout, sur le dossier simulé.
 
 ### Comportements couverts par les tests
 
@@ -183,7 +183,7 @@ Indispensables et impossibles à automatiser (Drive réel en mode diffusion), ap
 
 ### Séance d'usage libre
 
-Reprendre la séance du lot 3 (mises en place, modèles, nouvelles combinaisons depuis un modèle, Échap pendant la pose), puis faire un retour avec le prompt « Correction après recette ».
+Reprendre la séance du lot 3 (mises en place, modèles, nouvelles combinaisons depuis un modèle, Échap pendant la pose), puis faire un retour avec `/correction-recette`.
 
 ## Lot 3 bis : courses réalistes
 
@@ -217,7 +217,7 @@ Indispensables et impossibles à automatiser, après le déploiement et après a
 
 ### Séance d'usage libre
 
-Reprendre deux ou trois combinaisons réelles : ressenti du mouvement (accélérations, virages, courses lancées), profil ajusté dans les réglages si besoin, vitesses par segment, rendez-vous calés sur des passes, liste des actions, barre d'espace ; puis faire un retour avec le prompt « Correction après recette ».
+Reprendre deux ou trois combinaisons réelles : ressenti du mouvement (accélérations, virages, courses lancées), profil ajusté dans les réglages si besoin, vitesses par segment, rendez-vous calés sur des passes, liste des actions, barre d'espace ; puis faire un retour avec `/correction-recette`.
 
 ## Lot 4 : défense simulée
 

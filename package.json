@@ -13,9 +13,12 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "check": "node scripts/check.js",
     "test": "vitest run",
+    "test:short": "vitest run --reporter=minimal --silent=passed-only",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:short": "playwright test --reporter=dot --quiet",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -1,6 +1,6 @@
 # Plan du lot 3 : mise en place
 
-Plan validé le 16 octobre 2026, avec les réponses aux questions Q1 à Q19 (section 12). Deux réponses modifient le plan proposé : Q11 (aucune alerte d'en-avant dans les exports) et Q19 (raccourcis J et G). Le texte ci-dessous en tient compte. Décisions détaillées dans `docs/DECISIONS.md`, entrées D-078 à D-094.
+Plan validé le 16 octobre 2026, avec les réponses aux questions Q1 à Q19 (section 12). Deux réponses modifient le plan proposé : Q11 (aucune alerte d'en-avant dans les exports) et Q19 (raccourcis J et G). Le texte ci-dessous en tient compte. Décisions détaillées dans `docs/decisions/`, entrées D-078 à D-094.
 Suivi : une case par étape, cochée dans le commit qui termine l'étape, avec le hash court de ce commit (ou du commit précédent quand le hash du commit lui-même ne peut pas y figurer). L'état courant détaillé est dans `docs/ETAT.md`.
 Consigne de l'utilisateur : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
 
@@ -270,7 +270,7 @@ Contraintes :
 ## 7. Fichiers créés ou modifiés
 
 ```
-docs/plans/lot-3.md, ETAT.md, DECISIONS.md (D-078 et suivantes), ARCHITECTURE.md, RECETTE.md, SPEC.md (1.4, fin de lot), README.md (modèles, rechargement après déploiement)
+docs/archive/plans/lot-3.md, ETAT.md, DECISIONS.md (D-078 et suivantes), ARCHITECTURE.md, RECETTE.md, SPEC.md (1.4, fin de lot), README.md (modèles, rechargement après déploiement)
 src/config/defaults.ts       FORWARD_PASS_THRESHOLD, BREAKDOWN_DURATION_DEFAULT, RELAY_OFFSET, KICK_FLIGHT_TIME,
                              KICK_APEX_SCALE, LOOSE_BALL_PICKUP_DISTANCE, pas de recherche du ramassage,
                              aimantation de l'ancre (Q13), clés de thème ; HYPOTHÈSE ou SOURCE
@@ -316,7 +316,7 @@ e2e/
 Chaque étape finit sur lint, typecheck et test verts, un commit, ETAT.md et la case du plan à jour.
 
 - [x] **Étape 0 : branche et plan.** (commit « Étape 0 : plan du lot 3 », après `855a804`)
-  - Branche `lot-3` ; `docs/plans/lot-3.md` avec tes réponses.
+  - Branche `lot-3` ; `docs/archive/plans/lot-3.md` avec tes réponses.
   - ETAT.md réécrit (écart corrigé) ; décisions D-078 et suivantes.
 - [x] **Étape 1 : modèle.** (commit « Étape 1 : modèle v2 et modèles de placement », après `ef574cf`)
   - Schéma v2, schéma v1 figé, migration, fixtures, `PlacementPreset`, validation, libellés, valeurs de `defaults.ts`.
@@ -408,7 +408,7 @@ Aucune. Tout repose sur la pile en place : zod, Zustand, React, `@napi-rs/canvas
 
 ## 12. Points ambigus ou contradictoires : questions, propositions et réponses
 
-Réponses de l'utilisateur, le 16 octobre 2026 (détail dans `docs/DECISIONS.md`) :
+Réponses de l'utilisateur, le 16 octobre 2026 (détail dans `docs/decisions/`) :
 
 | Question | Réponse | Décision |
 |---|---|---|

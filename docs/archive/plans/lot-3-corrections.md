@@ -18,12 +18,12 @@ Pendant la séance d'usage du lot 3, sur un seul PC (Drive pour ordinateur en mo
 
 S'y ajoutent :
 - la révision de D-096 : une nouvelle combinaison depuis un modèle n'est enregistrée qu'à la validation de la pose ;
-- `docs/PASSATION.md`, commité tel quel.
+- `docs/archive/PASSATION.md`, commité tel quel.
 
 **Écarts constatés à la reprise** (corrigés à l'étape 0) :
 - `ETAT.md` indiquait la PR #4 ouverte, alors qu'elle est fusionnée (`f1f4fcc`).
 - Les références locales `origin/lot-1`, `origin/lot-1-corrections`, `origin/lot-2` et `origin/lot-3` étaient périmées (`git fetch --prune`).
-- `docs/PASSATION.md` n'était pas suivi.
+- `docs/archive/PASSATION.md` n'était pas suivi.
 
 ## Causes, établies par la lecture du code
 
@@ -159,7 +159,7 @@ Chaque test marqué « échoue avant » est exécuté sur le code non corrigé a
 ## Étapes et commits
 
 ### [x] Étape 0 : mémoire (`dc6fcac`)
-Branche, `git fetch --prune`, `docs/PASSATION.md` tel quel, `ETAT.md` corrigé, ce plan, D-097 à D-101.
+Branche, `git fetch --prune`, `docs/archive/PASSATION.md` tel quel, `ETAT.md` corrigé, ce plan, D-097 à D-101.
 
 ### [x] Étape 1 : base par empreinte, écritures de la page, journal (io) (`b772508`)
 A, B, F (partie io), `driveSim.ts` ; tests « Stockage », « Empreinte unique », combinaisons (causes 1, 3, 4) et mode navigateur.

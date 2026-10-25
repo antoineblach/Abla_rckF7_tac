@@ -1,6 +1,6 @@
 # Plan du lot 3 bis : courses réalistes
 
-Plan validé le 23 octobre 2026, avec les réponses aux questions Q1 à Q13 (section 18). Quatre réponses complètent le plan proposé : Q4 (course lancée qui finit avant la fin de son temps), Q8 (mode de lâcher « à la réception »), Q9 (profil réglable dans `reglages.json`), Q13 a (raccord de tangente, dans ce lot). Le texte ci-dessous en tient compte. Décisions détaillées dans `docs/DECISIONS.md`, entrées D-103 à D-118.
+Plan validé le 23 octobre 2026, avec les réponses aux questions Q1 à Q13 (section 18). Quatre réponses complètent le plan proposé : Q4 (course lancée qui finit avant la fin de son temps), Q8 (mode de lâcher « à la réception »), Q9 (profil réglable dans `reglages.json`), Q13 a (raccord de tangente, dans ce lot). Le texte ci-dessous en tient compte. Décisions détaillées dans `docs/decisions/`, entrées D-103 à D-118.
 Suivi : une case par étape, cochée dans le commit qui termine l'étape, avec le hash court du commit (ou du précédent quand il ne peut pas y figurer). État courant dans `docs/ETAT.md`.
 Consigne de l'utilisateur : enchaîner les étapes sans attendre ; ne s'arrêter que sur une question bloquante.
 
@@ -254,9 +254,9 @@ Actions ignorées (deuxième course, passe sans ballon) : ligne marquée en erre
 
 ## 12. SPEC 1.6 et DECISIONS (étape 0)
 
-**`docs/SPEC.md` 1.6**, sections touchées : en-tête ; 3.3.1 ; 4 (modèle v3), 4.3, 4.4 (`reglages.json` v3), 4.5 ; 5.1 ; 5.2 ; 5.3 ; 5.4 ; 5.7 ; nouvelles 5.8 (synchronisation) et 5.9 (vitesses irréalistes) ; 6.1 ; 6.2 ; 6.5 ; nouvelle 6.7 (liste des actions) ; 7 ; 10.5 ; 12 ; 13.3 ; 14 ; 16.
+**`docs/spec/` (SPEC 1.6)**, sections touchées : en-tête ; 3.3.1 ; 4 (modèle v3), 4.3, 4.4 (`reglages.json` v3), 4.5 ; 5.1 ; 5.2 ; 5.3 ; 5.4 ; 5.7 ; nouvelles 5.8 (synchronisation) et 5.9 (vitesses irréalistes) ; 6.1 ; 6.2 ; 6.5 ; nouvelle 6.7 (liste des actions) ; 7 ; 10.5 ; 12 ; 13.3 ; 14 ; 16.
 
-**`docs/DECISIONS.md`** : section « Lot 3 bis : courses réalistes », entrées D-103 à D-118.
+**`docs/decisions/lot-3bis.md`** : section « Lot 3 bis : courses réalistes », entrées D-103 à D-118.
 
 ## 13. Fichiers créés ou modifiés
 

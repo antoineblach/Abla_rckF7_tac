@@ -1,6 +1,6 @@
 # Plan du lot 2 : exports GIF et PDF
 
-Plan validé le 15 octobre 2026, avec les réponses aux questions Q1 à Q16 (section 9) et un complément (section 11). Décisions détaillées dans `docs/DECISIONS.md`, entrées D-057 à D-070.
+Plan validé le 15 octobre 2026, avec les réponses aux questions Q1 à Q16 (section 9) et un complément (section 11). Décisions détaillées dans `docs/decisions/`, entrées D-057 à D-070.
 Suivi : une case par étape, cochée dans le commit qui termine l'étape, avec le hash court de ce commit (ou du commit précédent quand le hash du commit lui-même ne peut pas y figurer). L'état courant détaillé est dans `docs/ETAT.md`.
 
 ## Contexte
@@ -101,7 +101,7 @@ Repli : images à 300 dpi, si l'étape 0 révèle une limite bloquante. Le ballo
   - jsPDF dans le Worker ;
   - gifenc dans le Worker.
 - **Restitution** :
-  - chiffres et limites rencontrées dans `docs/plans/lot-2.md` ;
+  - chiffres et limites rencontrées dans `docs/archive/plans/lot-2.md` ;
   - images et fichiers dans le dossier temporaire de la session, chemins donnés ;
   - vectoriel retenu si les quatre points de 1.3 sont confirmés ; arrêt seulement sur une limite bloquante (D-057).
 
@@ -208,7 +208,7 @@ Déroulement :
 ```
 package.json, package-lock.json   gifenc, jspdf ; dev : pdfjs-dist, omggif, @types/omggif
 eslint.config.js                  règles de pureté et d'aplats étendues à src/export/ (hors worker/)
-docs/plans/lot-2.md               ce plan, avec tes réponses
+docs/archive/plans/lot-2.md               ce plan, avec tes réponses
 docs/ETAT.md, DECISIONS.md, ARCHITECTURE.md, RECETTE.md, SPEC.md (fin de lot), README.md (exports)
 src/types/gifenc.d.ts             déclarations (le paquet n'a pas de types)
 src/config/defaults.ts            formats et cadences GIF, durées des cartons, lisibilité, mise en page PDF,
@@ -260,7 +260,7 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
 ## 5. Étapes (chacune finit sur lint, typecheck et test verts, un commit, ETAT.md et la case du plan à jour)
 
 - [x] **Étape 0 : branche, plan, prototypes, ton choix.** (commits `1a41e1f` et « Résultats de l'étape 0 » ; vectoriel confirmé, section 1.5)
-  - Branche `lot-2` ; `docs/plans/lot-2.md` ; ETAT.md réécrit (écart corrigé) ; décisions D-057 et suivantes.
+  - Branche `lot-2` ; `docs/archive/plans/lot-2.md` ; ETAT.md réécrit (écart corrigé) ; décisions D-057 et suivantes.
   - Installation de gifenc, jspdf, pdfjs-dist, omggif.
   - Prototypes P1 à P4 (section 1.4), non versionnés ; chiffres et limites dans le plan.
   - Vectoriel retenu si les quatre points de 1.3 sont confirmés ; **arrêt** seulement sur une limite bloquante (D-057).
@@ -358,7 +358,7 @@ Le modèle `Play` ne change pas : pas d'incrément de son `schemaVersion`. La mi
 
 ## 9. Points ambigus ou contradictoires : questions, propositions et réponses
 
-Réponses de l'utilisateur, le 15 octobre 2026 (détail dans `docs/DECISIONS.md`) :
+Réponses de l'utilisateur, le 15 octobre 2026 (détail dans `docs/decisions/`) :
 
 | Question | Réponse | Décision |
 |---|---|---|

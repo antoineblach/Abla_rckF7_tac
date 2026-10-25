@@ -1,6 +1,6 @@
 # Plan du lot 1 : socle
 
-Plan validé le 14 octobre 2026, avec les réponses Q1 à Q27 (section 5, détaillées dans `docs/DECISIONS.md`, entrées D-001 à D-027) et les compléments demandés en cours de lot (section 8).
+Plan validé le 14 octobre 2026, avec les réponses Q1 à Q27 (section 5, détaillées dans `docs/decisions/`, entrées D-001 à D-027) et les compléments demandés en cours de lot (section 8).
 Suivi : une case par étape, cochée dans le commit qui termine l'étape, avec le hash court de ce commit (ou du commit précédent quand le hash du commit lui-même ne peut pas y figurer). L'état courant détaillé est dans `docs/ETAT.md`.
 
 ## Contexte
@@ -30,8 +30,8 @@ vite.config.ts            base "/Abla_rckF7_tac/" + config Vitest
 playwright.config.ts      projets chromium et firefox ; webServer = build puis preview
 README.md
 .github/workflows/ci.yml
-docs/ARCHITECTURE.md, docs/DECISIONS.md   créés
-docs/SPEC.md              modifié : 13.1 corrigé selon la Règle 1 (Q1)
+docs/ARCHITECTURE.md, docs/decisions/   créés
+docs/spec/              modifié : 13.1 corrigé selon la Règle 1 (Q1)
 public/fonts/AtkinsonHyperlegible-Regular.ttf, AtkinsonHyperlegible-Bold.ttf, OFL.txt
 e2e/
   support/folderStub.ts         remplace showDirectoryPicker par un sous-dossier OPFS « Rugby7 »
@@ -133,7 +133,7 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 
 - [x] **Étape 0 : outillage.** (commit `1a2de6f` ; protection de `main` activée par `gh api` ensuite)
 - Branche `lot-1`, `.gitattributes`, Vite + React + TS strict (`strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`), Prettier, Vitest, Playwright, scripts npm du tableau de CLAUDE.md, workflow CI (un job unique « checks » : lint, typecheck, test, test:e2e, build ; puis un job deploy sur push vers `main` seulement), application vide, un test de fumée unitaire et un e2e.
-- `docs/DECISIONS.md` créé tout de suite avec les réponses Q1 à Q27 (datées du 14 octobre 2026).
+- `docs/decisions/` créé tout de suite avec les réponses Q1 à Q27 (datées du 14 octobre 2026).
 - Règles ESLint :
   - `no-explicit-any` ;
   - `ban-ts-comment` en mode « avec description » ;
@@ -187,8 +187,8 @@ Les tests unitaires sont placés à côté des sources (`*.test.ts`). `src/expor
 
 - [x] **Étape 7 : clôture.** (commits `b5cc10d`, `e69ebcb` et « Clôture du lot 1 » ; PR vers `main` ouverte, fusion après la recette manuelle)
 - README : installation, lancement, build, déploiement Pages, Google Drive pour ordinateur et dossier, conseil « Autoriser à chaque visite », mode dégradé.
-- `docs/ARCHITECTURE.md` et `docs/DECISIONS.md`.
-- Commit dédié « Mise à jour de la spécification selon les décisions du lot 1 » : docs/SPEC.md et docs/RECETTE.md mis à jour partout où Q1 à Q27 modifient ou complètent le texte (pas seulement 3.2, 3.3, 8.1, 8.3, 8.6). Sections modifiées listées dans la description de la PR.
+- `docs/ARCHITECTURE.md` et `docs/decisions/`.
+- Commit dédié « Mise à jour de la spécification selon les décisions du lot 1 » : docs/spec/ et docs/RECETTE.md mis à jour partout où Q1 à Q27 modifient ou complètent le texte (pas seulement 3.2, 3.3, 8.1, 8.3, 8.6). Sections modifiées listées dans la description de la PR.
 - Recette automatisable : lint, typecheck, test, test:e2e, build.
 - Liste de la recette manuelle restante.
 - Push et PR `lot-1` -> `main`.
@@ -419,5 +419,5 @@ Je ne modifie pas d'autres passages de la SPEC sans ton accord. En fin de lot, j
 
 ## 8. Compléments demandés en cours de lot
 
-- [x] **Mise à jour de la SPEC et de la RECETTE (étape 7).** (commit `e69ebcb`) À l'étape 7, commit dédié « Mise à jour de la spécification selon les décisions du lot 1 » : docs/SPEC.md et docs/RECETTE.md mis à jour partout où Q1 à Q27 modifient ou complètent le texte, sans se limiter à 3.2, 3.3, 8.1, 8.3 et 8.6. Sections modifiées listées dans la description de la PR.
-- [x] **Mémoire de projet.** Commit dédié « Mémoire de projet » : ce fichier, `docs/ETAT.md` (60 lignes au plus, réécrit à chaque mise à jour), `docs/DECISIONS.md` en entrées numérotées D-001..., section « Mémoire du projet » de `CLAUDE.md` (avec `@docs/ETAT.md`), prompt « Reprise » de `docs/PROMPTS.md`. Tenus à jour jusqu'à la fin du lot. (commit `eb74c37`)
+- [x] **Mise à jour de la SPEC et de la RECETTE (étape 7).** (commit `e69ebcb`) À l'étape 7, commit dédié « Mise à jour de la spécification selon les décisions du lot 1 » : docs/spec/ et docs/RECETTE.md mis à jour partout où Q1 à Q27 modifient ou complètent le texte, sans se limiter à 3.2, 3.3, 8.1, 8.3 et 8.6. Sections modifiées listées dans la description de la PR.
+- [x] **Mémoire de projet.** Commit dédié « Mémoire de projet » : ce fichier, `docs/ETAT.md` (60 lignes au plus, réécrit à chaque mise à jour), `docs/decisions/` en entrées numérotées D-001..., section « Mémoire du projet » de `CLAUDE.md` (avec `@docs/ETAT.md`), prompt « Reprise » de `.claude/skills/`. Tenus à jour jusqu'à la fin du lot. (commit `eb74c37`)
