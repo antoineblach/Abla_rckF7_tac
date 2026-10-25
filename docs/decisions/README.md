@@ -14,14 +14,14 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-1.md](lot-1.md) | D-001 à D-056 |
 | [lot-2.md](lot-2.md) | D-057 à D-077 |
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
-| [lot-3bis.md](lot-3bis.md) | D-103 à D-121, puis les décisions de 3bis-1, 3bis-2 et 3bis-3 |
+| [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-134 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
 
 ## Lecture
 
 - Lire ce tableau, puis une décision par son numéro : Grep `### D-0xx` avec `-A 12` dans le fichier qui la contient, ou un Read ciblé jusqu'à l'entrée suivante. Jamais un fichier entier.
 - Statut : « en vigueur », « remplacée par D-xxx », « remplacée en partie par D-xxx » ou « précisée par D-xxx ».
-- Sections : sections de la SPEC que la décision touche (« 8.4 » : section 8.4), sinon « — ». « non intégrée (x.y) » : la décision touche la section x.y sans que la SPEC ait été mise à jour ; `/fin-lot` l'intègre à la SPEC et retire la mention.
+- Sections : sections de la SPEC que la décision touche (« 8.4 » : section 8.4), sinon « — ». « non intégrée (x.y) » : la décision touche la section x.y sans que la SPEC ait été mise à jour ; `/fin-lot` l'intègre à la SPEC et retire la mention. « reportée à <lot> » : la partie ainsi marquée reste non intégrée jusqu'à ce lot ; `/fin-lot` d'un autre lot la laisse telle quelle.
 
 ## Décisions
 
@@ -105,7 +105,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-076 | io des exports et Worker (étape 5) | en vigueur | 9.1 |
 | D-077 | interface des exports (étape 6) | en vigueur | 9.1 |
 | D-078 | rôles de défense d'un regroupement | en vigueur | 10.3, 11.4 |
-| D-079 | participantes d'un regroupement | en vigueur | 10.3 |
+| D-079 | participantes d'un regroupement | précisée par D-130 | 10.3 |
 | D-080 | maul | en vigueur | 10.3 |
 | D-081 | pose d'un regroupement | en vigueur | 10.3 |
 | D-082 | ligne d'avantage en mode schéma | en vigueur | 5.6 |
@@ -131,23 +131,23 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-102 | le dépôt reste public | en vigueur | — |
 | D-103 | portée du lot 3 bis | en vigueur | — |
 | D-104 | combinaison v3 et migration | en vigueur | 4.1, 4.5 |
-| D-105 | profil de vitesse | en vigueur | 5.3 |
+| D-105 | profil de vitesse | remplacée en partie par D-129 et D-130 | 5.3 |
 | D-106 | course qui finit lancée | en vigueur | 5.3 |
-| D-107 | durée imposée | en vigueur | 5.3 |
-| D-108 | liens de synchronisation | en vigueur | 5.8 |
+| D-107 | durée imposée | remplacée en partie par D-129 | 5.3 |
+| D-108 | liens de synchronisation | remplacée en partie par D-129 et D-131 | 5.8 |
 | D-109 | création d'un lien | en vigueur | 6.5 |
 | D-110 | lâcher des passes et des jeux au pied | précisée par D-119 | 5.4, 5.8 |
-| D-111 | vitesses irréalistes, réglages v3 et sprint | en vigueur | 4.4, 5.9 |
-| D-112 | calque « Vitesses » | en vigueur | 5.9, 7 |
+| D-111 | vitesses irréalistes, réglages v3 et sprint | précisée par D-132 et D-134 | 4.4, 5.9 |
+| D-112 | calque « Vitesses » | précisée par D-132 | 5.9, 7 |
 | D-113 | liste des actions du temps | en vigueur | 6.7 |
-| D-114 | vitesse par segment | en vigueur | 5.3, 6.5 |
+| D-114 | vitesse par segment | précisée par D-133 | 5.3, 6.5 |
 | D-115 | rendu des segments rapides | en vigueur | 13.3 |
 | D-116 | lecture et pause à la barre d'espace | en vigueur | 6.2, 7 |
-| D-117 | vitesses en km/h | en vigueur | 6.5 |
+| D-117 | vitesses en km/h | précisée par D-133 | 6.5 |
 | D-118 | pistes reportées | en vigueur | — |
 | D-119 | lâcher posé par les outils pour une joueuse qui ramasse le ballon | en vigueur | non intégrée (5.4, 6.2) |
-| D-120 | précisions de l'éditeur des liens et des segments | en vigueur | non intégrée (5.8, 6.2, 6.5) |
-| D-121 | précisions de l'interface du lot 3 bis | en vigueur | non intégrée (6.1, 6.5, 6.7) |
+| D-120 | précisions de l'éditeur des liens et des segments | en vigueur | non intégrée (6.2 : raccourcis lus sur la touche physique) ; le reste : non intégrée (5.8, 6.5), reportée à 3bis-2 |
+| D-121 | précisions de l'interface du lot 3 bis | en vigueur | non intégrée (6.1, 6.5, 6.7), sauf « Changer la cible » et « Délai calculé par le lien » : non intégrée (6.5), reportée à 3bis-2 |
 | D-122 | décisions initiales du 14 octobre (ancienne SPEC 16) | en vigueur | 1, 2 |
 | D-123 | documentation découpée et lecture ciblée | en vigueur | — |
 | D-124 | longueur et contenu de ETAT.md | en vigueur | — |
@@ -155,3 +155,9 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-126 | section 14 de la SPEC réduite à un renvoi | en vigueur | 14 |
 | D-127 | économie de contexte | en vigueur | — |
 | D-128 | suite du lot 3 bis en trois parties | en vigueur | — |
+| D-129 | le mouvement sert l'intention du coach | en vigueur | non intégrée (5.3, 5.8, 5.9) |
+| D-130 | solveur à deux leviers | en vigueur | non intégrée (5.3, 5.8, 10.3) |
+| D-131 | départ différé en retard et cible avant le départ | en vigueur | non intégrée (5.8) |
+| D-132 | alertes d'accélération et de freinage | en vigueur | non intégrée (4.4, 5.9, 6.5, 6.7, 7) |
+| D-133 | allure saisie, combinaison v4 et curseur de vitesse | en vigueur | non intégrée (4.1, 4.5, 6.5) |
+| D-134 | réglages v4 | en vigueur | non intégrée (4.4, 6.5) |

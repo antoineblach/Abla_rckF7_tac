@@ -4,7 +4,7 @@ Index, règles du journal et mode de lecture : [README.md](README.md).
 
 ## Lot 3 bis : courses réalistes
 
-Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q1 à Q13. Origine commune : retour de la séance d'usage du 23/10 (6 notes de l'utilisateur).
+Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q1 à Q13. Origine commune : retour de la séance d'usage du 23/10 (6 notes de l'utilisateur).
 
 ### D-103 : portée du lot 3 bis
 - Date : 2026-10-23
@@ -26,6 +26,7 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : réalisme (note 3), inverse exacte pour la synchronisation, déterminisme ; ajuster le ressenti sans PR.
 - Alternatives écartées : modèle exponentiel (intégration numérique, inversion approchée) ; valeurs dans `defaults.ts` seulement (proposition).
 - Origine : plan ; réponse Q9 (valeurs retenues, profil réglable).
+- Remplacée en partie par D-129 (plus de plafond au seuil rouge) et D-130 (solveur à deux leviers).
 
 ### D-106 : course qui finit lancée
 - Date : 2026-10-23
@@ -40,6 +41,7 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : les combinaisons existantes gardent exactement leurs durées ; un seul solveur (D-105).
 - Alternatives écartées : la retirer (la migration ne peut pas la convertir sans le moteur) ; la convertir en lien.
 - Origine : réponse Q5.
+- Remplacée en partie par D-129 : durée tenue exactement, sans plafond ni alerte de durée inatteignable.
 
 ### D-108 : liens de synchronisation
 - Date : 2026-10-23
@@ -47,6 +49,7 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : note 2 (fins de courses synchronisées, rendez-vous) ; l'édition n'est jamais bloquée.
 - Alternatives écartées : vitesse uniforme avant le rendez-vous ; lien ignoré au-delà du seuil rouge (saut quand on déplace la cible) ; résolution avant la boucle d'événements (cibles approchées).
 - Origine : réponse Q6.
+- Remplacée en partie par D-129 et D-131 (replis du délai négatif et du facteur plafonné).
 
 ### D-109 : création d'un lien
 - Date : 2026-10-23
@@ -68,6 +71,7 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : note 4 (une joueuse amatrice au-delà de 20 à 25 km/h est irréaliste).
 - Alternatives écartées : garder 7 m/s et seulement le signaler ; seuils par poste.
 - Origine : réponse Q10.
+- Précisée par D-132 (seuils d'accélération et de freinage) et D-134 (réglages v4).
 
 ### D-112 : calque « Vitesses »
 - Date : 2026-10-23
@@ -75,6 +79,7 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : aide pour le coach, pas une information pour les joueuses.
 - Alternatives écartées : anneau autour du jeton.
 - Origine : réponse Q11.
+- Précisée par D-132 (pastilles d'accélération et de freinage dans le même calque).
 
 ### D-113 : liste des actions du temps
 - Date : 2026-10-23
@@ -89,6 +94,7 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : note 6.
 - Alternatives écartées : le point porte la vitesse du segment qui en part.
 - Origine : réponse Q2.
+- Précisée par D-133 (allure saisie de la course, curseur).
 
 ### D-115 : rendu des segments rapides
 - Date : 2026-10-23
@@ -110,6 +116,7 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : demande de l'utilisateur ; unités du projet en m/s.
 - Alternatives écartées : aucune.
 - Origine : demande de l'utilisateur.
+- Précisée par D-133 (curseur en km/h).
 
 ### D-118 : pistes reportées
 - Date : 2026-10-23
@@ -149,3 +156,49 @@ Plan : `docs/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les réponses Q
 - Raison : un message à chaque ouverture serait pénible ; lisibilité de la liste dans 176 px ; mêmes tests dans les deux navigateurs sans duplication.
 - Alternatives écartées : réécrire `reglages.json` en v3 à l'ouverture (le plan veut la réécriture au prochain enregistrement) ; message à chaque ouverture.
 - Origine : écriture de l'étape 7.
+
+## Lot 3bis-1 : le mouvement
+
+Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses Q1 à Q9 et 6 modifications de l'utilisateur. Origine commune : retour de la séance d'usage du 24/10 (accélérations trop lentes et trop contraignantes ; vitesses à calibrer avec un curseur à repères ; les plafonnements « créent le désordre ») ; règle de l'utilisateur : ne jamais bloquer, seulement signaler.
+
+### D-129 : le mouvement sert l'intention du coach
+- Date : 2026-10-25
+- Décision : les bornes physiques du profil (vitesse, accélération, freinage, virages) façonnent le mouvement par défaut et ne contraignent jamais une intention du coach : durée imposée, lien de synchronisation dans ses deux réglages, relayeur au ballon à la sortie. Chacune est tenue exactement ; au-delà des bornes, la course va plus vite, accélère, freine ou tourne plus fort, et seuls les seuils d'alerte (vitesse, accélération, freinage) le signalent : `durationCapped` et `syncSpeedCapped` sont retirés sans remplacement. Les seuils d'alerte ne règlent jamais le mouvement : le seuil rouge ne plafonne plus aucun facteur. Jamais bloquant, jamais dans les exports. Vise les courses dessinées et les intentions du coach ; la défense simulée du lot 4 sera tranchée à son lancement. Hors périmètre : les validations du ballon (D-013, D-110, D-119). Remplace en partie D-105, D-107 et D-108.
+- Raison : retour de séance du 24/10 ; un plafond décale l'action liée et désorganise le temps, là où une alerte laisse le coach juger.
+- Alternatives écartées : alerte « au-delà des bornes » dès que le levier 2 de D-130 sert, même sous les seuils (Q3) ; garder le plafond au seuil rouge.
+- Origine : prompt du lot 3bis-1 (A) ; réponse Q3 ; validation du plan (modification 3).
+
+### D-130 : solveur à deux leviers
+- Date : 2026-10-25
+- Décision : levier 1, un facteur commun f sur les vitesses cibles, accélérations bornées : seul pour ralentir, et pour accélérer jusqu'à la bascule, où la cible la plus rapide atteint la pointe de la joueuse (`motion.topSpeed`, réglage de `reglages.json` v4 dans les deux modèles ; avec le trapèze, elle ne sert qu'à la bascule). Levier 2 au-delà, un facteur k >= 1 : vitesses cibles ×k et bornes ×k² (accélération, freinage, latérale ; vitesse minimale en virage et pointe ×k), appliquées par intervalle dans le profil pour que la vitesse de départ imposée reste continue (D-106). Vitesse ajustée : les deux leviers sur les segments avant le rendez-vous, un seul profil, vitesse continue au rendez-vous. Dichotomie à nombre fixe d'itérations sur log f puis log k ; borne numérique de recherche (1000), au-delà le cas est une cible avant le départ (D-131). Relayeur trop loin : même solveur et même bascule (pointe / sprint), `RELAY_MAX_FACTOR` supprimé. Remplace en partie D-105 (solveur plafonné) ; précise D-079.
+- Raison : sans plafond, multiplier les vitesses cibles à accélérations bornées ne descend pas sous la durée du profil triangle ; une bascule physique, indépendante des seuils d'alerte.
+- Alternatives écartées : bascule au seuil rouge (le seuil réglerait le mouvement) ; levier 2 seul pour accélérer (une course un peu pressée accélérerait aussi plus fort au départ) ; `scaleTime` global (vitesse de départ d'une course lancée discontinue).
+- Origine : prompt (A) ; réponse Q2 ; validation du plan (modification 3).
+
+### D-131 : départ différé en retard et cible avant le départ
+- Date : 2026-10-25
+- Décision : délai calculé négatif : départ à 0 et leviers de D-130 sur les segments avant le rendez-vous, comme une vitesse ajustée, pour arriver à l'heure ; `syncLate` gardé, reformulé (« il aurait fallu partir x s plus tôt : départ immédiat, course accélérée »). Cible avant le départ (instant voulu <= 0, ou au-delà de la borne de recherche) : seul repli, la course garde ses vitesses et son délai enregistrés et arrive en retard ; alerte `syncTargetBeforeStart`, avec le retard en secondes. Remplace en partie D-108 (replis du délai négatif et du facteur plafonné).
+- Raison : D-129 ; un repli lisible pour le seul cas impossible même à vitesse infinie.
+- Alternatives écartées : arriver en retard (comportement du lot 3 bis) ; course jouée à la plus grande mise à l'échelle (mouvement absurde, Q4).
+- Origine : réponses Q1 et Q4.
+
+### D-132 : alertes d'accélération et de freinage
+- Date : 2026-10-25
+- Décision : seuils orange (avertissement) et rouge (erreur) pour l'accélération et pour le freinage, en m/s², réglables (`reglages.json` v4, `accelAlert`, `decelAlert`, valeurs au bloc 1) ; mesurés sur le profil réel après mise à l'échelle : pics de chaque segment sur la partie courue ; codes `runAccelHigh`, `runAccelTooHigh`, `runBrakeHigh`, `runBrakeTooHigh`. Affichage comme les vitesses (D-112) : inspecteur, liste des actions, pastilles dans l'éditeur, calque « Vitesses » du lecteur (nom gardé, infobulle « Vitesses et accélérations ») ; jamais dans les GIF, les PDF ni les vignettes. Pastille : losange orange ou rouge, « + » (accélération) ou « − » (freinage), une par segment et par type, au point de la zone au-delà du seuil le plus proche du pic, à au moins le rayon du jeton plus une marge (HYPOTHÈSE, `defaults.ts`) des extrémités du segment ; segment trop court : milieu du segment, décalé pour ne pas couvrir la pastille de vitesse. Pas d'alerte d'accélération latérale. Précise D-111 et D-112.
+- Raison : D-129 (seuls les seuils signalent) ; avec a(v), le pic d'accélération est au départ et celui de freinage juste avant un arrêt ou un rendez-vous, sous le jeton ou une poignée.
+- Alternatives écartées : carré à « ! », triangle orienté (Q5) ; calque renommé ou deux calques (Q6) ; alerte latérale (Q7) ; pastille au pic exact (cachée par le jeton).
+- Origine : prompt (A) ; réponses Q5 à Q7 ; validation du plan (modification 4).
+
+### D-133 : allure saisie, combinaison v4 et curseur de vitesse
+- Date : 2026-10-25
+- Décision : `RunAction.pace: Pace | number` ; `schemaVersion` 4 ; schéma v3 figé dans `model/schemaV3.ts` ; migration v3 vers v4 sans changement de contenu ; `play-v3-lot3bis.json` reste figée, nouvelle fixture figée `play-v4-lot3bis1.json` pour les lots 4 et 5. Curseur dans l'inspecteur, pour la course et pour le segment (« Allure de la course » reste un choix explicite) : en km/h, valeur affichée en m/s et en km/h ; repères Marche, Trot, Sprint aux allures des réglages, aimantation au glisser à ±0,5 km/h ; relâché sur un repère, l'allure nommée est gardée (elle suit les réglages), ailleurs vitesse saisie ; au clavier, pas de 0,1 km/h, une valeur égale à un repère donne l'allure nommée ; zones orange et rouge en aplats ; bornes de 1 km/h au seuil rouge + 5 km/h (HYPOTHÈSES) ; champ en km/h gardé (1 à 45 km/h) ; une étape d'annulation par geste. Raccourcis 1, 2, 3, 0 inchangés. Précise D-114 et D-117.
+- Raison : retour de séance (vitesses à calibrer avec un curseur à repères) ; règle 6 de `CLAUDE.md`.
+- Alternatives écartées : bornes de 1 à 45 km/h ; aimantation à ±1 km/h (Q8).
+- Origine : prompt (D) ; réponse Q8.
+
+### D-134 : réglages v4
+- Date : 2026-10-25
+- Décision : `reglages.json` v4 : `motion` plus `topSpeed` (pointe de la joueuse, m/s), `accelAlert` et `decelAlert` (orange, rouge, m/s²) ; `speedAlert` inchangé. Migration v3 vers v4 : une valeur de `motion` égale à l'ancien défaut (accélération 3, freinage 4, latérale 4, `LEGACY_MOTION`) prend le nouveau défaut calibré, avec un message unique par poste (mémorisé dans le navigateur, comme le sprint, D-121) qui liste les valeurs changées ; toute autre valeur est gardée ; v1 et v2 migrés jusqu'à v4 avec les défauts. Fixture figée `reglages-v3.json`. Section Réglages de l'inspecteur : pointe, seuils d'accélération et de freinage (orange <= rouge). Précise D-111.
+- Raison : comme le sprint (D-111, D-121) : les valeurs jamais modifiées suivent la calibration, les choix de l'utilisateur sont gardés.
+- Alternatives écartées : aucune proposée.
+- Origine : prompt (E), proposition retenue.

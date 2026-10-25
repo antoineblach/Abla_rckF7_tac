@@ -187,7 +187,7 @@ Reprendre la séance du lot 3 (mises en place, modèles, nouvelles combinaisons 
 
 ## Lot 3 bis : courses réalistes
 
-Profil de vitesse, vitesse par segment, course qui finit lancée, liens de synchronisation, lâcher à la réception, vitesses irréalistes, liste des actions du temps, barre d'espace (`docs/plans/lot-3bis.md`, D-103 à D-121).
+Profil de vitesse, vitesse par segment, course qui finit lancée, liens de synchronisation, lâcher à la réception, vitesses irréalistes, liste des actions du temps, barre d'espace (`docs/archive/plans/lot-3bis.md`, D-103 à D-121).
 
 ### Comportements couverts par les tests
 

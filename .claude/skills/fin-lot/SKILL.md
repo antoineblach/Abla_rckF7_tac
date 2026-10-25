@@ -10,7 +10,7 @@ disable-model-invocation: true
 Lot : $ARGUMENTS (à défaut, le lot en cours de `docs/ETAT.md`).
 
 1. **Recette automatisable complète** : `npm run check`, `npm run test:e2e:short` (Chromium et Firefox), `npm run build`, et les points automatisables de la section du lot dans `docs/RECETTE.md` (couverts par des tests, sinon à couvrir). Rouge : corriger, sans commiter.
-2. **SPEC** : chaque décision « non intégrée » de l'index des décisions (Grep) est intégrée aux fichiers de `docs/spec/` qu'elle touche. Mettre à jour la version globale et celle des fichiers, l'index de la SPEC (décisions intégrées) et la colonne des sections de l'index des décisions. Une intégration ambiguë devient une question.
+2. **SPEC** : chaque décision « non intégrée » de l'index des décisions (Grep) est intégrée aux fichiers de `docs/spec/` qu'elle touche. Une partie marquée « reportée à <lot> » reste telle quelle jusqu'à ce lot. Mettre à jour la version globale et celle des fichiers, l'index de la SPEC (décisions intégrées) et la colonne des sections de l'index des décisions. Une intégration ambiguë devient une question.
 3. **Documents** :
    - `docs/ARCHITECTURE.md` : architecture effective à la fin du lot, sections touchées ;
    - `docs/RECETTE.md`, section du lot : au plus 5 vérifications manuelles, à la fois indispensables et impossibles à automatiser, puis la séance d'usage libre (retour par `/correction-recette`) ;

@@ -19,6 +19,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : SPEC 10.3 ne déplace que le relayeur et ne dit rien des courses en conflit ni du regroupement sans ballon.
 - Alternatives écartées : soutien amené par le moteur contre la plaquée ; relayeur à vitesse constante sur toute la durée.
 - Origine : réponse de l'utilisateur (Q2, Q3, Q4).
+- Précisée par D-130 (relayeur trop loin : même solveur et même bascule que les courses).
 
 ### D-080 : maul
 - Date : 2026-10-16
