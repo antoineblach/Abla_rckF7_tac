@@ -8,8 +8,8 @@
 ## En cours
 
 - Chantier `docs-outils` : réorganisation de la documentation et des outils de travail, sans changement de l'application (`docs/plans/docs-outils.md` ; D-122 à D-128).
-- Blocs 0 à 2 faits (étapes 0 à 3).
-- Suite : bloc 3 (étapes 4 et 5), dans une nouvelle conversation : « Exécute le bloc 3 de docs/plans/docs-outils.md ».
+- Blocs 0 à 2 faits (étapes 0 à 3) ; bloc 3 en cours : étape 4 faite, étape 5 (skills, CLAUDE.md, README) à faire.
+- Reprise si la conversation est coupée : « Exécute le bloc 3 de docs/plans/docs-outils.md » (l'étape 4 est cochée).
 
 ## Fait (chantier `docs-outils`, détail dans le plan et les commits)
 
@@ -17,6 +17,7 @@
 - Étape 1 : journal découpé par lot dans `docs/decisions/`, index `docs/decisions/README.md` ; ancien journal unique retiré.
 - Étape 2 : SPEC découpée par section dans `docs/spec/`, index `docs/spec/README.md` (version 1.7) ; ancienne SPEC d'un seul fichier retirée.
 - Étape 3 : ETAT réécrit ; pièges rangés par domaine dans `docs/PIEGES.md` ; plans des lots 1 à 3 et `PASSATION.md` dans `docs/archive/` ; anciens chemins remplacés.
+- Étape 4 : `npm run check` (`scripts/check.js` : lint, types et tests unitaires en parallèle, une ligne par commande réussie), `test:short`, `test:e2e:short` ; essayés sous PowerShell, Git Bash et cmd ; `.claude` exclu de Prettier, `.claude/settings.local.json` de git.
 
 ## Reste à faire
 

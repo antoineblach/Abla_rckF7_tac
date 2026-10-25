@@ -363,7 +363,7 @@ Les blocs ont été validés avec le plan.
 - [x] **Étape 3 : ETAT, PIEGES, archive, chemins des plans.** (commit « Étape 3 : état réécrit, pièges par domaine, plans terminés archivés », après `fca9512`)
 
 ### Bloc 3 : outils
-- [ ] **Étape 4 : scripts npm et essais.**
+- [x] **Étape 4 : scripts npm et essais.** (commit « Étape 4 : scripts npm de contrôle à sortie concise », après `b5c5a39`)
 - [ ] **Étape 5 : skills, CLAUDE.md, README.**
 
 ### Bloc 4 : clôture (après le bloc 3 : « /clear puis /reprise »)

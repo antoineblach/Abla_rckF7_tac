@@ -11,3 +11,4 @@ playwright/.cache/
 .DS_Store
 Thumbs.db
 src/test/image-snapshots/__diff__/
+.claude/settings.local.json
