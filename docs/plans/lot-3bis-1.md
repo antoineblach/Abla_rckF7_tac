@@ -2,7 +2,7 @@
 
 Validé le 25 octobre 2026, avec les réponses Q1 à Q9 et 6 modifications de l'utilisateur, intégrées ci-dessous. Décisions : D-129 à D-134 (étape 0), puis celles du bloc 1. Branche `lot-3bis-1` depuis `main` à `8467815`. Partie 1 sur 3 de la suite du lot 3 bis (D-128) ; 3bis-2 (interactions) et 3bis-3 (positions préréglées) suivront, chacune par `/nouveau-lot`.
 
-Ce plan doit se suffire : chaque bloc est lancé dans une nouvelle conversation par `/reprise`. Lecture : ce plan, puis les fichiers et sections qu'il nomme, par Grep et Read ciblés (D-123, D-127) ; aucun sous-agent. Dans un bloc : étape, `/fin-etape`, étape suivante (D-125).
+Ce plan doit se suffire : chaque bloc est lancé dans une nouvelle conversation par `/reprise`. Lecture : dans ce plan, seulement le « Détail par étape » de l'étape, les sections qu'il cite et les puces de « Tests » qui la concernent (Grep du titre, Read ciblé, comme `/reprise`) ; jamais le plan entier. Aucun sous-agent. Dans un bloc : étape, `/fin-etape`, étape suivante (D-125).
 
 ## Contexte
 
@@ -166,13 +166,13 @@ Aucune.
 
 ## Détail par étape
 
-- **Étape 1, calibration** : section B. Sortie : tableau rempli, comparaison chiffrée des deux modèles, proposition, questions Q10 à Q14 ; puis décision et plan mis à jour.
-- **Étape 2, modèle et réglages** : `buildProfile` en a(v) (ou trapèze recalibré) et `ProfileInput.boundScale` ; défauts calibrés dans `defaults.ts` ; `reglages.json` v4 (`topSpeed`, `accelAlert`, `decelAlert`), migration v3 vers v4 et message par poste, fixture `reglages-v3.json`, `engineSettingsOf`. Tests : profil calibré, forme, inverse et continuité, migrations des réglages. Tests existants qui dépendent des durées du trapèze à 3 m/s² mis à jour ; images de référence régénérées si le profil les change (raison dans le commit).
-- **Étape 3, intentions tenues** : solveur à deux leviers dans `profile.ts` ; `runMotion`, `resolveLink` (départ différé en retard, cible avant le départ), `relayMotion` ; `durationCapped` et `syncSpeedCapped` retirés (`issues.ts`, `strings.ts`), `syncLate` reformulé, `syncTargetBeforeStart` ; `RunMotion.accelFactor` ; tests modifiés (`evaluate`, `sync`, `breakdown`, `runs`, `actionReport`).
-- **Étape 4, alertes d'accélération et de freinage** : niveaux par segment dans `timeline.ts`, codes et messages, pastilles en losange dans `evaluate.ts`, `sceneState.ts` et le rendu (placement de A.3), `actionReport.ts` ; absence dans les exports.
-- **Étape 5, combinaison v4** : section D, partie modèle : `pace: Pace | number`, `schemaV3.ts`, migration, fixture `play-v4-lot3bis1.json`, `speedOf`, commandes et consommateurs.
-- **Étape 6, interface** : curseur (course, segment), section Réglages de l'inspecteur, liste des actions (pastilles d'accélération, facteurs), infobulle du calque, message de migration des réglages ; tests de bout en bout.
-- **Étape 7, combinaisons existantes** : fixtures v3 et combinaisons d'exemple recompilées ; section F confirmée ou corrigée ; durée et poids des GIF mesurés.
+- **Étape 1, calibration** (sections B, C) : section B. Sortie : tableau rempli, comparaison chiffrée des deux modèles, proposition, questions Q10 à Q14 ; puis décision et plan mis à jour.
+- **Étape 2, modèle et réglages** (sections C, E et le tableau de B) : `buildProfile` en a(v) (ou trapèze recalibré) et `ProfileInput.boundScale` ; défauts calibrés dans `defaults.ts` ; `reglages.json` v4 (`topSpeed`, `accelAlert`, `decelAlert`), migration v3 vers v4 et message par poste, fixture `reglages-v3.json`, `engineSettingsOf`. Tests : profil calibré, forme, inverse et continuité, migrations des réglages. Tests existants qui dépendent des durées du trapèze à 3 m/s² mis à jour ; images de référence régénérées si le profil les change (raison dans le commit).
+- **Étape 3, intentions tenues** (sections A.1, A.2) : solveur à deux leviers dans `profile.ts` ; `runMotion`, `resolveLink` (départ différé en retard, cible avant le départ), `relayMotion` ; `durationCapped` et `syncSpeedCapped` retirés (`issues.ts`, `strings.ts`), `syncLate` reformulé, `syncTargetBeforeStart` ; `RunMotion.accelFactor` ; tests modifiés (`evaluate`, `sync`, `breakdown`, `runs`, `actionReport`).
+- **Étape 4, alertes d'accélération et de freinage** (section A.3) : niveaux par segment dans `timeline.ts`, codes et messages, pastilles en losange dans `evaluate.ts`, `sceneState.ts` et le rendu (placement de A.3), `actionReport.ts` ; absence dans les exports.
+- **Étape 5, combinaison v4** (section D) : partie modèle : `pace: Pace | number`, `schemaV3.ts`, migration, fixture `play-v4-lot3bis1.json`, `speedOf`, commandes et consommateurs.
+- **Étape 6, interface** (sections D, E, A.3) : curseur (course, segment), section Réglages de l'inspecteur, liste des actions (pastilles d'accélération, facteurs), infobulle du calque, message de migration des réglages ; tests de bout en bout.
+- **Étape 7, combinaisons existantes** (section F) : fixtures v3 et combinaisons d'exemple recompilées ; section F confirmée ou corrigée ; durée et poids des GIF mesurés.
 
 ## Tests
 
