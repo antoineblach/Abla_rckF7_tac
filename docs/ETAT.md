@@ -1,13 +1,13 @@
 # État du projet
 
 - Mise à jour : 2026-10-25
-- Branche : `docs-outils` (depuis `main` à `ba76d6c`), poussée sur `origin` ; PR vers `main` ouverte après le commit de l'étape 6, sans fusion
+- Branche : `docs-outils` (depuis `main` à `ba76d6c`), poussée sur `origin` ; PR #8 vers `main` ouverte, sans fusion
 - `main` : lots 1, 2, 3 et 3 bis fusionnés (PR #1 à #7 ; PR #7 le 24/10, commit de fusion `ba76d6c`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` identique à D-055, vérifiée par `gh api` le 23/10 (D-102)
 
 ## En cours
 
-- Chantier `docs-outils` (`docs/plans/docs-outils.md` ; D-122 à D-128) : étapes 0 à 6 faites, PR vers `main` ouverte.
+- Chantier `docs-outils` (`docs/plans/docs-outils.md` ; D-122 à D-128) : étapes 0 à 6 faites, PR #8 vers `main` ouverte.
 - À faire par l'utilisateur avant la fusion, les 2 vérifications manuelles de la PR : dans une nouvelle conversation, `/` liste les 6 skills et `/reprise` constate l'état ; `npm run check` sous PowerShell sur l'autre PC.
 
 ## Fait (chantier `docs-outils`, détail dans le plan et les commits)
