@@ -1,19 +1,20 @@
 # État du projet
 
-- Mise à jour : 2026-10-24
-- Branche : `lot-3bis` (depuis `main` à `e76aa13`), poussée sur `origin` ; lot 3 bis terminé, PR #7 vers `main` ouverte le 24/10, à fusionner par l'utilisateur quand la CI est verte
-- `main` : lots 1, 2 et 3, la correction du lot 3 et la mise à jour de la mémoire fusionnés (PR #1 à #6 ; PR #6 le 23/10, commit de fusion `e76aa13`), CI verte, déployés sur Pages
+- Mise à jour : 2026-10-25
+- Branche : `docs-outils` (depuis `main` à `ba76d6c`), poussée sur `origin`
+- `main` : lots 1, 2, 3 et 3 bis fusionnés (PR #1 à #7 ; PR #7 le 24/10, commit de fusion `ba76d6c`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` identique à D-055, vérifiée par `gh api` le 23/10 (D-102)
 
 ## En cours
 
-- Lot 3 bis : courses réalistes, étapes 0 à 8 faites (`docs/plans/lot-3bis.md`, cases cochées avec leurs commits ; décisions D-103 à D-121 ; SPEC 1.6).
-- À faire par l'utilisateur : fusionner la PR quand la CI est verte, recharger la page sur les deux PC (Ctrl+F5), puis les 3 vérifications manuelles et la séance d'usage libre de `docs/RECETTE.md` (section « Lot 3 bis »).
+- Chantier `docs-outils` : réorganisation de la documentation et des outils de travail, sans changement de l'application (`docs/plans/docs-outils.md` ; D-122 à D-128). Étape 0 faite (plan, décisions, règle 1 de CLAUDE.md).
+- Suite : bloc 1, dans une nouvelle conversation : « Exécute le bloc 1 de docs/plans/docs-outils.md ».
+- Lot 3 bis : recette à faire par l'utilisateur (recharger la page sur les deux PC avec Ctrl+F5, 3 vérifications manuelles et séance d'usage libre de `docs/RECETTE.md`, section « Lot 3 bis »).
 
 ## Fait
 
 - Lots 1, 2 et 3, correction du lot 3 : PR #1 à #5 (détail dans les plans, `docs/plans/`).
-- Lot 3 bis (détail par étape dans le plan et les messages de commit) :
+- Lot 3 bis, PR #7 (détail par étape dans le plan et les messages de commit) :
   - modèle v3 et `reglages.json` v3 (profil, seuils, sprint 5,5 m/s), graphe des liens ;
   - moteur : profil de vitesse, vitesses par segment, durée imposée par facteur, fin lancée avec raccord de tangente, liens résolus dans l'ordre du graphe, lâcher à la réception et tolérance de 0,5 s, alertes de vitesse, rapport des actions ;
   - rendu : segments rapides plus épais (4 thèmes, exports compris), pastilles de vitesse (jamais exportées), lien et halo dans la surcouche ;
@@ -30,6 +31,7 @@
   - conflit Drive réel, avec la vraie modification sur l'autre PC de la correction du lot 3 ;
   - modèle enregistré sur un PC, visible et appliqué sur l'autre ;
   - GIF sur WhatsApp, avec et sans allègement ; PDF N&B sur la laser ; cahier de jeu sur le téléphone.
+- Après `docs-outils` : suite du lot 3 bis en trois PR, 3bis-1 (mouvement), 3bis-2 (interactions), 3bis-3 (positions préréglées) (D-128).
 - Puis lot 4 (défense simulée ; le plan du lot 3 bis, section 11, liste ce qui le touche) et lot 5 (ateliers).
 
 ## Pistes notées pour plus tard (D-118)

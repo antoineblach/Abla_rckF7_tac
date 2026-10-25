@@ -23,7 +23,7 @@ La mémoire du projet vit dans le dépôt, jamais seulement dans la conversation
 
 ## Règles de travail
 
-1. Un lot à la fois, dans l'ordre. Toujours commencer en mode plan ; attendre ma validation avant d'écrire du code.
+1. Un lot à la fois, dans l'ordre. Un lot, une correction ou un changement de SPEC commence en mode plan ; attendre ma validation avant d'écrire du code. Une étape d'un plan validé s'exécute sans mode plan (D-125).
 2. Le plan contient : fichiers créés ou modifiés, étapes, dépendances ajoutées et leur justification, tests prévus, points de la spécification jugés ambigus ou contradictoires.
 3. Ambiguïté ou contradiction : s'arrêter et demander. Ne jamais trancher seul, ne jamais inventer une règle de rugby.
 4. Ne jamais implémenter un élément d'un lot ultérieur ; ne jamais rendre son arrivée plus difficile (types déclarés, interfaces ouvertes).
