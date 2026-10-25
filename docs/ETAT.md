@@ -8,16 +8,14 @@
 ## En cours
 
 - Chantier `docs-outils` : réorganisation de la documentation et des outils de travail, sans changement de l'application (`docs/plans/docs-outils.md` ; D-122 à D-128).
-- Blocs 0 à 2 faits (étapes 0 à 3) ; bloc 3 en cours : étape 4 faite, étape 5 (skills, CLAUDE.md, README) à faire.
-- Reprise si la conversation est coupée : « Exécute le bloc 3 de docs/plans/docs-outils.md » (l'étape 4 est cochée).
+- Blocs 0 à 3 faits (étapes 0 à 5).
+- Suite : bloc 4 (étape 6 : contrôles, mesures, PR vers `main` sans fusion), par « /clear puis /reprise ».
 
 ## Fait (chantier `docs-outils`, détail dans le plan et les commits)
 
-- Étape 0 : plan, D-122 à D-128, règle 1 de CLAUDE.md.
-- Étape 1 : journal découpé par lot dans `docs/decisions/`, index `docs/decisions/README.md` ; ancien journal unique retiré.
-- Étape 2 : SPEC découpée par section dans `docs/spec/`, index `docs/spec/README.md` (version 1.7) ; ancienne SPEC d'un seul fichier retirée.
-- Étape 3 : ETAT réécrit ; pièges rangés par domaine dans `docs/PIEGES.md` ; plans des lots 1 à 3 et `PASSATION.md` dans `docs/archive/` ; anciens chemins remplacés.
-- Étape 4 : `npm run check` (`scripts/check.js` : lint, types et tests unitaires en parallèle, une ligne par commande réussie), `test:short`, `test:e2e:short` ; essayés sous PowerShell, Git Bash et cmd ; `.claude` exclu de Prettier, `.claude/settings.local.json` de git.
+- Étapes 0 à 3 : plan, D-122 à D-128 ; journal découpé par lot (`docs/decisions/`) et SPEC par section (`docs/spec/`, version 1.7), avec leurs index ; ETAT réécrit, `docs/PIEGES.md`, `docs/archive/`.
+- Étape 4 : `npm run check` (`scripts/check.js`), `test:short`, `test:e2e:short`, essayés sous PowerShell, Git Bash et cmd ; `.claude` exclu de Prettier, `.claude/settings.local.json` de git.
+- Étape 5 : six skills dans `.claude/skills/` (compléments des lots 4 et 5 dans `nouveau-lot/`) ; CLAUDE.md réécrit ; README, section « Travailler avec Claude Code » ; RECETTE renvoie à `/correction-recette` ; ancien fichier des prompts retiré.
 
 ## Reste à faire
 
@@ -43,7 +41,7 @@
 ## Écarts connus
 
 - Aucun test désactivé.
-- Jusqu'à l'étape 5 de `docs-outils` : `docs/RECETTE.md` (ligne 6) cite encore `docs/PROMPTS.md`, et les fichiers archivés citent `.claude/skills/`, pas encore créé.
+- CLAUDE.md fait 5 715 o (6 382 o avant) pour une cible d'environ 4,5 Ko : glossaire, conventions et tableau npm en prennent 2,2 Ko ; à reporter dans les mesures de l'étape 6.
 - Étape 6 de `docs-outils` : le `git grep` des anciens chemins trouvera aussi D-125 (`docs/decisions/exploitation.md`, mention de l'ancien fichier des prompts), entrée qui ne se modifie pas : exception à ajouter à celles du plan.
 - Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json` et `play-v3-lot3bis.json` ; ne plus les modifier.
 - Limite de D-098 : une ancienne version remise à l'identique depuis l'autre PC (historique de Drive, import) est défaite tant que la page qui l'avait écrite est ouverte (README : recharger avant de restaurer).

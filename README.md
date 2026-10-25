@@ -77,16 +77,36 @@ npm run build              # build de production dans dist/
 npm run preview            # prévisualisation du build : http://localhost:4173/Abla_rckF7_tac/
 ```
 
-| Script              | Rôle                                                                                      |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| `npm run lint`      | ESLint (dont les règles de pureté du moteur et du rendu, et les aplats)                   |
-| `npm run typecheck` | `tsc --noEmit`                                                                            |
-| `npm test`          | Vitest (tests unitaires, images de référence du rendu et des exports)                     |
-| `npm run test:e2e`  | Playwright, Chromium (mode dossier) et Firefox (mode dégradé), sur le build de production |
-| `npm run format`    | Prettier                                                                                  |
+| Script                                                | Rôle                                                                                                                     |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `npm run lint`                                        | ESLint (dont les règles de pureté du moteur et du rendu, et les aplats)                                                  |
+| `npm run typecheck`                                   | `tsc --noEmit`                                                                                                           |
+| `npm test`                                            | Vitest (tests unitaires, images de référence du rendu et des exports)                                                    |
+| `npm run test:e2e`                                    | Playwright, Chromium (mode dossier) et Firefox (mode dégradé), sur le build de production                                |
+| `npm run check`                                       | Lint, types et tests unitaires en parallèle : une ligne par commande réussie, la sortie complète d'une commande en échec |
+| `npm run test:short -- <fichiers>`                    | Vitest en sortie concise, limité aux fichiers ou dossiers donnés                                                         |
+| `npm run test:e2e:short -- <spec> --project=chromium` | Playwright en sortie concise, limité aux tests et au navigateur donnés                                                   |
+| `npm run format`                                      | Prettier                                                                                                                 |
 
 - Images de référence du rendu : `src/test/image-snapshots/`. Après un changement volontaire du rendu : `UPDATE_SNAPSHOTS=1 npm test`, puis vérifier les images avant de les committer. En cas d'écart, l'image obtenue et la différence sont écrites dans `src/test/image-snapshots/__diff__/`.
 - Le sélecteur de dossier natif ne s'automatise pas : les tests de bout en bout le remplacent par un dossier du système de fichiers privé du navigateur (OPFS), sans code de test dans l'application.
+
+## Travailler avec Claude Code
+
+Les procédures de travail sont des skills, dans `.claude/skills/`, lancés en tapant `/` dans Claude Code (D-125).
+
+- Un lot, une correction ou un changement de spécification commence par un plan, validé par l'utilisateur, dont les étapes sont regroupées en blocs.
+- Une conversation exécute un bloc : Claude enchaîne les étapes et `/fin-etape`, puis s'arrête sur « Bloc n terminé, commité et poussé. ».
+- Entre deux blocs : `/clear`, puis `/reprise`.
+
+| Commande                         | Rôle                                                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/reprise`                       | Constate l'état (git, PR, CI, cases du plan), puis reprend l'étape en cours ou lance le bloc suivant |
+| `/nouveau-lot <id> <prompt>`     | Plan d'un lot (`4`, `5`, `3bis-1`...), puis son étape 0 après validation                             |
+| `/correction-recette <constats>` | Plan de correction après la recette : cause, correction et test de chaque constat                    |
+| `/changement-spec <changement>`  | Plan d'un changement de spécification : fichiers et versions, décision, impacts, migrations, tests   |
+| `/fin-etape [étape]`             | Fin d'une étape : tests, décisions, état, case du plan, commit et push (lancé aussi par Claude)      |
+| `/fin-lot`                       | Fin de lot, lancé par l'utilisateur seul : recette automatisable, documents, PR vers `main`          |
 
 ## Déploiement sur GitHub Pages
 

@@ -364,7 +364,7 @@ Les blocs ont été validés avec le plan.
 
 ### Bloc 3 : outils
 - [x] **Étape 4 : scripts npm et essais.** (commit « Étape 4 : scripts npm de contrôle à sortie concise », après `b5c5a39`)
-- [ ] **Étape 5 : skills, CLAUDE.md, README.**
+- [x] **Étape 5 : skills, CLAUDE.md, README.** (commit « Étape 5 : procédures en skills, CLAUDE.md réécrit, README », après `d19ff69`)
 
 ### Bloc 4 : clôture (après le bloc 3 : « /clear puis /reprise »)
 - [ ] **Étape 6 : contrôles, mesures, PR.**
