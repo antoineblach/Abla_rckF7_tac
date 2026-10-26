@@ -285,7 +285,7 @@ Posée à l'étape 3, réponse du 25/10 (D-136) :
 - **Bloc 3**
   - [x] **Étape 3 : intentions tenues (solveur à deux leviers).** (commit « Étape 3 : intentions tenues, solveur à deux leviers », après `328fe68`)
 - **Bloc 4**
-  - [ ] **Étape 4 : alertes d'accélération et de freinage.**
+  - [x] **Étape 4 : alertes d'accélération et de freinage.** (commit « Étape 4 : alertes d'accélération et de freinage, D-137 », après `8444ab0`)
 - **Bloc 5**
   - [ ] **Étape 5 : combinaison v4 (allure saisie).**
 - **Bloc 6**

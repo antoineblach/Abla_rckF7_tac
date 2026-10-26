@@ -494,3 +494,35 @@ export function speedsPlay(): Play {
     ],
   })
 }
+
+/** Ids of the lot 3bis-1 acceleration scene (accelPlay). */
+export const ACCELS = {
+  A1: uuid(1),
+  A2: uuid(2),
+  T1: uuid(100),
+  RUN_RED: uuid(200),
+  RUN_ORANGE: uuid(201),
+} as const
+
+/**
+ * One phase (lot 3bis-1, D-132): two 20 m sprints from rest to rest with an imposed duration, sped
+ * up beyond the bounds (red speed badge each). A1 in 3.5 s: acceleration 10.5 and braking
+ * 8.1 m/s², red diamonds; A2 in 4.2 s: 7.3 and 5.6 m/s², orange diamonds.
+ */
+export function accelPlay(): Play {
+  const { A1, A2 } = ACCELS
+  return basePlay({
+    entities: [player(A1, 'A', 1), player(A2, 'A', 2)],
+    setup: {
+      positions: { [A1]: { x: 40, y: 25 }, [A2]: { x: 40, y: 35 } },
+      ballCarrierId: null,
+      ballPosition: null,
+    },
+    phases: [
+      phase(ACCELS.T1, null, [
+        run(ACCELS.RUN_RED, A1, [{ x: 60, y: 25 }], { pace: 'sprint', durationOverride: 3.5 }),
+        run(ACCELS.RUN_ORANGE, A2, [{ x: 60, y: 35 }], { pace: 'sprint', durationOverride: 4.2 }),
+      ]),
+    ],
+  })
+}

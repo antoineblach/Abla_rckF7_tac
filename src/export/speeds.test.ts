@@ -1,5 +1,6 @@
 // Exports of lot 3 bis (D-112, D-115): segments at the sprint pace or faster drawn thicker in the GIF
-// and the PDF; speed badges never exported, even with the « Vitesses » layer of the player on.
+// and the PDF; speed badges never exported, even with the « Vitesses » layer of the player on, nor
+// the badges of the accelerations and brakings (lot 3bis-1, D-132).
 import { describe, expect, it } from 'vitest'
 import { lineBounds } from '../engine/bounds'
 import { createCaches } from '../engine/caches'
@@ -10,7 +11,7 @@ import { DEFAULT_LAYERS } from '../render/layers'
 import { render } from '../render/render'
 import { THEMES, type Theme } from '../render/themes'
 import { sizePx } from '../render/viewport'
-import { SPEEDS, speedsPlay } from '../test/builders'
+import { ACCELS, accelPlay, SPEEDS, speedsPlay } from '../test/builders'
 import { loadPdfFonts, napiSurface } from '../test/exportFixtures'
 import { compareWithSnapshot } from '../test/imageSnapshot'
 import { openPdf, rasterize } from '../test/pdfInspect'
@@ -108,6 +109,41 @@ describe('exports: fast segments in, speed badges out (D-112, D-115)', () => {
       expect(hasWidth(events, theme.fastRunWidth * mmPerPx), themeId).toBe(true)
       expect(hasWidth(events, theme.runWidth * mmPerPx), themeId).toBe(true)
     }
+  })
+})
+
+describe('exports: acceleration and braking badges out (D-132)', () => {
+  it('GIF and PDF: no diamond, though the player shows four', () => {
+    const accel = accelPlay()
+    const caches = createCaches()
+    const target = gifTargets(accel, OPTIONS.lines)[0]
+    if (!target) throw new Error('no GIF target')
+    const item = gifTimeline(accel, target, OPTIONS.speed, 12, settings, caches).findLast(
+      (i) => i.kind === 'scene',
+    )
+    if (item?.kind !== 'scene') throw new Error('no scene')
+    const state = evaluate(accel, item.line, item.t, settings, caches)
+    expect(state.speedBadges.filter((b) => b.kind !== 'speed')).toHaveLength(4)
+    const layout = gifLayout(createRecordingContext().ctx, accel, target, OPTIONS, settings, caches)
+    const gif = createRecordingContext()
+    drawGifItem(gif.ctx, accel, item, layout, OPTIONS.layers, settings, caches)
+    expect(badgeFills(paintEvents(gif.calls), layout.theme)).toBe(0)
+    const bounds = lineBounds(compileLine(accel, [ACCELS.T1], settings, createCaches()))
+    if (!bounds) throw new Error('empty play')
+    const theme = THEMES.printColor
+    const pdf = createRecordingContext()
+    drawThumbnail(
+      pdf.ctx,
+      accel,
+      ACCELS.T1,
+      { x: 10, y: 10, w: 80, h: 50 },
+      bounds,
+      theme,
+      thumbMmPerPx('print', theme),
+      settings,
+      createCaches(),
+    )
+    expect(badgeFills(paintEvents(pdf.calls), theme)).toBe(0)
   })
 })
 

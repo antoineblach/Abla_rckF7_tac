@@ -208,7 +208,7 @@ describe('links and runs ending at speed (SPEC 5.2, D-106)', () => {
     expect(motionEnd(goOn)).toBeCloseTo(motionEnd(motion(c, uuid(30))), 9)
     // Sped up, she still starts at the speed of the run she prolongs (D-130).
     expect(goOn.profile.v[0]).toBeCloseTo(motion(c, uuid(10)).profile.v.at(-1) ?? NaN, 9)
-    expect(codes(c).filter((code) => !code.startsWith('runSpeed'))).toEqual(['syncLate'])
+    expect(codes(c).filter((code) => !/^run(Speed|Accel|Brake)/.test(code))).toEqual(['syncLate'])
   })
 
   it('starts from rest, and the run before stops short, when she has to wait', () => {
@@ -279,7 +279,9 @@ describe('links: adjusted speed (SPEC 5.8, D-108)', () => {
     expect(Math.abs(motionSpeed(linked, meet - 1e-7) - motionSpeed(linked, meet + 1e-7))).toBeLessThan(
       1e-4,
     )
-    expect(codes(c)).toEqual(['runSpeedTooHigh'])
+    // Sped up, then braking at the scaled bound before the walk: all on the first segment (D-132).
+    expect(codes(c)).toEqual(['runSpeedTooHigh', 'runAccelTooHigh', 'runBrakeTooHigh'])
+    expect(c.issues.map((i) => i.params?.segment)).toEqual([1, 1, 1])
   })
 
   it('keeps its stored speeds when the target is before the start (D-131)', () => {

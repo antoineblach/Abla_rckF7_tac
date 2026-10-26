@@ -222,17 +222,74 @@ export function drawForwardBadge(
   drawBadge(ctx, viewport, theme, middle, theme.forwardFill, theme.forwardText)
 }
 
-/** Orange or red badge « ! » of a segment beyond a speed threshold (SPEC 5.9, D-112). */
+/**
+ * Diamond badge « + » or « − » at a point of the field, the sign drawn as bars (independent of the
+ * font).
+ */
+function drawDiamondBadge(
+  ctx: Ctx2D,
+  viewport: Viewport,
+  theme: Theme,
+  pos: Vec2,
+  fill: string,
+  text: string,
+  plus: boolean,
+): void {
+  const center = toPx(viewport, pos)
+  // Half diagonal: a disc of 0.75 token radius and this diamond have about the same area.
+  const half = sizePx(viewport, theme.tokenRadius) * 0.9
+  ctx.beginPath()
+  ctx.moveTo(center.x, center.y - half)
+  ctx.lineTo(center.x + half, center.y)
+  ctx.lineTo(center.x, center.y + half)
+  ctx.lineTo(center.x - half, center.y)
+  ctx.closePath()
+  ctx.fillStyle = fill
+  ctx.fill()
+  ctx.strokeStyle = text
+  ctx.lineWidth = sizePx(viewport, theme.tokenStrokeWidth)
+  ctx.lineJoin = 'miter'
+  ctx.setLineDash([])
+  ctx.stroke()
+  const arm = half * 0.45
+  const bar = { color: text, width: theme.tokenStrokeWidth * 1.5 }
+  strokePolylinePx(
+    ctx,
+    viewport,
+    [
+      { x: center.x - arm, y: center.y },
+      { x: center.x + arm, y: center.y },
+    ],
+    bar,
+  )
+  if (plus) {
+    strokePolylinePx(
+      ctx,
+      viewport,
+      [
+        { x: center.x, y: center.y - arm },
+        { x: center.x, y: center.y + arm },
+      ],
+      bar,
+    )
+  }
+}
+
+/**
+ * Orange or red badge of a run segment beyond a threshold: round « ! » of the speed (SPEC 5.9,
+ * D-112), diamond « + » of the acceleration or « − » of the braking (D-132).
+ */
 export function drawSpeedBadge(
   ctx: Ctx2D,
   viewport: Viewport,
   theme: Theme,
-  badge: Pick<SpeedBadge, 'pos' | 'level'>,
+  badge: Pick<SpeedBadge, 'pos' | 'level' | 'kind'>,
 ): void {
   const danger = badge.level === 'danger'
   const fill = danger ? theme.speedDangerFill : theme.speedWarningFill
   const text = danger ? theme.speedDangerText : theme.speedWarningText
-  drawBadge(ctx, viewport, theme, badge.pos, fill, text)
+  if (badge.kind === 'speed') drawBadge(ctx, viewport, theme, badge.pos, fill, text)
+  else drawDiamondBadge(ctx, viewport, theme, badge.pos, fill, text, badge.kind === 'accel')
 }
 
 /** A run cut by speed: segments at the sprint pace or faster drawn thicker (D-115). */

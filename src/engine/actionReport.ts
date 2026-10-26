@@ -11,6 +11,7 @@ import {
   compileLine,
   motionDistance,
   motionEnd,
+  type AccelAlert,
   type RunMotion,
   type RunSyncResult,
   type SpeedLevel,
@@ -31,6 +32,16 @@ export interface SegmentReport {
   peak: number
   level: SpeedLevel | null
   fast: boolean
+  /** Peak acceleration beyond a threshold (D-132), null below. */
+  accel: AccelReport | null
+  /** Peak braking beyond a threshold (D-132), null below. */
+  brake: AccelReport | null
+}
+
+/** Peak acceleration or braking (positive) of a segment, in m/s², and its level (D-132). */
+export interface AccelReport {
+  peak: number
+  level: SpeedLevel
 }
 
 export interface RunReport {
@@ -128,7 +139,17 @@ function segmentsOf(run: RunAction, motion: RunMotion): SegmentReport[] {
           ? 'custom'
           : waypoint.speed
     if (j < 0) {
-      return { index, length: 0, source, target: 0, peak: 0, level: null, fast: false }
+      return {
+        index,
+        length: 0,
+        source,
+        target: 0,
+        peak: 0,
+        level: null,
+        fast: false,
+        accel: null,
+        brake: null,
+      }
     }
     const from = spline.cumulative[j * spline.samplesPerSegment] ?? 0
     const to = spline.cumulative[(j + 1) * spline.samplesPerSegment] ?? spline.length
@@ -140,8 +161,19 @@ function segmentsOf(run: RunAction, motion: RunMotion): SegmentReport[] {
       peak: segmentPeak(profile, j),
       level: motion.speedLevels[j] ?? null,
       fast: motion.fastSegments[j] ?? false,
+      accel: accelReport(motion, j, 'accel'),
+      brake: accelReport(motion, j, 'brake'),
     }
   })
+}
+
+function accelReport(
+  motion: RunMotion,
+  segment: number,
+  kind: AccelAlert['kind'],
+): AccelReport | null {
+  const alert = motion.accelAlerts.find((a) => a.segment === segment && a.kind === kind)
+  return alert ? { peak: alert.peak, level: alert.level } : null
 }
 
 function runReport(

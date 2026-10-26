@@ -9,8 +9,10 @@ import {
 import type { MotionSettings } from '../model/settings'
 import type { Vec2 } from '../model/types'
 import {
+  brakingOf,
   buildProfile,
   distanceAt,
+  scaleTime,
   segmentPeak,
   solveLevers,
   speedAt,
@@ -306,6 +308,41 @@ describe('speed profile: bounds per segment (D-130)', () => {
     expect(launched.v[0]).toBe(4)
     expect(Math.max(...launched.v)).toBeCloseTo(6, 9)
     expect(launched.duration).toBeLessThan(profileOf(straight(20), [4], { startSpeed: 4 }).duration)
+  })
+})
+
+describe('speed profile: peak accelerations (D-132, D-135)', () => {
+  it('gives a(v) at the start of each interval that speeds up, the braking of the others', () => {
+    const p = profileOf(straight(20), [sprint])
+    expect(p.startAccel).toHaveLength(p.v.length - 1)
+    // From rest: a0, the peak of the run.
+    expect(p.startAccel[0]).toBe(motion.accel)
+    p.startAccel.forEach((a, k) => {
+      if (sampleSpeed(p, k + 1) > sampleSpeed(p, k)) {
+        expect(a).toBeCloseTo(motion.accel * (1 - sampleSpeed(p, k) / motion.topSpeed), 12)
+        // Above the mean of the interval, which depends on its length.
+        expect(a).toBeGreaterThanOrEqual(meanAccel(p, k) - 1e-9)
+        expect(brakingOf(p, k)).toBe(0)
+      } else {
+        expect(a).toBe(0)
+      }
+    })
+    // At the bound just before the stop.
+    expect(brakingOf(p, p.v.length - 2)).toBeCloseTo(motion.decel, 9)
+    // The walk starts more gently (Q14).
+    const walk = profileOf(straight(10), [PACE_DEFAULTS.walk])
+    expect(walk.startAccel[0]).toBeCloseTo((motion.accel * PACE_DEFAULTS.walk) / sprint, 12)
+  })
+
+  it('scales them by k² with the time scale, and divides them by the square of a stretch', () => {
+    const base = profileOf(straight(20), [sprint])
+    const last = base.v.length - 2
+    const scaled = profileOf(straight(20), [sprint], { boundScale: [1.5] })
+    expect(scaled.startAccel[0]).toBeCloseTo(motion.accel * 2.25, 12)
+    expect(brakingOf(scaled, last)).toBeCloseTo(motion.decel * 2.25, 9)
+    const slower = scaleTime(base, 2)
+    expect(slower.startAccel[0]).toBeCloseTo(motion.accel / 4, 12)
+    expect(brakingOf(slower, last)).toBeCloseTo(motion.decel / 4, 9)
   })
 })
 

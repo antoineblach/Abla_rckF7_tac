@@ -1,16 +1,18 @@
 // Rendering of lot 3 bis (D-108, D-112, D-113, D-115): segments at the sprint pace or faster drawn
 // thicker in the 4 themes, orange and red speed badges on their layer (editor always, exports
-// never), synchronisation link and hover halo in the editor overlay.
+// never), synchronisation link and hover halo in the editor overlay. Lot 3bis-1 (D-132): diamond
+// badges of the accelerations and brakings, on the same layer.
 import { describe, expect, it } from 'vitest'
 import { createCaches } from '../engine/caches'
 import { evaluate, phaseSchematic, type PhaseSchematic } from '../engine/evaluate'
+import { timeAtDistance } from '../engine/profile'
 import type { SceneState } from '../engine/sceneState'
 import { compileLine } from '../engine/timeline'
 import { EMPTY_SELECTION, type Selection } from '../editor/selection'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
 import type { Id } from '../model/types'
 import { buildOverlay } from '../state/overlay'
-import { SPEEDS, speedsPlay, uuid } from '../test/builders'
+import { ACCELS, accelPlay, SPEEDS, speedsPlay, uuid } from '../test/builders'
 import { compareWithSnapshot, createTestCanvas } from '../test/imageSnapshot'
 import { createRecordingContext, paintEvents, type PaintEvent } from '../test/recordingCtx'
 import type { Ctx2D } from './ctx2d'
@@ -167,6 +169,124 @@ describe('speed badges (D-112)', () => {
       renderSchematic(ctx, play, [T1], T1, v, theme, settings, createCaches())
     })
     expect(badgeFills(thumbnail, theme)).toEqual({ warning: 0, danger: 0 })
+  })
+})
+
+describe('acceleration and braking badges (D-132)', () => {
+  const accel = accelPlay()
+  const { RUN_RED, RUN_ORANGE } = ACCELS
+
+  function accelViewport(): Viewport {
+    // About 11 px/m, the scale of the editor on a full HD screen.
+    return createViewport({
+      widthPx: 480,
+      heightPx: 270,
+      pixelRatio: 1,
+      frame: { min: { x: 34, y: 18 }, max: { x: 66, y: 42 } },
+      orientation: 'landscape',
+      attackingTeam: 'A',
+    })
+  }
+
+  function accelSchematic(): PhaseSchematic {
+    const s = phaseSchematic(accel, ACCELS.T1, settings, createCaches())
+    if (!s) throw new Error('no schematic')
+    return s
+  }
+
+  /**
+   * Diamonds painted in a badge colour (top and bottom corners on one vertical: neither an arrow
+   * head nor a rectangle of the field), bars of their signs, upright bars.
+   */
+  function diamonds(events: PaintEvent[], v: Viewport, theme: Theme) {
+    const fills = [theme.speedWarningFill, theme.speedDangerFill]
+    const texts = [theme.speedWarningText, theme.speedDangerText]
+    const isIn = (colors: string[], color: unknown) => typeof color === 'string' && colors.includes(color)
+    const isDiamond = (path: PaintEvent['path']) =>
+      path.length === 5 &&
+      path[0]?.args[0] === path[2]?.args[0] &&
+      path[1]?.args[1] === path[3]?.args[1]
+    const shapes = events.filter(
+      (e) => e.kind === 'fill' && isIn(fills, e.color) && isDiamond(e.path),
+    )
+    const bars = events.filter(
+      (e) =>
+        e.kind === 'stroke' &&
+        isIn(texts, e.color) &&
+        e.path.length === 2 &&
+        Math.abs(e.lineWidth - sizePx(v, theme.tokenStrokeWidth * 1.5)) < 1e-3,
+    )
+    const upright = bars.filter((e) => e.path[0]?.args[0] === e.path[1]?.args[0])
+    return { diamonds: shapes.length, bars: bars.length, upright: upright.length }
+  }
+
+  it('draws orange and red diamonds « + » and « − » on the layer of the player, none when off', () => {
+    const v = accelViewport()
+    const end = compileLine(accel, [ACCELS.T1], settings, createCaches()).duration
+    const scene = evaluate(accel, [ACCELS.T1], end, settings, createCaches())
+    expect(scene.speedBadges.map((b) => [b.actionId, b.kind, b.level])).toEqual([
+      [RUN_RED, 'speed', 'danger'],
+      [RUN_RED, 'accel', 'danger'],
+      [RUN_RED, 'brake', 'danger'],
+      [RUN_ORANGE, 'speed', 'danger'],
+      [RUN_ORANGE, 'accel', 'warning'],
+      [RUN_ORANGE, 'brake', 'warning'],
+    ])
+    for (const themeId of RENDER_THEME_IDS) {
+      const theme = THEMES[themeId]
+      const on = record((ctx) => {
+        render(ctx, scene, v, theme, DEFAULT_LAYERS)
+      })
+      const off = record((ctx) => {
+        render(ctx, scene, v, theme, { ...DEFAULT_LAYERS, speedAlert: false })
+      })
+      // Four diamonds: four « − » bars, two of them crossed into a « + ».
+      expect(diamonds(on, v, theme), themeId).toEqual({ diamonds: 4, bars: 6, upright: 2 })
+      expect(diamonds(off, v, theme), themeId).toEqual({ diamonds: 0, bars: 0, upright: 0 })
+    }
+  })
+
+  it('shows a badge in the player once the player reaches its point', () => {
+    const motion = compileLine(accel, [ACCELS.T1], settings, createCaches()).phases[0]?.motions[0]
+    if (!motion) throw new Error('no motion')
+    const kinds = (t: number) =>
+      evaluate(accel, [ACCELS.T1], t, settings, createCaches())
+        .speedBadges.filter((b) => b.actionId === RUN_RED)
+        .map((b) => b.kind)
+    const reached = (kind: 'accel' | 'brake') => {
+      const alert = motion.accelAlerts.find((a) => a.kind === kind)
+      if (!alert) throw new Error(`no ${kind} alert`)
+      return motion.start + timeAtDistance(motion.profile, alert.badgeAt)
+    }
+    expect(kinds(reached('accel') - 0.01)).toEqual(['speed'])
+    expect(kinds(reached('accel') + 0.01)).toEqual(['speed', 'accel'])
+    expect(kinds(reached('brake') - 0.01)).toEqual(['speed', 'accel'])
+    expect(kinds(reached('brake') + 0.01)).toEqual(['speed', 'accel', 'brake'])
+  })
+
+  it('shows them in the editor only: never in renderSchematic without options', () => {
+    const v = accelViewport()
+    const theme = THEMES.screen
+    const editor = record((ctx) => {
+      drawSchematic(ctx, accelSchematic(), v, theme, { forwardPass: true, speedBadges: true })
+    })
+    expect(diamonds(editor, v, theme)).toEqual({ diamonds: 4, bars: 6, upright: 2 })
+    const thumbnail = record((ctx) => {
+      renderSchematic(ctx, accel, [ACCELS.T1], ACCELS.T1, v, theme, settings, createCaches())
+    })
+    expect(diamonds(thumbnail, v, theme)).toEqual({ diamonds: 0, bars: 0, upright: 0 })
+  })
+
+  it('editor: diamonds clear of the tokens, in the two screen themes (reference images)', async () => {
+    for (const themeId of ['screen', 'highContrast'] as const) {
+      const { canvas, ctx } = createTestCanvas(480, 270)
+      drawSchematic(ctx, accelSchematic(), accelViewport(), THEMES[themeId], {
+        forwardPass: true,
+        speedBadges: true,
+      })
+      const result = await compareWithSnapshot(canvas, `editor-accel-${themeId}-landscape`)
+      expect(result.pass, result.message).toBe(true)
+    }
   })
 })
 

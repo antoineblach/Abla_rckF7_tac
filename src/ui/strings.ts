@@ -6,7 +6,7 @@ import type { EditorNotice } from '../state/editorStore'
 import type { ToolId } from '../editor/tools/types'
 import { LEGACY_MOTION, MOTION_DEFAULTS } from '../config/defaults'
 import type { LegacyMotionKey } from '../model/settings'
-import { decimal, formatKmh, formatSeconds } from './format'
+import { decimal, formatAccel, formatKmh, formatSeconds } from './format'
 
 export { CATEGORY_LABELS, phaseLabel } from '../model/labels'
 
@@ -52,6 +52,11 @@ export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
 /** « 1,2 s » from a number of seconds carried by an issue. */
 function seconds(value: string | number | undefined): string {
   return typeof value === 'number' ? formatSeconds(value) : '?'
+}
+
+/** « 6,2 m/s² » from an acceleration or a braking carried by an issue. */
+function accel(value: string | number | undefined): string {
+  return typeof value === 'number' ? formatAccel(value) : '?'
 }
 
 /** « 23,4 km/h » from a speed in m/s carried by an issue. */
@@ -142,6 +147,14 @@ export function issueMessage(issue: Issue): string {
       return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil rouge : irréaliste.`
     case 'runNotContinued':
       return `Course lancée non prolongée dans ${p.phase ?? 'le temps suivant'} : arrêt net à la fin du temps.`
+    case 'runAccelHigh':
+      return `Segment ${p.segment ?? ''} : accélération de ${accel(p.value)}, au-delà du seuil orange.`
+    case 'runAccelTooHigh':
+      return `Segment ${p.segment ?? ''} : accélération de ${accel(p.value)}, au-delà du seuil rouge : irréaliste.`
+    case 'runBrakeHigh':
+      return `Segment ${p.segment ?? ''} : freinage de ${accel(p.value)}, au-delà du seuil orange.`
+    case 'runBrakeTooHigh':
+      return `Segment ${p.segment ?? ''} : freinage de ${accel(p.value)}, au-delà du seuil rouge : irréaliste.`
   }
 }
 

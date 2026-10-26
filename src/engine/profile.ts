@@ -41,6 +41,11 @@ export interface SpeedProfile {
   readonly v: readonly number[]
   /** Time from the start of the motion at each sample. */
   readonly t: readonly number[]
+  /**
+   * Acceleration a(v) of the model at the start of each interval that speeds up, time scale
+   * included, 0 on the others (D-135): the peak of the interval, a(v) decreasing with the speed.
+   */
+  readonly startAccel: readonly number[]
   readonly duration: number
   readonly length: number
   readonly samplesPerSegment: number
@@ -131,6 +136,7 @@ export function buildProfile(input: ProfileInput): SpeedProfile {
       s: n === 0 ? [0] : s,
       v: new Array<number>(Math.max(1, n)).fill(0),
       t: new Array<number>(Math.max(1, n)).fill(0),
+      startAccel: new Array<number>(Math.max(0, n - 1)).fill(0),
       duration: 0,
       length: 0,
       samplesPerSegment: perSegment,
@@ -167,15 +173,22 @@ export function buildProfile(input: ProfileInput): SpeedProfile {
     v[k] = Math.min(v[k] ?? 0, Math.sqrt((v[k + 1] ?? 0) ** 2 + 2 * segmentOf(k).decel * ds))
   }
   const t = [0]
+  const startAccel: number[] = []
   for (let k = 0; k < last; k++) {
     const ds = (s[k + 1] ?? 0) - (s[k] ?? 0)
-    const sum = (v[k] ?? 0) + (v[k + 1] ?? 0)
+    const v0 = v[k] ?? 0
+    const sum = v0 + (v[k + 1] ?? 0)
     t.push((t[k] ?? 0) + (sum > 0 ? (2 * ds) / sum : 0))
+    // An interval that speeds up starts from its forward speed: braking only lowers a sample
+    // above the next one.
+    const { accel, asymptote } = segmentOf(k)
+    startAccel.push((v[k + 1] ?? 0) > v0 && v0 < asymptote ? accel * (1 - v0 / asymptote) : 0)
   }
   return {
     s,
     v,
     t,
+    startAccel,
     duration: t[last] ?? 0,
     length: spline.length,
     samplesPerSegment: perSegment,
@@ -200,6 +213,11 @@ function accelOf(profile: SpeedProfile, k: number): number {
   const ds = (profile.s[k + 1] ?? 0) - (profile.s[k] ?? 0)
   if (ds <= 0) return 0
   return ((profile.v[k + 1] ?? 0) ** 2 - (profile.v[k] ?? 0) ** 2) / (2 * ds)
+}
+
+/** Braking of interval k, constant, as a positive value; 0 when it does not slow down. */
+export function brakingOf(profile: SpeedProfile, k: number): number {
+  return Math.max(0, -accelOf(profile, k))
 }
 
 /** Arc length covered `time` seconds after the start of the motion (clamped). */
@@ -334,12 +352,16 @@ export function withDuration(profile: SpeedProfile, duration: number): SpeedProf
   return { ...scaled, t, duration }
 }
 
-/** Profile run `ratio` times slower: times multiplied, speeds divided by the ratio. */
+/**
+ * Profile run `ratio` times slower: times multiplied, speeds divided by the ratio, accelerations
+ * by its square.
+ */
 export function scaleTime(profile: SpeedProfile, ratio: number): SpeedProfile {
   return {
     ...profile,
     t: profile.t.map((t) => t * ratio),
     v: profile.v.map((v) => v / ratio),
+    startAccel: profile.startAccel.map((a) => a / (ratio * ratio)),
     duration: profile.duration * ratio,
   }
 }

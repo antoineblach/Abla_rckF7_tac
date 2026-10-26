@@ -49,13 +49,17 @@ export interface RunTrace {
   parts: RunPart[]
 }
 
-/** Badge of a run segment beyond a speed threshold, in its middle (SPEC 5.9, D-112). */
+/**
+ * Badge of a run segment beyond a threshold (SPEC 5.9, D-112, D-132): round « ! » of the speed in
+ * its middle, diamond « + » of the acceleration or « − » of the braking near its peak.
+ */
 export interface SpeedBadge {
   actionId: Id
   /** Input segment of the run (from point segment - 1 to point segment). */
   segment: number
   pos: Vec2
   level: 'warning' | 'danger'
+  kind: 'speed' | 'accel' | 'brake'
 }
 
 export interface PassTrace {
@@ -112,7 +116,10 @@ export interface SceneState {
   passTraces: PassTrace[]
   kickTraces: KickTrace[]
   breakdowns: SceneBreakdown[]
-  /** Segments beyond a speed threshold already entered at t (calque « Vitesses », D-112). */
+  /**
+   * Segments beyond a speed threshold already entered at t, accelerations and brakings beyond a
+   * threshold whose badge is already reached (calque « Vitesses », D-112, D-132).
+   */
   speedBadges: SpeedBadge[]
   /** Abscissa of the gain line at t (ball at t = 0, then each ruck or maul), null without ball. */
   gainLineX: number | null

@@ -190,7 +190,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : D-129 (seuls les seuils signalent) ; avec a(v), le pic d'accélération est au départ et celui de freinage juste avant un arrêt ou un rendez-vous, sous le jeton ou une poignée.
 - Alternatives écartées : carré à « ! », triangle orienté (Q5) ; calque renommé ou deux calques (Q6) ; alerte latérale (Q7) ; pastille au pic exact (cachée par le jeton).
 - Origine : prompt (A) ; réponses Q5 à Q7 ; validation du plan (modification 4).
-- Précisée par D-135 (valeurs des seuils, mesure du pic d'accélération).
+- Précisée par D-135 (valeurs des seuils, mesure du pic d'accélération) et D-137 (placement et dessin des pastilles).
 
 ### D-133 : allure saisie, combinaison v4 et curseur de vitesse
 - Date : 2026-10-25
@@ -226,3 +226,17 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : D-107 (durée imposée et vitesse ajustée s'excluent) ; rendez-vous à la fin, cas par défaut : même résultat que des leviers partis des vitesses de la durée.
 - Alternatives écartées : leviers partis des vitesses déjà multipliées par le facteur de la durée imposée, segments suivants à ce facteur (un facteur de base de plus dans le moteur).
 - Origine : question de l'étape 3, réponse de l'utilisateur.
+
+### D-137 : placement et dessin des pastilles d'accélération et de freinage
+- Date : 2026-10-26
+- Décision :
+  - zone d'une pastille : intervalles du segment au-delà du seuil de son niveau (rouge pour une pastille rouge) ; si aucune partie de la zone n'est à au moins `ACCEL_BADGE_CLEARANCE` des extrémités, point de cette plage le plus proche du pic ;
+  - pics égaux (freinage à la borne le long d'une rampe, à l'arrondi près) : la première accélération, le dernier freinage, juste avant l'arrêt ; position du pic : début de l'intervalle pour une accélération, milieu pour un freinage (constant) ;
+  - segment court : pastille gardée sur le segment ; pic au milieu exact : vers le début pour une accélération, vers la fin pour un freinage ;
+  - valeurs (HYPOTHÈSE, `defaults.ts`) : dégagement 2,5 m, décalage 2 m, mesurés à environ 11 px/m (éditeur sur un écran Full HD), Contraste fort compris ; sur un segment de moins de 5 m, la pastille tombe donc près du jeton ou de la poignée ;
+  - losange de demi-diagonale 0,9 rayon de jeton, contour comme la pastille ronde ; « + » et « − » tracés en traits (épaisseur 1,5 fois le contour du jeton), indépendants de la police ;
+  - alertes des seules courses dessinées (pas du relayeur, comme les vitesses) ; paramètres des codes : `segment` et `value` (m/s²) ; une course lancée qui freine fort à son départ (virage) reçoit l'alerte de freinage (A.2).
+  Précise D-132.
+- Raison : pastilles hors du jeton et de la poignée dans les deux thèmes d'écran (image de référence) ; emplacement stable d'une modification à l'autre (sans égalité tranchée par l'arrondi) ; « − » (U+2212) peut manquer dans la police.
+- Alternatives écartées : zone au-delà du seuil orange quelle que soit la pastille ; dégagement de 2 m (losange contre le jeton en Contraste fort) ; signes en texte.
+- Origine : écriture de l'étape 4, prise seul : à relire.

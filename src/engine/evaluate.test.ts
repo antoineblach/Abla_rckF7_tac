@@ -211,7 +211,11 @@ describe('durations (SPEC 5.1, 5.3)', () => {
       ],
     })
     const compiled = compileLine(play, [uuid(10)], settings, createCaches())
-    expect(compiled.issues.map((i) => i.code)).toEqual(['runSpeedTooHigh'])
+    expect(compiled.issues.map((i) => i.code)).toEqual([
+      'runSpeedTooHigh',
+      'runAccelTooHigh',
+      'runBrakeTooHigh',
+    ])
     // Shorter than the bounds allow: lever 2 scales the accelerations too (D-130).
     expect(1).toBeLessThan(straightRun(8, 1000, motion, sprint))
     expect(compiled.duration).toBeCloseTo(1, 9)
@@ -219,8 +223,18 @@ describe('durations (SPEC 5.1, 5.3)', () => {
     expect(m?.accelFactor).toBeGreaterThan(1)
     expect(m?.factor).toBeCloseTo((motion.topSpeed / settings.paces.jog) * Math.sqrt(m?.accelFactor ?? NaN), 9)
     // The alert thresholds never change the motion (D-129).
-    const strict = { ...settings, speedAlert: { warning: 1, danger: 2 } }
-    const loose = { ...settings, speedAlert: { warning: 40, danger: 50 } }
+    const strict = {
+      ...settings,
+      speedAlert: { warning: 1, danger: 2 },
+      accelAlert: { warning: 1, danger: 2 },
+      decelAlert: { warning: 1, danger: 2 },
+    }
+    const loose = {
+      ...settings,
+      speedAlert: { warning: 40, danger: 50 },
+      accelAlert: { warning: 400, danger: 500 },
+      decelAlert: { warning: 400, danger: 500 },
+    }
     const profileWith = (s: EngineSettings) =>
       compileLine(play, [uuid(10)], s, createCaches()).phases[0]?.motions[0]?.profile
     expect(profileWith(strict)).toEqual(m?.profile)

@@ -122,6 +122,22 @@ export const DECEL_ALERT_DEFAULTS = {
 } as const
 
 /**
+ * HYPOTHÈSE: least distance, in metres along the segment, between the badge of an acceleration or
+ * braking alert and the ends of its segment (D-132): radius of a token plus half a diamond, outlines
+ * included, about 1.3 and 1.2 m in « Contraste fort » at the scale of the editor on a full HD
+ * screen (around 11 px/m), so that the token or a handle does not cover it.
+ */
+export const ACCEL_BADGE_CLEARANCE = 2.5
+
+/**
+ * HYPOTHÈSE: on a segment shorter than twice the clearance, the badge of an acceleration or braking
+ * alert is moved from the middle towards the peak by a badge diameter, in metres: half a disc plus
+ * half a diamond in « Contraste fort » at the same scale, so as not to cover the speed badge
+ * (D-132).
+ */
+export const ACCEL_BADGE_SHIFT = 2
+
+/**
  * Two-lever solver (SPEC 5.3, D-130): bisection on the logarithm of the factor on the target
  * speeds, between `minFactor` and the top speed of the player, then on the logarithm of the time
  * scale, up to `maxTimeScale` (a numerical bound: beyond, a link target is before the start,

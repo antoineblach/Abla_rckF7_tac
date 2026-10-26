@@ -57,6 +57,11 @@ export type IssueCode =
   | 'runSpeedHigh'
   | 'runSpeedTooHigh'
   | 'runNotContinued'
+  // Acceleration and braking alerts (lot 3bis-1, D-132)
+  | 'runAccelHigh'
+  | 'runAccelTooHigh'
+  | 'runBrakeHigh'
+  | 'runBrakeTooHigh'
 
 export interface Issue {
   code: IssueCode
