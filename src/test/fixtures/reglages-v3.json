@@ -1,0 +1,33 @@
+{
+  "export": {
+    "gif": {
+      "lines": "chained",
+      "optimizeUnchanged": true,
+      "orientation": "portrait",
+      "quality": "standard",
+      "speed": "both",
+      "theme": "highContrast"
+    },
+    "pdf": {
+      "color": "color",
+      "layout": "print"
+    }
+  },
+  "motion": {
+    "accel": 3,
+    "decel": 4,
+    "lateralAccel": 4
+  },
+  "paces": {
+    "jog": 4,
+    "sprint": 5.5,
+    "walk": 2
+  },
+  "passSpeed": 12,
+  "schemaVersion": 3,
+  "speedAlert": {
+    "danger": 6.944444444444445,
+    "warning": 5.555555555555555
+  },
+  "theme": "screen"
+}

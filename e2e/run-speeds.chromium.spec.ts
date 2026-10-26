@@ -14,11 +14,13 @@ import { listFolder, readFolderFile, writeFolderFile } from './support/opfs'
 
 // Lot 3 bis in the interface (D-106 to D-117): segment speed by the key 3 then typed in km/h,
 // red threshold (inspector, list, badge and its layer remembered), « Caler sur… » a pass and the
-// run following it, loop refused, settings written in reglages.json v3, reglages.json v2 at
-// 7 m/s migrated with its message, pass on receipt laid by the tool.
+// run following it, loop refused, settings written in reglages.json v4, reglages.json v2 at
+// 7 m/s migrated with its message, pass on receipt laid by the tool. Lot 3bis-1 (D-134):
+// reglages.json v3 with the former default acceleration migrated with its message.
 
 /** Read from the root of the repository, where the tests run. */
 const SETTINGS_V2 = 'src/test/fixtures/reglages-v2.json'
+const SETTINGS_V3 = 'src/test/fixtures/reglages-v3.json'
 
 interface StoredPlay {
   schemaVersion: number
@@ -163,7 +165,7 @@ test('the pass tool releases on receipt a pass from a receiver', async ({ page }
   expect(passes?.map((p) => p.release)).toEqual([undefined, 'onReceipt'])
 })
 
-test('settings: thresholds in km/h and speed profile written in reglages.json v3', async ({
+test('settings: thresholds in km/h and speed profile written in reglages.json v4', async ({
   page,
 }) => {
   await chooseFolder(page)
@@ -187,7 +189,7 @@ test('settings: thresholds in km/h and speed profile written in reglages.json v3
         settings.motion.accel,
       ]
     })
-    .toEqual([3, 5000, 2.5])
+    .toEqual([4, 5000, 2.5])
 })
 
 test('reglages.json v2 with the former sprint of 7 m/s: 5,5 m/s and a message', async ({
@@ -203,4 +205,28 @@ test('reglages.json v2 with the former sprint of 7 m/s: 5,5 m/s and a message', 
   await createSevenVsSeven(page, 'Sprint')
   await inspector(page).getByText('Réglages (reglages.json)').click()
   await expect(inspector(page).getByLabel('Sprint', { exact: true })).toHaveValue('5.5')
+})
+
+test('reglages.json v3 with the former default acceleration: 5,2 m/s² and a message', async ({
+  page,
+}) => {
+  await page.evaluate(async () => {
+    await (await navigator.storage.getDirectory()).getDirectoryHandle('Rugby7', { create: true })
+  })
+  // The frozen fixture of lot 3bis-1: reglages.json v3 with the defaults of lot 3 bis.
+  await writeFolderFile(page, 'reglages.json', readFileSync(SETTINGS_V3, 'utf8'))
+  await chooseFolder(page)
+  await expect(
+    page.getByText(
+      'Profil de vitesse calibré, nouvelles valeurs par défaut : accélération de 3 à 5,2 m/s²',
+    ),
+  ).toBeVisible()
+  await createSevenVsSeven(page, 'Accélération')
+  await inspector(page).getByText('Réglages (reglages.json)').click()
+  await expect(inspector(page).getByLabel('Accélération', { exact: true })).toHaveValue('5.2')
+  // Read, not rewritten: still version 3 until the settings are saved.
+  expect(
+    (JSON.parse(await readFolderFile(page, 'reglages.json')) as { schemaVersion: number })
+      .schemaVersion,
+  ).toBe(3)
 })

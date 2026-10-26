@@ -42,19 +42,29 @@ export function loadPrefs(): Prefs {
 }
 
 const SPRINT_NOTICE_KEY = 'abla-rck7:sprintResetNoticeShown'
+const MOTION_NOTICE_KEY = 'abla-rck7:motionResetNoticeShown'
+
+function takeNoticeOnce(key: string): boolean {
+  try {
+    if (globalThis.localStorage.getItem(key)) return false
+    globalThis.localStorage.setItem(key, '1')
+    return true
+  } catch {
+    return true
+  }
+}
 
 /**
  * The message of the sprint pace reset by the settings migration is shown once per computer
  * (D-111, D-121), even while reglages.json stays in version 2.
  */
 export function takeSprintResetNotice(): boolean {
-  try {
-    if (globalThis.localStorage.getItem(SPRINT_NOTICE_KEY)) return false
-    globalThis.localStorage.setItem(SPRINT_NOTICE_KEY, '1')
-    return true
-  } catch {
-    return true
-  }
+  return takeNoticeOnce(SPRINT_NOTICE_KEY)
+}
+
+/** Same for the motion values replaced by the calibrated defaults, from version 3 (D-134). */
+export function takeMotionResetNotice(): boolean {
+  return takeNoticeOnce(MOTION_NOTICE_KEY)
 }
 
 export function savePrefs(prefs: Prefs): void {

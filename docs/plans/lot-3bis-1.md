@@ -278,7 +278,7 @@ Posées à la fin du bloc 1, réponses du 25/10 (propositions de B.1 retenues, D
 - **Bloc 1**
   - [x] **Étape 1 : calibration et choix du modèle ; arrêt sur Q10 à Q14 ; décision ; plan mis à jour.** (commit « Étape 1 : calibration du mouvement, modèle exponentiel, D-135 », après `5a9044e`)
 - **Bloc 2**
-  - [ ] **Étape 2 : modèle de profil et réglages v4.**
+  - [x] **Étape 2 : modèle de profil et réglages v4.** (commit « Étape 2 : profil en a(v) et réglages v4 », après `efff65b`)
 - **Bloc 3**
   - [ ] **Étape 3 : intentions tenues (solveur à deux leviers).**
 - **Bloc 4**

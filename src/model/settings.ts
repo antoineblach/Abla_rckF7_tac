@@ -2,10 +2,15 @@
 // computers (SPEC 4.4). Version 1 (lot 1): paces, pass speed, theme (DECISIONS Q26).
 // Version 2 (lot 2): export preferences (D-068, D-069). Version 3 (lot 3 bis): speed profile and
 // speed thresholds; a sprint pace equal to the former default becomes the new one (D-105, D-111).
+// Version 4 (lot 3bis-1): top speed of the player, acceleration and braking thresholds; a motion
+// value equal to the former default becomes the calibrated one (D-134, D-135).
 // A settings file of a newer version is reported and never rewritten (as D-024 for plays).
 import { z } from 'zod'
 import {
+  ACCEL_ALERT_DEFAULTS,
+  DECEL_ALERT_DEFAULTS,
   EXPORT_PREFS_DEFAULT,
+  LEGACY_MOTION,
   LEGACY_SPRINT_PACE,
   MOTION_DEFAULTS,
   PACE_DEFAULTS,
@@ -51,12 +56,20 @@ export interface ExportPrefs {
   pdf: PdfExportPrefs
 }
 
-/** Speed profile of the runs, in m/s² (SPEC 5.3, D-105). */
+/** Speed profile of the runs (SPEC 5.3, D-105, D-135). */
 export interface MotionSettings {
+  /** Acceleration from rest a0, in m/s²: a(v) = accel · (1 − v / topSpeed). */
   accel: number
+  /** Braking, in m/s². */
   decel: number
+  /** Lateral acceleration in turns, in m/s². */
   lateralAccel: number
+  /** Top speed of the player, in m/s (D-130, D-135). */
+  topSpeed: number
 }
+
+/** Motion settings that were defaults before the calibration (D-134). */
+export type LegacyMotionKey = keyof typeof LEGACY_MOTION
 
 /** Thresholds on the peak speed of a run segment, in m/s (SPEC 5.9, D-111). */
 export interface SpeedAlertSettings {
@@ -66,20 +79,33 @@ export interface SpeedAlertSettings {
   danger: number
 }
 
+/** Thresholds on the peak acceleration or braking of a run segment, in m/s² (D-132). */
+export interface AccelAlertSettings {
+  /** Orange: warning beyond it. */
+  warning: number
+  /** Red: error beyond it. */
+  danger: number
+}
+
 export interface Settings {
-  schemaVersion: 3
+  schemaVersion: 4
   paces: Record<Pace, number>
   passSpeed: number
   motion: MotionSettings
   speedAlert: SpeedAlertSettings
+  accelAlert: AccelAlertSettings
+  decelAlert: AccelAlertSettings
   theme: ThemeId
   export: ExportPrefs
 }
 
-export const CURRENT_SETTINGS_VERSION = 3
+export const CURRENT_SETTINGS_VERSION = 4
 
-/** Values the engine depends on (DECISIONS Q3, D-105, D-111). */
-export type EngineSettings = Pick<Settings, 'paces' | 'passSpeed' | 'motion' | 'speedAlert'>
+/** Values the engine depends on (DECISIONS Q3, D-105, D-111, D-132). */
+export type EngineSettings = Pick<
+  Settings,
+  'paces' | 'passSpeed' | 'motion' | 'speedAlert' | 'accelAlert' | 'decelAlert'
+>
 
 const pacesSchema = z.strictObject({
   walk: z.number().positive(),
@@ -123,8 +149,13 @@ export const settingsSchemaV2 = z.strictObject({
 
 export type SettingsFileV2 = z.infer<typeof settingsSchemaV2>
 
+const thresholdsSchema = z.strictObject({
+  warning: z.number().positive(),
+  danger: z.number().positive(),
+})
+
 /** reglages.json version 3 (lot 3 bis). */
-export const settingsSchema = z.strictObject({
+export const settingsSchemaV3 = z.strictObject({
   schemaVersion: z.literal(3),
   paces: pacesSchema,
   passSpeed: z.number().positive(),
@@ -133,10 +164,27 @@ export const settingsSchema = z.strictObject({
     decel: z.number().positive(),
     lateralAccel: z.number().positive(),
   }),
-  speedAlert: z.strictObject({
-    warning: z.number().positive(),
-    danger: z.number().positive(),
+  speedAlert: thresholdsSchema,
+  theme: z.enum(['screen', 'highContrast']),
+  export: exportPrefsSchema,
+})
+
+export type SettingsFileV3 = z.infer<typeof settingsSchemaV3>
+
+/** reglages.json version 4 (lot 3bis-1). */
+export const settingsSchema = z.strictObject({
+  schemaVersion: z.literal(4),
+  paces: pacesSchema,
+  passSpeed: z.number().positive(),
+  motion: z.strictObject({
+    accel: z.number().positive(),
+    decel: z.number().positive(),
+    lateralAccel: z.number().positive(),
+    topSpeed: z.number().positive(),
   }),
+  speedAlert: thresholdsSchema,
+  accelAlert: thresholdsSchema,
+  decelAlert: thresholdsSchema,
   theme: z.enum(['screen', 'highContrast']),
   export: exportPrefsSchema,
 })
@@ -147,11 +195,13 @@ export function defaultExportPrefs(): ExportPrefs {
 
 export function defaultSettings(): Settings {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     paces: { ...PACE_DEFAULTS },
     passSpeed: PASS_SPEED_DEFAULT,
     motion: { ...MOTION_DEFAULTS },
     speedAlert: { ...SPEED_ALERT_DEFAULTS },
+    accelAlert: { ...ACCEL_ALERT_DEFAULTS },
+    decelAlert: { ...DECEL_ALERT_DEFAULTS },
     theme: 'screen',
     export: defaultExportPrefs(),
   }
@@ -168,11 +218,11 @@ export function migrateSettingsV1toV2(v1: SettingsFileV1): SettingsFileV2 {
 }
 
 /**
- * Version 3 (D-105, D-111): default speed profile and thresholds; a sprint pace equal to the
- * former default (7 m/s) becomes the new default, every other value is kept.
+ * Version 3 (D-105, D-111): speed profile and thresholds of that version; a sprint pace equal to
+ * the former default (7 m/s) becomes the new default, every other value is kept.
  */
 export function migrateSettingsV2toV3(v2: SettingsFileV2): {
-  settings: Settings
+  settings: SettingsFileV3
   sprintReset: boolean
 } {
   const sprintReset = v2.paces.sprint === LEGACY_SPRINT_PACE
@@ -182,10 +232,44 @@ export function migrateSettingsV2toV3(v2: SettingsFileV2): {
       schemaVersion: 3,
       paces: { ...v2.paces, sprint: sprintReset ? PACE_DEFAULTS.sprint : v2.paces.sprint },
       passSpeed: v2.passSpeed,
-      motion: { ...MOTION_DEFAULTS },
+      motion: { ...LEGACY_MOTION },
       speedAlert: { ...SPEED_ALERT_DEFAULTS },
       theme: v2.theme,
       export: { gif: { ...v2.export.gif }, pdf: { ...v2.export.pdf } },
+    },
+  }
+}
+
+const LEGACY_MOTION_KEYS: readonly LegacyMotionKey[] = ['accel', 'decel', 'lateralAccel']
+
+/**
+ * Version 4 (D-134): a motion value equal to the former default takes the calibrated default,
+ * every other value is kept; top speed and acceleration thresholds by default. `motionReset`
+ * lists the values that changed (equal defaults, such as braking, do not).
+ */
+export function migrateSettingsV3toV4(v3: SettingsFileV3): {
+  settings: Settings
+  motionReset: LegacyMotionKey[]
+} {
+  const motion: MotionSettings = { ...v3.motion, topSpeed: MOTION_DEFAULTS.topSpeed }
+  const motionReset: LegacyMotionKey[] = []
+  for (const key of LEGACY_MOTION_KEYS) {
+    if (v3.motion[key] !== LEGACY_MOTION[key]) continue
+    motion[key] = MOTION_DEFAULTS[key]
+    if (LEGACY_MOTION[key] !== MOTION_DEFAULTS[key]) motionReset.push(key)
+  }
+  return {
+    motionReset,
+    settings: {
+      schemaVersion: 4,
+      paces: { ...v3.paces },
+      passSpeed: v3.passSpeed,
+      motion,
+      speedAlert: { ...v3.speedAlert },
+      accelAlert: { ...ACCEL_ALERT_DEFAULTS },
+      decelAlert: { ...DECEL_ALERT_DEFAULTS },
+      theme: v3.theme,
+      export: { gif: { ...v3.export.gif }, pdf: { ...v3.export.pdf } },
     },
   }
 }
@@ -197,6 +281,8 @@ export type SettingsReadResult =
       fromVersion: number
       /** The migration replaced the former default sprint pace (message to show once, D-111). */
       sprintReset: boolean
+      /** Motion values of version 3 replaced by the calibrated defaults (message, D-134). */
+      motionReset: LegacyMotionKey[]
     }
   | { ok: false; future: boolean; message: string }
 
@@ -225,8 +311,23 @@ export function readSettings(raw: unknown): SettingsReadResult {
         }
         v2 = parsed.data
       }
-      const migrated = migrateSettingsV2toV3(v2)
-      return { ok: true, ...migrated, fromVersion: version }
+      const v3 = migrateSettingsV2toV3(v2)
+      // Older files take the calibrated defaults without a message other than the sprint one.
+      const { settings } = migrateSettingsV3toV4(v3.settings)
+      return {
+        ok: true,
+        settings,
+        fromVersion: version,
+        sprintReset: v3.sprintReset,
+        motionReset: [],
+      }
+    }
+    if (version === 3) {
+      const v3 = settingsSchemaV3.safeParse(raw)
+      if (!v3.success) {
+        return { ok: false, future: false, message: v3.error.issues[0]?.message ?? '' }
+      }
+      return { ok: true, ...migrateSettingsV3toV4(v3.data), fromVersion: 3, sprintReset: false }
     }
   }
   const current = settingsSchema.safeParse(raw)
@@ -238,6 +339,7 @@ export function readSettings(raw: unknown): SettingsReadResult {
     settings: current.data,
     fromVersion: CURRENT_SETTINGS_VERSION,
     sprintReset: false,
+    motionReset: [],
   }
 }
 
@@ -247,5 +349,7 @@ export function engineSettingsOf(settings: Settings): EngineSettings {
     passSpeed: settings.passSpeed,
     motion: settings.motion,
     speedAlert: settings.speedAlert,
+    accelAlert: settings.accelAlert,
+    decelAlert: settings.decelAlert,
   }
 }

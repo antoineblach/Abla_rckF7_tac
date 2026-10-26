@@ -55,14 +55,39 @@ export const PACE_DEFAULTS = {
 export const LEGACY_SPRINT_PACE = 7
 
 /**
- * HYPOTHÈSE: speed profile of the runs, in m/s² (SPEC 5.3, D-105): acceleration, braking and
- * lateral acceleration in turns (radius 5 m: 4.5 m/s, 16 km/h). Adjustable in reglages.json.
+ * Speed profile of the runs of an amateur player (SPEC 5.3, D-105, D-135), adjustable in
+ * reglages.json: acceleration a(v) = accel · (1 − v / topSpeed) from rest, braking and lateral
+ * acceleration in turns in m/s², top speed in m/s. Sources and figures: plan of lot 3bis-1, B.1.
  */
 export const MOTION_DEFAULTS = {
+  // SOURCE: https://www.frontiersin.org/articles/10.3389/fspor.2023.1120162/full (France women's
+  // sevens, 10, 20 and 50 m, times + 0.5 s after Haugen: elite 6.2 m/s², tau 1.28 s).
+  // HYPOTHÈSE: amateur player, same tau as the elite: 6.67 / 1.28 = 5.2 m/s².
+  accel: 5.2,
+  // SOURCE: https://pmc.ncbi.nlm.nih.gov/articles/PMC11246955/ (mean maximal braking 4.0 to 4.5).
+  decel: 4,
+  // HYPOTHÈSE, no source found: radius 5 m at 4.5 m/s (16 km/h).
+  lateralAccel: 4,
+  // HYPOTHÈSE: 24 km/h, 0.84 times the elite (28.6 km/h), below the red threshold (D-111).
+  topSpeed: 24 / 3.6,
+} as const
+
+/** Default speed profile of lot 3 bis (reglages.json version 3), replaced by the calibrated one
+ * when reglages.json moves to version 4 (D-134). */
+export const LEGACY_MOTION = {
   accel: 3,
   decel: 4,
   lateralAccel: 4,
 } as const
+
+/**
+ * HYPOTHÈSE (D-135, Q13): a segment whose target speed exceeds this fraction of the top speed
+ * accelerates towards target / ratio instead of the top speed, so that its target is reached.
+ */
+export const TOP_SPEED_TARGET_RATIO = 0.95
+
+/** Newton iterations for the speed at the end of an accelerating interval (D-135). */
+export const PROFILE_NEWTON_ITERATIONS = 5
 
 /** HYPOTHÈSE: lowest speed of a run in a tight turn, in m/s (SPEC 5.3, D-105). */
 export const MIN_CORNER_SPEED = 1
@@ -74,6 +99,26 @@ export const MIN_CORNER_SPEED = 1
 export const SPEED_ALERT_DEFAULTS = {
   warning: 20 / 3.6,
   danger: 25 / 3.6,
+} as const
+
+/**
+ * HYPOTHÈSE: thresholds on the peak acceleration of a run segment, in m/s² (D-132, D-135):
+ * orange at the level of the elite (6.2), red beyond the top of its range (7.8). Adjustable in
+ * reglages.json.
+ */
+export const ACCEL_ALERT_DEFAULTS = {
+  warning: 6,
+  danger: 8,
+} as const
+
+/**
+ * HYPOTHÈSE: thresholds on the peak braking of a run segment, in m/s² (D-132, D-135): orange
+ * above the mean maximal braking (4.0 to 4.5), red at the measured peak (6.6 to 7.4).
+ * SOURCE: https://pmc.ncbi.nlm.nih.gov/articles/PMC11246955/
+ */
+export const DECEL_ALERT_DEFAULTS = {
+  warning: 5,
+  danger: 7,
 } as const
 
 /**

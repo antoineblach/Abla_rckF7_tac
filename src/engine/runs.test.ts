@@ -3,7 +3,7 @@ import { allLines } from '../model/phaseTree'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../model/settings'
 import type { Action, Id, Play, RunAction } from '../model/types'
 import { basePlay, ball, pass, phase, player, realisticRunsPlay, run, uuid } from '../test/builders'
-import { PROFILE_TOLERANCE, trapezoid } from '../test/profileMath'
+import { PROFILE_TOLERANCE, straightRun } from '../test/profileMath'
 import { createCaches } from './caches'
 import { evaluate } from './evaluate'
 import { segmentPeak } from './profile'
@@ -19,7 +19,8 @@ import {
 import { distance } from './vec'
 
 const settings: EngineSettings = engineSettingsOf(defaultSettings())
-const { accel, decel } = settings.motion
+const { motion } = settings
+const { sprint } = settings.paces
 const A1 = uuid(1)
 const A2 = uuid(2)
 const T1 = uuid(10)
@@ -136,7 +137,7 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
     const first = motionOf(compiled, t1Run.id)
     const second = motionOf(compiled, t2Run.id)
     expect(first.endsAtSpeed).toBe(true)
-    expect(Math.abs(first.duration - trapezoid(20, 5.5, accel, decel, 0, 5.5))).toBeLessThan(
+    expect(Math.abs(first.duration - straightRun(20, 5.5, motion, sprint, 0, 5.5))).toBeLessThan(
       PROFILE_TOLERANCE,
     )
     const boundary = compiled.phases[1]?.start ?? NaN
@@ -203,7 +204,7 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
     const end = compiled.phases[0]?.end ?? NaN
     expect(first.launchWait).toBeCloseTo(end - motionEnd(motionOf(atSpeed, t1Run.id)), 9)
     expect(motionSpeed(first, motionEnd(first))).toBe(0)
-    expect(Math.abs(first.duration - trapezoid(20, 5.5, accel, decel))).toBeLessThan(
+    expect(Math.abs(first.duration - straightRun(20, 5.5, motion, sprint))).toBeLessThan(
       PROFILE_TOLERANCE,
     )
     // The next phase is then not prolonged, and nothing is reported.

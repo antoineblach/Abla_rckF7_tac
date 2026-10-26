@@ -16,7 +16,7 @@ import {
 } from '../test/builders'
 import { lineBounds } from './bounds'
 import { createCaches } from './caches'
-import { PROFILE_TOLERANCE, trapezoid } from '../test/profileMath'
+import { PROFILE_TOLERANCE, straightRun } from '../test/profileMath'
 import {
   ballObtainedAt,
   evaluate,
@@ -124,7 +124,8 @@ describe('evaluation of every leaf', () => {
 })
 
 describe('durations (SPEC 5.1, 5.3)', () => {
-  const { accel, decel } = settings.motion
+  const { motion } = settings
+  const { sprint } = settings.paces
 
   it('phase duration = max(delay + duration), line duration = sum', () => {
     const a = uuid(1)
@@ -148,11 +149,11 @@ describe('durations (SPEC 5.1, 5.3)', () => {
     const compiled = compileLine(play, [uuid(10), uuid(11), uuid(12)], settings, createCaches())
     const [p1, p2, p3] = compiled.phases
     const [ma, mb] = p1?.motions ?? []
-    // Durations of the speed profile: jog 8 m (3.17 s), sprint 14 m (4.39 s).
-    expect(Math.abs((ma?.duration ?? 0) - trapezoid(8, 4, accel, decel))).toBeLessThan(
+    // Durations of the speed profile: jog 8 m (3.19 s), sprint 14 m (4.05 s).
+    expect(Math.abs((ma?.duration ?? 0) - straightRun(8, 4, motion, sprint))).toBeLessThan(
       PROFILE_TOLERANCE,
     )
-    expect(Math.abs((mb?.duration ?? 0) - trapezoid(14, 5.5, accel, decel))).toBeLessThan(
+    expect(Math.abs((mb?.duration ?? 0) - straightRun(14, 5.5, motion, sprint))).toBeLessThan(
       PROFILE_TOLERANCE,
     )
     const phase1 = Math.max(1 + (ma?.duration ?? 0), mb?.duration ?? 0)
@@ -183,18 +184,18 @@ describe('durations (SPEC 5.1, 5.3)', () => {
     const close = (actual: number, expected: number) => {
       expect(Math.abs(actual - expected)).toBeLessThan(PROFILE_TOLERANCE)
     }
-    close(duration(runOf({})), trapezoid(8, 4, accel, decel))
+    close(duration(runOf({})), straightRun(8, 4, motion, sprint))
     close(
       duration(runOf({}), { ...settings, paces: { ...settings.paces, jog: 2 } }),
-      trapezoid(8, 2, accel, decel),
+      straightRun(8, 2, motion, sprint),
     )
     close(
       duration(runOf({}), { ...settings, motion: { ...settings.motion, accel: 6 } }),
-      trapezoid(8, 4, 6, decel),
+      straightRun(8, 4, { ...motion, accel: 6 }, sprint),
     )
     // The imposed duration is met exactly (common factor, D-107).
     expect(duration(runOf({ durationOverride: 5 }))).toBeCloseTo(5, 9)
-    close(duration(runOf({ delay: 1.5 })), 1.5 + trapezoid(8, 4, accel, decel))
+    close(duration(runOf({ delay: 1.5 })), 1.5 + straightRun(8, 4, motion, sprint))
     // Pass of 12 m at 6 m/s instead of 12 m/s.
     expect(duration(make([pass(uuid(21), a, b, 0)]))).toBeCloseTo(1, 9)
     expect(duration(make([pass(uuid(21), a, b, 0, { ballSpeed: 6 })]))).toBeCloseTo(2, 9)
@@ -211,8 +212,8 @@ describe('durations (SPEC 5.1, 5.3)', () => {
     })
     const compiled = compileLine(play, [uuid(10)], settings, createCaches())
     expect(compiled.issues.map((i) => i.code)).toEqual(['durationCapped'])
-    // Bounded by the accelerations: a triangle without peak limit, then the red threshold.
-    expect(compiled.duration).toBeGreaterThan(trapezoid(8, 1000, accel, decel))
+    // Bounded by the accelerations: a run without peak limit, then the red threshold.
+    expect(compiled.duration).toBeGreaterThan(straightRun(8, 1000, motion, sprint))
   })
 })
 

@@ -9,11 +9,11 @@ import { distance } from './vec'
 
 // These tests check the rules of the breakdowns, not the speed profile (profile.test.ts): paces of
 // lots 1 to 3 (sprint 7 m/s) and near-instant accelerations keep their timings, ramps of a few
-// millimetres apart (accelerations of 1000 m/s²).
+// millimetres apart (accelerations of 1000 m/s², top speed far above the paces).
 const settings: EngineSettings = {
   ...engineSettingsOf(defaultSettings()),
   paces: { walk: 2, jog: 4, sprint: 7 },
-  motion: { accel: 1000, decel: 1000, lateralAccel: 1000 },
+  motion: { accel: 1000, decel: 1000, lateralAccel: 1000, topSpeed: 1000 },
 }
 
 // A attacks towards +x. A1 carries the ball and runs into contact in 2 s (3 m/s); A2 arrives in

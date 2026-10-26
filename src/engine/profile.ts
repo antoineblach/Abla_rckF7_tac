@@ -1,10 +1,16 @@
-// Speed profile of a run along its curve (SPEC 5.3, D-105): generalised trapezoid computed on the
-// samples of the spline. Cap at each sample: target speed of its segment, and the lateral
-// acceleration in turns; forward pass (bounded acceleration), backward pass (bounded braking);
-// time of each interval at constant acceleration. Position, speed and the instant of passage at a
-// point are closed forms: a continuous playback and a direct jump to t give the same state.
+// Speed profile of a run along its curve (SPEC 5.3, D-105, D-135) computed on the samples of the
+// spline. Cap at each sample: target speed of its segment, and the lateral acceleration in turns;
+// forward pass with the acceleration a(v) = a0 (1 − v / vmax) of the sprint model of Samozino et
+// al. (2016), backward pass with a bounded braking; each interval is then run at the constant
+// acceleration between its two speeds. Position, speed and the instant of passage at a point are
+// closed forms: a continuous playback and a direct jump to t give the same state.
 // Pure and deterministic.
-import { MIN_CORNER_SPEED, SPEED_FACTOR_SEARCH } from '../config/defaults'
+import {
+  MIN_CORNER_SPEED,
+  PROFILE_NEWTON_ITERATIONS,
+  SPEED_FACTOR_SEARCH,
+  TOP_SPEED_TARGET_RATIO,
+} from '../config/defaults'
 import type { MotionSettings } from '../model/settings'
 import type { Vec2 } from '../model/types'
 import type { Spline } from './spline'
@@ -13,11 +19,19 @@ export interface ProfileInput {
   spline: Spline
   /** Target (peak) speed of each spline segment, in m/s. */
   targets: readonly number[]
+  /**
+   * Time scale k of each spline segment, 1 when absent (D-130): its target speed, asymptote and
+   * lowest corner speed ×k, its accelerations (start, braking, lateral) ×k². A run scaled as a
+   * whole is the same run played k times faster.
+   */
+  boundScale?: readonly number[]
   /** Speed at the start (0, or the end speed of the run it prolongs, D-106). */
   startSpeed: number
   /** Ends at the cap of its last sample instead of stopping (« Finit lancée »). */
   endsAtSpeed: boolean
   motion: MotionSettings
+  /** Sprint pace: a slower target starts with a proportionally lower acceleration (D-135). */
+  sprint: number
 }
 
 export interface SpeedProfile {
@@ -47,19 +61,68 @@ function curvatureAt(samples: readonly Vec2[], k: number): number {
   return (2 * Math.abs(cross)) / product
 }
 
-/** Target speed at sample k: its segment, the slower of both at a waypoint. */
-function targetAt(targets: readonly number[], perSegment: number, k: number, last: number): number {
-  const segments = targets.length
-  if (segments === 0) return 0
-  if (k >= last) return targets[segments - 1] ?? 0
-  const segment = Math.floor(k / perSegment)
-  const own = targets[segment] ?? 0
-  if (k % perSegment === 0 && segment > 0) return Math.min(own, targets[segment - 1] ?? own)
-  return own
+/** Bounds of a spline segment, time scale included. */
+interface SegmentBounds {
+  target: number
+  /** Acceleration from rest a0. */
+  accel: number
+  /** Asymptote vmax of the acceleration. */
+  asymptote: number
+  decel: number
+  lateralAccel: number
+  minCornerSpeed: number
+}
+
+function segmentBounds(input: ProfileInput, segment: number): SegmentBounds {
+  const { motion } = input
+  const target = input.targets[segment] ?? 0
+  const k = input.boundScale?.[segment] ?? 1
+  // Walk and jog start more gently (Q14); a target near the top speed raises the asymptote (Q13).
+  const startRatio = input.sprint > 0 ? Math.min(1, target / input.sprint) : 1
+  return {
+    target: target * k,
+    accel: motion.accel * startRatio * k * k,
+    asymptote: Math.max(motion.topSpeed, target / TOP_SPEED_TARGET_RATIO) * k,
+    decel: motion.decel * k * k,
+    lateralAccel: motion.lateralAccel * k * k,
+    minCornerSpeed: MIN_CORNER_SPEED * k,
+  }
+}
+
+/** Cap of a sample of curvature kappa within a segment: its target, slower in a turn. */
+function capOf(bounds: SegmentBounds, kappa: number): number {
+  const corner = kappa > 0 ? Math.sqrt(bounds.lateralAccel / kappa) : Infinity
+  return Math.min(bounds.target, Math.max(bounds.minCornerSpeed, corner))
+}
+
+/**
+ * Speed at the end of an interval of length ds run from speed v0 at the acceleration
+ * a(v) = a0 (1 − v / vmax), zero beyond vmax, without exceeding the cap (D-135).
+ */
+function accelerate(v0: number, ds: number, cap: number, a0: number, vmax: number): number {
+  if (cap <= v0 || v0 >= vmax || a0 <= 0 || ds <= 0) return Math.min(cap, v0)
+  // Distance from v0 to v1: tau (vmax ln((vmax − v0) / (vmax − v1)) − (v1 − v0)), tau = vmax / a0.
+  const span = (vmax * vmax) / a0
+  if (cap < vmax && span * (Math.log((vmax - v0) / (vmax - cap)) - (cap - v0) / vmax) <= ds) {
+    return cap
+  }
+  // Newton on w = ln((vmax − v1) / vmax): the distance is span (w0 − w − e^w0 + e^w), convex and
+  // decreasing in w. Started on the side of the faster speeds (the constant acceleration a(v0)
+  // overshoots, a(v) decreasing), it converges monotonically.
+  const w0 = Math.log1p(-v0 / vmax)
+  const e0 = 1 - v0 / vmax
+  const estimate = Math.sqrt(v0 * v0 + 2 * a0 * e0 * ds)
+  const lowest = w0 - e0 - ds / span
+  let w = estimate < vmax ? Math.max(lowest, Math.log1p(-estimate / vmax)) : lowest
+  for (let i = 0; i < PROFILE_NEWTON_ITERATIONS; i++) {
+    const ew = Math.exp(w)
+    w -= (span * (w0 - w - e0 + ew) - ds) / (span * (ew - 1))
+  }
+  return Math.min(cap, -vmax * Math.expm1(w))
 }
 
 export function buildProfile(input: ProfileInput): SpeedProfile {
-  const { spline, targets, motion } = input
+  const { spline } = input
   const s = spline.cumulative
   const n = s.length
   const perSegment = spline.samplesPerSegment
@@ -74,23 +137,34 @@ export function buildProfile(input: ProfileInput): SpeedProfile {
     }
   }
   const last = n - 1
+  const segments = Math.max(1, input.targets.length)
+  const bounds = Array.from({ length: segments }, (_, j) => segmentBounds(input, j))
+  /** Segment of interval k, from sample k to sample k + 1. */
+  const segmentOf = (k: number): SegmentBounds =>
+    bounds[Math.min(Math.floor(k / perSegment), segments - 1)] ?? segmentBounds(input, 0)
   const caps: number[] = []
   for (let k = 0; k < n; k++) {
     const kappa = curvatureAt(spline.samples, k === 0 ? 1 : k === last ? last - 1 : k)
-    const corner = kappa > 0 ? Math.sqrt(motion.lateralAccel / kappa) : Infinity
-    caps.push(Math.min(targetAt(targets, perSegment, k, last), Math.max(MIN_CORNER_SPEED, corner)))
+    const own = capOf(segmentOf(Math.min(k, last - 1)), kappa)
+    // At a waypoint, the slower of both segments.
+    caps.push(
+      k > 0 && k < last && k % perSegment === 0
+        ? Math.min(own, capOf(segmentOf(k - 1), kappa))
+        : own,
+    )
   }
   const v = new Array<number>(n).fill(0)
   v[0] = Math.max(0, input.startSpeed)
   for (let k = 0; k < last; k++) {
     const ds = (s[k + 1] ?? 0) - (s[k] ?? 0)
-    v[k + 1] = Math.min(caps[k + 1] ?? 0, Math.sqrt((v[k] ?? 0) ** 2 + 2 * motion.accel * ds))
+    const { accel, asymptote } = segmentOf(k)
+    v[k + 1] = accelerate(v[k] ?? 0, ds, caps[k + 1] ?? 0, accel, asymptote)
   }
   if (!input.endsAtSpeed) v[last] = 0
   // The imposed start speed wins over braking (continuity, D-106).
   for (let k = last - 1; k >= 1; k--) {
     const ds = (s[k + 1] ?? 0) - (s[k] ?? 0)
-    v[k] = Math.min(v[k] ?? 0, Math.sqrt((v[k + 1] ?? 0) ** 2 + 2 * motion.decel * ds))
+    v[k] = Math.min(v[k] ?? 0, Math.sqrt((v[k + 1] ?? 0) ** 2 + 2 * segmentOf(k).decel * ds))
   }
   const t = [0]
   for (let k = 0; k < last; k++) {

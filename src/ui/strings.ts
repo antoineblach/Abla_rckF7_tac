@@ -4,9 +4,22 @@ import type { Pace } from '../model/types'
 import type { ReadError } from '../io/readPlay'
 import type { EditorNotice } from '../state/editorStore'
 import type { ToolId } from '../editor/tools/types'
-import { formatKmh, formatSeconds } from './format'
+import { LEGACY_MOTION, MOTION_DEFAULTS } from '../config/defaults'
+import type { LegacyMotionKey } from '../model/settings'
+import { decimal, formatKmh, formatSeconds } from './format'
 
 export { CATEGORY_LABELS, phaseLabel } from '../model/labels'
+
+const MOTION_RESET_LABELS: Record<LegacyMotionKey, string> = {
+  accel: 'accélération',
+  decel: 'freinage',
+  lateralAccel: 'accélération latérale',
+}
+
+/** « 3 » or « 5,2 ». */
+function plainDecimal(value: number): string {
+  return Number.isInteger(value) ? String(value) : decimal(value)
+}
 
 export const PACE_LABELS: Record<Pace, string> = { walk: 'Marche', jog: 'Trot', sprint: 'Sprint' }
 
@@ -215,6 +228,14 @@ export const TEXT = {
   syncPick: (what: string) => `Caler la ${what} : cliquez la cible.`,
   sprintReset:
     'Allure sprint ramenée de 7 à 5,5 m/s (19,8 km/h), nouvelle valeur par défaut. Modifiable dans les réglages.',
+  // Lot 3bis-1 (D-134).
+  motionReset: (keys: readonly LegacyMotionKey[]) =>
+    `Profil de vitesse calibré, nouvelles valeurs par défaut : ${keys
+      .map(
+        (key) =>
+          `${MOTION_RESET_LABELS[key]} de ${plainDecimal(LEGACY_MOTION[key])} à ${plainDecimal(MOTION_DEFAULTS[key])} m/s²`,
+      )
+      .join(', ')}. Modifiable dans les réglages.`,
 } as const
 
 /** « Côté ouvert » of a preset, seen by the attacking team facing the opposing goal (D-088). */

@@ -7,17 +7,18 @@
 
 ## En cours
 
-- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md` ; D-129 à D-135, non intégrées à la SPEC) : blocs 0 et 1 faits.
-- Bloc suivant : bloc 2, étape 2 (modèle de profil en a(v) et réglages v4 ; valeurs de D-135, plan sections C, E et tableau de B).
+- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md` ; D-129 à D-135, non intégrées à la SPEC) : blocs 0 à 2 faits.
+- Bloc suivant : bloc 3, étape 3 (intentions tenues, solveur à deux leviers ; plan A.1, A.2).
 
 ## Fait (lot 3bis-1)
 
-- Étape 0 : branche ; plans `lot-3bis` et `docs-outils` archivés dans `docs/archive/plans/` ; plan validé avec Q1 à Q9 et 6 modifications de l'utilisateur ; D-129 à D-134 et statuts de D-079, D-105, D-107, D-108, D-111, D-112, D-114, D-117 ; parties de D-120 et D-121 « reportée à 3bis-2 » ; ligne de `fin-lot` sur ces mentions.
-- Étape 1 : calibration (France à 7 féminine corrigée de +0,5 s ; amatrice : pointe 24 km/h, a0 5,2 m/s²), comparaison des modèles (plan, B.1), réponses Q10 à Q14 ; D-135 ; statuts de D-105, D-118, D-132.
+- Étape 0 : branche ; plans archivés ; plan validé (Q1 à Q9, 6 modifications) ; D-129 à D-134 et statuts ; parties de D-120 et D-121 « reportée à 3bis-2 » ; ligne de `fin-lot`.
+- Étape 1 : calibration (amatrice : pointe 24 km/h, a0 5,2 m/s²), comparaison des modèles (plan, B.1), Q10 à Q14 ; D-135.
+- Étape 2 : profil en a(v), `boundScale` ; `reglages.json` v4, migration v3 et message par poste ; tests sur le modèle exact (`src/test/profileMath.ts`) ; 7 images de référence régénérées.
 
 ## Reste à faire
 
-- Lot 3bis-1 : blocs 2 à 7, puis `/fin-lot` (SPEC 1.8, ARCHITECTURE, RECETTE, ligne du README sur les skills dans VS Code, PR).
+- Lot 3bis-1 : blocs 3 à 7, puis `/fin-lot` (SPEC 1.8, ARCHITECTURE, RECETTE, ligne du README sur les skills dans VS Code, PR).
 - Puis 3bis-2 (interactions) et 3bis-3 (positions préréglées), chacune par `/nouveau-lot` (D-128).
 - Lot 3 bis : les 3 vérifications manuelles de `docs/RECETTE.md`, section « Lot 3 bis » (Ctrl+F5 d'abord sur les deux PC).
 - D-119 à D-121, prises seul pendant le lot 3 bis : à relire ; intégrées au `/fin-lot` de 3bis-1, sauf les parties reportées à 3bis-2.
@@ -36,7 +37,7 @@
 
 - Aucun test désactivé.
 - Lecture de démarrage au-dessus de la cible de 8 000 o (CLAUDE.md et ETAT).
-- Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`.
+- Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `reglages-v3.json`.
 - Limite de D-098 : une ancienne version remise à l'identique depuis l'autre PC est défaite tant que la page qui l'avait écrite est ouverte (README : recharger avant de restaurer).
 - Hypothèses 3 et 4 sur Drive (date changée après l'envoi, version antérieure rendue) : à constater par le journal de synchronisation.
 - Seuil « traits >= 3 px » du thème Contraste fort testé sur `render`, pas sur la surcouche d'édition.

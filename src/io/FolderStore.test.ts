@@ -531,7 +531,7 @@ describe('settings (SPEC 4.4)', () => {
     const store = await open()
     const result = await store.getSettings()
     expect(result.ok).toBe(true)
-    expect(result.settings.schemaVersion).toBe(3)
+    expect(result.settings.schemaVersion).toBe(4)
     expect(result.settings.passSpeed).toBe(11)
     expect(result.settings.export).toEqual(defaultSettings().export)
     expect(fs.read('reglages.json')).toBe(v1)
@@ -540,7 +540,7 @@ describe('settings (SPEC 4.4)', () => {
   })
 
   it('never rewrites a settings file of a newer version (D-024)', async () => {
-    const future = serialize({ ...defaultSettings(), schemaVersion: 4, defense: {} })
+    const future = serialize({ ...defaultSettings(), schemaVersion: 5, defense: {} })
     fs.writeExternal('reglages.json', future)
     const store = await open()
     const result = await store.getSettings()

@@ -489,6 +489,7 @@ function compilePhase(
       startSpeed: spec.launch?.speed ?? 0,
       endsAtSpeed: spec.endsAtSpeed,
       motion: settings.motion,
+      sprint: settings.paces.sprint,
     })
     return {
       actionId: plan.run.id,
@@ -896,6 +897,7 @@ function compilePhase(
           startSpeed: 0,
           endsAtSpeed: false,
           motion: settings.motion,
+          sprint: settings.paces.sprint,
         })
       let factor = 1
       let profile = build(1)

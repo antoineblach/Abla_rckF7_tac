@@ -2,7 +2,12 @@
 // placement presets of lot 3, which go through the same layer (SPEC 8.1, D-092).
 // Two implementations: FolderStore (main, Chrome) and IdbStore (degraded mode).
 import type { PlacementPreset } from '../model/preset'
-import { defaultSettings, type Settings, type SettingsReadResult } from '../model/settings'
+import {
+  defaultSettings,
+  type LegacyMotionKey,
+  type Settings,
+  type SettingsReadResult,
+} from '../model/settings'
 import type { Id, Play, PlayCategory } from '../model/types'
 import type { ReadError } from './readPlay'
 
@@ -87,16 +92,22 @@ export type SettingsResult =
       settings: Settings
       /** The migration to version 3 replaced the former default sprint pace (D-111). */
       sprintReset?: boolean
+      /** The migration to version 4 replaced these former default motion values (D-134). */
+      motionReset?: LegacyMotionKey[]
     }
   | { ok: false; settings: Settings; message: string; future?: boolean }
 
 /** Settings result of validated and migrated content (SPEC 4.4, D-068). */
 export function settingsResult(read: SettingsReadResult): SettingsResult {
-  return read.ok
-    ? read.sprintReset
-      ? { ok: true, settings: read.settings, sprintReset: true }
-      : { ok: true, settings: read.settings }
-    : { ok: false, settings: defaultSettings(), message: read.message, future: read.future }
+  if (!read.ok) {
+    return { ok: false, settings: defaultSettings(), message: read.message, future: read.future }
+  }
+  return {
+    ok: true,
+    settings: read.settings,
+    ...(read.sprintReset ? { sprintReset: true } : {}),
+    ...(read.motionReset.length > 0 ? { motionReset: read.motionReset } : {}),
+  }
 }
 
 export class ConflictError<T = Play> extends Error {

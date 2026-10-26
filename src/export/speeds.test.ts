@@ -72,7 +72,8 @@ describe('exports: fast segments in, speed badges out (D-112, D-115)', () => {
     expect(state.speedBadges).toHaveLength(2)
     const player = createRecordingContext()
     render(player.ctx, state, layout.viewport, layout.theme, OPTIONS.layers)
-    expect(bangs(paintEvents(player.calls))).toBe(2)
+    // Counted by their fill: the pass is also flagged forward, with a badge of its own.
+    expect(badgeFills(paintEvents(player.calls), layout.theme)).toBe(2)
     const gif = createRecordingContext()
     drawGifItem(gif.ctx, play, item, layout, OPTIONS.layers, settings, caches)
     const events = paintEvents(gif.calls)
