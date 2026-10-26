@@ -44,6 +44,7 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 ## Vitest et images de référence
 
 - Vitest coupe un test à 5 s par défaut ; le runner de la CI encode 2 à 3 fois moins vite que ce poste : les groupes de tests qui encodent réellement ont un délai explicite (`ENCODING_TIMEOUT_MS`).
+- Une compilation coûte plusieurs millisecondes depuis les leviers (D-130 : environ 50 profils par résolution ; combinaison réaliste 3 puis 14 ms) : un test qui évalue à chaque instant garde un cache par ligne, sinon il dépasse 5 s en parallèle.
 - La tolérance des images de référence (0,5 % des pixels) masque un trait épaissi ou une petite dérive : après un changement de rendu, régénérer (`UPDATE_SNAPSHOTS=1`) et comparer à `HEAD` pour voir ce qui a bougé.
 
 ## Application

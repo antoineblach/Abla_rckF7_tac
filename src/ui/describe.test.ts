@@ -68,16 +68,22 @@ describe('descriptions (D-108, D-110)', () => {
       adjust: 'delay',
       delay: 0.84,
       factor: 1,
+      accelFactor: 1,
       status: 'ok',
       targetT: 3,
       meetPoint: { x: 0, y: 0 },
       targetPoint: { x: 1, y: 1 },
     }
     expect(syncResultText(base)).toBe('Délai calculé : 0,8 s.')
-    expect(syncResultText({ ...base, status: 'late' })).toBe('Départ immédiat : arrivée en retard.')
+    expect(syncResultText({ ...base, status: 'late', factor: 1.3 })).toBe(
+      'Départ immédiat, course accélérée : vitesses × 1,30.',
+    )
     expect(syncResultText({ ...base, adjust: 'speed', factor: 1.123 })).toBe('Vitesses × 1,12.')
-    expect(syncResultText({ ...base, adjust: 'speed', factor: 1.5, status: 'capped' })).toBe(
-      'Vitesses × 1,50, plafonnées au seuil rouge.',
+    expect(syncResultText({ ...base, adjust: 'speed', factor: 1.5, accelFactor: 1.21 })).toBe(
+      'Vitesses × 1,50, accélérations × 1,21.',
+    )
+    expect(syncResultText({ ...base, adjust: 'speed', status: 'beforeStart' })).toBe(
+      'Cible avant le départ : arrivée en retard.',
     )
     expect(syncResultText({ ...base, status: 'unreached' })).toBe(
       'Cible jamais atteinte : lien ignoré.',

@@ -8,6 +8,7 @@ import {
   compileLine,
   motionEnd,
   motionPosition,
+  motionSpeed,
   waypointTime,
   type CompiledLine,
   type CompiledPhase,
@@ -130,17 +131,60 @@ describe('links: delayed start (SPEC 5.8, D-108)', () => {
     expect(motionEnd(motion(c, uuid(12)))).toBeCloseTo(end, 9)
   })
 
-  it('starts at once and arrives late when it is too far, with a warning', () => {
+  it('starts at once and is sped up to arrive on time when it is too far, with a warning', () => {
+    const far = run(uuid(11), A(2), [{ x: 80, y: 25 }])
+    const p = play([run(uuid(10), A(1), [{ x: 45, y: 30 }]), { ...far, sync: onEnd(uuid(10)) }])
+    const c = compile(p)
+    const linked = motion(c, uuid(11))
+    const end = motionEnd(motion(c, uuid(10)))
+    expect(linked.start).toBe(0)
+    expect(motionEnd(linked)).toBeCloseTo(end, 9)
+    expect(linked.sync).toMatchObject({ status: 'late', delay: 0 })
+    expect(linked.sync?.factor).toBeGreaterThan(1)
+    expect(linked.sync?.factor).toBe(linked.factor)
+    // She should have started that much earlier at her stored speeds (D-131).
+    const natural = motion(compile(play([run(uuid(10), A(1), [{ x: 45, y: 30 }]), far])), uuid(11))
+    const issue = c.issues.find((i) => i.code === 'syncLate')
+    expect(issue?.params?.late).toBeCloseTo(natural.duration - end, 9)
+  })
+
+  it('leaves an imposed duration aside when it starts at once (D-136)', () => {
     const p = play([
       run(uuid(10), A(1), [{ x: 45, y: 30 }]),
-      run(uuid(11), A(2), [{ x: 80, y: 25 }], { sync: onEnd(uuid(10)) }),
+      run(
+        uuid(11),
+        A(2),
+        [
+          { x: 60, y: 25 },
+          { x: 70, y: 25 },
+        ],
+        { sync: onEnd(uuid(10), { at: 0 }), durationOverride: 9 },
+      ),
     ])
     const c = compile(p)
     const linked = motion(c, uuid(11))
-    expect(linked.start).toBe(0)
     expect(linked.sync?.status).toBe('late')
-    const issue = c.issues.find((i) => i.code === 'syncLate')
-    expect(issue?.params?.late).toBeCloseTo(motionEnd(linked) - motionEnd(motion(c, uuid(10))), 9)
+    expect(waypointTime(linked, 0)).toBeCloseTo(motionEnd(motion(c, uuid(10))), 9)
+    // The segment after the rendez-vous keeps its stored speed, not that of the duration.
+    expect(linked.targets[1]).toBe(settings.paces.jog)
+    expect(linked.duration).not.toBeCloseTo(9, 1)
+  })
+
+  it('keeps its stored delay and speeds when the target is before the start (D-131)', () => {
+    const p = play([
+      pass(uuid(20), A(1), A(3), 0),
+      run(uuid(11), A(2), [{ x: 50, y: 25 }], {
+        delay: 0.5,
+        sync: { target: { actionId: uuid(20), event: 'release' }, adjust: 'delay' },
+      }),
+    ])
+    const c = compile(p)
+    const linked = motion(c, uuid(11))
+    expect(linked.start).toBe(0.5)
+    expect(linked.targets).toEqual([settings.paces.jog])
+    expect(linked.sync).toMatchObject({ status: 'beforeStart', delay: 0.5, factor: 1, targetT: 0 })
+    const issue = c.issues.find((i) => i.code === 'syncTargetBeforeStart')
+    expect(issue?.params?.late).toBeCloseTo(motionEnd(linked), 9)
   })
 })
 
@@ -161,7 +205,10 @@ describe('links and runs ending at speed (SPEC 5.2, D-106)', () => {
     expect(goOn.prolongs).toBe(true)
     expect(goOn.start).toBe(c.phases[1]?.start)
     expect(goOn.sync?.status).toBe('late')
-    expect(codes(c)).toEqual(['syncLate'])
+    expect(motionEnd(goOn)).toBeCloseTo(motionEnd(motion(c, uuid(30))), 9)
+    // Sped up, she still starts at the speed of the run she prolongs (D-130).
+    expect(goOn.profile.v[0]).toBeCloseTo(motion(c, uuid(10)).profile.v.at(-1) ?? NaN, 9)
+    expect(codes(c).filter((code) => !code.startsWith('runSpeed'))).toEqual(['syncLate'])
   })
 
   it('starts from rest, and the run before stops short, when she has to wait', () => {
@@ -205,19 +252,52 @@ describe('links: adjusted speed (SPEC 5.8, D-108)', () => {
     expect(codes(c)).toEqual([])
   })
 
-  it('caps the speed at the red threshold, with a warning', () => {
+  it('meets the rendez-vous exactly beyond the bounds, the thresholds alone warn (D-130)', () => {
     const p = play([
       run(uuid(10), A(1), [{ x: 45, y: 30 }]),
-      run(uuid(11), A(2), [{ x: 80, y: 25 }], {
+      run(
+        uuid(11),
+        A(2),
+        [
+          { x: 80, y: 25 },
+          { x: 90, y: 25, speed: 'walk' },
+        ],
+        {
+          sync: { target: { actionId: uuid(10), event: 'runEnd' }, at: 0, adjust: 'speed' },
+        },
+      ),
+    ])
+    const c = compile(p)
+    const linked = motion(c, uuid(11))
+    const meet = waypointTime(linked, 0)
+    expect(meet).toBeCloseTo(motionEnd(motion(c, uuid(10))), 9)
+    expect(linked.sync?.status).toBe('ok')
+    expect(linked.sync?.accelFactor).toBeGreaterThan(1)
+    expect(linked.accelFactor).toBe(linked.sync?.accelFactor)
+    // Later segments unchanged; the speed is continuous at the rendez-vous (one profile).
+    expect(linked.targets[1]).toBe(2)
+    expect(Math.abs(motionSpeed(linked, meet - 1e-7) - motionSpeed(linked, meet + 1e-7))).toBeLessThan(
+      1e-4,
+    )
+    expect(codes(c)).toEqual(['runSpeedTooHigh'])
+  })
+
+  it('keeps its stored speeds when the target is before the start (D-131)', () => {
+    const p = play([
+      run(uuid(10), A(1), [{ x: 45, y: 30 }]),
+      run(uuid(11), A(2), [{ x: 50, y: 25 }], {
+        delay: 9,
         sync: { target: { actionId: uuid(10), event: 'runEnd' }, adjust: 'speed' },
       }),
     ])
     const c = compile(p)
     const linked = motion(c, uuid(11))
-    expect(linked.sync?.status).toBe('capped')
-    expect(linked.targets[0]).toBeCloseTo(settings.speedAlert.danger, 12)
-    const issue = c.issues.find((i) => i.code === 'syncSpeedCapped')
-    expect(issue?.params?.needed).toBeGreaterThan(settings.speedAlert.danger)
+    expect(linked.start).toBe(9)
+    expect(linked.targets).toEqual([settings.paces.jog])
+    expect(linked.sync).toMatchObject({ status: 'beforeStart', factor: 1, accelFactor: 1 })
+    const issue = c.issues.find((i) => i.code === 'syncTargetBeforeStart')
+    expect(issue?.params?.late).toBeCloseTo(motionEnd(linked) - motionEnd(motion(c, uuid(10))), 9)
+    expect(codes(c)).toEqual(['syncTargetBeforeStart'])
   })
 
   it('replaces an imposed duration (D-107)', () => {

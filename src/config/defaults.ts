@@ -122,12 +122,15 @@ export const DECEL_ALERT_DEFAULTS = {
 } as const
 
 /**
- * Speed factor solver (SPEC 5.3): bisection on the logarithm of the factor, with a fixed number
- * of iterations (determinism), between `minFactor` and the cap of the red threshold.
+ * Two-lever solver (SPEC 5.3, D-130): bisection on the logarithm of the factor on the target
+ * speeds, between `minFactor` and the top speed of the player, then on the logarithm of the time
+ * scale, up to `maxTimeScale` (a numerical bound: beyond, a link target is before the start,
+ * D-131), each with a fixed number of iterations (determinism).
  */
 export const SPEED_FACTOR_SEARCH = {
   iterations: 50,
   minFactor: 1e-3,
+  maxTimeScale: 1000,
 } as const
 
 /**

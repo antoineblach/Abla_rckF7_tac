@@ -184,6 +184,19 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
     expect(motionSpeed(late, (stopped.phases[1]?.start ?? 0) + 0.5)).toBe(0)
   })
 
+  it('keeps its start speed under an imposed duration beyond the bounds (D-130)', () => {
+    const quick = { ...t2Run, durationOverride: 1 }
+    const compiled = compile(twoPlayers([phase(T1, null, [t1Run]), phase(T2, T1, [quick])]), [
+      T1,
+      T2,
+    ])
+    const second = motionOf(compiled, quick.id)
+    expect(second.prolongs).toBe(true)
+    expect(second.duration).toBeCloseTo(1, 9)
+    expect(second.accelFactor).toBeGreaterThan(1)
+    expect(motionSpeed(second, compiled.phases[1]?.start ?? NaN)).toBeCloseTo(5.5, 9)
+  })
+
   it('raises no warning at the end of a line', () => {
     const play = twoPlayers([phase(T1, null, [t1Run])])
     expect(codes(compile(play, [T1]))).toEqual([])
@@ -216,8 +229,8 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
 describe('continuity and determinism with profiles (SPEC 5.2, 5.5)', () => {
   const play = realisticRunsPlay()
   const lines = allLines(play)
-  const drawable = (play: Play, line: Id[], t: number) => {
-    const s = evaluate(play, line, t, settings, createCaches())
+  const drawable = (play: Play, line: Id[], t: number, caches = createCaches()) => {
+    const s = evaluate(play, line, t, settings, caches)
     return {
       players: s.players,
       ball: s.ball,
@@ -249,8 +262,10 @@ describe('continuity and determinism with profiles (SPEC 5.2, 5.5)', () => {
   it('keeps the trunk identical in every option, a run at speed included', () => {
     const [lineA, lineB] = lines as [Id[], Id[]]
     const trunkEnd = compileLine(play, lineA, settings, createCaches()).phases[1]?.end ?? 0
+    // One compilation per option, sampled at every instant.
+    const [cachesA, cachesB] = [createCaches(), createCaches()]
     for (let t = 0; t < trunkEnd; t += 0.05) {
-      expect(drawable(play, lineA, t)).toEqual(drawable(play, lineB, t))
+      expect(drawable(play, lineA, t, cachesA)).toEqual(drawable(play, lineB, t, cachesB))
     }
   })
 

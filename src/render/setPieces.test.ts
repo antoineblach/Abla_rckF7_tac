@@ -11,7 +11,7 @@ import { compileLine } from '../engine/timeline'
 import { allLines } from '../model/phaseTree'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
 import type { Id } from '../model/types'
-import { P, setPiecesPlay, uuid } from '../test/builders'
+import { P, setPiecesScene, uuid } from '../test/builders'
 import { compareWithSnapshot, createTestCanvas } from '../test/imageSnapshot'
 import { createRecordingContext, paintEvents, type RecordingContext } from '../test/recordingCtx'
 import type { Ctx2D } from './ctx2d'
@@ -22,7 +22,7 @@ import { RENDER_THEME_IDS, THEMES, type RenderThemeId } from './themes'
 import { createViewport, sizePx, toPx, type Orientation, type Viewport } from './viewport'
 
 const settings = engineSettingsOf(defaultSettings())
-const play = setPiecesPlay()
+const play = setPiecesScene()
 const [LINE_A, LINE_B] = allLines(play) as [Id[], Id[]]
 const T4 = uuid(104)
 

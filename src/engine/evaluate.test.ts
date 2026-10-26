@@ -201,7 +201,7 @@ describe('durations (SPEC 5.1, 5.3)', () => {
     expect(duration(make([pass(uuid(21), a, b, 0, { ballSpeed: 6 })]))).toBeCloseTo(2, 9)
   })
 
-  it('caps an imposed duration out of reach, with a warning (D-107)', () => {
+  it('meets an imposed duration beyond the bounds exactly, the thresholds alone warn (D-129)', () => {
     const a = uuid(1)
     const play = basePlay({
       entities: [player(a, 'A', 1)],
@@ -211,9 +211,20 @@ describe('durations (SPEC 5.1, 5.3)', () => {
       ],
     })
     const compiled = compileLine(play, [uuid(10)], settings, createCaches())
-    expect(compiled.issues.map((i) => i.code)).toEqual(['durationCapped'])
-    // Bounded by the accelerations: a run without peak limit, then the red threshold.
-    expect(compiled.duration).toBeGreaterThan(straightRun(8, 1000, motion, sprint))
+    expect(compiled.issues.map((i) => i.code)).toEqual(['runSpeedTooHigh'])
+    // Shorter than the bounds allow: lever 2 scales the accelerations too (D-130).
+    expect(1).toBeLessThan(straightRun(8, 1000, motion, sprint))
+    expect(compiled.duration).toBeCloseTo(1, 9)
+    const m = compiled.phases[0]?.motions[0]
+    expect(m?.accelFactor).toBeGreaterThan(1)
+    expect(m?.factor).toBeCloseTo((motion.topSpeed / settings.paces.jog) * Math.sqrt(m?.accelFactor ?? NaN), 9)
+    // The alert thresholds never change the motion (D-129).
+    const strict = { ...settings, speedAlert: { warning: 1, danger: 2 } }
+    const loose = { ...settings, speedAlert: { warning: 40, danger: 50 } }
+    const profileWith = (s: EngineSettings) =>
+      compileLine(play, [uuid(10)], s, createCaches()).phases[0]?.motions[0]?.profile
+    expect(profileWith(strict)).toEqual(m?.profile)
+    expect(profileWith(loose)).toEqual(m?.profile)
   })
 })
 
@@ -585,7 +596,7 @@ describe('set pieces of lot 3: continuity and determinism (D-094)', () => {
     }
   })
 
-  it('plays the fixture as described: pickup, ruck, forward pass, kick, maul', () => {
+  it('plays the fixture as described: pickup, ruck, pass, kick, maul', () => {
     const caches = createCaches()
     const [lineA, lineB] = lines as [string[], string[]]
     const a = compileLine(play, lineA, settings, caches)
@@ -595,15 +606,16 @@ describe('set pieces of lot 3: continuity and determinism (D-094)', () => {
       'breakdown',
       'carried',
     ])
-    // The ruck forms at 1.5 s where A4 has run to by then (her run is cut, D-079).
+    // The ruck forms at 1.5 s where A4 has run to by then: the end of her run, its imposed
+    // duration of 1.5 s being met exactly (D-129).
     const ruck = a.phases[0]?.breakdowns[0]?.pos
     expect(a.gainLine).toEqual([
       { t: 0, x: 40.5 },
       { t: 1.5, x: ruck?.x },
     ])
-    expect(ruck?.x).toBeGreaterThan(40.5)
-    expect(ruck?.x).toBeLessThan(46)
-    expect(a.phases[1]?.passes[0]?.forward).toBe(true)
+    expect(ruck?.x).toBeCloseTo(46, 9)
+    // Forward when the ruck formed 2 m behind (run capped, lot 3 bis); now 0.2 m/s forward only.
+    expect(a.phases[1]?.passes[0]?.forward).toBe(false)
     expect(evaluate(play, lineA, 1e9, settings, caches).ball).toEqual({
       kind: 'loose',
       pos: { x: 75, y: 12 },

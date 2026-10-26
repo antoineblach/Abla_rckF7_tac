@@ -4,6 +4,7 @@ import {
   MIN_CORNER_SPEED,
   MOTION_DEFAULTS,
   PACE_DEFAULTS,
+  SPEED_FACTOR_SEARCH,
 } from '../config/defaults'
 import type { MotionSettings } from '../model/settings'
 import type { Vec2 } from '../model/types'
@@ -11,7 +12,7 @@ import {
   buildProfile,
   distanceAt,
   segmentPeak,
-  solveFactor,
+  solveLevers,
   speedAt,
   timeAtDistance,
   timeAtSegmentEnd,
@@ -355,38 +356,70 @@ describe('speed profile: turns (SPEC 5.3, D-105)', () => {
   })
 })
 
-describe('speed factor (SPEC 5.3, D-107)', () => {
+describe('two levers (SPEC 5.3, D-130)', () => {
   const spline = buildSpline(straight(20), ARC_LENGTH_SAMPLES_PER_SEGMENT)
-  const build = (factor: number) =>
+  const build = (factor: number, timeScale: number) =>
     buildProfile({
       spline,
       targets: [4 * factor],
+      boundScale: [timeScale],
       startSpeed: 0,
       endsAtSpeed: false,
       motion,
       sprint,
     })
+  const duration = (p: SpeedProfile) => p.duration
+  // The jog reaches the top speed of the player at this factor.
+  const switchFactor = motion.topSpeed / 4
 
-  it('finds the factor of an imposed duration', () => {
-    const solution = solveFactor(build, (p) => p.duration, 9, 10)
-    expect(solution.capped).toBe('none')
-    expect(solution.profile.duration).toBeCloseTo(9, 6)
+  it('slows down by lever 1 alone', () => {
+    const solution = solveLevers(build, duration, 9, switchFactor)
+    expect(solution).toMatchObject({ status: 'met', timeScale: 1 })
     expect(solution.factor).toBeLessThan(1)
+    expect(solution.profile.duration).toBeCloseTo(9, 9)
   })
 
-  it('caps the factor and says so when the duration is out of reach', () => {
-    const solution = solveFactor(build, (p) => p.duration, 2, 25 / 3.6 / 4)
-    expect(solution.capped).toBe('slow')
-    expect(solution.factor).toBeCloseTo(25 / 3.6 / 4, 12)
-    expect(solution.profile.duration).toBeGreaterThan(2)
+  it('speeds up by lever 1 until the target reaches the top speed', () => {
+    const atSwitch = build(switchFactor, 1).duration
+    const solution = solveLevers(build, duration, atSwitch + 0.1, switchFactor)
+    expect(solution).toMatchObject({ status: 'met', timeScale: 1 })
+    expect(solution.factor).toBeGreaterThan(1)
+    expect(solution.factor).toBeLessThan(switchFactor)
+    expect(solution.profile.duration).toBeCloseTo(atSwitch + 0.1, 9)
+  })
+
+  it('then scales the time by lever 2, without any cap', () => {
+    const solution = solveLevers(build, duration, 2, switchFactor)
+    expect(solution.status).toBe('met')
+    expect(solution.factor).toBeCloseTo(switchFactor, 12)
+    expect(solution.timeScale).toBeGreaterThan(1)
+    expect(solution.profile.duration).toBeCloseTo(2, 9)
+    // Much faster than the top speed of the player: only the thresholds will say so.
+    expect(segmentPeak(solution.profile, 0)).toBeGreaterThan(motion.topSpeed * 1.5)
+  })
+
+  it('goes on continuously at the switch', () => {
+    const atSwitch = build(switchFactor, 1).duration
+    const below = solveLevers(build, duration, atSwitch + 1e-9, switchFactor)
+    const above = solveLevers(build, duration, atSwitch - 1e-9, switchFactor)
+    expect(below.timeScale).toBe(1)
+    expect(above.timeScale).toBeGreaterThan(1)
+    expect(above.timeScale).toBeLessThan(1 + 1e-6)
+    expect(Math.abs(below.factor - above.factor * above.timeScale)).toBeLessThan(1e-6)
+  })
+
+  it('says when the instant is out of reach, beyond the bounds of the search', () => {
+    const beyond = solveLevers(build, duration, 1e-4, switchFactor)
+    expect(beyond).toMatchObject({ status: 'beyond', timeScale: SPEED_FACTOR_SEARCH.maxTimeScale })
+    expect(solveLevers(build, duration, 1e6, switchFactor).status).toBe('slowest')
   })
 
   it('is deterministic', () => {
-    const a = solveFactor(build, (p) => p.duration, 6.3, 10)
-    const b = solveFactor(build, (p) => p.duration, 6.3, 10)
-    expect(a.factor).toBe(b.factor)
-    expect(pointAtDistance(spline, distanceAt(a.profile, 2))).toEqual(
-      pointAtDistance(spline, distanceAt(b.profile, 2)),
+    const a = solveLevers(build, duration, 2.3, switchFactor)
+    const b = solveLevers(build, duration, 2.3, switchFactor)
+    expect([a.factor, a.timeScale]).toEqual([b.factor, b.timeScale])
+    expect(pointAtDistance(spline, distanceAt(a.profile, 1))).toEqual(
+      pointAtDistance(spline, distanceAt(b.profile, 1)),
     )
   })
 })

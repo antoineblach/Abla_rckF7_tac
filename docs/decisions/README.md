@@ -14,7 +14,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-1.md](lot-1.md) | D-001 à D-056 |
 | [lot-2.md](lot-2.md) | D-057 à D-077 |
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
-| [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-135 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
+| [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-136 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
 
 ## Lecture
@@ -157,8 +157,9 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-128 | suite du lot 3 bis en trois parties | en vigueur | — |
 | D-129 | le mouvement sert l'intention du coach | en vigueur | non intégrée (5.3, 5.8, 5.9) |
 | D-130 | solveur à deux leviers | en vigueur | non intégrée (5.3, 5.8, 10.3) |
-| D-131 | départ différé en retard et cible avant le départ | en vigueur | non intégrée (5.8) |
+| D-131 | départ différé en retard et cible avant le départ | précisée par D-136 | non intégrée (5.8) |
 | D-132 | alertes d'accélération et de freinage | précisée par D-135 | non intégrée (4.4, 5.9, 6.5, 6.7, 7) |
 | D-133 | allure saisie, combinaison v4 et curseur de vitesse | en vigueur | non intégrée (4.1, 4.5, 6.5) |
 | D-134 | réglages v4 | en vigueur | non intégrée (4.4, 6.5) |
 | D-135 | modèle de mouvement et calibration | en vigueur | non intégrée (4.4, 5.3, 5.9) |
+| D-136 | départ différé en retard d'une course à durée imposée | en vigueur | non intégrée (5.8) |

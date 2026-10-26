@@ -121,7 +121,7 @@ export function issueMessage(issue: Issue): string {
     case 'runCutByBreakdown':
       return 'Course arrêtée par le regroupement : la suite se dessine dans le temps suivant.'
     case 'relayerLate':
-      return 'Relayeur trop loin : il n’arrive au ballon qu’à la sortie, en accélérant.'
+      return `Relayeur trop loin : il n’arrive au ballon qu’à la sortie, en pointe à ${kmh(p.speed)}${typeof p.accel === 'number' && p.accel > 1 ? `, accélérations × ${decimal(p.accel, 2)}` : ''}.`
     case 'forwardPass':
       return 'En-avant probable : la passe part vers l’avant depuis les mains.'
     case 'syncTargetMissing':
@@ -133,13 +133,9 @@ export function issueMessage(issue: Issue): string {
     case 'syncCycle':
       return 'Liens de synchronisation en boucle : liens ignorés.'
     case 'syncLate':
-      return `Synchronisation impossible : départ immédiat, arrivée en retard de ${seconds(p.late)}.`
-    case 'syncSpeedCapped':
-      return p.needed === undefined
-        ? 'Synchronisation impossible : la cible arrive avant le départ de la course ; vitesse plafonnée au seuil rouge.'
-        : `Synchronisation impossible : il faudrait ${kmh(p.needed)} de moyenne ; vitesse plafonnée au seuil rouge.`
-    case 'durationCapped':
-      return `Durée imposée inatteignable (accélérations, seuil rouge) : la course dure ${seconds(p.duration)}.`
+      return `Il aurait fallu partir ${seconds(p.late)} plus tôt : départ immédiat, course accélérée.`
+    case 'syncTargetBeforeStart':
+      return `Synchronisation impossible : la cible a lieu avant le départ de la course ; délai et vitesses enregistrés, arrivée en retard de ${seconds(p.late)}.`
     case 'runSpeedHigh':
       return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil orange.`
     case 'runSpeedTooHigh':

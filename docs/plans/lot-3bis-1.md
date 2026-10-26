@@ -271,6 +271,9 @@ Posées à la fin du bloc 1, réponses du 25/10 (propositions de B.1 retenues, D
 - Q13. Cible au-delà de la pointe : **asymptote relevée** à cible / 0,95 au-delà de 0,95 fois la pointe, a0 gardé.
 - Q14. Accélération au départ : **a0 × min(1, cible / sprint)**, sans nouveau réglage.
 
+Posée à l'étape 3, réponse du 25/10 (D-136) :
+- Q15. Départ différé en retard d'une course à durée imposée : **vitesses enregistrées**, comme une vitesse ajustée ; la durée imposée ne s'applique pas.
+
 ## Étapes
 
 - **Bloc 0**
@@ -280,7 +283,7 @@ Posées à la fin du bloc 1, réponses du 25/10 (propositions de B.1 retenues, D
 - **Bloc 2**
   - [x] **Étape 2 : modèle de profil et réglages v4.** (commit « Étape 2 : profil en a(v) et réglages v4 », après `efff65b`)
 - **Bloc 3**
-  - [ ] **Étape 3 : intentions tenues (solveur à deux leviers).**
+  - [x] **Étape 3 : intentions tenues (solveur à deux leviers).** (commit « Étape 3 : intentions tenues, solveur à deux leviers », après `328fe68`)
 - **Bloc 4**
   - [ ] **Étape 4 : alertes d'accélération et de freinage.**
 - **Bloc 5**

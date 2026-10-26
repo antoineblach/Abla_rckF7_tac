@@ -186,6 +186,12 @@ describe('breakdowns (SPEC 10.3)', () => {
     expect(compiled.issues.map((i) => i.code)).toEqual(['relayerLate'])
     expect(distance(posOf(far, A7, 5), { x: 45, y: 30 })).toBeLessThan(1e-9)
     expect(distance(posOf(far, A7, 4.9), { x: 45, y: 30 })).toBeGreaterThan(0.1)
+    // Same levers as a run (D-130): her peak speed, and her accelerations scaled if needed.
+    const relay = compiled.phases[0]?.motions.find((m) => m.source === 'relay')
+    const params = compiled.issues[0]?.params
+    expect(params?.speed).toBeGreaterThan(settings.paces.sprint)
+    expect(params?.speed).toBeCloseTo(Math.max(...(relay?.profile.v ?? [])), 12)
+    expect(params?.accel).toBe(relay?.accelFactor)
   })
 
   it('ignores a breakdown whose tackled player has no ball, with an error (D-079)', () => {

@@ -7,22 +7,24 @@
 
 ## En cours
 
-- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md` ; D-129 à D-135, non intégrées à la SPEC) : blocs 0 à 2 faits.
-- Bloc suivant : bloc 3, étape 3 (intentions tenues, solveur à deux leviers ; plan A.1, A.2).
+- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md` ; D-129 à D-136, non intégrées à la SPEC) : blocs 0 à 3 faits.
+- Bloc suivant : bloc 4, étape 4 (alertes d'accélération et de freinage ; plan A.3).
 
 ## Fait (lot 3bis-1)
 
-- Étape 0 : branche ; plans archivés ; plan validé (Q1 à Q9, 6 modifications) ; D-129 à D-134 et statuts ; parties de D-120 et D-121 « reportée à 3bis-2 » ; ligne de `fin-lot`.
-- Étape 1 : calibration (amatrice : pointe 24 km/h, a0 5,2 m/s²), comparaison des modèles (plan, B.1), Q10 à Q14 ; D-135.
-- Étape 2 : profil en a(v), `boundScale` ; `reglages.json` v4, migration v3 et message par poste ; tests sur le modèle exact (`src/test/profileMath.ts`) ; 7 images de référence régénérées.
+- Étape 0 : plan validé (Q1 à Q9) ; D-129 à D-134 ; parties de D-120 et D-121 « reportée à 3bis-2 ».
+- Étape 1 : calibration (pointe 24 km/h, a0 5,2 m/s²), Q10 à Q14 ; D-135.
+- Étape 2 : profil en a(v), `boundScale` ; `reglages.json` v4 et migration.
+- Étape 3 : deux leviers (`solveLevers`) ; codes plafonnés retirés, `syncTargetBeforeStart` ; Q15, D-136 ; `setPiecesScene` dans les tests des phases au sol.
 
 ## Reste à faire
 
-- Lot 3bis-1 : blocs 3 à 7, puis `/fin-lot` (SPEC 1.8, ARCHITECTURE, RECETTE, ligne du README sur les skills dans VS Code, PR).
+- Pour F à l'étape 7 : fixture du lot 3, ruck 2 m plus loin, passe plus en avant ; fixture du lot 3 bis, retards accélérés jusqu'à ×7.
+- Lot 3bis-1 : blocs 4 à 7, puis `/fin-lot` (SPEC 1.8, ARCHITECTURE, RECETTE, ligne du README sur les skills dans VS Code, PR).
 - Puis 3bis-2 (interactions) et 3bis-3 (positions préréglées), chacune par `/nouveau-lot` (D-128).
-- Lot 3 bis : les 3 vérifications manuelles de `docs/RECETTE.md`, section « Lot 3 bis » (Ctrl+F5 d'abord sur les deux PC).
+- Lot 3 bis : les 3 vérifications manuelles de `docs/RECETTE.md` (Ctrl+F5 d'abord).
 - D-119 à D-121, prises seul pendant le lot 3 bis : à relire ; intégrées au `/fin-lot` de 3bis-1, sauf les parties reportées à 3bis-2.
-- Vérifications de terrain, non bloquantes : conflit Drive réel (correction du lot 3) ; modèle enregistré sur un PC, appliqué sur l'autre ; GIF sur WhatsApp avec et sans allègement ; PDF N&B sur la laser ; cahier de jeu sur le téléphone.
+- Vérifications de terrain, non bloquantes : conflit Drive réel ; modèle enregistré sur un PC, appliqué sur l'autre ; GIF sur WhatsApp ; PDF N&B sur la laser ; cahier de jeu sur le téléphone.
 - Puis lot 4 (défense simulée ; le plan de 3bis-1, section G, liste ce qui le touche) et lot 5 (ateliers).
 
 ## Pistes notées pour plus tard (D-118)
@@ -44,6 +46,7 @@
 - Seconde rangée du transport défilante à 1280 px, et à 1440 px avec la case « Vitesses » (D-121) ; titre masqué sous 1500 px (D-077).
 - GIF en portrait d'une combinaison large : terrain vide au-dessus et au-dessous (D-061). Même GIF différent entre Chromium et Firefox (texte).
 - Morceau principal de 557 Ko signalé par Vite.
+- Compilation de la combinaison réaliste : 3 puis 14 ms (leviers, D-130).
 
 ## Pièges rencontrés
 

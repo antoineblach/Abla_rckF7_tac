@@ -234,7 +234,7 @@ export function sevenVsSevenWithOptions(): Play {
  * Set pieces of lot 3, source of the frozen fixture `play-v2-lot3.json` (never change it: the
  * fixture must stay equal to it). 7 v 7 in line, ball on the ground next to A4.
  * T1: A4 picks the ball up at once, runs into contact; ruck (support A5, relayer A3, guard).
- * T2: A3 passes to A2 who runs forward (forward pass).
+ * T2: A3 passes to A2 who runs forward (a forward pass until lot 3bis-1: see `setPiecesScene`).
  * T3 option A (default): A2 kicks long to a point. T3 option B: maul on A2 (support A1,
  * relayer A3, jackal), then T4: A3 kicks a restart to B7.
  */
@@ -275,6 +275,26 @@ export function setPiecesPlay(): Play {
       phase(uuid(104), P.t3b, [
         kick(uuid(440), P.A(3), { receiverId: P.B(7) }, 0.2, { kind: 'restart', flightTime: 2.5 }),
       ]),
+    ],
+  }
+}
+
+/**
+ * The set pieces of lot 3 as they were played then, for the tests of the set pieces themselves:
+ * without the imposed durations of T1, met exactly since lot 3bis-1 (6 m in 1.5 s, D-129). The
+ * runs of A4 and A5 are cut by the ruck (D-079), which forms behind: the pass of T2 is forward.
+ */
+export function setPiecesScene(): Play {
+  const play = setPiecesPlay()
+  return {
+    ...play,
+    phases: [
+      phase(P.t1, null, [
+        run(uuid(400), P.A(4), [{ x: 46, y: 36 }]),
+        run(uuid(401), P.A(5), [{ x: 45, y: 37 }]),
+        breakdown(uuid(402), P.A(4), P.A(5), P.A(3), 1.5, { contest: 'guard' }),
+      ]),
+      ...play.phases.slice(1),
     ],
   }
 }

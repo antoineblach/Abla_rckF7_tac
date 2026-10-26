@@ -182,6 +182,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : D-129 ; un repli lisible pour le seul cas impossible même à vitesse infinie.
 - Alternatives écartées : arriver en retard (comportement du lot 3 bis) ; course jouée à la plus grande mise à l'échelle (mouvement absurde, Q4).
 - Origine : réponses Q1 et Q4.
+- Précisée par D-136 (durée imposée d'une course en départ différé en retard).
 
 ### D-132 : alertes d'accélération et de freinage
 - Date : 2026-10-25
@@ -218,3 +219,10 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : retour de séance (accélérations trop lentes) ; modèle de référence (Samozino et al. 2016) ; le trapèze manque les trois temps de 45 à 60 ms, faute de pouvoir être à la fois vif au départ et lent à l'approche de la pointe ; la moyenne d'un intervalle dépend de la longueur du segment ; aucune vitesse saisie plafonnée en silence ; D-111 (amatrice au-delà de 20 à 25 km/h : irréaliste).
 - Alternatives écartées : trapèze à 3,5 m/s², mêmes durées à 0,15 s près mais départ moins vif (Q10) ; valeurs d'élite (Q11) ; pic mesuré par `accelOf` (Q12) ; plancher d'accélération, asymptote relevée avec a0 proportionnel (Q13) ; même a0 pour toutes les allures, réglage séparé (Q14) ; interpolation exponentielle exacte dans chaque intervalle.
 - Origine : bloc 1 (recherche, script jetable non commité) ; réponses Q10 à Q14, propositions retenues.
+
+### D-136 : départ différé en retard d'une course à durée imposée
+- Date : 2026-10-25
+- Décision : une course en départ différé qui a aussi une durée imposée, et dont le délai calculé est négatif, est traitée comme une vitesse ajustée (D-131) : la durée imposée ne s'applique pas ; les leviers de D-130 partent des vitesses enregistrées des segments avant le rendez-vous, les segments suivants gardent leurs vitesses enregistrées. Partie à 0, elle prolonge la course lancée qui la précède, s'il y en a une (D-106). Au-delà de la borne de recherche, une durée imposée et un relayeur restent tenus par la mise à l'échelle du temps du profil entier (garde numérique ; la cible avant le départ de D-131 ne concerne que les liens). Précise D-131.
+- Raison : D-107 (durée imposée et vitesse ajustée s'excluent) ; rendez-vous à la fin, cas par défaut : même résultat que des leviers partis des vitesses de la durée.
+- Alternatives écartées : leviers partis des vitesses déjà multipliées par le facteur de la durée imposée, segments suivants à ce facteur (un facteur de base de plus dans le moteur).
+- Origine : question de l'étape 3, réponse de l'utilisateur.

@@ -261,47 +261,68 @@ export function endSpeedOf(profile: SpeedProfile): number {
   return profile.v[profile.v.length - 1] ?? 0
 }
 
-export interface FactorSolution {
+export interface LeverSolution {
+  /** Common factor f on the target speeds (lever 1). */
   factor: number
+  /** Time scale k of the same segments (lever 2), 1 when lever 1 is enough. */
+  timeScale: number
   profile: SpeedProfile
-  /** 'slow': not reachable in time even at `maxFactor`; 'fast': too early even at the minimum. */
-  capped: 'none' | 'slow' | 'fast'
+  /**
+   * 'met': the wanted instant is met; 'beyond': too late even at the largest time scale;
+   * 'slowest': too early even at the smallest factor.
+   */
+  status: 'met' | 'beyond' | 'slowest'
 }
 
 /**
- * Common factor on target speeds so that `timeOf(profile)` equals `wanted` (SPEC 5.3). The time
- * decreases with the factor; bisection on its logarithm with a fixed number of iterations, between
- * the minimum factor and `maxFactor` (the cap of the red threshold).
+ * Two levers so that `timeOf(profile)` equals `wanted` (D-130); the time decreases with each.
+ * Lever 1, a common factor f on the target speeds, bounds unchanged: alone to slow down, and to
+ * speed up until `switchFactor`, where the fastest target reaches the top speed of the player.
+ * Lever 2 beyond, the time scale k >= 1 of the segments (`ProfileInput.boundScale`). Bisection on
+ * log f, then on log k, with a fixed number of iterations.
  */
-export function solveFactor(
-  build: (factor: number) => SpeedProfile,
+export function solveLevers(
+  build: (factor: number, timeScale: number) => SpeedProfile,
   timeOf: (profile: SpeedProfile) => number,
   wanted: number,
-  maxFactor: number,
-): FactorSolution {
-  const top = Math.max(maxFactor, SPEED_FACTOR_SEARCH.minFactor)
-  const fastest = build(top)
-  if (timeOf(fastest) >= wanted) {
-    const capped = timeOf(fastest) > wanted + 1e-9 ? 'slow' : 'none'
-    return { factor: top, profile: fastest, capped }
+  switchFactor: number,
+): LeverSolution {
+  const { iterations, minFactor, maxTimeScale } = SPEED_FACTOR_SEARCH
+  const top = Math.max(switchFactor, minFactor)
+  /** Bisection between e^lo (too late) and e^hi (in time) of `at`; returns the side in time. */
+  const bisect = (lo: number, hi: number, at: (x: number) => SpeedProfile): number => {
+    for (let i = 0; i < iterations; i++) {
+      const mid = (lo + hi) / 2
+      if (timeOf(at(Math.exp(mid))) > wanted) lo = mid
+      else hi = mid
+    }
+    return Math.exp(hi)
   }
-  let lo = Math.log(SPEED_FACTOR_SEARCH.minFactor)
-  let hi = Math.log(top)
-  const slowest = build(Math.exp(lo))
-  if (timeOf(slowest) < wanted) {
-    return { factor: Math.exp(lo), profile: slowest, capped: 'fast' }
+  /** The solution found, stretched by the few 1e-15 s the bisection leaves. */
+  const exact = (factor: number, timeScale: number): LeverSolution => {
+    const found = build(factor, timeScale)
+    const time = timeOf(found)
+    const profile = time > 0 ? scaleTime(found, wanted / time) : found
+    return { factor, timeScale, profile, status: 'met' }
   }
-  for (let i = 0; i < SPEED_FACTOR_SEARCH.iterations; i++) {
-    const mid = (lo + hi) / 2
-    if (timeOf(build(Math.exp(mid))) > wanted) lo = mid
-    else hi = mid
+  if (timeOf(build(top, 1)) <= wanted) {
+    const slowest = build(minFactor, 1)
+    if (timeOf(slowest) < wanted) {
+      return { factor: minFactor, timeScale: 1, profile: slowest, status: 'slowest' }
+    }
+    return exact(
+      bisect(Math.log(minFactor), Math.log(top), (f) => build(f, 1)),
+      1,
+    )
   }
-  const factor = Math.exp(hi)
-  const found = build(factor)
-  const time = timeOf(found)
-  // The bisection stops a few 1e-15 s away: stretch the time by as much, so that the wanted
-  // instant is met exactly (speeds change by the same negligible ratio).
-  return { factor, profile: time > 0 ? scaleTime(found, wanted / time) : found, capped: 'none' }
+  const fastest = build(top, maxTimeScale)
+  if (timeOf(fastest) > wanted) {
+    return { factor: top, timeScale: maxTimeScale, profile: fastest, status: 'beyond' }
+  }
+  return exact(
+    top,
+    bisect(0, Math.log(maxTimeScale), (k) => build(top, k)),
+  )
 }
 
 /** Profile stretched to last exactly `duration` (a solved factor or a late relayer). */

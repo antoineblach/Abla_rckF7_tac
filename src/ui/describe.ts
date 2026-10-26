@@ -63,11 +63,12 @@ export function rendezVousText(sync: RunSync): string {
 export function syncResultText(result: RunSyncResult | null): string {
   if (!result) return 'Lien ignoré.'
   if (result.status === 'unreached') return 'Cible jamais atteinte : lien ignoré.'
-  if (result.adjust === 'speed') {
-    const capped = result.status === 'capped' ? ', plafonnées au seuil rouge' : ''
-    return `Vitesses × ${decimal(result.factor, 2)}${capped}.`
-  }
-  if (result.status === 'late') return 'Départ immédiat : arrivée en retard.'
+  if (result.status === 'beforeStart') return 'Cible avant le départ : arrivée en retard.'
+  const accel =
+    result.accelFactor > 1 ? `, accélérations × ${decimal(result.accelFactor, 2)}` : ''
+  const factors = `× ${decimal(result.factor, 2)}${accel}`
+  if (result.adjust === 'speed') return `Vitesses ${factors}.`
+  if (result.status === 'late') return `Départ immédiat, course accélérée : vitesses ${factors}.`
   return `Délai calculé : ${formatSeconds(result.delay)}.`
 }
 
