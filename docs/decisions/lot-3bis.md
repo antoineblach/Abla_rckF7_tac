@@ -26,7 +26,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : réalisme (note 3), inverse exacte pour la synchronisation, déterminisme ; ajuster le ressenti sans PR.
 - Alternatives écartées : modèle exponentiel (intégration numérique, inversion approchée) ; valeurs dans `defaults.ts` seulement (proposition).
 - Origine : plan ; réponse Q9 (valeurs retenues, profil réglable).
-- Remplacée en partie par D-129 (plus de plafond au seuil rouge) et D-130 (solveur à deux leviers).
+- Remplacée en partie par D-129 (plus de plafond au seuil rouge), D-130 (solveur à deux leviers) et D-135 (passe avant en a(v), valeurs calibrées).
 
 ### D-106 : course qui finit lancée
 - Date : 2026-10-23
@@ -124,6 +124,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : choix de l'utilisateur.
 - Alternatives écartées : tout faire dans ce lot.
 - Origine : réponse Q13.
+- Remplacée en partie par D-135 (accélération exponentielle, traitée au lot 3bis-1).
 
 ### D-119 : lâcher posé par les outils pour une joueuse qui ramasse le ballon
 - Date : 2026-10-24
@@ -188,6 +189,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : D-129 (seuls les seuils signalent) ; avec a(v), le pic d'accélération est au départ et celui de freinage juste avant un arrêt ou un rendez-vous, sous le jeton ou une poignée.
 - Alternatives écartées : carré à « ! », triangle orienté (Q5) ; calque renommé ou deux calques (Q6) ; alerte latérale (Q7) ; pastille au pic exact (cachée par le jeton).
 - Origine : prompt (A) ; réponses Q5 à Q7 ; validation du plan (modification 4).
+- Précisée par D-135 (valeurs des seuils, mesure du pic d'accélération).
 
 ### D-133 : allure saisie, combinaison v4 et curseur de vitesse
 - Date : 2026-10-25
@@ -202,3 +204,17 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : comme le sprint (D-111, D-121) : les valeurs jamais modifiées suivent la calibration, les choix de l'utilisateur sont gardés.
 - Alternatives écartées : aucune proposée.
 - Origine : prompt (E), proposition retenue.
+
+### D-135 : modèle de mouvement et calibration
+- Date : 2026-10-25
+- Décision :
+  - passe avant du profil en a(v) = a0 · (1 − v / vmax), vmax = `motion.topSpeed` (pointe de la joueuse), nulle au-delà ; intervalles représentés à accélération constante entre leurs deux vitesses (écart au modèle exact : 9 ms sur un segment de 10 m, 48 ms sur 50 m) ; vitesse de fin d'intervalle par Newton à 5 itérations depuis l'estimation à accélération constante ; passe arrière inchangée ;
+  - défauts d'une joueuse amatrice : pointe 24 km/h (6,67 m/s), a0 5,2 m/s² (τ 1,28 s) ; freinage 4 m/s², latérale 4 m/s², vitesse minimale en virage 1 m/s et allures 2 / 4 / 5,5 m/s inchangés. Calibration : France à 7 féminine (10, 20 et 50 m), temps corrigés de +0,5 s (Haugen) : élite 28,6 km/h, a0 6,2 m/s², τ 1,28 s ; amatrice : 0,84 fois la pointe, même τ (HYPOTHÈSE). Sources et chiffres : plan, section B.1 ;
+  - seuils d'alerte : accélération 6 et 8 m/s², freinage 5 et 7 m/s² ; pic d'accélération mesuré par l'accélération instantanée du modèle au début de chaque intervalle (a(v) × k²), freinage par `accelOf` ;
+  - cible au-delà de 0,95 fois la pointe : l'asymptote du segment devient cible / 0,95, a0 gardé (0,95 : HYPOTHÈSE dans `defaults.ts`) ;
+  - accélération au départ selon la cible : a0 × min(1, cible / sprint), soit 1,9 m/s² à la marche et 3,8 m/s² au trot ; aucun nouveau réglage ;
+  - test du profil calibré, cible à 0,95 fois la pointe : 10 et 20 m en un segment, 50 m en deux segments de 25 m, tolérance 0,05 s.
+  Remplace en partie D-105 (loi de la passe avant) et D-118 (accélération exponentielle, traitée) ; précise D-132 (valeurs, mesure du pic d'accélération).
+- Raison : retour de séance (accélérations trop lentes) ; modèle de référence (Samozino et al. 2016) ; le trapèze manque les trois temps de 45 à 60 ms, faute de pouvoir être à la fois vif au départ et lent à l'approche de la pointe ; la moyenne d'un intervalle dépend de la longueur du segment ; aucune vitesse saisie plafonnée en silence ; D-111 (amatrice au-delà de 20 à 25 km/h : irréaliste).
+- Alternatives écartées : trapèze à 3,5 m/s², mêmes durées à 0,15 s près mais départ moins vif (Q10) ; valeurs d'élite (Q11) ; pic mesuré par `accelOf` (Q12) ; plancher d'accélération, asymptote relevée avec a0 proportionnel (Q13) ; même a0 pour toutes les allures, réglage séparé (Q14) ; interpolation exponentielle exacte dans chaque intervalle.
+- Origine : bloc 1 (recherche, script jetable non commité) ; réponses Q10 à Q14, propositions retenues.

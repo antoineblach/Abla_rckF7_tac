@@ -14,7 +14,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-1.md](lot-1.md) | D-001 à D-056 |
 | [lot-2.md](lot-2.md) | D-057 à D-077 |
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
-| [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-134 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
+| [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-135 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
 
 ## Lecture
@@ -131,7 +131,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-102 | le dépôt reste public | en vigueur | — |
 | D-103 | portée du lot 3 bis | en vigueur | — |
 | D-104 | combinaison v3 et migration | en vigueur | 4.1, 4.5 |
-| D-105 | profil de vitesse | remplacée en partie par D-129 et D-130 | 5.3 |
+| D-105 | profil de vitesse | remplacée en partie par D-129, D-130 et D-135 | 5.3 |
 | D-106 | course qui finit lancée | en vigueur | 5.3 |
 | D-107 | durée imposée | remplacée en partie par D-129 | 5.3 |
 | D-108 | liens de synchronisation | remplacée en partie par D-129 et D-131 | 5.8 |
@@ -144,7 +144,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-115 | rendu des segments rapides | en vigueur | 13.3 |
 | D-116 | lecture et pause à la barre d'espace | en vigueur | 6.2, 7 |
 | D-117 | vitesses en km/h | précisée par D-133 | 6.5 |
-| D-118 | pistes reportées | en vigueur | — |
+| D-118 | pistes reportées | remplacée en partie par D-135 | — |
 | D-119 | lâcher posé par les outils pour une joueuse qui ramasse le ballon | en vigueur | non intégrée (5.4, 6.2) |
 | D-120 | précisions de l'éditeur des liens et des segments | en vigueur | non intégrée (6.2 : raccourcis lus sur la touche physique) ; le reste : non intégrée (5.8, 6.5), reportée à 3bis-2 |
 | D-121 | précisions de l'interface du lot 3 bis | en vigueur | non intégrée (6.1, 6.5, 6.7), sauf « Changer la cible » et « Délai calculé par le lien » : non intégrée (6.5), reportée à 3bis-2 |
@@ -158,6 +158,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-129 | le mouvement sert l'intention du coach | en vigueur | non intégrée (5.3, 5.8, 5.9) |
 | D-130 | solveur à deux leviers | en vigueur | non intégrée (5.3, 5.8, 10.3) |
 | D-131 | départ différé en retard et cible avant le départ | en vigueur | non intégrée (5.8) |
-| D-132 | alertes d'accélération et de freinage | en vigueur | non intégrée (4.4, 5.9, 6.5, 6.7, 7) |
+| D-132 | alertes d'accélération et de freinage | précisée par D-135 | non intégrée (4.4, 5.9, 6.5, 6.7, 7) |
 | D-133 | allure saisie, combinaison v4 et curseur de vitesse | en vigueur | non intégrée (4.1, 4.5, 6.5) |
 | D-134 | réglages v4 | en vigueur | non intégrée (4.4, 6.5) |
+| D-135 | modèle de mouvement et calibration | en vigueur | non intégrée (4.4, 5.3, 5.9) |
