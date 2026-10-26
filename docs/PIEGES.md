@@ -39,7 +39,7 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 
 - `prettier --write` reformate les fichiers : relire avant un Edit ou un Write.
 - L'outil Bash échoue sur les longs heredocs, et une commande qui lit l'entrée standard (`cat > fichier` sans heredoc) bloque : écrire les gros fichiers avec Write ou Edit, les scripts dans un fichier.
-- Les cases d'un plan sont indentées sous leur bloc (`  - [ ]`) : le motif `^- \[[ x]\]` de `/reprise` n'en trouve aucune ; chercher `^\s*- \[[ x]\]`.
+- Les cases d'un plan sont indentées sous leur bloc (`  - [ ]`) : le motif `^- \[[ x]\]` de `/reprise` n'en trouve aucune ; chercher `^\s*- \[[ x]\]` (corrigé dans le skill).
 
 ## Vitest et images de référence
 
