@@ -221,7 +221,7 @@ Reprendre deux ou trois combinaisons réelles : ressenti du mouvement (accélér
 
 ## Lot 3bis-1 : le mouvement
 
-Le mouvement sert l'intention du coach : profil calibré en a(v), solveur à deux leviers sans plafond, alertes d'accélération et de freinage, allure saisie et curseur de vitesse, combinaisons et réglages en version 4 (`docs/plans/lot-3bis-1.md`, D-129 à D-138). Les combinaisons existantes ne sont pas confrontées au nouveau mouvement : ce sont des essais jetables (plan, section F).
+Le mouvement sert l'intention du coach : profil calibré en a(v), solveur à deux leviers sans plafond, alertes d'accélération et de freinage, allure saisie et curseur de vitesse, combinaisons et réglages en version 4 (`docs/archive/plans/lot-3bis-1.md`, D-129 à D-138). Les combinaisons existantes ne sont pas confrontées au nouveau mouvement : ce sont des essais jetables (plan, section F).
 
 ### Comportements couverts par les tests
 

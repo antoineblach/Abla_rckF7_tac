@@ -1,22 +1,24 @@
 # État du projet
 
 - Mise à jour : 2026-11-03
-- Branche : `lot-3bis-1` (depuis `main` à `8467815`), poussée sur `origin`, PR #9 vers `main` ouverte par `/fin-lot` le 03/11, non fusionnée
-- `main` : lots 1, 2, 3 et 3 bis et chantier `docs-outils` fusionnés (PR #1 à #8 ; PR #8 le 25/10, commit de fusion `8467815`), CI verte, déployés sur Pages
+- Branche : `frise-spec` (depuis `main` à `d33313f`), poussée sur `origin` ; PR prévue à l'étape 3, sans fusion
+- `main` : lots 1, 2, 3, 3 bis et 3bis-1 et chantier `docs-outils` fusionnés (PR #1 à #9 ; PR #9 le 03/11, commit de fusion `d33313f`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` identique à D-055, vérifiée par `gh api` le 23/10 (D-102)
 
 ## En cours
 
-- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md`, D-129 à D-138) : étapes 0 à 6 faites, étape 7 retirée le 03/11 ; `/fin-lot` fait le 03/11 : SPEC 1.8 (D-119 à D-121, sauf les parties reportées à 3bis-2, et D-129 à D-138 intégrées), ARCHITECTURE, RECETTE, README, PR.
-- Suite : CI de la PR verte, fusion par l'utilisateur, puis les 3 vérifications manuelles et la séance d'usage libre de `docs/RECETTE.md` (section « Lot 3bis-1 ») ; retour par `/correction-recette`.
+- Chantier `frise-spec`, SPEC 1.9 : frise chronologique à la place des temps (`docs/plans/frise-spec.md`, D-139 à écrire), sans code. Plan validé le 03/11 : Q1 à Q13 selon les recommandations, 5 précisions reportées.
+- Étape 0 faite. Suite : étape 1 (bloc A : D-139, statuts, SPEC 2 à 5), sur demande de l'utilisateur.
+- Lot 3bis-1 : vérifications manuelles faites et validées par l'utilisateur le 03/11.
 
 ## Reste à faire
 
-- Après la fusion de 3bis-1 : `/changement-spec` frise chronologique (décision de l'utilisateur du 03/11), avant 3bis-2, 3bis-3 et le lot 4.
-- Puis 3bis-2 (interactions ; il intègre le reste de D-120 et deux points de D-121, « reportée à 3bis-2 ») et 3bis-3 (positions préréglées), chacune par `/nouveau-lot` (D-128).
+- Après la fusion de `frise-spec` : `/nouveau-lot` pour frise-1, frise-2, frise-3 et frise-4 (plan, section 7), avant 3bis-2, 3bis-3 et le lot 4.
+- Puis 3bis-2 réduit (menu du clic droit, même course pour plusieurs joueuses) et 3bis-3 (positions préréglées), chacune par `/nouveau-lot` (D-128).
+- Lot 3bis-1 : séance d'usage libre (`docs/RECETTE.md`), non signalée comme faite ; retour par `/correction-recette`.
 - Lot 3 bis : les 3 vérifications manuelles de `docs/RECETTE.md` (Ctrl+F5 d'abord).
 - Vérifications de terrain, non bloquantes : conflit Drive réel ; modèle enregistré sur un PC, appliqué sur l'autre ; GIF sur WhatsApp ; PDF N&B sur la laser ; cahier de jeu sur le téléphone.
-- Puis lot 4 (défense simulée ; le plan de 3bis-1, section G, liste ce qui le touche) et lot 5 (ateliers).
+- Puis lot 4 (défense simulée ; le plan archivé de 3bis-1, section G, liste ce qui le touche) et lot 5 (ateliers).
 
 ## Pistes notées pour plus tard (D-118)
 

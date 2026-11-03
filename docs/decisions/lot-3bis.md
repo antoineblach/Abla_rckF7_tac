@@ -160,7 +160,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 
 ## Lot 3bis-1 : le mouvement
 
-Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses Q1 à Q9 et 6 modifications de l'utilisateur. Origine commune : retour de la séance d'usage du 24/10 (accélérations trop lentes et trop contraignantes ; vitesses à calibrer avec un curseur à repères ; les plafonnements « créent le désordre ») ; règle de l'utilisateur : ne jamais bloquer, seulement signaler.
+Plan : `docs/archive/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses Q1 à Q9 et 6 modifications de l'utilisateur. Origine commune : retour de la séance d'usage du 24/10 (accélérations trop lentes et trop contraignantes ; vitesses à calibrer avec un curseur à repères ; les plafonnements « créent le désordre ») ; règle de l'utilisateur : ne jamais bloquer, seulement signaler.
 
 ### D-129 : le mouvement sert l'intention du coach
 - Date : 2026-10-25
