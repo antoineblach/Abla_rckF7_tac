@@ -219,6 +219,35 @@ Indispensables et impossibles à automatiser, après le déploiement et après a
 
 Reprendre deux ou trois combinaisons réelles : ressenti du mouvement (accélérations, virages, courses lancées), profil ajusté dans les réglages si besoin, vitesses par segment, rendez-vous calés sur des passes, liste des actions, barre d'espace ; puis faire un retour avec `/correction-recette`.
 
+## Lot 3bis-1 : le mouvement
+
+Le mouvement sert l'intention du coach : profil calibré en a(v), solveur à deux leviers sans plafond, alertes d'accélération et de freinage, allure saisie et curseur de vitesse, combinaisons et réglages en version 4 (`docs/plans/lot-3bis-1.md`, D-129 à D-138). Les combinaisons existantes ne sont pas confrontées au nouveau mouvement : ce sont des essais jetables (plan, section F).
+
+### Comportements couverts par les tests
+
+| Comportement | Tests |
+|---|---|
+| Profil calibré : 2,62, 4,24 et 8,98 s à 10, 20 et 50 m depuis l'arrêt contre le modèle exact (tolérance 0,05 s) ; accélération décroissante avec la vitesse, nulle au-delà de la pointe ; a0 selon la cible (marche, trot) ; cible au-delà de 0,95 fois la pointe atteinte ; départ lancé ; inverse exacte et continuité | `engine/profile.test.ts` (modèle exact dans `test/profileMath.ts`) |
+| Solveur à deux leviers : durée imposée très courte tenue exactement, vitesse de départ d'une course lancée continue ; vitesse ajustée au-delà des bornes (rendez-vous exact, vitesse continue, segments suivants inchangés) ; départ différé en retard (départ à 0, à l'heure, `syncLate`) ; durée imposée écartée dans ce cas (D-136) ; cible avant le départ (repli, `syncTargetBeforeStart`) ; relayeur trop loin (arrivée exacte, `relayerLate` avec la pointe et le facteur) ; seuils modifiés sans effet sur le mouvement | `engine/profile.test.ts`, `engine/runs.test.ts`, `engine/sync.test.ts`, `engine/breakdown.test.ts` |
+| Alertes d'accélération et de freinage : silence dans les bornes, orange puis rouge sur les pics, pics mesurés après les leviers (× k²), course arrêtée par un regroupement jugée sur sa partie courue ; losanges hors des extrémités du segment, au plus près du pic, segment court | `engine/runs.test.ts`, `engine/evaluate.test.ts` |
+| Losanges « + » et « − » orange et rouge sur le calque du lecteur (aucun calque désactivé), dès que la joueuse atteint leur point, dans l'éditeur hors des jetons dans les deux thèmes d'écran (images de référence) ; jamais dans le GIF, le PDF ni les vignettes | `render/speeds.test.ts`, `export/speeds.test.ts` |
+| Combinaison v4 : v3 migrée sans changement (`play-v3-lot3bis.json`), fixture v4 figée valide, version 5 refusée comme future ; allure saisie jouée comme la même vitesse saisie sur chaque segment ; fichier v1 réécrit en v4 | `model/migrations.test.ts`, `model/schema.test.ts`, `engine/runs.test.ts`, `io/FolderStore.test.ts` |
+| `reglages.json` v4 : v3 à l'ancien profil remplacé par le profil calibré, valeurs changées listées pour le message ; valeurs du coach gardées ; v1 et v2 migrés jusqu'à v4 ; messages du profil et du sprint une fois par poste ; réglages écrits depuis l'inspecteur, message affiché | `model/settings.test.ts`, `state/prefs.test.ts` ; `run-speeds.chromium.spec.ts` |
+| Curseur : aimantation près d'un repère, allure nommée au relâchement sur un repère, vitesse saisie ailleurs, valeur au clavier égale à un repère, bornes ; bout en bout : glisser, relâcher, une étape d'annulation, fichier v4 enregistré en m/s | `ui/speedSlider.test.ts` ; `run-speeds.chromium.spec.ts` |
+| Interface : facteurs d'une durée imposée, accélération et freinage d'un segment, allure saisie nommée « vitesse saisie » ; durée imposée trop courte tenue, avec ses facteurs et ses alertes, de bout en bout | `ui/describe.test.ts` ; `run-speeds.chromium.spec.ts` |
+| Déterminisme ; saut direct égal à la lecture continue avec le nouveau profil et les leviers | `engine/runs.test.ts`, `engine/evaluate.test.ts` |
+
+### Vérifications manuelles
+
+Indispensables et impossibles à automatiser, après le déploiement et après avoir rechargé la page (Ctrl+F5) sur les deux PC :
+- [ ] Ressenti du mouvement dans le lecteur, sur deux ou trois courses tracées pour l'occasion : départs, freinages et virages crédibles pour une joueuse amatrice.
+- [ ] Curseur de vitesse à la souris : aimantation aux repères Marche, Trot et Sprint sensible sans gêner, repères et zones orange et rouge lisibles.
+- [ ] Losanges d'accélération et de freinage (une durée imposée très courte suffit) : distincts des pastilles de vitesse, hors du jeton et des poignées, lisibles dans les thèmes Écran et Contraste fort.
+
+### Séance d'usage libre
+
+Tracer quelques courses et intentions (durées imposées, liens, regroupements) : ressenti du mouvement, curseur, réglages de la pointe et des seuils, pastilles ; puis faire un retour avec `/correction-recette`.
+
 ## Lot 4 : défense simulée
 
 Comportements attendus, à couvrir par les tests (D-054). Les vérifications manuelles (au plus 5) et la séance d'usage libre seront précisées en fin de lot.

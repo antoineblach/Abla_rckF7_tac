@@ -131,7 +131,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Décision : précision de D-110. Les outils Passe et Jeu au pied posent « à la réception », délai 0, quand la joueuse n'a pas le ballon au début du temps, y compris quand elle ne le reçoit pas encore (la passe attend une réception tracée ensuite) ; **sauf** si elle l'obtient en le ramassant au sol : lâcher à instant fixe, à l'instant du ramassage, comme avant (D-015). Une joueuse qui a le ballon au début du temps garde l'instant fixe.
 - Raison : un ramassage n'est pas une réception (D-110 : arrivée d'une passe ou d'un jeu au pied, sortie d'un regroupement) ; « à la réception » ne se déclencherait jamais et l'outil créerait une passe en erreur, là où l'instant fixe marchait (combinaisons du lot 3 avec ballon au sol).
 - Alternatives écartées : compter le ramassage comme une réception dans le moteur (change la règle de D-110) ; « à la réception » sans exception (passe en erreur).
-- Origine : cas non couvert par le plan, constaté à l'étape 6 ; signalé à l'utilisateur.
+- Origine : cas non couvert par le plan, constaté à l'étape 6 ; signalé à l'utilisateur ; relue et validée par l'utilisateur le 03/11.
 
 ### D-120 : précisions de l'éditeur des liens et des segments
 - Date : 2026-10-24
@@ -143,7 +143,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
   - suppression du dernier point d'une course (la course disparaît) : les liens visant ce point sont retirés, ceux visant sa fin sont gardés (« cible supprimée », comme pour une action supprimée).
 - Raison : cohérence avec D-107 à D-109 et D-114 ; aucun geste bloqué ; clavier français.
 - Alternatives écartées : sortir du choix de la cible au premier refus ; touches lues sur le caractère seulement (Maj nécessaire en AZERTY).
-- Origine : écriture de l'étape 6.
+- Origine : écriture de l'étape 6 ; relue et validée par l'utilisateur le 03/11.
 
 ### D-121 : précisions de l'interface du lot 3 bis
 - Date : 2026-10-24
@@ -156,7 +156,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
   - avec la case « Vitesses », la seconde rangée de la barre de lecture défile aussi à 1440 px (écart connu à 1280 px, D-077).
 - Raison : un message à chaque ouverture serait pénible ; lisibilité de la liste dans 176 px ; mêmes tests dans les deux navigateurs sans duplication.
 - Alternatives écartées : réécrire `reglages.json` en v3 à l'ouverture (le plan veut la réécriture au prochain enregistrement) ; message à chaque ouverture.
-- Origine : écriture de l'étape 7.
+- Origine : écriture de l'étape 7 ; relue et validée par l'utilisateur le 03/11.
 
 ## Lot 3bis-1 : le mouvement
 
@@ -241,7 +241,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
   Précise D-132.
 - Raison : pastilles hors du jeton et de la poignée dans les deux thèmes d'écran (image de référence) ; emplacement stable d'une modification à l'autre (sans égalité tranchée par l'arrondi) ; « − » (U+2212) peut manquer dans la police.
 - Alternatives écartées : zone au-delà du seuil orange quelle que soit la pastille ; dégagement de 2 m (losange contre le jeton en Contraste fort) ; signes en texte.
-- Origine : écriture de l'étape 4, prise seul : à relire.
+- Origine : écriture de l'étape 4, prise seul ; relue et validée par l'utilisateur le 03/11.
 
 ### D-138 : précisions de l'interface du lot 3bis-1
 - Date : 2026-11-03
@@ -254,4 +254,4 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
   Précise D-132, D-133 et D-134.
 - Raison : libellés distincts de « Vitesse du segment » et « Allure » (recherche par libellé) ; un geste, une étape d'annulation ; facteurs affichés une seule fois.
 - Alternatives écartées : curseur à la place de la liste (« Allure de la course » doit rester un choix explicite) ; ligne d'alerte séparée par segment (les messages sont déjà dans les pastilles).
-- Origine : écriture de l'étape 6, prise seul : à relire.
+- Origine : écriture de l'étape 6, prise seul ; relue et validée par l'utilisateur le 03/11.

@@ -34,6 +34,13 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 - **Vitesses irréalistes** : au-delà de 20 km/h (orange) et 25 km/h (rouge), seuils réglables ; pastille dans l'éditeur, calque « Vitesses » dans le lecteur, jamais dans les exports.
 - **Barre d'espace** : un appui bref lance ou met en pause la lecture ; maintenue avec un glisser, elle déplace le terrain.
 
+### Le mouvement (lot 3bis-1)
+
+- **Mouvement calibré** : une joueuse amatrice part vite et approche progressivement sa pointe (24 km/h par défaut, « Pointe de la joueuse » dans les réglages). Un ancien `reglages.json` resté aux accélérations par défaut du lot 3 bis passe aux valeurs calibrées, avec un message qui les liste.
+- **Intentions tenues** : une durée imposée, un lien (« Départ différé » ou « Vitesse ajustée ») et le relayeur au ballon à la sortie sont toujours tenus exactement ; au besoin, la course va plus vite et accélère plus fort. Rien n'est plafonné : les seuils signalent seulement. L'inspecteur affiche les facteurs (« Durée imposée : vitesses × 1,25, accélérations × 1,60. »).
+- **Accélérations et freinages irréalistes** : seuils orange et rouge en m/s², réglables ; losange « + » (accélération) ou « − » (freinage) dans l'éditeur et sous le calque « Vitesses » du lecteur, jamais dans les exports.
+- **Curseur de vitesse** (inspecteur, course et segment) : glisser en km/h, aimanté aux repères Marche, Trot et Sprint ; relâché sur un repère, l'allure nommée est gardée (elle suit les réglages), ailleurs la vitesse est saisie. Flèches du clavier : 0,1 km/h.
+
 ### Exports GIF et PDF
 
 - **GIF** (« Exporter GIF », combinaison ouverte) : orientation (portrait, paysage, carré), un GIF enchaîné ou un GIF par option, ralenti puis vitesse réelle (ou une seule vitesse), qualité standard ou haute, thème (Contraste fort par défaut). La case « Alléger le fichier » (cochée par défaut) rend le GIF 3 à 7 fois plus léger ; la décocher si WhatsApp le rend mal.
@@ -93,7 +100,7 @@ npm run preview            # prévisualisation du build : http://localhost:4173/
 
 ## Travailler avec Claude Code
 
-Les procédures de travail sont des skills, dans `.claude/skills/`, lancés en tapant `/` dans Claude Code (D-125).
+Les procédures de travail sont des skills, dans `.claude/skills/`, lancés en tapant `/` dans Claude Code (D-125). Dans l'extension VS Code, les skills ne sont pas proposés dans le menu `/` : les taper en entier.
 
 - Un lot, une correction ou un changement de spécification commence par un plan, validé par l'utilisateur, dont les étapes sont regroupées en blocs.
 - Une conversation exécute un bloc : Claude enchaîne les étapes et `/fin-etape`, puis s'arrête sur « Bloc n terminé, commité et poussé. ».
@@ -116,4 +123,4 @@ Les procédures de travail sont des skills, dans `.claude/skills/`, lancés en t
 - Le dépôt doit rester public : sans abonnement payant, passer en privé désactive GitHub Pages et supprime la protection de `main` (incident du 23/10/2026, D-102).
 - Travail par lot : une branche `lot-N`, une PR vers `main`, fusion après la recette du lot (`docs/RECETTE.md` : tests automatisés, au plus 5 vérifications manuelles, séance d'usage libre).
 - La base de Vite est `/Abla_rckF7_tac/` (casse exacte) : la changer seulement si le dépôt est renommé.
-- Après un déploiement qui change le format des fichiers (lot 3 : combinaisons en version 2 ; lot 3 bis : combinaisons et `reglages.json` en version 3), recharger la page (Ctrl+F5) sur les deux PC : une page restée ouverte sur l'ancienne version signale les nouveaux fichiers comme « créés par une version plus récente » et ne les modifie pas. Les anciens fichiers sont réécrits dans la nouvelle version au premier enregistrement.
+- Après un déploiement qui change le format des fichiers (lot 3 : combinaisons en version 2 ; lot 3 bis : combinaisons et `reglages.json` en version 3 ; lot 3bis-1 : en version 4), recharger la page (Ctrl+F5) sur les deux PC : une page restée ouverte sur l'ancienne version signale les nouveaux fichiers comme « créés par une version plus récente » et ne les modifie pas. Les anciens fichiers sont réécrits dans la nouvelle version au premier enregistrement.

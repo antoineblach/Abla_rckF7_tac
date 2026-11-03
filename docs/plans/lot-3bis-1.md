@@ -294,4 +294,4 @@ Posée à l'étape 3, réponse du 25/10 (D-136) :
   - [x] **Étape 6 : interface (curseur, réglages, liste, calque).** (commit « Étape 6 : curseur de vitesse, réglages et accélérations dans l'interface, D-138 », après `b75cf17`)
 - Bloc 7 et étape 7 (combinaisons existantes) : retirés le 03/11, décision de l'utilisateur ; raison à la section F.
 
-Puis `/fin-lot`, lancé par l'utilisateur.
+- [x] **`/fin-lot`**, lancé par l'utilisateur le 03/11 : SPEC 1.8, ARCHITECTURE, RECETTE, README, ETAT, PR vers `main`.

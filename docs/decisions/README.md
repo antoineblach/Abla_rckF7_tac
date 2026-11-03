@@ -145,9 +145,9 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-116 | lecture et pause à la barre d'espace | en vigueur | 6.2, 7 |
 | D-117 | vitesses en km/h | précisée par D-133 | 6.5 |
 | D-118 | pistes reportées | remplacée en partie par D-135 | — |
-| D-119 | lâcher posé par les outils pour une joueuse qui ramasse le ballon | en vigueur | non intégrée (5.4, 6.2) |
-| D-120 | précisions de l'éditeur des liens et des segments | en vigueur | non intégrée (6.2 : raccourcis lus sur la touche physique) ; le reste : non intégrée (5.8, 6.5), reportée à 3bis-2 |
-| D-121 | précisions de l'interface du lot 3 bis | en vigueur | non intégrée (6.1, 6.5, 6.7), sauf « Changer la cible » et « Délai calculé par le lien » : non intégrée (6.5), reportée à 3bis-2 |
+| D-119 | lâcher posé par les outils pour une joueuse qui ramasse le ballon | en vigueur | 5.4, 6.2 |
+| D-120 | précisions de l'éditeur des liens et des segments | en vigueur | 6.2 (raccourcis 1, 2, 3 et 0) ; le reste : non intégrée (5.8, 6.5), reportée à 3bis-2 |
+| D-121 | précisions de l'interface du lot 3 bis | en vigueur | 4.4, 6.1, 6.5, 6.7 ; « Changer la cible » et « Délai calculé par le lien » : non intégrée (6.5), reportée à 3bis-2 |
 | D-122 | décisions initiales du 14 octobre (ancienne SPEC 16) | en vigueur | 1, 2 |
 | D-123 | documentation découpée et lecture ciblée | en vigueur | — |
 | D-124 | longueur et contenu de ETAT.md | en vigueur | — |
@@ -155,13 +155,13 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-126 | section 14 de la SPEC réduite à un renvoi | en vigueur | 14 |
 | D-127 | économie de contexte | en vigueur | — |
 | D-128 | suite du lot 3 bis en trois parties | en vigueur | — |
-| D-129 | le mouvement sert l'intention du coach | en vigueur | non intégrée (5.3, 5.8, 5.9) |
-| D-130 | solveur à deux leviers | en vigueur | non intégrée (5.3, 5.8, 10.3) |
-| D-131 | départ différé en retard et cible avant le départ | précisée par D-136 | non intégrée (5.8) |
-| D-132 | alertes d'accélération et de freinage | précisée par D-135, D-137 et D-138 | non intégrée (4.4, 5.9, 6.5, 6.7, 7) |
-| D-133 | allure saisie, combinaison v4 et curseur de vitesse | précisée par D-138 | non intégrée (4.1, 4.5, 6.5) |
-| D-134 | réglages v4 | précisée par D-138 | non intégrée (4.4, 6.5) |
-| D-135 | modèle de mouvement et calibration | en vigueur | non intégrée (4.4, 5.3, 5.9) |
-| D-136 | départ différé en retard d'une course à durée imposée | en vigueur | non intégrée (5.8) |
-| D-137 | placement et dessin des pastilles d'accélération et de freinage | en vigueur | non intégrée (5.9, 7) |
-| D-138 | précisions de l'interface du lot 3bis-1 | en vigueur | non intégrée (4.4, 6.5, 6.7) |
+| D-129 | le mouvement sert l'intention du coach | en vigueur | 5.3, 5.8, 5.9 |
+| D-130 | solveur à deux leviers | en vigueur | 5.3, 5.8, 10.3 |
+| D-131 | départ différé en retard et cible avant le départ | précisée par D-136 | 5.8 |
+| D-132 | alertes d'accélération et de freinage | précisée par D-135, D-137 et D-138 | 4.4, 5.9, 6.5, 6.7, 7 |
+| D-133 | allure saisie, combinaison v4 et curseur de vitesse | précisée par D-138 | 4.1, 4.5, 5.3, 6.5 |
+| D-134 | réglages v4 | précisée par D-138 | 4.4, 6.5 |
+| D-135 | modèle de mouvement et calibration | en vigueur | 4.4, 5.3, 5.9 |
+| D-136 | départ différé en retard d'une course à durée imposée | en vigueur | 5.3, 5.8 |
+| D-137 | placement et dessin des pastilles d'accélération et de freinage | en vigueur | 5.9 |
+| D-138 | précisions de l'interface du lot 3bis-1 | en vigueur | 6.5, 6.7, 7 |

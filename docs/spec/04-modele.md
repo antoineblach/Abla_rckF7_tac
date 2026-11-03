@@ -1,4 +1,4 @@
-## 4. Modèle de données (schemaVersion 3)
+## 4. Modèle de données (schemaVersion 4)
 
 ### 4.1 Types
 
@@ -8,7 +8,7 @@ type Vec2 = { x: number; y: number }      // mètres, repère terrain (4.2)
 type Id = string                          // UUID v4
 
 interface Play {
-  schemaVersion: 3                       // 1 aux lots 1 et 2, 2 au lot 3 (D-094, D-104)
+  schemaVersion: 4                       // 1 aux lots 1 et 2, 2 au lot 3, 3 au lot 3 bis (D-094, D-104, D-133)
   id: Id
   createdAt: string                       // ISO 8601
   updatedAt: string
@@ -51,7 +51,8 @@ type Action = RunAction | PassAction
   | GroupRunAction                        // lot 5
 
 type Pace = 'walk' | 'jog' | 'sprint'
-type SegmentSpeed = Pace | number         // allure nommée, ou vitesse en m/s (lot 3 bis)
+type SpeedValue = Pace | number           // allure nommée, ou vitesse saisie en m/s (D-133)
+type SegmentSpeed = SpeedValue            // vitesse d'un segment (lot 3 bis)
 
 /** Point de passage ; `speed` : vitesse du segment qui arrive à ce point (lot 3 bis, D-114). */
 interface Waypoint extends Vec2 { speed?: SegmentSpeed }
@@ -59,7 +60,7 @@ interface Waypoint extends Vec2 { speed?: SegmentSpeed }
 interface RunAction {
   id: Id; type: 'run'; entityId: Id
   waypoints: Waypoint[]                   // segment i : du point i-1 (départ pour i = 0) au point i
-  pace: Pace                              // allure de la course : segments sans `speed`
+  pace: SpeedValue                        // allure de la course : segments sans `speed` ; nombre depuis la v4
   durationOverride?: number               // durée imposée (5.3, D-107)
   delay: number                           // ignoré tant qu'un lien en départ différé s'applique (5.8)
   endsAtSpeed?: true                      // « Finit lancée » (5.2, D-106)
@@ -86,7 +87,7 @@ interface PassAction {
 
 Libellés d'interface des catégories : `scrum` mêlée, `lineout` touche, `restart` coup d'envoi/renvoi, `phasePlay` ruck/jeu courant, `drill` exercice.
 
-Les types marqués lot 4 et 5 sont déclarés dans le code et présents dans les unions, mais le schéma zod les rejette, comme `defenseSettings` : ils arriveront avec une nouvelle version du schéma et sa migration. Le moteur les ignore en le signalant (D-004). La version 2 (lot 3) accepte `KickAction` et `BreakdownAction` (10.3, 10.4) ; un fichier en version 1 est migré en mémoire sans changement de contenu et réécrit en version 2 au prochain enregistrement (D-094). La version 3 (lot 3 bis) ajoute les vitesses de segment, la course lancée, les liens de synchronisation et le lâcher à la réception (D-104) ; un fichier en version 1 ou 2 est migré en mémoire et réécrit en version 3 au prochain enregistrement (4.5).
+Les types marqués lot 4 et 5 sont déclarés dans le code et présents dans les unions, mais le schéma zod les rejette, comme `defenseSettings` : ils arriveront avec une nouvelle version du schéma et sa migration. Le moteur les ignore en le signalant (D-004). La version 2 (lot 3) accepte `KickAction` et `BreakdownAction` (10.3, 10.4) ; un fichier en version 1 est migré en mémoire sans changement de contenu et réécrit en version 2 au prochain enregistrement (D-094). La version 3 (lot 3 bis) ajoute les vitesses de segment, la course lancée, les liens de synchronisation et le lâcher à la réception (D-104) ; un fichier en version 1 ou 2 est migré en mémoire et réécrit en version 3 au prochain enregistrement (4.5). La version 4 (lot 3bis-1) accepte une vitesse saisie en m/s comme allure de la course (`pace`, D-133) ; un fichier en version 1 à 3 est migré en mémoire et réécrit en version 4 au prochain enregistrement ; une page d'une version antérieure, non rechargée, le signale « recharger la page » (4.4).
 
 Précisions :
 - `setup.positions` ne contient que les joueuses ; le ballon au départ est donné par `ballCarrierId` ou `ballPosition`. `ballPosition` sans porteuse est le ballon au sol au départ : éditable depuis le lot 3 (« Poser le ballon au sol », déplacé à la souris au temps 1) et ramassé comme après un jeu au pied (D-007, D-083, D-095).
@@ -119,7 +120,7 @@ Précisions :
 - Combinaison : `combinaisons/<nom-court>--<id>.combi.json`. Le nom court est le nom en minuscules, sans accents, chaque suite de caractères autres que lettres et chiffres remplacée par un tiret, sans tiret au début ni à la fin, 40 caractères au plus ; un nom vide donne `sans-nom` (D-023).
 - Lot de combinaisons (import/export manuel) : `.combipack.json`, tableau de `Play`.
 - Modèle de placement (lot 3) : `modeles/<nom-court>--<id>.preset.json`, format `PlacementPreset` version 1 (10.1) ; lu, écrit, renommé et mis en corbeille comme une combinaison (D-092).
-- Réglages : `reglages.json` à la racine du dossier, synchronisé entre les deux PC (allures, vitesse de passe, thème, préférences d'export, réglages de défense par défaut). Version 1 (lot 1) : allures, vitesse de passe, thème (D-026). Version 2 (lot 2) : plus les préférences d'export (GIF : orientation, options, vitesse, qualité, thème, allègement ; PDF : mise en page, couleur) ; un fichier en version 1 est migré en mémoire à la lecture et réécrit en version 2 au prochain enregistrement des réglages (D-068, D-072). Version 3 (lot 3 bis) : plus le profil de vitesse (`motion` : accélération, freinage, accélération latérale, en m/s²) et les seuils de vitesse (`speedAlert` : orange et rouge, en m/s) ; migration des versions 1 et 2 avec les valeurs par défaut ; un sprint à 7 m/s exactement (ancien défaut) devient 5,5 m/s, avec un message unique à l'ouverture (D-105, D-111). Un `reglages.json` invalide ou d'une version plus récente n'est jamais réécrit.
+- Réglages : `reglages.json` à la racine du dossier, synchronisé entre les deux PC (allures, vitesse de passe, thème, préférences d'export, réglages de défense par défaut). Version 1 (lot 1) : allures, vitesse de passe, thème (D-026). Version 2 (lot 2) : plus les préférences d'export (GIF : orientation, options, vitesse, qualité, thème, allègement ; PDF : mise en page, couleur) ; un fichier en version 1 est migré en mémoire à la lecture et réécrit en version 2 au prochain enregistrement des réglages (D-068, D-072). Version 3 (lot 3 bis) : plus le profil de vitesse (`motion` : accélération, freinage, accélération latérale, en m/s²) et les seuils de vitesse (`speedAlert` : orange et rouge, en m/s) ; migration des versions 1 et 2 avec les valeurs par défaut ; un sprint à 7 m/s exactement (ancien défaut) devient 5,5 m/s, avec un message affiché une fois par poste (mémorisé dans le navigateur), même tant que le fichier reste dans sa version d'origine (D-105, D-111, D-121). Version 4 (lot 3bis-1) : plus la pointe de la joueuse (`motion.topSpeed`, m/s) et les seuils d'accélération et de freinage (`accelAlert`, `decelAlert` : orange et rouge, en m/s²) ; migration de la version 3 : une valeur de `motion` égale à l'ancien défaut (accélération 3, freinage 4, latérale 4 m/s², `LEGACY_MOTION`) prend le défaut calibré (5.3), avec un message unique par poste qui liste les valeurs changées ; toute autre valeur est gardée ; versions 1 et 2 migrées jusqu'à la version 4 avec les valeurs par défaut (D-134, D-135). Un `reglages.json` invalide ou d'une version plus récente n'est jamais réécrit.
 - Lecture : validation zod, puis migrations successives jusqu'à la version courante. Un fichier invalide est signalé et n'est jamais modifié ni déplacé automatiquement. Un fichier qui contient une clé inconnue est invalide ; un fichier d'une version plus récente que l'application est signalé (« recharger la page ») et jamais modifié (D-024).
 - Écriture : JSON indenté de 2 espaces, clés dans un ordre stable, alphabétique (différences lisibles dans l'historique Drive, D-040).
 
@@ -129,4 +130,5 @@ Précisions :
 - Une fixture « version 0 » fictive est fournie dès le lot 1 pour éprouver le mécanisme.
 - Version 2 (lot 3) : migration v1 vers v2 sans changement de contenu ; fixtures figées `play-v1-7v7-options.json` (migration) et `play-v2-lot3.json` (D-094).
 - Version 3 (lot 3 bis) : migration v2 vers v3 ; contenu identique, plus `endsAtSpeed: true` sur chaque course que toutes les options du temps suivant prolongent (même joueuse, première course du temps, délai 0), règle structurelle sans moteur ; aucune migration vers le lâcher à la réception. Fixtures figées `play-v2-lot3.json` (migration) et `play-v3-lot3bis.json` (pour les migrations des lots 4 et 5) ; `reglages-v2.json` pour les réglages (D-104).
+- Version 4 (lot 3bis-1) : migration v3 vers v4 sans changement de contenu (`pace` accepte désormais un nombre). Schéma v3 figé dans `model/schemaV3.ts`. Fixtures figées `play-v3-lot3bis.json` (migration) et `play-v4-lot3bis1.json` (allure saisie, vitesse saisie sur un segment, lien, durée imposée ; pour les migrations des lots 4 et 5) ; `reglages-v3.json` pour les réglages (D-133, D-134).
 
