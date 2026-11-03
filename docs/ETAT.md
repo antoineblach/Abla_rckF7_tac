@@ -1,7 +1,7 @@
 # État du projet
 
 - Mise à jour : 2026-11-03
-- Branche : `lot-3bis-1` (depuis `main` à `8467815`), poussée sur `origin`, PR vers `main` ouverte par `/fin-lot`, non fusionnée
+- Branche : `lot-3bis-1` (depuis `main` à `8467815`), poussée sur `origin`, PR #9 vers `main` ouverte par `/fin-lot` le 03/11, non fusionnée
 - `main` : lots 1, 2, 3 et 3 bis et chantier `docs-outils` fusionnés (PR #1 à #8 ; PR #8 le 25/10, commit de fusion `8467815`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` identique à D-055, vérifiée par `gh api` le 23/10 (D-102)
 
