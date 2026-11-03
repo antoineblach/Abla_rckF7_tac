@@ -1,14 +1,26 @@
 import { describe, expect, it } from 'vitest'
+import { ACCEL_BADGE_CLEARANCE, ACCEL_BADGE_SHIFT } from '../config/defaults'
 import { allLines } from '../model/phaseTree'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../model/settings'
 import type { Action, Id, Play, RunAction } from '../model/types'
-import { basePlay, ball, pass, phase, player, realisticRunsPlay, run, uuid } from '../test/builders'
-import { PROFILE_TOLERANCE, trapezoid } from '../test/profileMath'
+import {
+  basePlay,
+  ball,
+  breakdown,
+  pass,
+  phase,
+  player,
+  realisticRunsPlay,
+  run,
+  uuid,
+} from '../test/builders'
+import { PROFILE_TOLERANCE, straightRun } from '../test/profileMath'
 import { createCaches } from './caches'
 import { evaluate } from './evaluate'
 import { segmentPeak } from './profile'
 import { endDirection } from './spline'
 import {
+  accelBadgeAt,
   compileLine,
   motionEnd,
   motionSpeed,
@@ -19,7 +31,8 @@ import {
 import { distance } from './vec'
 
 const settings: EngineSettings = engineSettingsOf(defaultSettings())
-const { accel, decel } = settings.motion
+const { motion } = settings
+const { sprint } = settings.paces
 const A1 = uuid(1)
 const A2 = uuid(2)
 const T1 = uuid(10)
@@ -68,6 +81,24 @@ describe('segment speeds (SPEC 5.3, D-114)', () => {
     const fast = motionOf(compile(twoPlayers([phase(T1, null, [sprint])]), [T1]), r.id)
     expect(fast.targets).toEqual([2, 5.5, 3])
     expect(fast.duration).toBeLessThan(m.duration)
+  })
+
+  it('runs a typed pace like the same speed typed on every segment (D-133)', () => {
+    const points = [
+      { x: 55, y: 34 },
+      { x: 70, y: 30 },
+    ]
+    const typed = run(uuid(30), A1, points, { pace: 4.6 })
+    const perSegment = run(
+      uuid(30),
+      A1,
+      points.map((p) => ({ ...p, speed: 4.6 })),
+      { pace: 'jog' },
+    )
+    const a = motionOf(compile(twoPlayers([phase(T1, null, [typed])]), [T1]), typed.id)
+    const b = motionOf(compile(twoPlayers([phase(T1, null, [perSegment])]), [T1]), typed.id)
+    expect(a.targets).toEqual([4.6, 4.6])
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b))
   })
 
   it('maps the speeds of zero-length segments away', () => {
@@ -123,6 +154,123 @@ describe('speed alerts (SPEC 5.9, D-111)', () => {
   })
 })
 
+describe('acceleration and braking alerts (D-132)', () => {
+  const sprintRun = (extra: Partial<RunAction> = {}, to = { x: 60, y: 30 }) =>
+    run(uuid(30), A1, [to], { pace: 'sprint', ...extra })
+  const compileRun = (r: RunAction, s: EngineSettings = settings) =>
+    compile(twoPlayers([phase(T1, null, [r])]), [T1], s)
+  const alerts = (compiled: CompiledLine) =>
+    compiled.issues
+      .filter((i) => /^run(Accel|Brake)/.test(i.code))
+      .map((i) => [i.code, i.severity, i.params?.segment, i.key])
+  const thresholds = (accel: [number, number], decel: [number, number]): EngineSettings => ({
+    ...settings,
+    accelAlert: { warning: accel[0], danger: accel[1] },
+    decelAlert: { warning: decel[0], danger: decel[1] },
+  })
+
+  it('stays silent within the bounds of the settings', () => {
+    expect(codes(compileRun(sprintRun()))).toEqual([])
+  })
+
+  it('warns beyond the orange threshold and errs beyond the red one, on the peaks', () => {
+    // From rest to rest: peak acceleration a0 = 5.2 at the start, braking 4 before the stop.
+    expect(alerts(compileRun(sprintRun(), thresholds([5, 6], [3.9, 5])))).toEqual([
+      ['runAccelHigh', 'warning', 1, '0'],
+      ['runBrakeHigh', 'warning', 1, '0'],
+    ])
+    const red = compileRun(sprintRun(), thresholds([4, 5], [3, 3.9]))
+    expect(alerts(red)).toEqual([
+      ['runAccelTooHigh', 'error', 1, '0'],
+      ['runBrakeTooHigh', 'error', 1, '0'],
+    ])
+    expect(red.issues[0]?.params?.value).toBe(motion.accel)
+    expect(red.issues[1]?.params?.value).toBeCloseTo(motion.decel, 9)
+  })
+
+  it('measures the profile once sped up by the levers: peaks times k² (D-130)', () => {
+    const compiled = compileRun(sprintRun({ durationOverride: 3.5 }))
+    const m = motionOf(compiled, uuid(30))
+    expect(m.accelFactor).toBeGreaterThan(2)
+    const value = (code: string) => compiled.issues.find((i) => i.code === code)?.params?.value
+    expect(value('runAccelTooHigh')).toBeCloseTo(motion.accel * m.accelFactor, 9)
+    expect(value('runBrakeTooHigh')).toBeCloseTo(motion.decel * m.accelFactor, 9)
+  })
+
+  it('judges a run frozen by a breakdown on the part it runs only', () => {
+    const A3 = uuid(3)
+    const ruck = (actions: Action[]) =>
+      basePlay({
+        entities: [player(A1, 'A', 1), player(A2, 'A', 2), player(A3, 'A', 3), ball(uuid(20))],
+        setup: {
+          positions: { [A1]: { x: 40, y: 30 }, [A2]: { x: 40, y: 33 }, [A3]: { x: 38, y: 36 } },
+          ballCarrierId: A1,
+          ballPosition: null,
+        },
+        phases: [phase(T1, null, actions)],
+      })
+    const strict = thresholds([6, 8], [3, 3.9])
+    const whole = compile(ruck([sprintRun()]), [T1], strict)
+    expect(alerts(whole)).toEqual([['runBrakeTooHigh', 'error', 1, '0']])
+    // Frozen 2 s after the start, still speeding up: the braking before the stop never comes.
+    const cut = compile(ruck([sprintRun(), breakdown(uuid(40), A1, A2, A3, 2)]), [T1], strict)
+    expect(codes(cut)).toContain('runCutByBreakdown')
+    expect(alerts(cut)).toEqual([])
+  })
+
+  it('places the badges clear of the ends of the segment, near the peaks', () => {
+    const long = motionOf(compileRun(sprintRun({ durationOverride: 3.5 })), uuid(30))
+    expect(long.accelAlerts.map((a) => [a.kind, a.badgeAt])).toEqual([
+      ['accel', ACCEL_BADGE_CLEARANCE],
+      ['brake', 20 - ACCEL_BADGE_CLEARANCE],
+    ])
+    // A segment shorter than twice the clearance: its middle, moved towards each peak.
+    const short = sprintRun({ durationOverride: 1 }, { x: 44.6, y: 30 })
+    const m = motionOf(compileRun(short), uuid(30))
+    const at = m.accelAlerts.map((a) => [a.kind, a.badgeAt])
+    expect(at).toHaveLength(2)
+    expect(at[0]?.[0]).toBe('accel')
+    expect(at[0]?.[1]).toBeCloseTo(2.3 - ACCEL_BADGE_SHIFT, 9)
+    expect(at[1]?.[0]).toBe('brake')
+    expect(at[1]?.[1]).toBeCloseTo(2.3 + ACCEL_BADGE_SHIFT, 9)
+  })
+
+  it('takes the point of the zone beyond the threshold nearest to the peak', () => {
+    const c = ACCEL_BADGE_CLEARANCE
+    // A peak clear of the ends: on it.
+    expect(accelBadgeAt(0, 20, [[8, 12]], 10, false)).toBe(10)
+    // A zone under the token or a handle: the nearest clear point.
+    expect(accelBadgeAt(0, 20, [[0, 0.5]], 0, false)).toBe(c)
+    expect(accelBadgeAt(0, 20, [[16, 20]], 19.9, true)).toBe(20 - c)
+    // Another part of the zone clear of the ends: its point nearest to the peak.
+    expect(
+      accelBadgeAt(
+        10,
+        30,
+        [
+          [10, 11],
+          [14, 16],
+        ],
+        10,
+        false,
+      ),
+    ).toBe(14)
+    // A short segment: the middle moved towards the peak, towards the end on a tie for a braking.
+    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 10, false)).toBeCloseTo(
+      12.3 - ACCEL_BADGE_SHIFT,
+      12,
+    )
+    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 12.3, true)).toBeCloseTo(
+      12.3 + ACCEL_BADGE_SHIFT,
+      12,
+    )
+    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 12.3, false)).toBeCloseTo(
+      12.3 - ACCEL_BADGE_SHIFT,
+      12,
+    )
+  })
+})
+
 describe('runs ending at speed (SPEC 5.2, D-106)', () => {
   const t1Run: RunAction = run(uuid(30), A1, [{ x: 60, y: 30 }], {
     endsAtSpeed: true,
@@ -136,7 +284,7 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
     const first = motionOf(compiled, t1Run.id)
     const second = motionOf(compiled, t2Run.id)
     expect(first.endsAtSpeed).toBe(true)
-    expect(Math.abs(first.duration - trapezoid(20, 5.5, accel, decel, 0, 5.5))).toBeLessThan(
+    expect(Math.abs(first.duration - straightRun(20, 5.5, motion, sprint, 0, 5.5))).toBeLessThan(
       PROFILE_TOLERANCE,
     )
     const boundary = compiled.phases[1]?.start ?? NaN
@@ -155,7 +303,8 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
     // Its waypoints are those drawn; the parent phase does not change (SPEC 5.2).
     expect(second.waypoints).toEqual([{ x: 70, y: 40 }])
     expect(compile(play, [T1]).phases[0]).toEqual(compiled.phases[0])
-    expect(codes(compiled)).toEqual([])
+    // Its start speed wins over the braking into the turn: the braking alert tells (A.2, D-132).
+    expect(codes(compiled)).toEqual(['runBrakeTooHigh'])
   })
 
   it('stops short in an option that does not prolong it, with a warning naming it', () => {
@@ -166,7 +315,7 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
     ])
     const prolonged = compile(play, [T1, T2])
     const stopped = compile(play, [T1, T3])
-    expect(codes(prolonged)).toEqual([])
+    expect(codes(prolonged)).toEqual(['runBrakeTooHigh'])
     expect(stopped.issues).toEqual([
       {
         code: 'runNotContinued',
@@ -181,6 +330,19 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
     const late = motionOf(stopped, uuid(32))
     expect(late.prolongs).toBe(false)
     expect(motionSpeed(late, (stopped.phases[1]?.start ?? 0) + 0.5)).toBe(0)
+  })
+
+  it('keeps its start speed under an imposed duration beyond the bounds (D-130)', () => {
+    const quick = { ...t2Run, durationOverride: 1 }
+    const compiled = compile(twoPlayers([phase(T1, null, [t1Run]), phase(T2, T1, [quick])]), [
+      T1,
+      T2,
+    ])
+    const second = motionOf(compiled, quick.id)
+    expect(second.prolongs).toBe(true)
+    expect(second.duration).toBeCloseTo(1, 9)
+    expect(second.accelFactor).toBeGreaterThan(1)
+    expect(motionSpeed(second, compiled.phases[1]?.start ?? NaN)).toBeCloseTo(5.5, 9)
   })
 
   it('raises no warning at the end of a line', () => {
@@ -203,7 +365,7 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
     const end = compiled.phases[0]?.end ?? NaN
     expect(first.launchWait).toBeCloseTo(end - motionEnd(motionOf(atSpeed, t1Run.id)), 9)
     expect(motionSpeed(first, motionEnd(first))).toBe(0)
-    expect(Math.abs(first.duration - trapezoid(20, 5.5, accel, decel))).toBeLessThan(
+    expect(Math.abs(first.duration - straightRun(20, 5.5, motion, sprint))).toBeLessThan(
       PROFILE_TOLERANCE,
     )
     // The next phase is then not prolonged, and nothing is reported.
@@ -215,8 +377,8 @@ describe('runs ending at speed (SPEC 5.2, D-106)', () => {
 describe('continuity and determinism with profiles (SPEC 5.2, 5.5)', () => {
   const play = realisticRunsPlay()
   const lines = allLines(play)
-  const drawable = (play: Play, line: Id[], t: number) => {
-    const s = evaluate(play, line, t, settings, createCaches())
+  const drawable = (play: Play, line: Id[], t: number, caches = createCaches()) => {
+    const s = evaluate(play, line, t, settings, caches)
     return {
       players: s.players,
       ball: s.ball,
@@ -248,8 +410,10 @@ describe('continuity and determinism with profiles (SPEC 5.2, 5.5)', () => {
   it('keeps the trunk identical in every option, a run at speed included', () => {
     const [lineA, lineB] = lines as [Id[], Id[]]
     const trunkEnd = compileLine(play, lineA, settings, createCaches()).phases[1]?.end ?? 0
+    // One compilation per option, sampled at every instant.
+    const [cachesA, cachesB] = [createCaches(), createCaches()]
     for (let t = 0; t < trunkEnd; t += 0.05) {
-      expect(drawable(play, lineA, t)).toEqual(drawable(play, lineB, t))
+      expect(drawable(play, lineA, t, cachesA)).toEqual(drawable(play, lineB, t, cachesB))
     }
   })
 

@@ -32,6 +32,11 @@ export function formatSpeed(mps: number): string {
   return `${formatMps(mps)} (${formatKmh(mps)})`
 }
 
+/** « 6,2 m/s² ». */
+export function formatAccel(mps2: number): string {
+  return `${decimal(mps2)} m/s²`
+}
+
 /** « 1,2 s ». */
 export function formatSeconds(seconds: number): string {
   return `${decimal(seconds)} s`

@@ -11,7 +11,7 @@ import type { Id } from '../model/types'
 import { DEFAULT_LAYERS } from '../render/layers'
 import { render } from '../render/render'
 import { THEMES } from '../render/themes'
-import { P, setPiecesPlay } from '../test/builders'
+import { P, setPiecesScene } from '../test/builders'
 import { canvasFromPixels, loadPdfFonts, napiSurface } from '../test/exportFixtures'
 import { composeGif } from '../test/gifInspect'
 import { compareWithSnapshot } from '../test/imageSnapshot'
@@ -31,7 +31,7 @@ import type { ExportFile, GifOptions, PdfOptions } from './types'
 const ENCODING_TIMEOUT_MS = 60_000
 
 const settings = engineSettingsOf(defaultSettings())
-const play = setPiecesPlay()
+const play = setPiecesScene()
 const fonts = loadPdfFonts()
 const [LINE_A] = allLines(play) as [Id[], Id[]]
 

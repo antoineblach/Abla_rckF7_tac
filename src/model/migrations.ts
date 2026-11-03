@@ -2,13 +2,14 @@
 // Each step validates the data against the schema of its own version, then migrates it;
 // the result is finally validated against the current schema.
 import type { z } from 'zod'
-import { playSchemaV3, type PlayFileV3 } from './schema'
+import { playSchemaV4, type PlayFileV4 } from './schema'
 import { playSchemaV0, type PlayFileV0 } from './schemaV0'
 import { playSchemaV1, type PlayFileV1 } from './schemaV1'
 import { playSchemaV2, type PlayFileV2 } from './schemaV2'
+import { playSchemaV3, type PlayFileV3 } from './schemaV3'
 import type { Play } from './types'
 
-export const CURRENT_SCHEMA_VERSION = 3
+export const CURRENT_SCHEMA_VERSION = 4
 
 export interface SchemaIssue {
   path: string
@@ -111,10 +112,16 @@ function migrateV2toV3(v2: PlayFileV2): PlayFileV3 {
   }
 }
 
+/** Lot 3bis-1 (D-133): version 4 only allows a typed run pace; the content is unchanged. */
+function migrateV3toV4(v3: PlayFileV3): PlayFileV4 {
+  return { ...v3, schemaVersion: 4 }
+}
+
 const STEPS: readonly MigrationStep[] = [
   { from: 0, schema: playSchemaV0, migrate: migrateV0toV1 },
   { from: 1, schema: playSchemaV1, migrate: migrateV1toV2 },
   { from: 2, schema: playSchemaV2, migrate: migrateV2toV3 },
+  { from: 3, schema: playSchemaV3, migrate: migrateV3toV4 },
 ]
 
 export function toSchemaIssues(error: z.ZodError): SchemaIssue[] {
@@ -158,7 +165,7 @@ export function upgradePlay(raw: unknown): UpgradeResult {
     }
     data = step.migrate(parsed.data as never)
   }
-  const current = playSchemaV3.safeParse(data)
+  const current = playSchemaV4.safeParse(data)
   if (!current.success) {
     return {
       ok: false,

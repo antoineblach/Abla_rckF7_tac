@@ -16,7 +16,7 @@ import {
 } from '../test/builders'
 import { lineBounds } from './bounds'
 import { createCaches } from './caches'
-import { PROFILE_TOLERANCE, trapezoid } from '../test/profileMath'
+import { PROFILE_TOLERANCE, straightRun } from '../test/profileMath'
 import {
   ballObtainedAt,
   evaluate,
@@ -124,7 +124,8 @@ describe('evaluation of every leaf', () => {
 })
 
 describe('durations (SPEC 5.1, 5.3)', () => {
-  const { accel, decel } = settings.motion
+  const { motion } = settings
+  const { sprint } = settings.paces
 
   it('phase duration = max(delay + duration), line duration = sum', () => {
     const a = uuid(1)
@@ -148,11 +149,11 @@ describe('durations (SPEC 5.1, 5.3)', () => {
     const compiled = compileLine(play, [uuid(10), uuid(11), uuid(12)], settings, createCaches())
     const [p1, p2, p3] = compiled.phases
     const [ma, mb] = p1?.motions ?? []
-    // Durations of the speed profile: jog 8 m (3.17 s), sprint 14 m (4.39 s).
-    expect(Math.abs((ma?.duration ?? 0) - trapezoid(8, 4, accel, decel))).toBeLessThan(
+    // Durations of the speed profile: jog 8 m (3.19 s), sprint 14 m (4.05 s).
+    expect(Math.abs((ma?.duration ?? 0) - straightRun(8, 4, motion, sprint))).toBeLessThan(
       PROFILE_TOLERANCE,
     )
-    expect(Math.abs((mb?.duration ?? 0) - trapezoid(14, 5.5, accel, decel))).toBeLessThan(
+    expect(Math.abs((mb?.duration ?? 0) - straightRun(14, 5.5, motion, sprint))).toBeLessThan(
       PROFILE_TOLERANCE,
     )
     const phase1 = Math.max(1 + (ma?.duration ?? 0), mb?.duration ?? 0)
@@ -183,24 +184,24 @@ describe('durations (SPEC 5.1, 5.3)', () => {
     const close = (actual: number, expected: number) => {
       expect(Math.abs(actual - expected)).toBeLessThan(PROFILE_TOLERANCE)
     }
-    close(duration(runOf({})), trapezoid(8, 4, accel, decel))
+    close(duration(runOf({})), straightRun(8, 4, motion, sprint))
     close(
       duration(runOf({}), { ...settings, paces: { ...settings.paces, jog: 2 } }),
-      trapezoid(8, 2, accel, decel),
+      straightRun(8, 2, motion, sprint),
     )
     close(
       duration(runOf({}), { ...settings, motion: { ...settings.motion, accel: 6 } }),
-      trapezoid(8, 4, 6, decel),
+      straightRun(8, 4, { ...motion, accel: 6 }, sprint),
     )
     // The imposed duration is met exactly (common factor, D-107).
     expect(duration(runOf({ durationOverride: 5 }))).toBeCloseTo(5, 9)
-    close(duration(runOf({ delay: 1.5 })), 1.5 + trapezoid(8, 4, accel, decel))
+    close(duration(runOf({ delay: 1.5 })), 1.5 + straightRun(8, 4, motion, sprint))
     // Pass of 12 m at 6 m/s instead of 12 m/s.
     expect(duration(make([pass(uuid(21), a, b, 0)]))).toBeCloseTo(1, 9)
     expect(duration(make([pass(uuid(21), a, b, 0, { ballSpeed: 6 })]))).toBeCloseTo(2, 9)
   })
 
-  it('caps an imposed duration out of reach, with a warning (D-107)', () => {
+  it('meets an imposed duration beyond the bounds exactly, the thresholds alone warn (D-129)', () => {
     const a = uuid(1)
     const play = basePlay({
       entities: [player(a, 'A', 1)],
@@ -210,9 +211,34 @@ describe('durations (SPEC 5.1, 5.3)', () => {
       ],
     })
     const compiled = compileLine(play, [uuid(10)], settings, createCaches())
-    expect(compiled.issues.map((i) => i.code)).toEqual(['durationCapped'])
-    // Bounded by the accelerations: a triangle without peak limit, then the red threshold.
-    expect(compiled.duration).toBeGreaterThan(trapezoid(8, 1000, accel, decel))
+    expect(compiled.issues.map((i) => i.code)).toEqual([
+      'runSpeedTooHigh',
+      'runAccelTooHigh',
+      'runBrakeTooHigh',
+    ])
+    // Shorter than the bounds allow: lever 2 scales the accelerations too (D-130).
+    expect(1).toBeLessThan(straightRun(8, 1000, motion, sprint))
+    expect(compiled.duration).toBeCloseTo(1, 9)
+    const m = compiled.phases[0]?.motions[0]
+    expect(m?.accelFactor).toBeGreaterThan(1)
+    expect(m?.factor).toBeCloseTo((motion.topSpeed / settings.paces.jog) * Math.sqrt(m?.accelFactor ?? NaN), 9)
+    // The alert thresholds never change the motion (D-129).
+    const strict = {
+      ...settings,
+      speedAlert: { warning: 1, danger: 2 },
+      accelAlert: { warning: 1, danger: 2 },
+      decelAlert: { warning: 1, danger: 2 },
+    }
+    const loose = {
+      ...settings,
+      speedAlert: { warning: 40, danger: 50 },
+      accelAlert: { warning: 400, danger: 500 },
+      decelAlert: { warning: 400, danger: 500 },
+    }
+    const profileWith = (s: EngineSettings) =>
+      compileLine(play, [uuid(10)], s, createCaches()).phases[0]?.motions[0]?.profile
+    expect(profileWith(strict)).toEqual(m?.profile)
+    expect(profileWith(loose)).toEqual(m?.profile)
   })
 })
 
@@ -584,7 +610,7 @@ describe('set pieces of lot 3: continuity and determinism (D-094)', () => {
     }
   })
 
-  it('plays the fixture as described: pickup, ruck, forward pass, kick, maul', () => {
+  it('plays the fixture as described: pickup, ruck, pass, kick, maul', () => {
     const caches = createCaches()
     const [lineA, lineB] = lines as [string[], string[]]
     const a = compileLine(play, lineA, settings, caches)
@@ -594,15 +620,16 @@ describe('set pieces of lot 3: continuity and determinism (D-094)', () => {
       'breakdown',
       'carried',
     ])
-    // The ruck forms at 1.5 s where A4 has run to by then (her run is cut, D-079).
+    // The ruck forms at 1.5 s where A4 has run to by then: the end of her run, its imposed
+    // duration of 1.5 s being met exactly (D-129).
     const ruck = a.phases[0]?.breakdowns[0]?.pos
     expect(a.gainLine).toEqual([
       { t: 0, x: 40.5 },
       { t: 1.5, x: ruck?.x },
     ])
-    expect(ruck?.x).toBeGreaterThan(40.5)
-    expect(ruck?.x).toBeLessThan(46)
-    expect(a.phases[1]?.passes[0]?.forward).toBe(true)
+    expect(ruck?.x).toBeCloseTo(46, 9)
+    // Forward when the ruck formed 2 m behind (run capped, lot 3 bis); now 0.2 m/s forward only.
+    expect(a.phases[1]?.passes[0]?.forward).toBe(false)
     expect(evaluate(play, lineA, 1e9, settings, caches).ball).toEqual({
       kind: 'loose',
       pos: { x: 75, y: 12 },

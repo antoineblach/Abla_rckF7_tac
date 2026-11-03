@@ -98,7 +98,7 @@ describe('browser library, degraded mode (SPEC 8.6)', () => {
     expect(migrated.ok).toBe(true)
     expect(migrated.settings.passSpeed).toBe(10)
     expect(migrated.settings.export).toEqual(defaultSettings().export)
-    const future = JSON.stringify({ ...defaultSettings(), schemaVersion: 4 })
+    const future = JSON.stringify({ ...defaultSettings(), schemaVersion: 5 })
     await kv.set(kvKey('settings'), future)
     expect(await store.getSettings()).toMatchObject({ ok: false, future: true })
     await expect(store.putSettings(defaultSettings())).rejects.toThrow()

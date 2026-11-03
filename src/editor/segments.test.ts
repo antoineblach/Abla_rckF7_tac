@@ -97,6 +97,26 @@ describe('segment speeds (D-114)', () => {
   })
 })
 
+describe('typed run pace (D-133)', () => {
+  it('sets a speed in m/s as the pace of the run, then a named pace again', () => {
+    let play = updateRun(sevenVsSevenWithOptions(), RUN_A4, { pace: 4.5 })
+    expect(runOf(play, RUN_A4).pace).toBe(4.5)
+    play = updateRun(play, RUN_A4, { pace: 'walk' })
+    expect(runOf(play, RUN_A4).pace).toBe('walk')
+  })
+
+  it('refuses a speed that is not positive or finite, and changes nothing twice', () => {
+    const play = updateRun(sevenVsSevenWithOptions(), RUN_A4, { pace: 4.5 })
+    for (const pace of [0, -1, Number.NaN, Infinity, 4.5]) {
+      expect(updateRun(play, RUN_A4, { pace })).toBe(play)
+    }
+    expect(updateRun(play, uuid(999), { pace: 3 })).toBe(play)
+    // Another field applies, the invalid pace is ignored.
+    const delayed = updateRun(play, RUN_A4, { pace: 0, delay: 1 })
+    expect(runOf(delayed, RUN_A4)).toMatchObject({ pace: 4.5, delay: 1 })
+  })
+})
+
 describe('run settings (D-106, D-107)', () => {
   it('sets and clears « Finit lancée »', () => {
     let play = updateRun(sevenVsSevenWithOptions(), RUN_A4, { endsAtSpeed: true })

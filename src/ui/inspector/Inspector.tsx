@@ -15,7 +15,7 @@ import {
 import { EMPTY_SELECTION } from '../../editor/selection'
 import type { Issue } from '../../model/issues'
 import { findPhase } from '../../model/phaseTree'
-import { THEME_IDS, type Settings } from '../../model/settings'
+import { THEME_IDS, type AccelAlertSettings, type Settings } from '../../model/settings'
 import {
   PACES,
   PLAY_CATEGORIES,
@@ -450,11 +450,58 @@ function PhaseInspector({
   )
 }
 
-const MOTION_FIELDS: readonly { key: keyof Settings['motion']; label: string }[] = [
+const MOTION_FIELDS: readonly {
+  key: Exclude<keyof Settings['motion'], 'topSpeed'>
+  label: string
+}[] = [
   { key: 'accel', label: 'Accélération' },
   { key: 'decel', label: 'Freinage' },
   { key: 'lateralAccel', label: 'Accélération latérale' },
 ]
+
+/** Orange and red thresholds in m/s² of the acceleration or the braking (D-132, D-134). */
+function AccelThresholds({
+  title,
+  of,
+  value,
+  disabled,
+  onCommit,
+}: {
+  title: string
+  /** « d’accélération », « de freinage ». */
+  of: string
+  value: AccelAlertSettings
+  disabled: boolean
+  onCommit: (value: AccelAlertSettings) => void
+}) {
+  return (
+    <>
+      <h4>{title}</h4>
+      <NumberField
+        label={`Seuil orange ${of}`}
+        unit="m/s²"
+        min={0.5}
+        max={value.danger}
+        value={value.warning}
+        disabled={disabled}
+        onCommit={(warning) => {
+          onCommit({ ...value, warning })
+        }}
+      />
+      <NumberField
+        label={`Seuil rouge ${of}`}
+        unit="m/s²"
+        min={value.warning}
+        max={30}
+        value={value.danger}
+        disabled={disabled}
+        onCommit={(danger) => {
+          onCommit({ ...value, danger })
+        }}
+      />
+    </>
+  )
+}
 
 /** km/h to one decimal, as typed in the settings. */
 const roundKmh = (mps: number) => Math.round(mpsToKmh(mps) * 10) / 10
@@ -517,6 +564,17 @@ function SettingsSection({ settings }: { settings: Settings }) {
           }}
         />
       ))}
+      <NumberField
+        label="Pointe de la joueuse"
+        unit={`m/s (${formatKmh(settings.motion.topSpeed)})`}
+        min={1}
+        max={12}
+        value={settings.motion.topSpeed}
+        disabled={!writable}
+        onCommit={(topSpeed) => {
+          save({ ...settings, motion: { ...settings.motion, topSpeed } })
+        }}
+      />
       <h4>Seuils de vitesse</h4>
       <NumberField
         label="Seuil orange"
@@ -538,6 +596,24 @@ function SettingsSection({ settings }: { settings: Settings }) {
         disabled={!writable}
         onCommit={(kmh) => {
           save({ ...settings, speedAlert: { ...settings.speedAlert, danger: kmhToMps(kmh) } })
+        }}
+      />
+      <AccelThresholds
+        title="Seuils d’accélération"
+        of="d’accélération"
+        value={settings.accelAlert}
+        disabled={!writable}
+        onCommit={(accelAlert) => {
+          save({ ...settings, accelAlert })
+        }}
+      />
+      <AccelThresholds
+        title="Seuils de freinage"
+        of="de freinage"
+        value={settings.decelAlert}
+        disabled={!writable}
+        onCommit={(decelAlert) => {
+          save({ ...settings, decelAlert })
         }}
       />
       <button type="button" className="inspector__discreet" onClick={() => void copySyncLog()}>

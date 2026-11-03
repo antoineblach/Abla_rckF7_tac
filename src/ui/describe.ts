@@ -8,10 +8,17 @@ import type {
   RunReport,
   SegmentReport,
 } from '../engine/actionReport'
-import type { RunSyncResult } from '../engine/timeline'
+import type { RunSyncResult, SpeedLevel } from '../engine/timeline'
 import { BREAKDOWN_KIND_LABELS } from '../model/labels'
-import { isPlayer, type Id, type Play, type RunSync, type SyncTarget } from '../model/types'
-import { formatMeters, formatSeconds, formatSpeed, decimal } from './format'
+import {
+  isPlayer,
+  type Id,
+  type Play,
+  type RunSync,
+  type SpeedValue,
+  type SyncTarget,
+} from '../model/types'
+import { decimal, formatAccel, formatMeters, formatSeconds, formatSpeed } from './format'
 import { PACE_LABELS } from './strings'
 
 /** « A 4 »: team and number of a player, or « ? ». */
@@ -59,28 +66,61 @@ export function rendezVousText(sync: RunSync): string {
   return sync.at === undefined ? 'Fin' : `Point ${String(sync.at + 1)}`
 }
 
+/** « vitesses × 1,25, accélérations × 1,60 »: factors of the levers (D-130). */
+export function factorsText(factor: number, accelFactor: number): string {
+  const accel = accelFactor > 1 ? `, accélérations × ${decimal(accelFactor, 2)}` : ''
+  return `vitesses × ${decimal(factor, 2)}${accel}`
+}
+
 /** Result of a link: computed delay, speed factor, or why it does not apply (D-108). */
 export function syncResultText(result: RunSyncResult | null): string {
   if (!result) return 'Lien ignoré.'
   if (result.status === 'unreached') return 'Cible jamais atteinte : lien ignoré.'
-  if (result.adjust === 'speed') {
-    const capped = result.status === 'capped' ? ', plafonnées au seuil rouge' : ''
-    return `Vitesses × ${decimal(result.factor, 2)}${capped}.`
-  }
-  if (result.status === 'late') return 'Départ immédiat : arrivée en retard.'
+  if (result.status === 'beforeStart') return 'Cible avant le départ : arrivée en retard.'
+  const factors = factorsText(result.factor, result.accelFactor)
+  if (result.adjust === 'speed') return `${factors.charAt(0).toUpperCase()}${factors.slice(1)}.`
+  if (result.status === 'late') return `Départ immédiat, course accélérée : ${factors}.`
   return `Délai calculé : ${formatSeconds(result.delay)}.`
+}
+
+/**
+ * « Durée imposée : vitesses × 0,80. »: factors of an imposed duration (D-130), null when they are
+ * 1 or when the link gives them (vitesse ajustée, départ différé en retard).
+ */
+export function durationFactorsText(run: RunReport): string | null {
+  const { sync } = run
+  if (sync && (sync.adjust === 'speed' || sync.status === 'late')) return null
+  if (Math.abs(run.factor - 1) < 5e-3 && run.accelFactor <= 1) return null
+  return `Durée imposée : ${factorsText(run.factor, run.accelFactor)}.`
+}
+
+/** « Trot », or « vitesse saisie » for a speed in m/s (D-133). */
+export function speedValueLabel(value: SpeedValue): string {
+  return typeof value === 'number' ? 'vitesse saisie' : PACE_LABELS[value]
 }
 
 /** « Trot », « Sprint », « allure de la course (Trot) », « saisie ». */
 export function segmentSourceText(segment: SegmentReport, run: RunReport): string {
-  if (segment.source === 'run') return `allure de la course (${PACE_LABELS[run.pace]})`
+  if (segment.source === 'run') return `allure de la course (${speedValueLabel(run.pace)})`
   if (segment.source === 'custom') return 'vitesse saisie'
   return PACE_LABELS[segment.source]
 }
 
-/** « Segment 2 : Sprint, 5,5 m/s (19,8 km/h), pointe 5,1 m/s (18,4 km/h) ». */
+/**
+ * « Segment 2 : Sprint, 5,5 m/s (19,8 km/h), pointe 5,1 m/s (18,4 km/h) », then the peak
+ * acceleration and braking beyond a threshold (D-132): « , accélération 6,4 m/s² ».
+ */
 export function segmentText(segment: SegmentReport, run: RunReport): string {
-  return `Segment ${String(segment.index + 1)} : ${segmentSourceText(segment, run)}, ${formatSpeed(segment.target)}, pointe ${formatSpeed(segment.peak)}`
+  const accel = segment.accel ? `, accélération ${formatAccel(segment.accel.peak)}` : ''
+  const brake = segment.brake ? `, freinage ${formatAccel(segment.brake.peak)}` : ''
+  return `Segment ${String(segment.index + 1)} : ${segmentSourceText(segment, run)}, ${formatSpeed(segment.target)}, pointe ${formatSpeed(segment.peak)}${accel}${brake}`
+}
+
+/** Most severe level of a segment: speed, acceleration or braking (D-132). */
+export function segmentLevel(segment: SegmentReport): SpeedLevel | null {
+  const levels = [segment.level, segment.accel?.level, segment.brake?.level]
+  if (levels.includes('danger')) return 'danger'
+  return levels.includes('warning') ? 'warning' : null
 }
 
 /** « Finit lancée », « Finit lancée : sans effet, attente de 1,2 s avant le temps suivant ». */
@@ -156,6 +196,8 @@ export function actionDetails(
         `Vitesse de pointe : ${formatSpeed(row.peakSpeed)}`,
         ...row.segments.map((segment) => segmentText(segment, row)),
       ]
+      const factors = durationFactorsText(row)
+      if (factors) lines.push(factors)
       if (link) {
         lines.push(
           `Calée sur : ${syncTargetText(play, link.sync.target)} (${rendezVousText(link.sync)}) ; ${syncResultText(row.sync)}`,

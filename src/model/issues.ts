@@ -51,13 +51,17 @@ export type IssueCode =
   | 'syncTargetMissing'
   | 'syncTargetInvalid'
   | 'syncCycle'
-  // Engine validation of lot 3 bis (SPEC 5.2, 5.3, 5.8, 5.9)
+  // Engine validation of lot 3 bis (SPEC 5.2, 5.3, 5.8, 5.9), intentions met (lot 3bis-1, D-131)
   | 'syncLate'
-  | 'syncSpeedCapped'
-  | 'durationCapped'
+  | 'syncTargetBeforeStart'
   | 'runSpeedHigh'
   | 'runSpeedTooHigh'
   | 'runNotContinued'
+  // Acceleration and braking alerts (lot 3bis-1, D-132)
+  | 'runAccelHigh'
+  | 'runAccelTooHigh'
+  | 'runBrakeHigh'
+  | 'runBrakeTooHigh'
 
 export interface Issue {
   code: IssueCode

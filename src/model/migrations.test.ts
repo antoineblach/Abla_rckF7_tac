@@ -6,11 +6,12 @@ import {
   P,
   phase,
   run,
+  realisticRunsPlay,
   setPiecesPlay,
   sevenVsSevenWithOptions,
   uuid,
 } from '../test/builders'
-import { CURRENT_SCHEMA_VERSION, upgradePlay } from './migrations'
+import { CURRENT_SCHEMA_VERSION, readSchemaVersion, upgradePlay } from './migrations'
 
 const fixture = (name: string): Record<string, unknown> =>
   JSON.parse(readFileSync(new URL(`../test/fixtures/${name}`, import.meta.url), 'utf8')) as Record<
@@ -21,18 +22,31 @@ const fixture = (name: string): Record<string, unknown> =>
 const v0 = (): Record<string, unknown> => fixture('play-v0.json')
 
 describe('migrations', () => {
-  it('migrates the files of lots 1 and 2 (version 1) to version 3 without changing them', () => {
+  it('migrates the files of lots 1 and 2 (version 1) to version 4 without changing them', () => {
     const input = fixture('play-v1-7v7-options.json')
     const result = upgradePlay(input)
     expect(result).toEqual({ ok: true, play: sevenVsSevenWithOptions(), fromVersion: 1 })
-    expect(CURRENT_SCHEMA_VERSION).toBe(3)
+    expect(CURRENT_SCHEMA_VERSION).toBe(4)
     expect(input.schemaVersion).toBe(1)
   })
 
-  it('migrates the frozen lot 3 fixture (version 2) to version 3 without changing it', () => {
+  it('migrates the frozen lot 3 fixture (version 2) to version 4 without changing it', () => {
     const input = fixture('play-v2-lot3.json')
     expect(input.schemaVersion).toBe(2)
     expect(upgradePlay(input)).toEqual({ ok: true, play: setPiecesPlay(), fromVersion: 2 })
+  })
+
+  it('migrates the frozen lot 3 bis fixture (version 3) to version 4 without changing it', () => {
+    const input = fixture('play-v3-lot3bis.json')
+    expect(input.schemaVersion).toBe(3)
+    expect(upgradePlay(input)).toEqual({ ok: true, play: realisticRunsPlay(), fromVersion: 3 })
+  })
+
+  it('a page of version 3 refuses the frozen v4 fixture: « recharger la page » (SPEC 4.5)', () => {
+    expect(readSchemaVersion(fixture('play-v4-lot3bis1.json'), 3)).toEqual({
+      ok: false,
+      error: { code: 'futureVersion', version: 4 },
+    })
   })
 
   it('marks « Finit lancée » the runs that every option of the next phase prolongs (D-104)', () => {
@@ -75,7 +89,7 @@ describe('migrations', () => {
       .map((a) => a.id)
     // Leaves (phases 2 and 3) are never marked.
     expect(marked).toEqual([uuid(10)])
-    expect(result.play.schemaVersion).toBe(3)
+    expect(result.play.schemaVersion).toBe(4)
   })
 
   it('reports a version 1 file holding a kick against the version 1 schema', () => {
@@ -99,7 +113,7 @@ describe('migrations', () => {
     if (!result.ok) return
     const play = result.play
     expect(result.fromVersion).toBe(0)
-    expect(play.schemaVersion).toBe(3)
+    expect(play.schemaVersion).toBe(4)
     expect(play.attackingTeam).toBe('B')
     expect(play.notes).toBe('')
     expect(play.field.view).toEqual({ kind: 'full' })
@@ -138,9 +152,9 @@ describe('migrations', () => {
   })
 
   it('refuses a file from a newer version (DECISIONS Q24)', () => {
-    expect(upgradePlay({ ...basePlay(), schemaVersion: 4 })).toEqual({
+    expect(upgradePlay({ ...basePlay(), schemaVersion: 5 })).toEqual({
       ok: false,
-      error: { code: 'futureVersion', version: 4 },
+      error: { code: 'futureVersion', version: 5 },
     })
   })
 

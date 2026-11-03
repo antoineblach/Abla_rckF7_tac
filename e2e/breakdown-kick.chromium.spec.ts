@@ -84,7 +84,7 @@ test('lays a ruck with G and a kick with J, edited in the inspector and saved', 
   await save(page)
 
   const play = await storedPlay(page)
-  expect(play.schemaVersion).toBe(3)
+  expect(play.schemaVersion).toBe(4)
   const ruck = play.phases[0]?.actions.find((a) => a.type === 'breakdown')
   expect(ruck).toMatchObject({
     kind: 'maul',

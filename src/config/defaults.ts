@@ -55,14 +55,39 @@ export const PACE_DEFAULTS = {
 export const LEGACY_SPRINT_PACE = 7
 
 /**
- * HYPOTHÈSE: speed profile of the runs, in m/s² (SPEC 5.3, D-105): acceleration, braking and
- * lateral acceleration in turns (radius 5 m: 4.5 m/s, 16 km/h). Adjustable in reglages.json.
+ * Speed profile of the runs of an amateur player (SPEC 5.3, D-105, D-135), adjustable in
+ * reglages.json: acceleration a(v) = accel · (1 − v / topSpeed) from rest, braking and lateral
+ * acceleration in turns in m/s², top speed in m/s. Sources and figures: plan of lot 3bis-1, B.1.
  */
 export const MOTION_DEFAULTS = {
+  // SOURCE: https://www.frontiersin.org/articles/10.3389/fspor.2023.1120162/full (France women's
+  // sevens, 10, 20 and 50 m, times + 0.5 s after Haugen: elite 6.2 m/s², tau 1.28 s).
+  // HYPOTHÈSE: amateur player, same tau as the elite: 6.67 / 1.28 = 5.2 m/s².
+  accel: 5.2,
+  // SOURCE: https://pmc.ncbi.nlm.nih.gov/articles/PMC11246955/ (mean maximal braking 4.0 to 4.5).
+  decel: 4,
+  // HYPOTHÈSE, no source found: radius 5 m at 4.5 m/s (16 km/h).
+  lateralAccel: 4,
+  // HYPOTHÈSE: 24 km/h, 0.84 times the elite (28.6 km/h), below the red threshold (D-111).
+  topSpeed: 24 / 3.6,
+} as const
+
+/** Default speed profile of lot 3 bis (reglages.json version 3), replaced by the calibrated one
+ * when reglages.json moves to version 4 (D-134). */
+export const LEGACY_MOTION = {
   accel: 3,
   decel: 4,
   lateralAccel: 4,
 } as const
+
+/**
+ * HYPOTHÈSE (D-135, Q13): a segment whose target speed exceeds this fraction of the top speed
+ * accelerates towards target / ratio instead of the top speed, so that its target is reached.
+ */
+export const TOP_SPEED_TARGET_RATIO = 0.95
+
+/** Newton iterations for the speed at the end of an accelerating interval (D-135). */
+export const PROFILE_NEWTON_ITERATIONS = 5
 
 /** HYPOTHÈSE: lowest speed of a run in a tight turn, in m/s (SPEC 5.3, D-105). */
 export const MIN_CORNER_SPEED = 1
@@ -77,12 +102,63 @@ export const SPEED_ALERT_DEFAULTS = {
 } as const
 
 /**
- * Speed factor solver (SPEC 5.3): bisection on the logarithm of the factor, with a fixed number
- * of iterations (determinism), between `minFactor` and the cap of the red threshold.
+ * HYPOTHÈSE: thresholds on the peak acceleration of a run segment, in m/s² (D-132, D-135):
+ * orange at the level of the elite (6.2), red beyond the top of its range (7.8). Adjustable in
+ * reglages.json.
+ */
+export const ACCEL_ALERT_DEFAULTS = {
+  warning: 6,
+  danger: 8,
+} as const
+
+/**
+ * HYPOTHÈSE: thresholds on the peak braking of a run segment, in m/s² (D-132, D-135): orange
+ * above the mean maximal braking (4.0 to 4.5), red at the measured peak (6.6 to 7.4).
+ * SOURCE: https://pmc.ncbi.nlm.nih.gov/articles/PMC11246955/
+ */
+export const DECEL_ALERT_DEFAULTS = {
+  warning: 5,
+  danger: 7,
+} as const
+
+/**
+ * HYPOTHÈSE: least distance, in metres along the segment, between the badge of an acceleration or
+ * braking alert and the ends of its segment (D-132): radius of a token plus half a diamond, outlines
+ * included, about 1.3 and 1.2 m in « Contraste fort » at the scale of the editor on a full HD
+ * screen (around 11 px/m), so that the token or a handle does not cover it.
+ */
+export const ACCEL_BADGE_CLEARANCE = 2.5
+
+/**
+ * HYPOTHÈSE: on a segment shorter than twice the clearance, the badge of an acceleration or braking
+ * alert is moved from the middle towards the peak by a badge diameter, in metres: half a disc plus
+ * half a diamond in « Contraste fort » at the same scale, so as not to cover the speed badge
+ * (D-132).
+ */
+export const ACCEL_BADGE_SHIFT = 2
+
+/**
+ * HYPOTHÈSE: speed slider of the inspector, in km/h (D-133, Q8): from `minKmh` to the red speed
+ * threshold plus `aboveDangerKmh` (30 km/h with the defaults); while dragging, a value within
+ * `snapKmh` of a pace marker snaps to it; `stepKmh` per arrow key.
+ */
+export const SPEED_SLIDER = {
+  minKmh: 1,
+  aboveDangerKmh: 5,
+  snapKmh: 0.5,
+  stepKmh: 0.1,
+} as const
+
+/**
+ * Two-lever solver (SPEC 5.3, D-130): bisection on the logarithm of the factor on the target
+ * speeds, between `minFactor` and the top speed of the player, then on the logarithm of the time
+ * scale, up to `maxTimeScale` (a numerical bound: beyond, a link target is before the start,
+ * D-131), each with a fixed number of iterations (determinism).
  */
 export const SPEED_FACTOR_SEARCH = {
   iterations: 50,
   minFactor: 1e-3,
+  maxTimeScale: 1000,
 } as const
 
 /**

@@ -595,6 +595,105 @@ kbd {
   font-weight: 700;
 }
 
+/*
+ * Speed slider (lot 3bis-1, D-133): native range over flat zones and pace markers. The thumb has a
+ * fixed width (--speed-thumb) so that the markers line up with it (SpeedSlider.tsx).
+ */
+.speed-slider {
+  --speed-thumb: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.speed-slider__track {
+  position: relative;
+  height: 40px;
+}
+
+.speed-slider__zone {
+  position: absolute;
+  top: 13px;
+  height: 6px;
+}
+
+.speed-slider__zone--warning {
+  background: var(--warning-border);
+}
+
+.speed-slider__zone--danger {
+  background: var(--error);
+}
+
+.speed-slider__marker {
+  position: absolute;
+  top: 8px;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px;
+  background: var(--text);
+}
+
+.speed-slider__marker-label {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.speed-slider__input {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
+.speed-slider__input::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--border);
+}
+
+.speed-slider__input::-moz-range-track {
+  height: 2px;
+  background: var(--border);
+}
+
+.speed-slider__input::-webkit-slider-thumb {
+  width: var(--speed-thumb);
+  height: 22px;
+  margin-top: -10px;
+  border: 2px solid var(--panel);
+  border-radius: 3px;
+  background: var(--accent);
+  appearance: none;
+}
+
+.speed-slider__input::-moz-range-thumb {
+  box-sizing: border-box;
+  width: var(--speed-thumb);
+  height: 22px;
+  border: 2px solid var(--panel);
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.speed-slider__input:disabled {
+  cursor: default;
+}
+
+.speed-slider__value {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Discreet action of the settings: copy of the synchronisation log (D-100). */
 .inspector__discreet {
   align-self: flex-start;

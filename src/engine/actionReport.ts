@@ -4,13 +4,14 @@
 // every line through it (SPEC 5.2). Pure.
 import { pathToPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
-import type { BreakdownKind, Id, Pace, Play, RunAction, Vec2 } from '../model/types'
+import type { BreakdownKind, Id, Pace, Play, RunAction, SpeedValue, Vec2 } from '../model/types'
 import type { EvalCaches } from './caches'
 import { segmentPeak } from './profile'
 import {
   compileLine,
   motionDistance,
   motionEnd,
+  type AccelAlert,
   type RunMotion,
   type RunSyncResult,
   type SpeedLevel,
@@ -31,6 +32,16 @@ export interface SegmentReport {
   peak: number
   level: SpeedLevel | null
   fast: boolean
+  /** Peak acceleration beyond a threshold (D-132), null below. */
+  accel: AccelReport | null
+  /** Peak braking beyond a threshold (D-132), null below. */
+  brake: AccelReport | null
+}
+
+/** Peak acceleration or braking (positive) of a segment, in m/s², and its level (D-132). */
+export interface AccelReport {
+  peak: number
+  level: SpeedLevel
 }
 
 export interface RunReport {
@@ -42,13 +53,20 @@ export interface RunReport {
   end: number
   /** False for a second run of the player in the phase, or a run ignored after a breakdown. */
   applied: boolean
-  pace: Pace
+  /** Pace of the run: a named pace or a typed speed in m/s (D-133). */
+  pace: SpeedValue
   /** Length of the drawn curve. */
   length: number
   duration: number
   meanSpeed: number
   peakSpeed: number
   segments: SegmentReport[]
+  /**
+   * Factors of the levers on the target speeds and the accelerations (imposed duration, link,
+   * D-130), 1 otherwise.
+   */
+  factor: number
+  accelFactor: number
   sync: RunSyncResult | null
   /** « Finit lancée » set, and in effect (ends at speed with the phase). */
   endsAtSpeed: boolean
@@ -128,7 +146,17 @@ function segmentsOf(run: RunAction, motion: RunMotion): SegmentReport[] {
           ? 'custom'
           : waypoint.speed
     if (j < 0) {
-      return { index, length: 0, source, target: 0, peak: 0, level: null, fast: false }
+      return {
+        index,
+        length: 0,
+        source,
+        target: 0,
+        peak: 0,
+        level: null,
+        fast: false,
+        accel: null,
+        brake: null,
+      }
     }
     const from = spline.cumulative[j * spline.samplesPerSegment] ?? 0
     const to = spline.cumulative[(j + 1) * spline.samplesPerSegment] ?? spline.length
@@ -140,8 +168,19 @@ function segmentsOf(run: RunAction, motion: RunMotion): SegmentReport[] {
       peak: segmentPeak(profile, j),
       level: motion.speedLevels[j] ?? null,
       fast: motion.fastSegments[j] ?? false,
+      accel: accelReport(motion, j, 'accel'),
+      brake: accelReport(motion, j, 'brake'),
     }
   })
+}
+
+function accelReport(
+  motion: RunMotion,
+  segment: number,
+  kind: AccelAlert['kind'],
+): AccelReport | null {
+  const alert = motion.accelAlerts.find((a) => a.segment === segment && a.kind === kind)
+  return alert ? { peak: alert.peak, level: alert.level } : null
 }
 
 function runReport(
@@ -171,6 +210,8 @@ function runReport(
     meanSpeed: duration > 0 ? covered / duration : 0,
     peakSpeed,
     segments: segmentsOf(run, motion),
+    factor: motion.factor,
+    accelFactor: motion.accelFactor,
     sync: motion.sync,
     endsAtSpeed: run.endsAtSpeed === true,
     atSpeed: motion.endsAtSpeed && motion.until === null,
@@ -216,6 +257,8 @@ export function phaseReport(
             meanSpeed: 0,
             peakSpeed: 0,
             segments: [],
+            factor: 1,
+            accelFactor: 1,
             sync: null,
             endsAtSpeed: a.endsAtSpeed === true,
             atSpeed: false,

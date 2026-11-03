@@ -76,7 +76,7 @@ Comportement :
 
 Précisions (lot 3, D-078 à D-081) :
 - Seule la défense au regroupement (`contest`) est enregistrée ; le plaqueur et la joueuse au ras sont désignés par la simulation du lot 4.
-- La plaquée et le soutien s'immobilisent là où leurs courses les ont amenées ; le relayeur rejoint en ligne droite, au sprint des réglages, le point situé 1 m derrière le ballon du côté de l'équipe de la plaquée ; trop loin, il arrive exactement à la sortie de balle (vitesse augmentée), avec une alerte. Lot 3 bis : ce déplacement suit le profil de vitesse (départ arrêté), la vitesse augmentée par le facteur de vitesse (5.3).
+- La plaquée et le soutien s'immobilisent là où leurs courses les ont amenées ; le relayeur rejoint en ligne droite, au sprint des réglages, le point situé 1 m derrière le ballon du côté de l'équipe de la plaquée ; trop loin, il arrive exactement à la sortie de balle (vitesse augmentée), avec une alerte. Lot 3 bis : ce déplacement suit le profil de vitesse (départ arrêté). Lot 3bis-1 : en retard, il est accéléré par le solveur à deux leviers (5.3), avec la même bascule à la pointe de la joueuse que les courses ; l'alerte « Relayeur trop loin » donne sa vitesse de pointe et, au-delà de la bascule, le facteur des accélérations (D-130). Son déplacement ne reçoit pas les alertes de vitesse, d'accélération ni de freinage (5.9).
 - Les courses des trois participantes s'arrêtent à la formation : la partie ultérieure est ignorée, dessinée en rouge et signalée ; une passe ou un jeu au pied du relayeur après la sortie reste possible dans le même temps.
 - Plaquée sans ballon à la formation : regroupement entièrement ignoré et signalé, sans recalage de la ligne d'avantage.
 - Maul : identique au ruck et immobile au lot 3 ; seul `kind` change.

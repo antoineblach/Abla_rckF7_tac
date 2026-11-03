@@ -46,7 +46,7 @@ export function createPlayForPreset(withBall: boolean, ids: IdFactory, now: Date
 function playWith(entities: Entity[], setup: Play['setup'], ids: IdFactory, now: Date): Play {
   const stamp = now.toISOString()
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: ids(),
     createdAt: stamp,
     updatedAt: stamp,

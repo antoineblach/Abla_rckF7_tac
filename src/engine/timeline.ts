@@ -17,6 +17,8 @@
 // A breakdown only applies when the tackled player holds the ball, so no flight is in progress:
 // it changes motions only after its formation, and everything computed before stays exact.
 import {
+  ACCEL_BADGE_CLEARANCE,
+  ACCEL_BADGE_SHIFT,
   ARC_LENGTH_SAMPLES_PER_SEGMENT,
   PASS_RECEIPT_TOLERANCE,
   RELAY_OFFSET,
@@ -26,6 +28,7 @@ import type { Issue } from '../model/issues'
 import { phaseLabelOf } from '../model/labels'
 import { findPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
+import { speedOf } from '../model/speed'
 import { analyseSyncs, meetsOwnPass } from '../model/syncGraph'
 import {
   attackDirection,
@@ -49,11 +52,12 @@ import { findPickup, isForwardPass, kickFlightTime, velocityBefore } from './bal
 import type { EvalCaches } from './caches'
 import { solvePassArrival } from './pass'
 import {
+  brakingOf,
   buildProfile,
   distanceAt,
   endSpeedOf,
   segmentPeak,
-  solveFactor,
+  solveLevers,
   speedAt,
   timeAtSegmentEnd,
   withDuration,
@@ -63,9 +67,6 @@ import { buildSpline, endDirection, pointAtDistance, type Spline } from './splin
 import { copy, distance } from './vec'
 
 const SIMULTANEOUS_EPSILON = 1e-9
-
-/** Largest speed factor of the relayer, who must reach the relay position by the exit (D-079). */
-const RELAY_MAX_FACTOR = 1000
 
 export interface RunMotion {
   actionId: Id
@@ -81,10 +82,15 @@ export interface RunMotion {
   until: number | null
   /** A run drawn by the user, or the relayer joining the breakdown (generated, D-079). */
   source: 'run' | 'relay'
-  /** Target speed of each spline segment, factor included, in m/s. */
+  /** Target speed of each spline segment, levers included, in m/s. */
   targets: number[]
-  /** Common factor applied to the target speeds (imposed duration, D-107), 1 otherwise. */
+  /**
+   * Factor on the target speeds of the segments the levers apply to (imposed duration, link,
+   * relayer: f × k, D-130), 1 otherwise.
+   */
   factor: number
+  /** Factor on their accelerations (k², D-130), 1 otherwise. */
+  accelFactor: number
   /** Ends at speed with its phase (« Finit lancée » with effect, D-106). */
   endsAtSpeed: boolean
   /** « Finit lancée » without effect: wait before the next phase, in seconds; null otherwise. */
@@ -97,20 +103,42 @@ export interface RunMotion {
   fastSegments: boolean[]
   /** Spline segments whose peak is beyond a speed threshold (SPEC 5.9), else null. */
   speedLevels: (SpeedLevel | null)[]
+  /** Peak accelerations and brakings beyond a threshold, by spline segment (D-132). */
+  accelAlerts: AccelAlert[]
 }
 
-/** Peak speed beyond the orange (warning) or the red (danger) threshold (SPEC 5.9). */
+/**
+ * Peak speed, acceleration or braking beyond the orange (warning) or the red (danger) threshold
+ * (SPEC 5.9, D-132).
+ */
 export type SpeedLevel = 'warning' | 'danger'
+
+/** Acceleration or braking of a spline segment beyond a threshold (D-132). */
+export interface AccelAlert {
+  /** Spline segment. */
+  segment: number
+  kind: 'accel' | 'brake'
+  level: SpeedLevel
+  /** Peak acceleration, or peak braking as a positive value, in m/s². */
+  peak: number
+  /** Arc length of its badge, clear of the ends of the segment (D-132). */
+  badgeAt: number
+}
 
 /** A synchronisation link once resolved (SPEC 5.8, D-108). */
 export interface RunSyncResult {
   adjust: 'delay' | 'speed'
   /** Delay of the run: computed (« Départ différé ») or stored. */
   delay: number
-  /** Common factor on the segments before the rendez-vous (« Vitesse ajustée »), or 1. */
+  /** Factor on the target speeds of the segments before the rendez-vous (D-130), or 1. */
   factor: number
-  /** 'late': delay below 0, started at once; 'capped': speed capped at the red threshold. */
-  status: 'ok' | 'late' | 'capped' | 'unreached'
+  /** Factor on their accelerations (D-130), or 1. */
+  accelFactor: number
+  /**
+   * 'late': delay below 0, started at once and sped up (D-131); 'beforeStart': target before the
+   * start, stored delay and speeds.
+   */
+  status: 'ok' | 'late' | 'beforeStart' | 'unreached'
   /** Absolute instant of the target, null when it is never reached. */
   targetT: number | null
   /** Point of the run that meets the target (rendez-vous or end). */
@@ -323,22 +351,24 @@ function segmentOf(holder: BallHolder, start: number): BallSegment {
   return { kind: 'none', start }
 }
 
-/** The motion with another profile of the same curve (a solved factor, D-107). */
+/** The motion with another profile of the same curve (solved levers, D-130). */
 function withProfile(motion: RunMotion, profile: SpeedProfile): RunMotion {
   return { ...motion, profile, duration: profile.duration }
 }
 
 /** Target speed of each input segment of a run: its own, or the pace of the run (D-114). */
 function runTargets(run: RunAction, settings: EngineSettings): number[] {
-  return run.waypoints.map((w) => {
-    if (w.speed === undefined) return settings.paces[run.pace]
-    return typeof w.speed === 'number' ? w.speed : settings.paces[w.speed]
-  })
+  return run.waypoints.map((w) => speedOf(w.speed ?? run.pace, settings.paces))
 }
 
 /** Target speeds of the spline segments (zero-length input segments are dropped). */
 function splineTargets(spline: Spline, inputTargets: readonly number[]): number[] {
   return spline.sourceSegments.map((index) => inputTargets[index] ?? 0)
+}
+
+/** Factor on target speeds where lever 2 takes over: the fastest at the top speed (D-130). */
+function switchFactorOf(targets: readonly number[], settings: EngineSettings): number {
+  return Math.max(1, settings.motion.topSpeed / Math.max(...targets, 1e-9))
 }
 
 interface RunPlan {
@@ -357,9 +387,11 @@ interface MotionSpec {
   endsAtSpeed: boolean
   /** Prolonged run ending at speed (start speed and direction, D-106), or null. */
   launch: LaunchedRun | null
-  /** Common factor on the target speeds. */
+  /** Common factor on the target speeds (lever 1, D-130). */
   factor: number
-  /** Last input segment the factor applies to; null: every segment. */
+  /** Time scale of the same segments (lever 2, D-130). */
+  timeScale: number
+  /** Last input segment the levers apply to; null: every segment. */
   factorUpTo: number | null
 }
 
@@ -387,18 +419,6 @@ export function waypointTime(motion: Pick<RunMotion, 'spline' | 'profile'>, inde
     if (source <= index) segment = j
   })
   return segment < 0 ? 0 : timeAtSegmentEnd(motion.profile, segment)
-}
-
-/** Arc length from the start of a run to its rendez-vous point (`at`, or its end). */
-function meetDistance(spline: Spline, at: number | undefined): number {
-  if (at === undefined) return spline.length
-  let segment = -1
-  spline.sourceSegments.forEach((source, j) => {
-    if (source <= at) segment = j
-  })
-  if (segment < 0) return 0
-  const k = Math.min((segment + 1) * spline.samplesPerSegment, spline.cumulative.length - 1)
-  return spline.cumulative[k] ?? spline.length
 }
 
 /** Instant, relative to the start of a motion, of its rendez-vous point (`at`, or its end). */
@@ -476,20 +496,25 @@ function compilePhase(
     }
   })
 
-  /** Motion of a run with a common speed factor. */
+  /** Motion of a run with the levers of its spec. */
   const motionOf = (plan: RunPlan, spec: MotionSpec): RunMotion => {
     const spline = getSpline(plan.points, spec.launch?.direction ?? null, caches)
-    const scaled = plan.inputTargets.map((v, i) =>
-      spec.factorUpTo === null || i <= spec.factorUpTo ? v * spec.factor : v,
+    const levered = (i: number) => spec.factorUpTo === null || i <= spec.factorUpTo
+    const scaled = splineTargets(
+      spline,
+      plan.inputTargets.map((v, i) => (levered(i) ? v * spec.factor : v)),
     )
-    const targets = splineTargets(spline, scaled)
+    const boundScale = spline.sourceSegments.map((i) => (levered(i) ? spec.timeScale : 1))
     const profile = buildProfile({
       spline,
-      targets,
+      targets: scaled,
+      boundScale,
       startSpeed: spec.launch?.speed ?? 0,
       endsAtSpeed: spec.endsAtSpeed,
       motion: settings.motion,
+      sprint: settings.paces.sprint,
     })
+    const targets = scaled.map((v, j) => v * (boundScale[j] ?? 1))
     return {
       actionId: plan.run.id,
       entityId: plan.run.entityId,
@@ -501,45 +526,38 @@ function compilePhase(
       until: null,
       source: 'run',
       targets,
-      factor: spec.factor,
+      factor: spec.factor * spec.timeScale,
+      accelFactor: spec.timeScale * spec.timeScale,
       endsAtSpeed: spec.endsAtSpeed,
       launchWait: null,
       prolongs: spec.launch !== null,
       sync: null,
       fastSegments: fastOf(targets, settings),
       speedLevels: [],
+      accelAlerts: [],
     }
   }
 
-  /** Motion of a run, the imposed duration solved by a common factor (D-107). */
-  const runMotion = (plan: RunPlan, spec: MotionSpec, out: Issue[]): RunMotion => {
+  /** Motion of a run, its imposed duration met exactly by the levers (D-107, D-129). */
+  const runMotion = (plan: RunPlan, spec: MotionSpec): RunMotion => {
     const imposed = plan.run.durationOverride
     // A link with an adjusted speed replaces the imposed duration (D-107).
     if (imposed === undefined || (plan.linked && plan.run.sync?.adjust === 'speed')) {
       return motionOf(plan, spec)
     }
-    const fastest = Math.max(...plan.inputTargets, 1e-9)
-    const solution = solveFactor(
-      (factor) => motionOf(plan, { ...spec, factor, factorUpTo: null }).profile,
+    const build = (factor: number, timeScale: number) =>
+      motionOf(plan, { ...spec, factor, timeScale, factorUpTo: null })
+    const solution = solveLevers(
+      (factor, timeScale) => build(factor, timeScale).profile,
       (profile) => profile.duration,
       imposed,
-      settings.speedAlert.danger / fastest,
+      switchFactorOf(plan.inputTargets, settings),
     )
-    const profile =
-      solution.capped === 'none' ? withDuration(solution.profile, imposed) : solution.profile
-    const motion = withProfile(
-      motionOf(plan, { ...spec, factor: solution.factor, factorUpTo: null }),
-      profile,
+    // Beyond the bounds of the search, the whole profile is scaled in time (D-136).
+    return withProfile(
+      build(solution.factor, solution.timeScale),
+      withDuration(solution.profile, imposed),
     )
-    if (solution.capped === 'slow') {
-      out.push({
-        code: 'durationCapped',
-        severity: 'warning',
-        target: { kind: 'action', id: plan.run.id, phaseId },
-        params: { duration: motion.duration },
-      })
-    }
-    return motion
   }
 
   /** Motion of a run before its link is resolved: stored delay and speeds. */
@@ -548,6 +566,7 @@ function compilePhase(
     endsAtSpeed: atSpeed.has(plan.run.id),
     launch: plan.run.delay <= SIMULTANEOUS_EPSILON ? plan.launchCandidate : null,
     factor: 1,
+    timeScale: 1,
     factorUpTo: null,
   })
 
@@ -879,7 +898,7 @@ function compilePhase(
       }
     }
 
-    /** Relayer moving to the relay position at sprint pace, faster when late (D-079). */
+    /** Relayer moving to the relay position at sprint pace, faster when late (D-079, D-130). */
     const relayMotion = (
       action: BreakdownAction,
       relayerId: Id,
@@ -889,27 +908,38 @@ function compilePhase(
     ): RunMotion => {
       const spline = getSpline([from, to], null, caches)
       const sprint = settings.paces.sprint
-      const build = (factor: number): SpeedProfile =>
+      const build = (factor: number, timeScale: number): SpeedProfile =>
         buildProfile({
           spline,
           targets: [sprint * factor],
+          boundScale: [timeScale],
           startSpeed: 0,
           endsAtSpeed: false,
           motion: settings.motion,
+          sprint: settings.paces.sprint,
         })
       let factor = 1
-      let profile = build(1)
+      let timeScale = 1
+      let profile = build(1, 1)
       if (profile.duration > action.duration) {
-        const solution = solveFactor(build, (p) => p.duration, action.duration, RELAY_MAX_FACTOR)
+        const solution = solveLevers(
+          build,
+          (p) => p.duration,
+          action.duration,
+          switchFactorOf([sprint], settings),
+        )
         factor = solution.factor
-        // Too far even with bounded accelerations: she still arrives at the exit (D-079).
+        timeScale = solution.timeScale
+        // Too far at sprint pace: she still arrives at the exit (D-079, D-136).
         profile = withDuration(solution.profile, action.duration)
         localIssues.push({
           code: 'relayerLate',
           severity: 'warning',
           target: { kind: 'action', id: action.id, phaseId },
+          params: { speed: segmentPeak(profile, 0), accel: timeScale * timeScale },
         })
       }
+      const speed = sprint * factor * timeScale
       return {
         actionId: action.id,
         entityId: relayerId,
@@ -920,14 +950,16 @@ function compilePhase(
         waypoints: [copy(to)],
         until: null,
         source: 'relay',
-        targets: [sprint * factor],
-        factor,
+        targets: [speed],
+        factor: factor * timeScale,
+        accelFactor: timeScale * timeScale,
         endsAtSpeed: false,
         launchWait: null,
         prolongs: false,
         sync: null,
-        fastSegments: fastOf([sprint * factor], settings),
+        fastSegments: fastOf([speed], settings),
         speedLevels: [],
+        accelAlerts: [],
       }
     }
 
@@ -1072,7 +1104,33 @@ function compilePhase(
     }
   }
 
-  /** The run adjusted to its link (SPEC 5.8, D-108), or with its stored values when unreached. */
+  /**
+   * The run meeting its target `wanted` seconds after its start: levers of D-130 on the segments
+   * before the rendez-vous, from the stored speeds (D-136); null when the target is before the
+   * start (D-131).
+   */
+  const meetOnTime = (
+    plan: RunPlan,
+    sync: RunSync,
+    spec: MotionSpec,
+    wanted: number,
+  ): RunMotion | null => {
+    if (wanted <= 0) return null
+    const upTo = sync.at ?? plan.run.waypoints.length - 1
+    const spline = getSpline(plan.points, spec.launch?.direction ?? null, caches)
+    const build = (factor: number, timeScale: number) =>
+      motionOf(plan, { ...spec, factor, timeScale, factorUpTo: upTo })
+    const solution = solveLevers(
+      (factor, timeScale) => build(factor, timeScale).profile,
+      (profile) => meetTime({ spline, profile }, sync.at),
+      wanted,
+      switchFactorOf(plan.inputTargets.slice(0, upTo + 1), settings),
+    )
+    if (solution.status === 'beyond') return null
+    return withProfile(build(solution.factor, solution.timeScale), solution.profile)
+  }
+
+  /** The run adjusted to its link (SPEC 5.8, D-108, D-131), or with its stored values. */
   const resolveLink = (
     plan: RunPlan,
     sync: RunSync,
@@ -1084,6 +1142,24 @@ function compilePhase(
     const issueTarget = { kind: 'action', id: plan.run.id, phaseId } as const
     const meetIndex = sync.at ?? plan.run.waypoints.length - 1
     const meetPoint = copy(plan.run.waypoints[meetIndex] ?? plan.points[0] ?? { x: 0, y: 0 })
+    const resolved = (
+      motion: RunMotion,
+      status: RunSyncResult['status'],
+      delay: number,
+    ): RunMotion => {
+      const applied = status === 'ok' || status === 'late'
+      motion.sync = {
+        adjust: sync.adjust,
+        delay,
+        factor: applied ? motion.factor : 1,
+        accelFactor: applied ? motion.accelFactor : 1,
+        status,
+        targetT: target?.t ?? null,
+        meetPoint,
+        targetPoint: target?.point ?? null,
+      }
+      return motion
+    }
     if (!target) {
       out.push({
         code: 'syncTargetInvalid',
@@ -1091,22 +1167,24 @@ function compilePhase(
         target: issueTarget,
         params: { reason: 'unreached' },
       })
-      const motion = runMotion(plan, spec, out)
-      motion.sync = {
-        adjust: sync.adjust,
-        delay: spec.delay,
-        factor: 1,
-        status: 'unreached',
-        targetT: null,
-        meetPoint,
-        targetPoint: null,
-      }
-      return motion
+      return resolved(runMotion(plan, spec), 'unreached', spec.delay)
+    }
+    /** Target before the start: stored delay and speeds, arriving late (D-131). */
+    const beforeStart = (): RunMotion => {
+      const motion = runMotion(plan, spec)
+      const late = motion.start + meetTime(motion, sync.at) - target.t
+      out.push({
+        code: 'syncTargetBeforeStart',
+        severity: 'warning',
+        target: issueTarget,
+        params: { late: Math.max(0, late) },
+      })
+      return resolved(motion, 'beforeStart', spec.delay)
     }
     if (sync.adjust === 'delay') {
       // Prolonging a run at speed first; if she has to wait, from rest (D-106).
       const delayWith = (launch: LaunchedRun | null) => {
-        const m = runMotion(plan, { ...spec, delay: 0, launch }, [])
+        const m = runMotion(plan, { ...spec, delay: 0, launch })
         return target.t - start - meetTime(m, sync.at)
       }
       let launch = plan.launchCandidate
@@ -1115,70 +1193,30 @@ function compilePhase(
         launch = null
         delay = delayWith(null)
       }
-      let status: 'ok' | 'late' = 'ok'
-      if (delay < -SIMULTANEOUS_EPSILON) {
-        status = 'late'
-        out.push({
-          code: 'syncLate',
-          severity: 'warning',
-          target: issueTarget,
-          params: { late: -delay },
-        })
+      if (delay >= -SIMULTANEOUS_EPSILON) {
+        delay = Math.max(0, delay)
+        return resolved(runMotion(plan, { ...spec, delay, launch }), 'ok', delay)
       }
-      delay = Math.max(0, delay)
-      const motion = runMotion(plan, { ...spec, delay, launch }, out)
-      motion.sync = {
-        adjust: 'delay',
-        delay,
-        factor: motion.factor,
-        status,
-        targetT: target.t,
-        meetPoint,
-        targetPoint: target.point,
-      }
-      return motion
-    }
-    // Adjusted speed: a common factor on the segments before the rendez-vous (D-108).
-    const wanted = target.t - start - spec.delay
-    const upTo = meetIndex
-    const fastest = Math.max(...plan.inputTargets.slice(0, upTo + 1), 1e-9)
-    const maxFactor = settings.speedAlert.danger / fastest
-    const build = (factor: number) => motionOf(plan, { ...spec, factor, factorUpTo: upTo })
-    const spline = build(1).spline
-    let factor = maxFactor
-    let profile = build(maxFactor).profile
-    let capped = wanted <= 0
-    if (!capped) {
-      const solution = solveFactor(
-        (f) => build(f).profile,
-        (p) => meetTime({ spline, profile: p }, sync.at),
-        wanted,
-        maxFactor,
+      // Too far: she starts at once, prolonging a run at speed, and is sped up before the
+      // rendez-vous like an adjusted speed, the imposed duration aside (D-131, D-136).
+      const motion = meetOnTime(
+        plan,
+        sync,
+        { ...spec, delay: 0, launch: plan.launchCandidate },
+        target.t - start,
       )
-      factor = solution.factor
-      profile = solution.profile
-      capped = solution.capped === 'slow'
-    }
-    const motion = withProfile(build(factor), profile)
-    if (capped) {
-      // Average speed needed over the way to the rendez-vous (none for a target before the start).
+      if (!motion) return beforeStart()
       out.push({
-        code: 'syncSpeedCapped',
+        code: 'syncLate',
         severity: 'warning',
         target: issueTarget,
-        ...(wanted > 0 ? { params: { needed: meetDistance(spline, sync.at) / wanted } } : {}),
+        params: { late: -delay },
       })
+      return resolved(motion, 'late', 0)
     }
-    motion.sync = {
-      adjust: 'speed',
-      delay: spec.delay,
-      factor,
-      status: capped ? 'capped' : 'ok',
-      targetT: target.t,
-      meetPoint,
-      targetPoint: target.point,
-    }
-    return motion
+    // Adjusted speed: levers on the segments before the rendez-vous (D-108, D-130).
+    const motion = meetOnTime(plan, sync, spec, target.t - start - spec.delay)
+    return motion ? resolved(motion, 'ok', spec.delay) : beforeStart()
   }
 
   /** Compiles the phase with the runs at speed listed in `atSpeed`. */
@@ -1186,7 +1224,7 @@ function compilePhase(
     const localIssues: Issue[] = [...staticIssues]
     const localGainLine: GainLineChange[] = []
     const motions = plans.map((plan) =>
-      runMotion(plan, baseSpec(plan, atSpeed), plan.linked ? [] : localIssues),
+      runMotion(plan, baseSpec(plan, atSpeed)),
     )
     // Links in the order of their dependencies: each target read on a simulation (D-108).
     for (const runId of analysis.order) {
@@ -1246,6 +1284,7 @@ function compilePhase(
   }
   for (const motion of draft.motions) {
     motion.speedLevels = speedLevelsOf(motion, settings)
+    motion.accelAlerts = accelAlertsOf(motion, settings)
     if (motion.source === 'run') result.issues.push(...speedIssues(motion, phaseId))
     if (motion.source === 'run' && motion.endsAtSpeed && motion.until === null) {
       const speed = endSpeedOf(motion.profile)
@@ -1266,21 +1305,132 @@ function compilePhase(
   return draft
 }
 
-/** Peak speeds of the segments of a run beyond the thresholds (SPEC 5.9, D-111). */
+const ACCEL_CODES = {
+  accel: { warning: 'runAccelHigh', danger: 'runAccelTooHigh' },
+  brake: { warning: 'runBrakeHigh', danger: 'runBrakeTooHigh' },
+} as const
+
+/**
+ * Peak speeds, accelerations and brakings of the segments of a run beyond the thresholds
+ * (SPEC 5.9, D-111, D-132).
+ */
 function speedIssues(motion: RunMotion, phaseId: Id): Issue[] {
   const result: Issue[] = []
-  motion.spline.sourceSegments.forEach((source, segment) => {
+  const target = { kind: 'action', id: motion.actionId, phaseId } as const
+  const { sourceSegments } = motion.spline
+  sourceSegments.forEach((source, segment) => {
     const level = motion.speedLevels[segment]
     if (!level) return
     result.push({
       code: level === 'danger' ? 'runSpeedTooHigh' : 'runSpeedHigh',
       severity: level === 'danger' ? 'error' : 'warning',
-      target: { kind: 'action', id: motion.actionId, phaseId },
+      target,
       params: { segment: source + 1, speed: segmentPeak(motion.profile, segment) },
       key: String(source),
     })
   })
+  for (const alert of motion.accelAlerts) {
+    const source = sourceSegments[alert.segment] ?? alert.segment
+    result.push({
+      code: ACCEL_CODES[alert.kind][alert.level],
+      severity: alert.level === 'danger' ? 'error' : 'warning',
+      target,
+      params: { segment: source + 1, value: alert.peak },
+      key: String(source),
+    })
+  }
   return result
+}
+
+/** Relative gap under which two peaks of a segment are equal (rounding along a braking ramp). */
+const PEAK_TIE = 1e-9
+
+/**
+ * Peak acceleration and braking of each spline segment of a motion beyond the thresholds (D-132,
+ * D-135), on the part it runs, like the speeds: acceleration a(v) of the model at the start of an
+ * interval that speeds up, constant braking of an interval.
+ */
+function accelAlertsOf(motion: RunMotion, settings: EngineSettings): AccelAlert[] {
+  const { profile } = motion
+  const reach = motion.until === null ? Infinity : motionDistance(motion, motion.until)
+  const { s, samplesPerSegment } = profile
+  const alerts: AccelAlert[] = []
+  motion.spline.sourceSegments.forEach((_, segment) => {
+    const first = segment * samplesPerSegment
+    const last = Math.min(first + samplesPerSegment, s.length - 1)
+    const from = s[first] ?? 0
+    const to = Math.min(s[last] ?? 0, reach)
+    for (const kind of ['accel', 'brake'] as const) {
+      const { warning, danger } = kind === 'accel' ? settings.accelAlert : settings.decelAlert
+      const values: { k: number; value: number }[] = []
+      let peak = 0
+      let peakK = -1
+      for (let k = first; k < last && (s[k] ?? Infinity) < reach; k++) {
+        const value = kind === 'accel' ? (profile.startAccel[k] ?? 0) : brakingOf(profile, k)
+        values.push({ k, value })
+        // Equal peaks: the first acceleration (from the start), the last braking (before a stop).
+        const tie = PEAK_TIE * Math.max(peak, value)
+        if (value > peak + tie || (kind === 'brake' && value > 0 && value >= peak - tie)) {
+          peak = Math.max(peak, value)
+          peakK = k
+        }
+      }
+      const level = peak > danger ? 'danger' : peak > warning ? 'warning' : null
+      if (!level || peakK < 0) continue
+      const threshold = level === 'danger' ? danger : warning
+      const zone = values
+        .filter((x) => x.value > threshold)
+        .map((x): [number, number] => [s[x.k] ?? 0, Math.min(s[x.k + 1] ?? 0, to)])
+      const peakStart = s[peakK] ?? 0
+      const peakAt =
+        kind === 'accel' ? peakStart : (peakStart + Math.min(s[peakK + 1] ?? 0, to)) / 2
+      alerts.push({
+        segment,
+        kind,
+        level,
+        peak,
+        badgeAt: accelBadgeAt(from, to, zone, peakAt, kind === 'brake'),
+      })
+    }
+  })
+  return alerts
+}
+
+const clamp = (x: number, lo: number, hi: number): number => Math.min(Math.max(x, lo), hi)
+
+/**
+ * Arc length of the badge of an acceleration or braking alert on the segment [from, to] (D-132):
+ * the point of the zone beyond the threshold nearest to the peak, at least ACCEL_BADGE_CLEARANCE
+ * from the ends, where the token or a handle covers the peak (start of a run, stop, rendez-vous);
+ * the point of that range nearest to the peak when the zone does not reach it. A segment shorter
+ * than twice the clearance: its middle, moved by ACCEL_BADGE_SHIFT towards the peak (towards the
+ * end on a tie for a braking), clear of the speed badge.
+ */
+export function accelBadgeAt(
+  from: number,
+  to: number,
+  zone: readonly (readonly [number, number])[],
+  peakAt: number,
+  tieTowardsEnd: boolean,
+): number {
+  const middle = (from + to) / 2
+  if (to - from < 2 * ACCEL_BADGE_CLEARANCE) {
+    const towardsEnd = peakAt === middle ? tieTowardsEnd : peakAt > middle
+    return clamp(middle + (towardsEnd ? 1 : -1) * ACCEL_BADGE_SHIFT, from, to)
+  }
+  const lo = from + ACCEL_BADGE_CLEARANCE
+  const hi = to - ACCEL_BADGE_CLEARANCE
+  let best = clamp(peakAt, lo, hi)
+  let gap = Infinity
+  for (const [a, b] of zone) {
+    if (Math.max(a, lo) > Math.min(b, hi)) continue
+    const point = clamp(peakAt, Math.max(a, lo), Math.min(b, hi))
+    if (Math.abs(point - peakAt) < gap) {
+      best = point
+      gap = Math.abs(point - peakAt)
+    }
+  }
+  return best
 }
 
 /** Level of the peak speed of each spline segment of a motion (SPEC 5.9, D-111). */

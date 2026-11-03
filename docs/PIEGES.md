@@ -13,6 +13,7 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 ## Playwright et OPFS
 
 - Playwright : `fill` refusé sur un curseur hors pas (touche End) ; `selectOption` ne donne pas le focus ; coordonnées de souris arrondies au pixel ; un clic à moins d'un rayon de jeton sélectionne la joueuse (viser plutôt la poignée de fin d'une course courte).
+- `getByLabel` sans `exact` trouve aussi un libellé qui contient le texte (« Curseur de la vitesse du segment » pour « Vitesse du segment ») : libellés distincts, ou `exact: true`.
 - Une liste de `combinaisons/` pendant une écriture contient le `.crswap` de Chrome : filtrer sur `.combi.json`.
 - **OPFS et tests de bout en bout :**
   - une lecture pendant une écriture de la page échoue (`NotReadableError`, puis `NotFoundError` pendant le remplacement) ; `expect.poll` ne réessaie pas sur une erreur : lire avec `.catch(() => null)` ;
@@ -39,11 +40,14 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 
 - `prettier --write` reformate les fichiers : relire avant un Edit ou un Write.
 - L'outil Bash échoue sur les longs heredocs, et une commande qui lit l'entrée standard (`cat > fichier` sans heredoc) bloque : écrire les gros fichiers avec Write ou Edit, les scripts dans un fichier.
+- Les cases d'un plan sont indentées sous leur bloc (`  - [ ]`) : le motif `^- \[[ x]\]` de `/reprise` n'en trouve aucune ; chercher `^\s*- \[[ x]\]` (corrigé dans le skill).
 
 ## Vitest et images de référence
 
 - Vitest coupe un test à 5 s par défaut ; le runner de la CI encode 2 à 3 fois moins vite que ce poste : les groupes de tests qui encodent réellement ont un délai explicite (`ENCODING_TIMEOUT_MS`).
+- Une compilation coûte plusieurs millisecondes depuis les leviers (D-130 : environ 50 profils par résolution ; combinaison réaliste 3 puis 14 ms) : un test qui évalue à chaque instant garde un cache par ligne, sinon il dépasse 5 s en parallèle.
 - La tolérance des images de référence (0,5 % des pixels) masque un trait épaissi ou une petite dérive : après un changement de rendu, régénérer (`UPDATE_SNAPSHOTS=1`) et comparer à `HEAD` pour voir ce qui a bougé.
+- Compter une forme dans les événements de dessin (`recordingCtx`) : en N&B, le noir et le blanc des pastilles remplissent aussi jetons, pointes de flèche et rectangles du terrain ; reconnaître la forme par son chemin (sommets), pas par sa couleur seule.
 
 ## Application
 
@@ -51,3 +55,4 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - La police Atkinson Hyperlegible couvre le français sauf U+202F (remplacée par U+00A0, `export/text.ts`) ; son zéro est barré.
 - Le morceau principal ne doit importer ni `export/jobSteps.ts` ni les encodeurs : `export/jobs.ts` reste léger (contrôlé par `bundle.chromium.spec.ts`).
 - Une commande sans effet doit rendre la même combinaison (même référence) : sinon `applyEdit` enregistre une étape d'annulation vide.
+- Curseur natif contrôlé par React : après l'événement `input`, React remet l'ancienne valeur si l'état ne change pas ; l'événement natif `change` qui suit lit alors l'ancienne valeur. Garder la valeur en brouillon d'état à chaque `input` (`common/SpeedSlider.tsx`).

@@ -6,7 +6,7 @@ import type { EngineSettings } from '../model/settings'
 import type { BreakdownKind, Id, Play, Vec2 } from '../model/types'
 import { kickLift } from './ballEvents'
 import type { EvalCaches } from './caches'
-import { timeAtSegmentEnd } from './profile'
+import { timeAtDistance, timeAtSegmentEnd } from './profile'
 import type {
   BallState,
   KickTrace,
@@ -125,8 +125,9 @@ function runTrace(motion: RunMotion, phaseId: Id, current: boolean, t: number): 
 }
 
 /**
- * Badges of the segments of a run beyond a speed threshold (SPEC 5.9, D-112), those entered at t
- * (every one reached by the run for t = Infinity).
+ * Badges of the segments of a run beyond a speed threshold (SPEC 5.9, D-112), those entered at t,
+ * then of its accelerations and brakings beyond a threshold (D-132), those whose point is reached
+ * at t (every one reached by the run for t = Infinity).
  */
 function speedBadgesOf(motion: RunMotion, t: number): SpeedBadge[] {
   if (motion.source !== 'run') return []
@@ -144,8 +145,19 @@ function speedBadgesOf(motion: RunMotion, t: number): SpeedBadge[] {
       segment: spline.sourceSegments[segment] ?? segment,
       pos: pointAtDistance(spline, (from + Math.min(to, reach)) / 2),
       level,
+      kind: 'speed',
     })
   })
+  for (const alert of motion.accelAlerts) {
+    if (t < motion.start + timeAtDistance(profile, alert.badgeAt)) continue
+    badges.push({
+      actionId: motion.actionId,
+      segment: spline.sourceSegments[alert.segment] ?? alert.segment,
+      pos: pointAtDistance(spline, alert.badgeAt),
+      level: alert.level,
+      kind: alert.kind,
+    })
+  }
   return badges
 }
 
@@ -323,7 +335,7 @@ export interface PhaseSchematic {
   passes: SchematicPass[]
   kicks: SchematicKick[]
   breakdowns: SchematicBreakdown[]
-  /** Segments of the runs of the phase beyond a speed threshold (editor, D-112). */
+  /** Speeds, accelerations and brakings of the runs of the phase beyond a threshold (editor). */
   speedBadges: SpeedBadge[]
   /** Synchronisation links of the runs of the phase (editor overlay, D-108). */
   syncLinks: SchematicSyncLink[]

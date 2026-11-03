@@ -12,7 +12,7 @@ import { compileLine } from './timeline'
 import { distance } from './vec'
 
 const settings: EngineSettings = engineSettingsOf(defaultSettings())
-const { accel } = settings.motion
+const { motion } = settings
 const { walk, jog, sprint } = settings.paces
 /** Pickup instants follow the speed profile, exact on its samples. */
 const expectInstant = (actual: number | undefined, expected: number) => {
@@ -111,7 +111,7 @@ describe('kicks (SPEC 10.4)', () => {
     const segments = compileLine(play, [T1], settings, createCaches()).phases[0]?.ball ?? []
     const pickup = segments.at(-1)
     expect(pickup?.kind === 'carried' && pickup.carrierId).toBe(B1)
-    const pickupT = 2.5 + timeFromRest(14, sprint, accel)
+    const pickupT = 2.5 + timeFromRest(14, sprint, motion, sprint)
     expectInstant(pickup?.start, pickupT)
     expect(state(play, pickupT - 0.05, [T1]).ball?.kind).toBe('loose')
     const after = state(play, pickupT + 0.05, [T1]).ball
@@ -135,7 +135,7 @@ describe('kicks (SPEC 10.4)', () => {
     // A2 jogs from x = 60 from 3.5 s: x = 74 after 14 m.
     const pickup = compiled.phases[1]?.ball.at(-1)
     expect(pickup?.kind === 'carried' && pickup.carrierId).toBe(A2)
-    expectInstant(pickup?.start, 3.5 + timeFromRest(14, jog, accel))
+    expectInstant(pickup?.start, 3.5 + timeFromRest(14, jog, motion, sprint))
   })
 
   it('stays on the ground when nobody comes', () => {
@@ -212,6 +212,6 @@ describe('ball on the ground at the start (D-083)', () => {
     // A2 walks from x = 60 at 2 m/s: within 1 m (x = 56) after 4 m.
     const pickup = compileLine(play, [T1], settings, createCaches()).phases[0]?.ball.at(-1)
     expect(pickup?.kind === 'carried' && pickup.carrierId).toBe(A2)
-    expectInstant(pickup?.start, timeFromRest(4, walk, accel))
+    expectInstant(pickup?.start, timeFromRest(4, walk, motion, sprint))
   })
 })

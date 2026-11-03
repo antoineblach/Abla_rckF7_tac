@@ -13,7 +13,7 @@ Ne lire que ceci :
 - `git status`, `git log --oneline -10`, branche courante et son écart avec `origin` ;
 - PR de la branche : `gh pr list --head <branche> --state all --limit 3` ; CI : `gh run list --branch <branche> --limit 3` (si `gh` échoue, le signaler et continuer) ;
 - travail non commité : `git diff --stat`, sans lire le diff entier ;
-- plan en cours, nommé dans « En cours » de ETAT : Grep des cases (`^- \[[ x]\]`, avec numéros de ligne), pour situer la première case non cochée et son bloc ;
+- plan en cours, nommé dans « En cours » de ETAT : Grep des cases (`^\s*- \[[ x]\]`, avec numéros de ligne), pour situer la première case non cochée et son bloc ;
 - les 5 dernières lignes de l'index `docs/decisions/README.md`.
 
 ## 2. Cohérence

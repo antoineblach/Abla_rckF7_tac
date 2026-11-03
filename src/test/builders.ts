@@ -124,7 +124,7 @@ export function phase(
 
 export function basePlay(extra: Partial<Play> = {}): Play {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: uuid(9999),
     createdAt: FIXED_DATE,
     updatedAt: FIXED_DATE,
@@ -234,7 +234,7 @@ export function sevenVsSevenWithOptions(): Play {
  * Set pieces of lot 3, source of the frozen fixture `play-v2-lot3.json` (never change it: the
  * fixture must stay equal to it). 7 v 7 in line, ball on the ground next to A4.
  * T1: A4 picks the ball up at once, runs into contact; ruck (support A5, relayer A3, guard).
- * T2: A3 passes to A2 who runs forward (forward pass).
+ * T2: A3 passes to A2 who runs forward (a forward pass until lot 3bis-1: see `setPiecesScene`).
  * T3 option A (default): A2 kicks long to a point. T3 option B: maul on A2 (support A1,
  * relayer A3, jackal), then T4: A3 kicks a restart to B7.
  */
@@ -275,6 +275,26 @@ export function setPiecesPlay(): Play {
       phase(uuid(104), P.t3b, [
         kick(uuid(440), P.A(3), { receiverId: P.B(7) }, 0.2, { kind: 'restart', flightTime: 2.5 }),
       ]),
+    ],
+  }
+}
+
+/**
+ * The set pieces of lot 3 as they were played then, for the tests of the set pieces themselves:
+ * without the imposed durations of T1, met exactly since lot 3bis-1 (6 m in 1.5 s, D-129). The
+ * runs of A4 and A5 are cut by the ruck (D-079), which forms behind: the pass of T2 is forward.
+ */
+export function setPiecesScene(): Play {
+  const play = setPiecesPlay()
+  return {
+    ...play,
+    phases: [
+      phase(P.t1, null, [
+        run(uuid(400), P.A(4), [{ x: 46, y: 36 }]),
+        run(uuid(401), P.A(5), [{ x: 45, y: 37 }]),
+        breakdown(uuid(402), P.A(4), P.A(5), P.A(3), 1.5, { contest: 'guard' }),
+      ]),
+      ...play.phases.slice(1),
     ],
   }
 }
@@ -390,6 +410,28 @@ export function realisticRunsPlay(): Play {
   }
 }
 
+/**
+ * Typed paces of lot 3bis-1 (D-133), source of the frozen fixture `play-v4-lot3bis1.json` (never
+ * change it: the fixture must stay equal to it). The realistic runs of lot 3 bis, where the linked
+ * run of A2 and the run of A6 with an imposed duration have a pace typed in m/s; A5 keeps her
+ * typed segment speed.
+ */
+export function typedPacesPlay(): Play {
+  const play = realisticRunsPlay()
+  const typed: Record<Id, number> = { [uuid(502)]: 3, [uuid(503)]: 5.5 }
+  return {
+    ...play,
+    name: 'Allures saisies',
+    phases: play.phases.map((p) => ({
+      ...p,
+      actions: p.actions.map((a) => {
+        const pace = typed[a.id]
+        return a.type === 'run' && pace !== undefined ? { ...a, pace } : a
+      }),
+    })),
+  }
+}
+
 /** Placement preset of a lineout, source of the frozen fixture `preset-v1-touche.json`. */
 export function lineoutPreset(): PlacementPreset {
   return preset({
@@ -470,6 +512,38 @@ export function speedsPlay(): Play {
           sync: { target: { actionId: SPEEDS.RUN_WARNING, event: 'runEnd' }, adjust: 'delay' },
         }),
         pass(SPEEDS.PASS, A1, A2, 1),
+      ]),
+    ],
+  })
+}
+
+/** Ids of the lot 3bis-1 acceleration scene (accelPlay). */
+export const ACCELS = {
+  A1: uuid(1),
+  A2: uuid(2),
+  T1: uuid(100),
+  RUN_RED: uuid(200),
+  RUN_ORANGE: uuid(201),
+} as const
+
+/**
+ * One phase (lot 3bis-1, D-132): two 20 m sprints from rest to rest with an imposed duration, sped
+ * up beyond the bounds (red speed badge each). A1 in 3.5 s: acceleration 10.5 and braking
+ * 8.1 m/s², red diamonds; A2 in 4.2 s: 7.3 and 5.6 m/s², orange diamonds.
+ */
+export function accelPlay(): Play {
+  const { A1, A2 } = ACCELS
+  return basePlay({
+    entities: [player(A1, 'A', 1), player(A2, 'A', 2)],
+    setup: {
+      positions: { [A1]: { x: 40, y: 25 }, [A2]: { x: 40, y: 35 } },
+      ballCarrierId: null,
+      ballPosition: null,
+    },
+    phases: [
+      phase(ACCELS.T1, null, [
+        run(ACCELS.RUN_RED, A1, [{ x: 60, y: 25 }], { pace: 'sprint', durationOverride: 3.5 }),
+        run(ACCELS.RUN_ORANGE, A2, [{ x: 60, y: 35 }], { pace: 'sprint', durationOverride: 4.2 }),
       ]),
     ],
   })
