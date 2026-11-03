@@ -10,9 +10,12 @@ import { P, run, setPiecesPlay, sevenVsSevenWithOptions, uuid } from '../test/bu
 import {
   actionDetails,
   actorName,
+  durationFactorsText,
   releaseRealText,
   rendezVousText,
+  segmentLevel,
   segmentSourceText,
+  segmentText,
   speedValueLabel,
   syncResultText,
   syncTargetText,
@@ -106,6 +109,54 @@ describe('descriptions (D-108, D-110)', () => {
     expect(segmentSourceText(report.segments[0], report)).toBe(
       'allure de la course (vitesse saisie)',
     )
+  })
+
+  it('gives the factors of an imposed duration and the accelerations of a segment (D-130, D-132)', () => {
+    const first = play.phases[0]
+    if (!first) throw new Error('no phase')
+    const runReportOf = (extra: Parameters<typeof run>[3]) => {
+      // A4 at (40, 35): 20 m at a jog.
+      const one = run(uuid(1), P.A(4), [{ x: 60, y: 35 }], extra)
+      const p = { ...play, phases: [{ ...first, actions: [one] }] }
+      const report = phaseReport(p, P.t1, settings, createCaches())?.rows[0]
+      if (report?.kind !== 'run' || !report.segments[0]) throw new Error('no run report')
+      return { report, segment: report.segments[0] }
+    }
+    const natural = runReportOf({})
+    expect(natural.report.factor).toBe(1)
+    expect(durationFactorsText(natural.report)).toBeNull()
+    expect(segmentLevel(natural.segment)).toBeNull()
+    expect(segmentText(natural.segment, natural.report)).not.toMatch(/accélération|freinage/)
+
+    // Far too short: both levers, beyond the red acceleration and braking thresholds.
+    const forced = runReportOf({ durationOverride: 1.5 })
+    expect(forced.report.accelFactor).toBeGreaterThan(1)
+    expect(durationFactorsText(forced.report)).toMatch(
+      /^Durée imposée : vitesses × \d+,\d\d, accélérations × \d+,\d\d\.$/,
+    )
+    expect(forced.segment.accel?.level).toBe('danger')
+    expect(segmentLevel(forced.segment)).toBe('danger')
+    expect(segmentText(forced.segment, forced.report)).toMatch(
+      /, accélération \d+,\d m\/s², freinage \d+,\d m\/s²$/,
+    )
+    const rows = actionRows(
+      {
+        ...play,
+        phases: [
+          {
+            ...first,
+            actions: [run(uuid(1), P.A(4), [{ x: 60, y: 35 }], { durationOverride: 1.5 })],
+          },
+        ],
+      },
+      { phaseId: P.t1, start: 0, duration: 0, rows: [forced.report] },
+      [],
+    ).rows
+    expect(rows[0]?.details).toContain(durationFactorsText(forced.report))
+
+    // Longer than natural: one lever, slower speeds.
+    const slow = runReportOf({ durationOverride: 12 })
+    expect(durationFactorsText(slow.report)).toMatch(/^Durée imposée : vitesses × 0,\d\d\.$/)
   })
 
   it('graduates the time scale every 1, 2 or 5 s', () => {

@@ -138,6 +138,18 @@ export const ACCEL_BADGE_CLEARANCE = 2.5
 export const ACCEL_BADGE_SHIFT = 2
 
 /**
+ * HYPOTHÈSE: speed slider of the inspector, in km/h (D-133, Q8): from `minKmh` to the red speed
+ * threshold plus `aboveDangerKmh` (30 km/h with the defaults); while dragging, a value within
+ * `snapKmh` of a pace marker snaps to it; `stepKmh` per arrow key.
+ */
+export const SPEED_SLIDER = {
+  minKmh: 1,
+  aboveDangerKmh: 5,
+  snapKmh: 0.5,
+  stepKmh: 0.1,
+} as const
+
+/**
  * Two-lever solver (SPEC 5.3, D-130): bisection on the logarithm of the factor on the target
  * speeds, between `minFactor` and the top speed of the player, then on the logarithm of the time
  * scale, up to `maxTimeScale` (a numerical bound: beyond, a link target is before the start,

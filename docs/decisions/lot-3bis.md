@@ -190,7 +190,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : D-129 (seuls les seuils signalent) ; avec a(v), le pic d'accélération est au départ et celui de freinage juste avant un arrêt ou un rendez-vous, sous le jeton ou une poignée.
 - Alternatives écartées : carré à « ! », triangle orienté (Q5) ; calque renommé ou deux calques (Q6) ; alerte latérale (Q7) ; pastille au pic exact (cachée par le jeton).
 - Origine : prompt (A) ; réponses Q5 à Q7 ; validation du plan (modification 4).
-- Précisée par D-135 (valeurs des seuils, mesure du pic d'accélération) et D-137 (placement et dessin des pastilles).
+- Précisée par D-135 (valeurs des seuils, mesure du pic d'accélération), D-137 (placement et dessin des pastilles) et D-138 (interface).
 
 ### D-133 : allure saisie, combinaison v4 et curseur de vitesse
 - Date : 2026-10-25
@@ -198,6 +198,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : retour de séance (vitesses à calibrer avec un curseur à repères) ; règle 6 de `CLAUDE.md`.
 - Alternatives écartées : bornes de 1 à 45 km/h ; aimantation à ±1 km/h (Q8).
 - Origine : prompt (D) ; réponse Q8.
+- Précisée par D-138 (interface du curseur).
 
 ### D-134 : réglages v4
 - Date : 2026-10-25
@@ -205,6 +206,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : comme le sprint (D-111, D-121) : les valeurs jamais modifiées suivent la calibration, les choix de l'utilisateur sont gardés.
 - Alternatives écartées : aucune proposée.
 - Origine : prompt (E), proposition retenue.
+- Précisée par D-138 (section Réglages).
 
 ### D-135 : modèle de mouvement et calibration
 - Date : 2026-10-25
@@ -240,3 +242,16 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : pastilles hors du jeton et de la poignée dans les deux thèmes d'écran (image de référence) ; emplacement stable d'une modification à l'autre (sans égalité tranchée par l'arrondi) ; « − » (U+2212) peut manquer dans la police.
 - Alternatives écartées : zone au-delà du seuil orange quelle que soit la pastille ; dégagement de 2 m (losange contre le jeton en Contraste fort) ; signes en texte.
 - Origine : écriture de l'étape 4, prise seul : à relire.
+
+### D-138 : précisions de l'interface du lot 3bis-1
+- Date : 2026-11-03
+- Décision :
+  - curseur : sous la liste « Allure » de la course, et dans le bloc du segment dès que « Allure de la course » n'est pas choisie ; libellés « Curseur de l'allure » et « Curseur du segment » ; repères en traits verticaux nommés sous la piste ; valeur affichée « 5,5 m/s (19,8 km/h), Sprint » ; la liste et le champ en km/h restent ; validation sur l'événement natif `change` (relâchement, ou chaque flèche) ; une valeur hors des bornes (champ jusqu'à 45 km/h) met le curseur en butée ;
+  - facteurs : « Durée imposée : vitesses × 0,80. » (accélérations ajoutées si k > 1) sous la durée dans l'inspecteur et dans l'infobulle de la ligne, sauf quand le lien les donne déjà (vitesse ajustée, départ différé en retard) ;
+  - segment : « , accélération 6,4 m/s², freinage 7,2 m/s² » à la suite de sa ligne quand un seuil est dépassé ; la ligne prend la couleur de l'alerte la plus grave (vitesse, accélération, freinage) ; les pastilles de la liste comptaient déjà ces alertes (étape 4) ;
+  - réglages : « Pointe de la joueuse » (1 à 12 m/s, km/h affichés) après le profil de vitesse ; « Seuils d'accélération » et « Seuils de freinage », orange de 0,5 m/s² au rouge, rouge de l'orange à 30 m/s² ;
+  - calque « Vitesses » : infobulle « Vitesses et accélérations » sur la case.
+  Précise D-132, D-133 et D-134.
+- Raison : libellés distincts de « Vitesse du segment » et « Allure » (recherche par libellé) ; un geste, une étape d'annulation ; facteurs affichés une seule fois.
+- Alternatives écartées : curseur à la place de la liste (« Allure de la course » doit rester un choix explicite) ; ligne d'alerte séparée par segment (les messages sont déjà dans les pastilles).
+- Origine : écriture de l'étape 6, prise seul : à relire.

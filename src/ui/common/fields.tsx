@@ -128,9 +128,11 @@ export function CheckboxField(props: {
   checked: boolean
   onChange: (checked: boolean) => void
   disabled?: boolean
+  /** Tooltip. */
+  title?: string
 }) {
   return (
-    <label className="checkbox">
+    <label className="checkbox" title={props.title}>
       <input
         type="checkbox"
         checked={props.checked}

@@ -7,25 +7,20 @@
 
 ## En cours
 
-- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md` ; D-129 à D-137, non intégrées à la SPEC) : blocs 0 à 5 faits ; bloc 7 retiré le 03/11 (plan, section F).
-- Bloc suivant : bloc 6, étape 6 (interface : curseur, réglages, liste, calque ; plan D, E, A.3), dernier bloc avant `/fin-lot`.
+- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md` ; D-129 à D-138, non intégrées à la SPEC) : blocs 0 à 6 faits ; bloc 7 retiré le 03/11 (plan, section F).
+- Suite : `/fin-lot`, lancé par l'utilisateur.
 
 ## Fait (lot 3bis-1)
 
-- Étape 0 : plan validé (Q1 à Q9) ; D-129 à D-134 ; parties de D-120 et D-121 « reportée à 3bis-2 ».
-- Étape 1 : calibration (pointe 24 km/h, a0 5,2 m/s²), Q10 à Q14 ; D-135.
-- Étape 2 : profil en a(v), `boundScale` ; `reglages.json` v4 et migration.
-- Étape 3 : deux leviers ; codes plafonnés retirés ; Q15, D-136.
-- Étape 4 : alertes d'accélération et de freinage, losanges « + » et « − », jamais exportés ; D-137.
-- Étape 5 : combinaison v4 (`pace` nommée ou en m/s, `speedOf`, `schemaV3.ts` figé, fixture `play-v4-lot3bis1.json`) ; allure saisie en km/h dans l'inspecteur ; étape 7 retirée (combinaisons existantes jetables, décision de l'utilisateur du 03/11).
+- Étapes 0 à 6, chacune avec son commit (cases du plan) : calibration (D-135) ; profil en a(v) et réglages v4 ; solveur à deux leviers (D-136) ; alertes d'accélération et de freinage (D-137) ; combinaison v4 ; interface : curseur, facteurs, accélérations, pointe et seuils, infobulle du calque (D-138).
 
 ## Reste à faire
 
-- Lot 3bis-1 : bloc 6 (étape 6 : curseur sur la course et le segment, afficher `SegmentReport.accel` et `brake`), puis `/fin-lot` (SPEC 1.8, ARCHITECTURE, RECETTE, ligne du README sur les skills dans VS Code, PR).
+- Lot 3bis-1 : `/fin-lot` (SPEC 1.8, ARCHITECTURE, RECETTE, ligne du README sur les skills dans VS Code, PR).
 - Après la fusion de 3bis-1 : /changement-spec frise chronologique (décision de l'utilisateur du 03/11), avant 3bis-2, 3bis-3 et le lot 4.
 - Puis 3bis-2 (interactions) et 3bis-3 (positions préréglées), chacune par `/nouveau-lot` (D-128).
 - Lot 3 bis : les 3 vérifications manuelles de `docs/RECETTE.md` (Ctrl+F5 d'abord).
-- D-119 à D-121 (lot 3 bis) et D-137 (étape 4), prises seul : à relire ; intégrées au `/fin-lot` de 3bis-1, sauf les parties reportées à 3bis-2.
+- D-119 à D-121 (lot 3 bis), D-137 (étape 4) et D-138 (étape 6), prises seul : à relire ; intégrées au `/fin-lot` de 3bis-1, sauf les parties reportées à 3bis-2.
 - Vérifications de terrain, non bloquantes : conflit Drive réel ; modèle enregistré sur un PC, appliqué sur l'autre ; GIF sur WhatsApp ; PDF N&B sur la laser ; cahier de jeu sur le téléphone.
 - Puis lot 4 (défense simulée ; le plan de 3bis-1, section G, liste ce qui le touche) et lot 5 (ateliers).
 

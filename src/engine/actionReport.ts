@@ -61,6 +61,12 @@ export interface RunReport {
   meanSpeed: number
   peakSpeed: number
   segments: SegmentReport[]
+  /**
+   * Factors of the levers on the target speeds and the accelerations (imposed duration, link,
+   * D-130), 1 otherwise.
+   */
+  factor: number
+  accelFactor: number
   sync: RunSyncResult | null
   /** « Finit lancée » set, and in effect (ends at speed with the phase). */
   endsAtSpeed: boolean
@@ -204,6 +210,8 @@ function runReport(
     meanSpeed: duration > 0 ? covered / duration : 0,
     peakSpeed,
     segments: segmentsOf(run, motion),
+    factor: motion.factor,
+    accelFactor: motion.accelFactor,
     sync: motion.sync,
     endsAtSpeed: run.endsAtSpeed === true,
     atSpeed: motion.endsAtSpeed && motion.until === null,
@@ -249,6 +257,8 @@ export function phaseReport(
             meanSpeed: 0,
             peakSpeed: 0,
             segments: [],
+            factor: 1,
+            accelFactor: 1,
             sync: null,
             endsAtSpeed: a.endsAtSpeed === true,
             atSpeed: false,

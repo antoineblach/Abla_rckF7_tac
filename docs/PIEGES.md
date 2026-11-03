@@ -13,6 +13,7 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 ## Playwright et OPFS
 
 - Playwright : `fill` refusé sur un curseur hors pas (touche End) ; `selectOption` ne donne pas le focus ; coordonnées de souris arrondies au pixel ; un clic à moins d'un rayon de jeton sélectionne la joueuse (viser plutôt la poignée de fin d'une course courte).
+- `getByLabel` sans `exact` trouve aussi un libellé qui contient le texte (« Curseur de la vitesse du segment » pour « Vitesse du segment ») : libellés distincts, ou `exact: true`.
 - Une liste de `combinaisons/` pendant une écriture contient le `.crswap` de Chrome : filtrer sur `.combi.json`.
 - **OPFS et tests de bout en bout :**
   - une lecture pendant une écriture de la page échoue (`NotReadableError`, puis `NotFoundError` pendant le remplacement) ; `expect.poll` ne réessaie pas sur une erreur : lire avec `.catch(() => null)` ;
@@ -54,3 +55,4 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - La police Atkinson Hyperlegible couvre le français sauf U+202F (remplacée par U+00A0, `export/text.ts`) ; son zéro est barré.
 - Le morceau principal ne doit importer ni `export/jobSteps.ts` ni les encodeurs : `export/jobs.ts` reste léger (contrôlé par `bundle.chromium.spec.ts`).
 - Une commande sans effet doit rendre la même combinaison (même référence) : sinon `applyEdit` enregistre une étape d'annulation vide.
+- Curseur natif contrôlé par React : après l'événement `input`, React remet l'ancienne valeur si l'état ne change pas ; l'événement natif `change` qui suit lit alors l'ancienne valeur. Garder la valeur en brouillon d'état à chaque `input` (`common/SpeedSlider.tsx`).

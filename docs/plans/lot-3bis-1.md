@@ -291,7 +291,7 @@ Posée à l'étape 3, réponse du 25/10 (D-136) :
 - **Bloc 5**
   - [x] **Étape 5 : combinaison v4 (allure saisie).** (commit « Étape 5 : combinaison v4, allure saisie », après `e939d3d`)
 - **Bloc 6**
-  - [ ] **Étape 6 : interface (curseur, réglages, liste, calque).**
+  - [x] **Étape 6 : interface (curseur, réglages, liste, calque).** (commit « Étape 6 : curseur de vitesse, réglages et accélérations dans l'interface, D-138 », après `b75cf17`)
 - Bloc 7 et étape 7 (combinaisons existantes) : retirés le 03/11, décision de l'utilisateur ; raison à la section F.
 
 Puis `/fin-lot`, lancé par l'utilisateur.

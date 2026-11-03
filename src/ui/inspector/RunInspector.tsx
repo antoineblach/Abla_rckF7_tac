@@ -1,5 +1,6 @@
-// Inspector section of a run (SPEC 6.5, lot 3 bis: D-106 to D-109, D-114, D-117): pace, segment
-// speed, imposed duration, delay, « Finit lancée », synchronisation link, lengths and speeds.
+// Inspector section of a run (SPEC 6.5, lot 3 bis: D-106 to D-109, D-114, D-117; lot 3bis-1:
+// D-130, D-132, D-133): pace and segment speed (list, slider, field in km/h), imposed duration and
+// its factors, delay, « Finit lancée », synchronisation link, lengths, speeds and accelerations.
 // Display only: the logic is in editor/commands and state/.
 import { removeRunSync, setSegmentSpeed, updateRun, updateRunSync } from '../../editor/commands'
 import { selectedSegment, type Selection } from '../../editor/selection'
@@ -10,9 +11,12 @@ import { commandContext, startSyncPick } from '../../state/editorActions'
 import { applyEdit } from '../../state/editorStore'
 import { actionReportOf, playerName, runDuration } from '../../state/selectors'
 import { CheckboxField, NumberField, SelectField } from '../common/fields'
+import { SpeedSlider } from '../common/SpeedSlider'
 import {
+  durationFactorsText,
   launchText,
   rendezVousText,
+  segmentLevel,
   segmentText,
   speedValueLabel,
   syncResultText,
@@ -94,6 +98,16 @@ function SegmentBlock({
           else set(value)
         }}
       />
+      {speed !== undefined ? (
+        <SpeedSlider
+          label="Curseur du segment"
+          value={speed}
+          paces={settings.paces}
+          speedAlert={settings.speedAlert}
+          disabled={disabled}
+          onCommit={set}
+        />
+      ) : null}
       {typeof speed === 'number' ? (
         <TypedSpeedField label="Vitesse saisie" speed={speed} disabled={disabled} onCommit={set} />
       ) : null}
@@ -213,6 +227,7 @@ export function RunInspector({
   const delayLocked =
     run.sync?.adjust === 'delay' && result !== null && result.status !== 'unreached'
   const launch = report ? launchText(report) : null
+  const factors = report ? durationFactorsText(report) : null
   return (
     <section className="inspector__section" aria-label="Course">
       <h3>Course de {playerName(play, run.entityId)}</h3>
@@ -234,6 +249,14 @@ export function RunInspector({
             }),
           )
         }
+      />
+      <SpeedSlider
+        label="Curseur de l’allure"
+        value={run.pace}
+        paces={settings.paces}
+        speedAlert={settings.speedAlert}
+        disabled={disabled}
+        onCommit={(pace) => applyEdit((p) => updateRun(p, run.id, { pace }))}
       />
       {typeof run.pace === 'number' ? (
         <TypedSpeedField
@@ -273,6 +296,11 @@ export function RunInspector({
           onCommit={(value) => applyEdit((p) => updateRun(p, run.id, { durationOverride: value }))}
         />
       ) : null}
+      {factors ? (
+        <p className="inspector__info" data-testid="run-factors">
+          {factors}
+        </p>
+      ) : null}
       {delayLocked ? (
         <p className="inspector__info" data-testid="run-delay-computed">
           Délai calculé par le lien : {formatSeconds(result.delay)}
@@ -308,11 +336,14 @@ export function RunInspector({
           <li>Longueur : {formatMeters(report.length)}</li>
           <li>Vitesse moyenne : {formatSpeed(report.meanSpeed)}</li>
           <li>Vitesse de pointe : {formatSpeed(report.peakSpeed)}</li>
-          {report.segments.map((s) => (
-            <li key={s.index} className={s.level ? `inspector__fact--${s.level}` : undefined}>
-              {segmentText(s, report)}
-            </li>
-          ))}
+          {report.segments.map((s) => {
+            const level = segmentLevel(s)
+            return (
+              <li key={s.index} className={level ? `inspector__fact--${level}` : undefined}>
+                {segmentText(s, report)}
+              </li>
+            )
+          })}
         </ul>
       ) : null}
     </section>
