@@ -12,6 +12,8 @@ import {
   actorName,
   releaseRealText,
   rendezVousText,
+  segmentSourceText,
+  speedValueLabel,
   syncResultText,
   syncTargetText,
   timeTicks,
@@ -89,6 +91,21 @@ describe('descriptions (D-108, D-110)', () => {
       'Cible jamais atteinte : lien ignoré.',
     )
     expect(syncResultText(null)).toBe('Lien ignoré.')
+  })
+
+  it('names a typed pace « vitesse saisie » (D-133)', () => {
+    expect(speedValueLabel('jog')).toBe('Trot')
+    expect(speedValueLabel(4.5)).toBe('vitesse saisie')
+    const typed = run(uuid(1), P.A(4), [{ x: 50, y: 40 }], { pace: 4.5 })
+    const first = play.phases[0]
+    if (!first) throw new Error('no phase')
+    const p = { ...play, phases: [{ ...first, actions: [typed] }] }
+    const report = phaseReport(p, P.t1, settings, createCaches())?.rows[0]
+    if (report?.kind !== 'run' || !report.segments[0]) throw new Error('no run report')
+    expect(report.pace).toBe(4.5)
+    expect(segmentSourceText(report.segments[0], report)).toBe(
+      'allure de la course (vitesse saisie)',
+    )
   })
 
   it('graduates the time scale every 1, 2 or 5 s', () => {

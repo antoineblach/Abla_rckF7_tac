@@ -21,7 +21,6 @@ import {
   type Id,
   type KickKind,
   type KickTarget,
-  type Pace,
   type Phase,
   type Play,
   type PlayCategory,
@@ -30,6 +29,7 @@ import {
   type RunAction,
   type RunSync,
   type SegmentSpeed,
+  type SpeedValue,
   type Team,
   type Vec2,
 } from '../model/types'
@@ -439,7 +439,8 @@ export function addPass(
 }
 
 export interface RunPatch {
-  pace?: Pace
+  /** A named pace, or a speed in m/s > 0 (D-133). */
+  pace?: SpeedValue
   /** null clears the imposed duration; a duration removes a link with an adjusted speed (D-107). */
   durationOverride?: number | null
   delay?: number
@@ -455,11 +456,25 @@ export interface PassPatch {
   release?: ReleaseMode | null
 }
 
+function isSpeedValue(value: SpeedValue): boolean {
+  return typeof value === 'number' ? value > 0 && Number.isFinite(value) : PACES.includes(value)
+}
+
 export function updateRun(play: Play, actionId: Id, patch: RunPatch): Play {
+  const { pace } = patch
+  const paceOnly =
+    patch.durationOverride === undefined &&
+    patch.delay === undefined &&
+    patch.endsAtSpeed === undefined
+  if (pace !== undefined && paceOnly) {
+    // A pace alone, invalid or unchanged: the same play, so that no empty undo step is recorded.
+    const current = locateRun(play, actionId)?.run.pace
+    if (current === undefined || !isSpeedValue(pace) || current === pace) return play
+  }
   return mapActions(play, (action) => {
     if (action.id !== actionId || action.type !== 'run') return action
     let next = { ...action }
-    if (patch.pace !== undefined && PACES.includes(patch.pace)) next.pace = patch.pace
+    if (pace !== undefined && isSpeedValue(pace)) next.pace = pace
     if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
     if (patch.durationOverride === null) delete next.durationOverride
     else if (patch.durationOverride !== undefined && patch.durationOverride > 0) {

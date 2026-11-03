@@ -83,6 +83,24 @@ describe('segment speeds (SPEC 5.3, D-114)', () => {
     expect(fast.duration).toBeLessThan(m.duration)
   })
 
+  it('runs a typed pace like the same speed typed on every segment (D-133)', () => {
+    const points = [
+      { x: 55, y: 34 },
+      { x: 70, y: 30 },
+    ]
+    const typed = run(uuid(30), A1, points, { pace: 4.6 })
+    const perSegment = run(
+      uuid(30),
+      A1,
+      points.map((p) => ({ ...p, speed: 4.6 })),
+      { pace: 'jog' },
+    )
+    const a = motionOf(compile(twoPlayers([phase(T1, null, [typed])]), [T1]), typed.id)
+    const b = motionOf(compile(twoPlayers([phase(T1, null, [perSegment])]), [T1]), typed.id)
+    expect(a.targets).toEqual([4.6, 4.6])
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+  })
+
   it('maps the speeds of zero-length segments away', () => {
     const r = run(uuid(30), A1, [
       { x: 40, y: 30, speed: 'sprint' },
@@ -238,9 +256,18 @@ describe('acceleration and braking alerts (D-132)', () => {
       ),
     ).toBe(14)
     // A short segment: the middle moved towards the peak, towards the end on a tie for a braking.
-    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 10, false)).toBeCloseTo(12.3 - ACCEL_BADGE_SHIFT, 12)
-    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 12.3, true)).toBeCloseTo(12.3 + ACCEL_BADGE_SHIFT, 12)
-    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 12.3, false)).toBeCloseTo(12.3 - ACCEL_BADGE_SHIFT, 12)
+    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 10, false)).toBeCloseTo(
+      12.3 - ACCEL_BADGE_SHIFT,
+      12,
+    )
+    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 12.3, true)).toBeCloseTo(
+      12.3 + ACCEL_BADGE_SHIFT,
+      12,
+    )
+    expect(accelBadgeAt(10, 14.6, [[10, 14.6]], 12.3, false)).toBeCloseTo(
+      12.3 - ACCEL_BADGE_SHIFT,
+      12,
+    )
   })
 })
 

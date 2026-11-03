@@ -4,7 +4,7 @@
 // every line through it (SPEC 5.2). Pure.
 import { pathToPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
-import type { BreakdownKind, Id, Pace, Play, RunAction, Vec2 } from '../model/types'
+import type { BreakdownKind, Id, Pace, Play, RunAction, SpeedValue, Vec2 } from '../model/types'
 import type { EvalCaches } from './caches'
 import { segmentPeak } from './profile'
 import {
@@ -53,7 +53,8 @@ export interface RunReport {
   end: number
   /** False for a second run of the player in the phase, or a run ignored after a breakdown. */
   applied: boolean
-  pace: Pace
+  /** Pace of the run: a named pace or a typed speed in m/s (D-133). */
+  pace: SpeedValue
   /** Length of the drawn curve. */
   length: number
   duration: number

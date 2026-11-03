@@ -124,7 +124,7 @@ export function phase(
 
 export function basePlay(extra: Partial<Play> = {}): Play {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: uuid(9999),
     createdAt: FIXED_DATE,
     updatedAt: FIXED_DATE,
@@ -407,6 +407,28 @@ export function realisticRunsPlay(): Play {
         { condition: 'Défense montée', instruction: 'Par-dessus' },
       ),
     ],
+  }
+}
+
+/**
+ * Typed paces of lot 3bis-1 (D-133), source of the frozen fixture `play-v4-lot3bis1.json` (never
+ * change it: the fixture must stay equal to it). The realistic runs of lot 3 bis, where the linked
+ * run of A2 and the run of A6 with an imposed duration have a pace typed in m/s; A5 keeps her
+ * typed segment speed.
+ */
+export function typedPacesPlay(): Play {
+  const play = realisticRunsPlay()
+  const typed: Record<Id, number> = { [uuid(502)]: 3, [uuid(503)]: 5.5 }
+  return {
+    ...play,
+    name: 'Allures saisies',
+    phases: play.phases.map((p) => ({
+      ...p,
+      actions: p.actions.map((a) => {
+        const pace = typed[a.id]
+        return a.type === 'run' && pace !== undefined ? { ...a, pace } : a
+      }),
+    })),
   }
 }
 

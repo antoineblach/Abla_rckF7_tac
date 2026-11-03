@@ -16,7 +16,8 @@ import { listFolder, readFolderFile, writeFolderFile } from './support/opfs'
 // red threshold (inspector, list, badge and its layer remembered), « Caler sur… » a pass and the
 // run following it, loop refused, settings written in reglages.json v4, reglages.json v2 at
 // 7 m/s migrated with its message, pass on receipt laid by the tool. Lot 3bis-1 (D-134):
-// reglages.json v3 with the former default acceleration migrated with its message.
+// reglages.json v3 with the former default acceleration migrated with its message; typed pace of a
+// run saved in a version 4 file (D-133).
 
 /** Read from the root of the repository, where the tests run. */
 const SETTINGS_V2 = 'src/test/fixtures/reglages-v2.json'
@@ -82,7 +83,7 @@ test('segment speed by key and in km/h; red threshold in the inspector, the list
   await expect(row(page, 'Course A 4').locator('.action-row__badge--error')).toBeVisible()
   await save(page)
   const play = await storedPlay(page)
-  expect(play.schemaVersion).toBe(3)
+  expect(play.schemaVersion).toBe(4)
   const run = play.phases[0]?.actions.find((a) => a.type === 'run') as
     { waypoints: { x: number; y: number; speed?: unknown }[] } | undefined
   expect(run?.waypoints[1]?.speed).toBeCloseTo(7.5, 3)
@@ -100,6 +101,26 @@ test('segment speed by key and in km/h; red threshold in the inspector, the list
   await page.reload()
   await page.getByRole('button', { name: 'Ouvrir Vitesses' }).click()
   await expect(page.getByRole('checkbox', { name: 'Vitesses', exact: true })).not.toBeChecked()
+})
+
+test('typed pace of a run in km/h, saved in m/s in a version 4 file (D-133)', async ({ page }) => {
+  await chooseFolder(page)
+  await createSevenVsSeven(page, 'Allure saisie')
+  await drawRun(page, [40, 35], [[60, 38]])
+  await row(page, 'Course A 4').click()
+  const pace = inspector(page).getByLabel('Allure', { exact: true })
+  await pace.selectOption('custom')
+  await fillCommit(page, 'Allure saisie', '18')
+  await expect(pace).toHaveValue('custom')
+  await expect(inspector(page).getByLabel('Allure saisie', { exact: true })).toHaveValue('18')
+  await save(page)
+  const play = await storedPlay(page)
+  expect(play.schemaVersion).toBe(4)
+  const run = play.phases[0]?.actions.find((a) => a.type === 'run')
+  expect(run?.pace).toBeCloseTo(5, 3)
+  // Back to a named pace.
+  await pace.selectOption('sprint')
+  await expect(inspector(page).getByLabel('Allure saisie', { exact: true })).toHaveCount(0)
 })
 
 test('« Caler sur… » the arrival of a pass: the run follows the pass; a loop is refused', async ({

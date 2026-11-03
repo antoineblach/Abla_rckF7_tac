@@ -28,6 +28,7 @@ import type { Issue } from '../model/issues'
 import { phaseLabelOf } from '../model/labels'
 import { findPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
+import { speedOf } from '../model/speed'
 import { analyseSyncs, meetsOwnPass } from '../model/syncGraph'
 import {
   attackDirection,
@@ -357,10 +358,7 @@ function withProfile(motion: RunMotion, profile: SpeedProfile): RunMotion {
 
 /** Target speed of each input segment of a run: its own, or the pace of the run (D-114). */
 function runTargets(run: RunAction, settings: EngineSettings): number[] {
-  return run.waypoints.map((w) => {
-    if (w.speed === undefined) return settings.paces[run.pace]
-    return typeof w.speed === 'number' ? w.speed : settings.paces[w.speed]
-  })
+  return run.waypoints.map((w) => speedOf(w.speed ?? run.pace, settings.paces))
 }
 
 /** Target speeds of the spline segments (zero-length input segments are dropped). */

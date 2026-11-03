@@ -10,7 +10,14 @@ import type {
 } from '../engine/actionReport'
 import type { RunSyncResult } from '../engine/timeline'
 import { BREAKDOWN_KIND_LABELS } from '../model/labels'
-import { isPlayer, type Id, type Play, type RunSync, type SyncTarget } from '../model/types'
+import {
+  isPlayer,
+  type Id,
+  type Play,
+  type RunSync,
+  type SpeedValue,
+  type SyncTarget,
+} from '../model/types'
 import { formatMeters, formatSeconds, formatSpeed, decimal } from './format'
 import { PACE_LABELS } from './strings'
 
@@ -72,9 +79,14 @@ export function syncResultText(result: RunSyncResult | null): string {
   return `Délai calculé : ${formatSeconds(result.delay)}.`
 }
 
+/** « Trot », or « vitesse saisie » for a speed in m/s (D-133). */
+export function speedValueLabel(value: SpeedValue): string {
+  return typeof value === 'number' ? 'vitesse saisie' : PACE_LABELS[value]
+}
+
 /** « Trot », « Sprint », « allure de la course (Trot) », « saisie ». */
 export function segmentSourceText(segment: SegmentReport, run: RunReport): string {
-  if (segment.source === 'run') return `allure de la course (${PACE_LABELS[run.pace]})`
+  if (segment.source === 'run') return `allure de la course (${speedValueLabel(run.pace)})`
   if (segment.source === 'custom') return 'vitesse saisie'
   return PACE_LABELS[segment.source]
 }

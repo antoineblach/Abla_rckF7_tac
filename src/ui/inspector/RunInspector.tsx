@@ -4,6 +4,7 @@
 import { removeRunSync, setSegmentSpeed, updateRun, updateRunSync } from '../../editor/commands'
 import { selectedSegment, type Selection } from '../../editor/selection'
 import type { Settings } from '../../model/settings'
+import { speedOf } from '../../model/speed'
 import { PACES, type Id, type Pace, type Play, type RunAction } from '../../model/types'
 import { commandContext, startSyncPick } from '../../state/editorActions'
 import { applyEdit } from '../../state/editorStore'
@@ -13,6 +14,7 @@ import {
   launchText,
   rendezVousText,
   segmentText,
+  speedValueLabel,
   syncResultText,
   syncTargetText,
 } from '../describe'
@@ -20,6 +22,36 @@ import { formatMeters, formatSeconds, formatSpeed, kmhToMps, mpsToKmh } from '..
 import { PACE_LABELS } from '../strings'
 
 type SegmentChoice = 'run' | Pace | 'custom'
+
+type PaceChoice = Pace | 'custom'
+
+/** Typed speed field, in km/h (1 to 45 km/h, D-117, D-133). */
+function TypedSpeedField({
+  label,
+  speed,
+  disabled,
+  onCommit,
+}: {
+  label: string
+  speed: number
+  disabled: boolean
+  onCommit: (mps: number) => void
+}) {
+  return (
+    <NumberField
+      label={label}
+      unit="km/h"
+      min={1}
+      max={45}
+      step={0.1}
+      value={Math.round(mpsToKmh(speed) * 10) / 10}
+      disabled={disabled}
+      onCommit={(kmh) => {
+        onCommit(kmhToMps(kmh))
+      }}
+    />
+  )
+}
 
 const END = 'end'
 
@@ -52,27 +84,18 @@ function SegmentBlock({
         value={choice}
         disabled={disabled}
         options={[
-          { value: 'run', label: `Allure de la course (${PACE_LABELS[run.pace]})` },
+          { value: 'run', label: `Allure de la course (${speedValueLabel(run.pace)})` },
           ...PACES.map((p) => ({ value: p, label: PACE_LABELS[p] })),
           { value: 'custom', label: 'Vitesse saisie' },
         ]}
         onChange={(value) => {
           if (value === 'run') set(null)
-          else if (value === 'custom') set(target ?? settings.paces[run.pace])
+          else if (value === 'custom') set(target ?? speedOf(run.pace, settings.paces))
           else set(value)
         }}
       />
       {typeof speed === 'number' ? (
-        <NumberField
-          label="Vitesse saisie"
-          unit="km/h"
-          min={1}
-          max={45}
-          step={0.1}
-          value={Math.round(mpsToKmh(speed) * 10) / 10}
-          disabled={disabled}
-          onCommit={(kmh) => set(kmhToMps(kmh))}
-        />
+        <TypedSpeedField label="Vitesse saisie" speed={speed} disabled={disabled} onCommit={set} />
       ) : null}
     </div>
   )
@@ -193,16 +216,33 @@ export function RunInspector({
   return (
     <section className="inspector__section" aria-label="Course">
       <h3>Course de {playerName(play, run.entityId)}</h3>
-      <SelectField
+      <SelectField<PaceChoice>
         label="Allure"
-        value={run.pace}
+        value={typeof run.pace === 'number' ? 'custom' : run.pace}
         disabled={disabled}
-        options={PACES.map((p) => ({
-          value: p,
-          label: `${PACE_LABELS[p]} : ${formatSpeed(settings.paces[p])}`,
-        }))}
-        onChange={(pace) => applyEdit((p) => updateRun(p, run.id, { pace }))}
+        options={[
+          ...PACES.map((p) => ({
+            value: p,
+            label: `${PACE_LABELS[p]} : ${formatSpeed(settings.paces[p])}`,
+          })),
+          { value: 'custom', label: 'Vitesse saisie' },
+        ]}
+        onChange={(choice) =>
+          applyEdit((p) =>
+            updateRun(p, run.id, {
+              pace: choice === 'custom' ? speedOf(run.pace, settings.paces) : choice,
+            }),
+          )
+        }
       />
+      {typeof run.pace === 'number' ? (
+        <TypedSpeedField
+          label="Allure saisie"
+          speed={run.pace}
+          disabled={disabled}
+          onCommit={(pace) => applyEdit((p) => updateRun(p, run.id, { pace }))}
+        />
+      ) : null}
       {segmentIndex !== null ? (
         <SegmentBlock
           run={run}

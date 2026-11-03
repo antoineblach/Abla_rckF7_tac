@@ -1,5 +1,6 @@
-// Data model, schemaVersion 3 (SPEC 4.1; lot 3: kicks and breakdowns; lot 3 bis: segment speeds,
-// runs ending at speed, synchronisation links, release on receipt). Units: metres, seconds, m/s.
+// Data model, schemaVersion 4 (SPEC 4.1; lot 3: kicks and breakdowns; lot 3 bis: segment speeds,
+// runs ending at speed, synchronisation links, release on receipt; lot 3bis-1: typed run pace,
+// D-133). Units: metres, seconds, m/s.
 import type {
   AnnotationEntity,
   DefenseSettings,
@@ -68,8 +69,11 @@ export type Entity =
   | ZoneEntity // lot 5
   | AnnotationEntity // lot 5
 
-/** Speed of a run segment: a named pace (settings), or a speed in m/s (lot 3 bis, D-114). */
-export type SegmentSpeed = Pace | number
+/** A named pace (settings), or a speed in m/s (lot 3 bis, D-114; run pace since 3bis-1, D-133). */
+export type SpeedValue = Pace | number
+
+/** Speed of a run segment. */
+export type SegmentSpeed = SpeedValue
 
 /** Waypoint; `speed` is the speed of the segment that ARRIVES at this point (D-114). */
 export interface Waypoint extends Vec2 {
@@ -109,8 +113,8 @@ export interface RunAction {
   entityId: Id
   /** Segment i goes from point i - 1 (the start position for i = 0) to point i. */
   waypoints: Waypoint[]
-  /** Pace of the run: speed of the segments without their own speed. */
-  pace: Pace
+  /** Pace of the run: speed of the segments without their own speed (D-133). */
+  pace: SpeedValue
   /** Imposed duration: every speed scaled by a common factor (D-107). */
   durationOverride?: number
   /** Ignored while a « départ différé » link applies (SPEC 5.8). */
@@ -205,7 +209,7 @@ export interface PlaySetup {
 }
 
 export interface Play {
-  schemaVersion: 3
+  schemaVersion: 4
   id: Id
   createdAt: string
   updatedAt: string

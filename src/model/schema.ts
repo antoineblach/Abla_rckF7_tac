@@ -1,8 +1,8 @@
-// zod schemas of the file format, schemaVersion 3 (SPEC 4.1, 4.4; lot 3: kicks and breakdowns,
+// zod schemas of the file format, schemaVersion 4 (SPEC 4.1, 4.4; lot 3: kicks and breakdowns,
 // D-094; lot 3 bis: segment speeds, runs ending at speed, synchronisation links, release on
-// receipt, D-104). Objects are strict: an unknown key makes the file invalid, so that it is never
-// rewritten without that key (DECISIONS Q24). Types of lots 4 and 5 are rejected (DECISIONS Q4).
-// The frozen versions 1 and 2 are in schemaV1.ts and schemaV2.ts.
+// receipt, D-104; lot 3bis-1: typed run pace, D-133). Objects are strict: an unknown key makes the
+// file invalid, so that it is never rewritten without that key (DECISIONS Q24). Types of lots 4
+// and 5 are rejected (DECISIONS Q4). The frozen versions 1 to 3 are in schemaV1.ts to schemaV3.ts.
 import { z } from 'zod'
 import type { Play } from './types'
 
@@ -40,8 +40,11 @@ const ballSchema = z.strictObject({ id: idSchema, kind: z.literal('ball') })
 
 export const entitySchema = z.discriminatedUnion('kind', [playerSchema, ballSchema])
 
-/** Speed of a segment: a named pace, or a speed in m/s (D-114). */
-export const segmentSpeedSchema = z.union([paceSchema, z.number().positive()])
+/** A named pace, or a speed in m/s (D-114, D-133). */
+export const speedValueSchema = z.union([paceSchema, z.number().positive()])
+
+/** Speed of a segment. */
+export const segmentSpeedSchema = speedValueSchema
 
 export const waypointSchema = z.strictObject({
   x: z.number(),
@@ -70,7 +73,7 @@ export const runSchema = z.strictObject({
   type: z.literal('run'),
   entityId: idSchema,
   waypoints: z.array(waypointSchema).min(1),
-  pace: paceSchema,
+  pace: speedValueSchema,
   durationOverride: z.number().positive().optional(),
   delay: z.number().nonnegative(),
   endsAtSpeed: z.literal(true).optional(),
@@ -89,7 +92,7 @@ export const passSchema = z.strictObject({
   release: releaseSchema,
 })
 
-const kickSchema = z.strictObject({
+export const kickSchema = z.strictObject({
   id: idSchema,
   type: z.literal('kick'),
   kickerId: idSchema,
@@ -138,8 +141,8 @@ export const setupSchema = z.strictObject({
   ballPosition: vec2Schema.nullable(),
 })
 
-export const playSchemaV3 = z.strictObject({
-  schemaVersion: z.literal(3),
+export const playSchemaV4 = z.strictObject({
+  schemaVersion: z.literal(4),
   id: idSchema,
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -153,7 +156,7 @@ export const playSchemaV3 = z.strictObject({
   phases: z.array(phaseSchema),
 })
 
-export type PlayFileV3 = z.infer<typeof playSchemaV3>
+export type PlayFileV4 = z.infer<typeof playSchemaV4>
 
-// Compile-time check: every valid v3 file is a Play.
-export const asPlay = (file: PlayFileV3): Play => file
+// Compile-time check: every valid v4 file is a Play.
+export const asPlay = (file: PlayFileV4): Play => file

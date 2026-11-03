@@ -173,7 +173,9 @@ Retenu au bloc 1 (D-135, Q10) : **exponentiel en a(v)**, valeurs d'une joueuse a
 
 ## F. Ce qui change pour une combinaison existante
 
-Chiffres du bloc 1 (script, B.1) reportés ici ; confirmés ou corrigés à l'étape 7.
+**Sans objet (03/11)**, décision de l'utilisateur : les combinaisons existantes sont des essais jetables, et une refonte du modèle suivra 3bis-1 (frise chronologique à la place des temps, par `/changement-spec` après la fusion). L'étape 7, qui devait confirmer cette section, est retirée. Le texte ci-dessous est gardé pour mémoire, sans être vérifié.
+
+Chiffres du bloc 1 (script, B.1).
 - **Durées** : courses au sprint plus courtes, de 1 % (30 m : 6,98 s au lieu de 7,06) à 9 % (3 m : 1,71 s au lieu de 1,87) ; trot un peu plus long (20 m : 6,21 s au lieu de 6,17), marche aussi (20 m : 10,87 s au lieu de 10,59), départ plus doux (Q14) ; lecture à peine plus courte.
 - **Positions intermédiaires** : à un même instant, une joueuse qui sprinte est plus loin au début d'une course (1,94 m au lieu de 1,50 au bout de 1 s), mais atteint l'allure du sprint plus tard (2,24 s et 7,9 m au lieu de 1,83 s et 5,0 m). Positions finales et points de passage inchangés, sauf course arrêtée par un regroupement (point d'arrêt et départs des temps suivants).
 - **Passes à instant fixe** : délais inchangés ; arrivées des receveuses décalées ; la tolérance de 0,5 s garde la plupart des enchaînements ; au-delà, « passeuse sans ballon », à recaler ou passer en « à la réception ».
@@ -227,7 +229,7 @@ Aucune.
 - **Étape 4, alertes d'accélération et de freinage** (section A.3) : niveaux par segment dans `timeline.ts`, codes et messages, pastilles en losange dans `evaluate.ts`, `sceneState.ts` et le rendu (placement de A.3), `actionReport.ts` ; absence dans les exports.
 - **Étape 5, combinaison v4** (section D) : partie modèle : `pace: Pace | number`, `schemaV3.ts`, migration, fixture `play-v4-lot3bis1.json`, `speedOf`, commandes et consommateurs.
 - **Étape 6, interface** (sections D, E, A.3) : curseur (course, segment), section Réglages de l'inspecteur, liste des actions (pastilles d'accélération, facteurs), infobulle du calque, message de migration des réglages ; tests de bout en bout.
-- **Étape 7, combinaisons existantes** (section F) : fixtures v3 et combinaisons d'exemple recompilées ; section F confirmée ou corrigée ; durée et poids des GIF mesurés.
+- **Étape 7, combinaisons existantes** : retirée le 03/11 (décision de l'utilisateur) : les combinaisons existantes sont des essais jetables, et une refonte du modèle suivra 3bis-1 (frise chronologique à la place des temps, par `/changement-spec` après la fusion). Section F sans objet.
 
 ## Tests
 
@@ -287,10 +289,9 @@ Posée à l'étape 3, réponse du 25/10 (D-136) :
 - **Bloc 4**
   - [x] **Étape 4 : alertes d'accélération et de freinage.** (commit « Étape 4 : alertes d'accélération et de freinage, D-137 », après `8444ab0`)
 - **Bloc 5**
-  - [ ] **Étape 5 : combinaison v4 (allure saisie).**
+  - [x] **Étape 5 : combinaison v4 (allure saisie).** (commit « Étape 5 : combinaison v4, allure saisie », après `e939d3d`)
 - **Bloc 6**
   - [ ] **Étape 6 : interface (curseur, réglages, liste, calque).**
-- **Bloc 7**
-  - [ ] **Étape 7 : combinaisons existantes.**
+- Bloc 7 et étape 7 (combinaisons existantes) : retirés le 03/11, décision de l'utilisateur ; raison à la section F.
 
 Puis `/fin-lot`, lancé par l'utilisateur.

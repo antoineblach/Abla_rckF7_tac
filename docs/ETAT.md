@@ -1,14 +1,14 @@
 # État du projet
 
-- Mise à jour : 2026-10-26
+- Mise à jour : 2026-11-03
 - Branche : `lot-3bis-1` (depuis `main` à `8467815`), poussée sur `origin`
 - `main` : lots 1, 2, 3 et 3 bis et chantier `docs-outils` fusionnés (PR #1 à #8 ; PR #8 le 25/10, commit de fusion `8467815`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` identique à D-055, vérifiée par `gh api` le 23/10 (D-102)
 
 ## En cours
 
-- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md` ; D-129 à D-137, non intégrées à la SPEC) : blocs 0 à 4 faits.
-- Bloc suivant : bloc 5, étape 5 (combinaison v4, allure saisie ; plan D).
+- Lot 3bis-1, le mouvement (`docs/plans/lot-3bis-1.md` ; D-129 à D-137, non intégrées à la SPEC) : blocs 0 à 5 faits ; bloc 7 retiré le 03/11 (plan, section F).
+- Bloc suivant : bloc 6, étape 6 (interface : curseur, réglages, liste, calque ; plan D, E, A.3), dernier bloc avant `/fin-lot`.
 
 ## Fait (lot 3bis-1)
 
@@ -17,11 +17,12 @@
 - Étape 2 : profil en a(v), `boundScale` ; `reglages.json` v4 et migration.
 - Étape 3 : deux leviers ; codes plafonnés retirés ; Q15, D-136.
 - Étape 4 : alertes d'accélération et de freinage, losanges « + » et « − », jamais exportés ; D-137.
+- Étape 5 : combinaison v4 (`pace` nommée ou en m/s, `speedOf`, `schemaV3.ts` figé, fixture `play-v4-lot3bis1.json`) ; allure saisie en km/h dans l'inspecteur ; étape 7 retirée (combinaisons existantes jetables, décision de l'utilisateur du 03/11).
 
 ## Reste à faire
 
-- Pour F à l'étape 7 : fixture du lot 3, ruck 2 m plus loin, passe plus en avant ; fixture du lot 3 bis, retards accélérés jusqu'à ×7.
-- Lot 3bis-1 : blocs 5 à 7 (étape 6 : afficher `SegmentReport.accel` et `brake`), puis `/fin-lot` (SPEC 1.8, ARCHITECTURE, RECETTE, ligne du README sur les skills dans VS Code, PR).
+- Lot 3bis-1 : bloc 6 (étape 6 : curseur sur la course et le segment, afficher `SegmentReport.accel` et `brake`), puis `/fin-lot` (SPEC 1.8, ARCHITECTURE, RECETTE, ligne du README sur les skills dans VS Code, PR).
+- Après la fusion de 3bis-1 : /changement-spec frise chronologique (décision de l'utilisateur du 03/11), avant 3bis-2, 3bis-3 et le lot 4.
 - Puis 3bis-2 (interactions) et 3bis-3 (positions préréglées), chacune par `/nouveau-lot` (D-128).
 - Lot 3 bis : les 3 vérifications manuelles de `docs/RECETTE.md` (Ctrl+F5 d'abord).
 - D-119 à D-121 (lot 3 bis) et D-137 (étape 4), prises seul : à relire ; intégrées au `/fin-lot` de 3bis-1, sauf les parties reportées à 3bis-2.
@@ -40,7 +41,7 @@
 
 - Aucun test désactivé.
 - Lecture de démarrage au-dessus de la cible de 8 000 o (CLAUDE.md et ETAT).
-- Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `reglages-v3.json`.
+- Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `reglages-v3.json`.
 - Limite de D-098 : une ancienne version remise à l'identique depuis l'autre PC est défaite tant que la page qui l'avait écrite est ouverte (README : recharger avant de restaurer).
 - Hypothèses 3 et 4 sur Drive : à constater par le journal de synchronisation.
 - Seuil « traits >= 3 px » du thème Contraste fort testé sur `render`, pas sur la surcouche d'édition.
