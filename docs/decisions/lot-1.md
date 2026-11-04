@@ -68,6 +68,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : préserve la continuité (5.2) et le tronc commun.
 - Alternatives écartées : déplacer le dernier point de la dernière course dans un temps ancêtre ; déplacer le placement initial.
 - Origine : réponse de l'utilisateur (Q9 : a).
+- Remplacée en partie par D-139 : le terrain montre et édite l'instant du curseur ; « Placer » fixe toujours le placement de départ.
 
 ### D-010 : éditeur et lecteur
 - Date : 2026-10-14
@@ -75,6 +76,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : relation éditeur et lecteur non précisée.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q10).
+- Remplacée en partie par D-139 : plus de temps sélectionné, un seul mode à l'arrêt ; en lecture, le terrain n'est pas éditable, un geste d'édition arrête la lecture.
 
 ### D-011 : bascule « S'arrêter aux options »
 - Date : 2026-10-14
@@ -82,6 +84,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : « lecture manuelle » et « automatique » n'étaient pas définies.
 - Alternatives écartées : manuelle = pause entre les temps activée ; automatique = boucle.
 - Origine : réponse de l'utilisateur (Q11 : b).
+- Précisée par D-139 : l'arrêt a lieu à l'embranchement.
 
 ### D-012 : actions de l'arbre des temps
 - Date : 2026-10-14
@@ -89,6 +92,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : sémantique des actions de l'arbre non précisée.
 - Alternatives écartées : option créée comme copie du temps.
 - Origine : réponse de l'utilisateur (Q12, avec ajout d'« Insérer un temps après »).
+- Remplacée par D-139 : plus d'arbre des temps ; embranchements et options (créer à t, condition, défaut, dupliquer, supprimer avec confirmation, lettres recalculées), libellé stocké vide = calculé.
 
 ### D-013 : moteur et invalidités
 - Date : 2026-10-14
@@ -96,6 +100,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : les invalidités n'interrompent jamais le programme (4.3).
 - Alternatives écartées : bloquer l'action ; ignorer la passe vers l'adversaire.
 - Origine : réponse de l'utilisateur (Q13).
+- Remplacée en partie par D-139 : deux courses d'une joueuse qui se chevauchent, la seconde part à la fin de la première, signalée ; les autres replis restent.
 
 ### D-014 : suppression d'une joueuse
 - Date : 2026-10-14
@@ -110,6 +115,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : petits trous de 6.2 et 6.3.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q15).
+- Remplacée en partie par D-139 : outil Course et instant d'une passe posés selon le curseur (SPEC 6.2) ; le reste demeure.
 
 ### D-016 : numéros en double
 - Date : 2026-10-14
@@ -274,6 +280,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : seules les actions appliquées ont une durée.
 - Alternatives écartées : compter le délai des actions ignorées.
 - Origine : choix technique.
+- Précisée par D-139 : seules les actions appliquées comptent dans la durée d'une ligne (SPEC 5.1).
 
 ### D-039 : caches
 - Date : 2026-10-14

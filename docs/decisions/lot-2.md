@@ -20,6 +20,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 9.2 ne fixait ni l'ordre des vitesses dans un GIF enchaîné ni le cas de plusieurs points d'option.
 - Alternatives écartées : chaque option jouée au ralenti puis à vitesse réelle ; reprise toujours au premier point d'option.
 - Origine : réponse de l'utilisateur (Q2, Q3).
+- Précisée par D-139 : reprise à l'instant de l'embranchement ; préfixe « À 4,5 s, » au lieu de « Temps n, ».
 
 ### D-059 : durées des cartons et maintiens
 - Date : 2026-10-15
@@ -55,6 +56,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 9.3 ne précisait ni le cadrage ni l'orientation des vignettes ni la disposition exacte des rangées.
 - Alternatives écartées : vue enregistrée de la combinaison ; rangées d'options en retrait sous leur point d'option.
 - Origine : réponse de l'utilisateur (Q10, Q11).
+- Précisée par D-139 : une vignette par intervalle ; une rangée pour les intervalles du tronc, puis une par option.
 
 ### D-064 : cahier de jeu
 - Date : 2026-10-15
@@ -140,6 +142,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : D-063, D-064 et D-061 précisés là où ils ne fixaient pas le détail ; déterminisme (même PDF octet pour octet).
 - Alternatives écartées : rangées d'options en retrait ; numéros de page aussi dans le PDF d'une combinaison.
 - Origine : choix technique (étape 4).
+- Précisée par D-139 : vignettes par intervalle et titres d'option (SPEC 9.3) ; le reste de la mise en page demeure.
 
 ### D-076 : io des exports et Worker (étape 5)
 - Date : 2026-10-15

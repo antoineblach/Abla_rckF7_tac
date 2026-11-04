@@ -34,6 +34,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : SPEC 10.3 dit « les deux coéquipières les plus proches » sans dire laquelle est le soutien ni à quel instant.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q6).
+- Précisée par D-139 : formation collée à la fin de course ou à la réception.
 
 ### D-082 : ligne d'avantage en mode schéma
 - Date : 2026-10-16
@@ -41,6 +42,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : la ligne d'avantage devient variable dans le temps ; le mode schéma montre un temps à l'arrêt.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q7).
+- Précisée par D-139 : ligne d'avantage en vigueur au début de l'intervalle affiché.
 
 ### D-083 : ballon au sol et ramassage
 - Date : 2026-10-16
@@ -62,6 +64,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : SPEC 5.7 et 10.5 ne précisent ni le sens d'attaque d'une défenseure qui passe ni la vitesse à retenir à un changement de course.
 - Alternatives écartées : dérivée centrée (moitié de la vitesse au dernier pas d'une course).
 - Origine : réponse de l'utilisateur (Q10, pour l'éditeur et le lecteur).
+- Précisée par D-139 : la dérivée au lâcher se lit sur la course précédente de la ligne.
 
 ### D-086 : aucune alerte d'en-avant dans les exports
 - Date : 2026-10-16
@@ -125,6 +128,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : règle 6 de `CLAUDE.md` ; D-004 ; un regroupement valide exige que la plaquée tienne le ballon, donc aucun vol en cours : l'ordre chronologique suffit, sans itération, et le moteur reste pur.
 - Alternatives écartées : réécrire les fichiers v1 dès la lecture ; résolution itérative.
 - Origine : plan du lot 3 (sections 1 et 2), validé par l'utilisateur.
+- Remplacée en partie par D-139 : plus de durée de phase ni de migration ; les types des actions et l'ordre des événements demeurent.
 
 ### D-095 : interface du jeu au pied et des regroupements (étape 6)
 - Date : 2026-10-16

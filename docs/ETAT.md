@@ -7,9 +7,10 @@
 
 ## En cours
 
-- Chantier `frise-spec`, SPEC 1.9 : frise chronologique à la place des temps (`docs/plans/frise-spec.md`, D-139 à écrire), sans code. Plan validé le 03/11 : Q1 à Q13 selon les recommandations, 5 précisions reportées.
-- Étape 0 faite. Suite : étape 1 (bloc A : D-139, statuts, SPEC 2 à 5), sur demande de l'utilisateur.
-- Lot 3bis-1 : vérifications manuelles faites et validées par l'utilisateur le 03/11.
+- Chantier `frise-spec`, SPEC 1.9 : frise chronologique à la place des temps (`docs/plans/frise-spec.md`, D-139 dans `docs/decisions/frise.md`), sans code. Plan validé le 03/11.
+- Étapes 0 et 1 faites (bloc A : D-139, statuts, SPEC 2 à 5, index de la SPEC). Suite : bloc B, étape 2 (SPEC 6 à 12, retirer « non intégrée » de D-139 dans l'index et la mention de l'étape 2 dans le SPEC README), puis étape 3 (`CLAUDE.md`, Grep de contrôle, PR).
+- D-139, « Conséquences d'écriture » : 5 précisions prises en écrivant, à relire avec la PR.
+- Lot 3bis-1 : vérifications manuelles faites et validées le 03/11.
 
 ## Reste à faire
 
@@ -31,6 +32,7 @@
 ## Écarts connus
 
 - Aucun test désactivé.
+- SPEC 1.9 en écriture : 02 à 05 en frise, 06 à 12 encore en temps jusqu'à l'étape 2 ; `src/` reste en v4 jusqu'à frise-1.
 - Lecture de démarrage au-dessus de la cible de 8 000 o (CLAUDE.md et ETAT).
 - Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `reglages-v3.json`.
 - Limite de D-098 : une ancienne version remise à l'identique depuis l'autre PC est défaite tant que la page qui l'avait écrite est ouverte (README : recharger avant de restaurer).

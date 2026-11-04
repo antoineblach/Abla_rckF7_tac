@@ -211,7 +211,7 @@ Nouveau fichier `docs/decisions/frise.md`, ligne dans le tableau « Fichiers » 
 |---|---|
 | Remplacée par D-139 | D-012, D-106, D-108 (le solveur reste : D-129, D-130), D-109, D-113 |
 | Remplacée en partie | D-009, D-010, D-013, D-015, D-094, D-104, D-107, D-110 (la tolérance reste), D-120, D-121, D-122 (ligne de la SPEC 2), D-133 (migration ; l'allure saisie reste) |
-| Précisée | D-011, D-058, D-063, D-075, D-081, D-082, D-085, D-119, D-128, D-129, D-131, D-136 |
+| Précisée | D-011, D-038 (ajoutée à l'écriture), D-058, D-063, D-075, D-081, D-082, D-085, D-119, D-128, D-129, D-131, D-136 |
 
 Décisions non intégrées : seules D-120 et D-121 en ont, traitées en section 5. Le SPEC README passe à 1.9 et cite D-139.
 
@@ -249,7 +249,7 @@ Ordre : frise-1 à 4, 3bis-2, 3bis-3, lot 4, lot 5.
 - [x] **Étape 0** : branche `frise-spec` depuis `main` (`d33313f`) ; ce plan, avec les réponses, dans `docs/plans/frise-spec.md` ; `docs/plans/lot-3bis-1.md` déplacé dans `docs/archive/plans/` ; ETAT (PR #9 fusionnée ; vérifications manuelles de 3bis-1 faites et validées le 03/11 ; chantier en cours). `/fin-etape`. (commit « Étape 0 : plan du chantier frise-spec, plan de 3bis-1 archivé », après `d33313f`)
 
 **Bloc A**
-- [ ] **Étape 1** : D-139, `docs/decisions/frise.md`, index et statuts (section 6, section 5) ; SPEC 2, 3, 4, 5 ; SPEC README ; ETAT. `/fin-etape`.
+- [x] **Étape 1** : D-139, `docs/decisions/frise.md`, index et statuts (section 6, section 5) ; SPEC 2, 3, 4, 5 ; SPEC README ; ETAT. `/fin-etape`. (commit « Étape 1 : D-139, statuts des décisions, SPEC 2 à 5 en frise », après `71516e8`)
 
 **Bloc B**
 - [ ] **Étape 2** : SPEC 6 à 12 ; lignes du README. `/fin-etape`.
