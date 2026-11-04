@@ -252,7 +252,7 @@ Ordre : frise-1 à 4, 3bis-2, 3bis-3, lot 4, lot 5.
 - [x] **Étape 1** : D-139, `docs/decisions/frise.md`, index et statuts (section 6, section 5) ; SPEC 2, 3, 4, 5 ; SPEC README ; ETAT. `/fin-etape`. (commit « Étape 1 : D-139, statuts des décisions, SPEC 2 à 5 en frise », après `71516e8`)
 
 **Bloc B**
-- [ ] **Étape 2** : SPEC 6 à 12 ; lignes du README. `/fin-etape`.
+- [x] **Étape 2** : SPEC 6 à 12 ; lignes du README. `/fin-etape`. (commit « Étape 2 : SPEC 6 à 12 en frise, collages précisés en 4.3 et 5.8 », après `d046bca`)
 - [ ] **Étape 3** : `CLAUDE.md` (règle 6, glossaire) ; Grep de contrôle ; ETAT ; PR vers `main`, sans fusion. `/fin-etape`.
 
 Dépendances ajoutées : aucune. ARCHITECTURE, RECETTE et README attendent les `/fin-lot` de frise-N.

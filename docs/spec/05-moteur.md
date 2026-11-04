@@ -90,6 +90,7 @@
   - Un embranchement collé suit le tronc, et entraîne les actions d'option qui lui sont collées.
 - **Bord droit collé** : quand la cible se déplace, le bloc glisse ou s'étire selon le geste qui l'a posé, modifiable dans l'inspecteur (`keep`, 6.5).
   - Bloc glissé jusqu'à la cible (`keep: 'duration'`) : il garde sa durée, son départ suit. Pour une course : départ = instant de la cible − durée de la course. Départ calculé avant sa **borne** (0, fin de la course précédente de la joueuse, ou embranchement pour une action d'option, D-131) : départ à la borne et solveur à deux leviers (5.3) sur tous les segments, pour arriver à l'heure. Si la course a aussi une durée imposée, celle-ci ne s'applique pas : le solveur part des vitesses enregistrées (D-136). Partie à sa borne sans y être collée, elle ne prolonge pas la course précédente (5.2).
+  - Pour un autre bloc (`keep: 'duration'`) : le champ de son bord droit reste (vitesse du ballon, temps de vol, sortie de balle, durée d'une séquence) et le départ est résolu pour que son événement de fin tombe sur la cible : par soustraction pour un jeu au pied, un regroupement et une séquence, par point fixe sur le lâcher pour une passe (5.4). Départ calculé avant sa borne (0 ou embranchement) : départ à la borne, arrivée en retard, alerte de retard, sans solveur.
   - Bord droit tiré jusqu'à la cible (`keep: 'start'`) : le départ reste, la durée s'adapte. Pour une course : solveur à deux leviers sur tous les segments, un seul profil, vitesse continue. Pour un autre bloc : le champ de son bord droit s'adapte (4.1).
   - Bords gauche et droit tous deux collés : le départ suit son collage, la durée s'adapte, quel que soit `keep`.
 - **Rendez-vous à un point de passage** : « Couper la course ici » donne deux courses collées (vitesse et direction continues, solveur sur la première). Résultat proche d'un rendez-vous sur une seule course, pas identique : le raccord lancé (5.2) modifie la trajectoire près du point de coupe. Un point de passage reste une cible (`{ point }`), par exemple pour lâcher quand elle passe à ce point.
@@ -100,7 +101,8 @@
 
 | Cas | Comportement | Alerte |
 |---|---|---|
-| Départ calculé avant la borne | départ à la borne, course accélérée : arrivée à l'heure (ci-dessus) | « il aurait fallu partir x s plus tôt : départ immédiat, course accélérée » |
+| Course : départ calculé avant la borne | départ à la borne, course accélérée : arrivée à l'heure (ci-dessus) | « il aurait fallu partir x s plus tôt : départ immédiat, course accélérée » |
+| Autre bloc : départ calculé avant la borne | départ à la borne, arrivée en retard, sans solveur (ci-dessus) | retard en secondes |
 | Cible avant le départ : instant voulu <= borne, ou au-delà de la borne de recherche du solveur | seul repli : `start` et vitesses enregistrés, arrivée en retard | retard en secondes |
 | Dans un fichier : cible inexistante ou hors de la ligne, de type incompatible, point inexistant | collage ignoré : `start` et vitesses enregistrés | cible invalide |
 | Cible jamais atteinte | collage ignoré : `start` et vitesses enregistrés ; lâcher collé : passe ignorée (5.4) | cible jamais atteinte |

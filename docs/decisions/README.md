@@ -166,4 +166,4 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-136 | départ différé en retard d'une course à durée imposée | précisée par D-139 | 5.3, 5.8 |
 | D-137 | placement et dessin des pastilles d'accélération et de freinage | en vigueur | 5.9 |
 | D-138 | précisions de l'interface du lot 3bis-1 | en vigueur | 6.5, 6.7, 7 |
-| D-139 | frise chronologique à la place des temps | en vigueur | 2, 3.3, 3.5, 4, 5 ; non intégrée (6.1 à 6.5, 6.7, 7, 8, 9.2, 9.3, 10, 11.7, 12) |
+| D-139 | frise chronologique à la place des temps | en vigueur | 2, 3.3, 3.5, 4, 5, 6.1 à 6.5, 6.7, 7, 8.7, 9.2, 9.3, 10, 11.7, 12 |
