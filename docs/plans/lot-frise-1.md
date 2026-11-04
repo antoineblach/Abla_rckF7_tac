@@ -26,7 +26,7 @@ Ampleur : 122 fichiers mentionnent les temps (`git grep -c -i phase -- src e2e` 
 - **Contenu** : seuls les modules qui dépendent du type `Play` v4 sont réécrits ou copiés sous `src/v5/`, à la même place relative (`src/v5/engine/timeline.ts`).
 - **Réutilisés depuis leur emplacement actuel**, car indépendants de `Play` et structurellement compatibles : `engine/spline`, `profile`, `vec` ; `config/defaults` ; `model/settings`, `speed`, `canonical`, `ids`, `preset`, `shortName` ; `field/` ; `render/viewport`, `themes`, `primitives`, `captions`, `layers` ; outils de `test/` sans `Play` (`memoryFs`, `memoryKv`, `recordingCtx`, `imageSnapshot`, `gifInspect`, `pdfInspect`, `driveSim`, `profileMath`).
 - **Configuration** : globs ESLint de pureté étendus à `src/v5/...` ; de A à C3, `tsc`, Vitest et Playwright n'ont rien à changer. Les images de référence v5 sont préfixées `v5-` jusqu'à la bascule.
-- **Bascule (C4)** : suppression des modules v4, `git mv` de `src/v5/*` à leur place, script jetable (scratchpad, non commité) qui raccourcit d'un niveau les imports sortant de `v5`, globs ESLint rétablis. Le diff final de la PR montre des modifications en place, `src/v5` n'y apparaît plus.
+- **Bascule (C4)** : suppression des modules v4, `git mv` de `src/v5/*` à leur place, script jetable (scratchpad, non commité) qui raccourcit d'un niveau les imports sortant de `v5` et les chemins de fixtures des tests (`new URL('../../test/fixtures/...')`, qui ne sont pas des imports), globs ESLint rétablis. Le diff final de la PR montre des modifications en place, `src/v5` n'y apparaît plus.
 - **`e2e/a-porter/` (C4 à C5)** : `testDir: 'e2e'` parcourt les sous-dossiers, d'où un `testIgnore` provisoire dans `playwright.config.ts`, posé en C4, retiré en C5, inscrit dans « Écarts connus » d'ETAT, qui dit aujourd'hui « Aucun test désactivé ». `tsconfig.json` inclut `e2e` et ESLint tout le dépôt : ces specs restent compilées et lintées, sans exclusion. Leurs imports relatifs sont ajustés au déplacement (`export-gif` importe `../src/...`) et les helpers qu'elles utilisent restent jusqu'à C5 ; une spec qui ne compile plus à la bascule est portée dès C4.
 - **Coût** : copies temporaires et `check` plus lent de A à C3. **Gain** : site, `check`, e2e et CI verts à chaque étape, pause sans risque à tout moment, moteur v4 disponible pour comparer jusqu'en C4.
 - **`/fin-etape`** : de A à C3, seul `src/v5/` change ; la v4 ne bouge pas, donc pas d'e2e à relancer. Dès C4, la règle e2e s'applique sur les specs portées.
@@ -56,7 +56,7 @@ Une combinaison existante est refusée (4.4), comme le veut D-139.
 | Bloc | Fichiers |
 |---|---|
 | 0 | `docs/plans/lot-frise-1.md`, `docs/decisions/frise.md`, `docs/decisions/README.md`, `docs/ETAT.md` ; `docs/plans/frise-spec.md` vers `docs/archive/plans/` |
-| A | `src/v5/test/builders.ts` ; `src/v5/model/` : `types`, `declared`, `schema`, `migrations` (refus, pas de pas de migration), `branches` (remplace `phaseTree`), `validate`, `issues`, `labels` et leurs tests ; `src/test/fixtures/play-v5-frise.json` ; `eslint.config.js` |
+| A | `src/v5/test/builders.ts` ; `src/v5/model/` : `types`, `declared`, `schema`, `migrations` (refus, pas de pas de migration), `branches` (remplace `phaseTree`), `syncGraph` (`glueProblem` seul, le graphe vient en B2), `validate`, `issues`, `labels` et leurs tests ; `src/test/fixtures/play-v5-frise.json` ; `eslint.config.js` |
 | B1 | `src/v5/engine/` : `timeline`, `simulate`, `motion`, `runAlerts`, `evaluate`, `sceneState`, `bounds`, `validate`, `ballEvents`, `caches`, `actionReport` et tests portés (`runs`, `evaluate`, `breakdown`, `kick`, `forwardPass`, `actionReport`), plus `trunk.test`, `overlap.test` |
 | B2 | `src/v5/model/syncGraph.ts` ; `src/v5/engine/glue.ts`, `launch.ts` ; tests `glue`, `launch`, `cut`, `profileCount` ; `src/v5/engine/compile.bench.ts` ; script `bench` dans `package.json` et ligne dans `CLAUDE.md` ; `docs/ETAT.md` (mesures) |
 | C1 | `src/v5/render/` : `render`, `renderSchematic`, `overlay` ; `src/v5/export/` (tout le dossier, worker compris) ; `src/v5/player/transport.ts` ; `src/v5/test/exportFixtures.ts`, `inlineEngine.ts` ; tests et images `v5-*` |
@@ -82,7 +82,7 @@ Branche `lot-frise-1` depuis `main` à jour. `git mv docs/plans/frise-spec.md do
 Lecture : SPEC 04 en entier, 10.3, 10.4 ; `model/types.ts`, `schema.ts`, `phaseTree.ts`, `validate.ts`, `issues.ts`, `labels.ts`, `migrations.ts` ; `test/builders.ts` ; PIEGES : TypeScript et ESLint.
 
 Dans cet ordre : types (4.1, 10.3, 10.4), puis `builders.ts`.
-- `realisticRunsPlay()` : même nombre d'actions que la v4, plus une course par `at` coupé, soit 18 actions contre 16 (`at` des courses `uuid(502)` et `uuid(512)`). Les liens deviennent des collages : `adjust: 'delay'` donne `keep: 'duration'`, `adjust: 'speed'` donne `keep: 'start'`, `endsAtSpeed` donne une suivante collée sans écart, `at` donne deux courses collées.
+- `realisticRunsPlay()` : même nombre d'actions que la v4, plus une course par `at` coupé, soit 18 actions contre 16 (`at` des courses `uuid(502)` et `uuid(512)`). Les liens deviennent des collages : `adjust: 'delay'` donne `keep: 'duration'`, `adjust: 'speed'` donne `keep: 'start'`, `endsAtSpeed` donne une suivante collée sans écart, `at` donne deux courses collées. Écarts : D-157.
 - `friseFixturePlay()`, source de la fixture figée : branches, séquences, tous les événements de collage, jeu au pied, regroupement, vitesses de segment, allure saisie.
 - Schéma zod strict v5 ; `upgradePlay` renvoie le nouveau code `obsoleteVersion` pour toute version inférieure à 5, sans toucher à `readSchemaVersion` partagé avec les modèles et les réglages.
 - Validation 4.3, sauf les cycles (B2).
@@ -93,11 +93,13 @@ Lecture : SPEC 5.1, 5.2, 5.4, 4.3 (replis), 5.3 et 5.9 par Grep, 10.3 ; `engine/
 
 Compilation de ligne continue, sans collage : `start` seuls, chevauchements (« départ retardé de x s »), participantes d'un regroupement retardées à la sortie, replis de 4.3 (option avant l'embranchement, tronc après, séquences), passe en vol à l'embranchement (D-139 Q2), intervalles 5.1, durée 5.1 à la lettre (D-153), `sampleLine`, `evaluate`, schéma d'une fenêtre (positions à `t`, actions de la fenêtre en plein, antérieures en grisé).
 
+Reçu de l'étape A : `validatePlay` lit les instants enregistrés et laisse de côté les bords et les embranchements collés ; le moteur signale les mêmes cas sur les instants résolus, avec les mêmes codes (`startsBeforeBranch`, `startsAfterBranch`, `sequenceCrossesBranch`, `sequenceOverlap`, `branchAtNotIncreasing` ; D-156). Il ignore une séquence dont `end <= start` (D-155). `issues.ts` v5 n'a plus `twoRunsSamePhase`, ni les `sync*` : ajouter les codes du moteur au fur et à mesure (« départ retardé de x s », cycle, retard de collage). Les builders v5 ont `branch()`, `sequence()`, `ROOT_BRANCH`, `P.root`, `P.optA`, `P.optB` ; le premier argument après les joueuses de `pass`, `kick` et `breakdown` est `start`.
+
 ### Étape B2
 
 Lecture : SPEC 5.2, 5.8, 4.3 (collage), 5.3 (solveur), D-152 ; `model/syncGraph.ts` ; `engine/timeline.ts` (`resolveLink`, `meetOnTime`, `targetOf`).
 
-- Graphe tous bords (`syncGraph.ts`). L'arrivée d'une passe ne dépend que des courses de la passeuse et de la receveuse qui ne dépendent pas elles-mêmes de cette arrivée, directement ou par une chaîne de collages (D-152).
+- Graphe tous bords (`syncGraph.ts`, qui contient déjà `glueProblem` depuis l'étape A). L'arrivée d'une passe ne dépend que des courses de la passeuse et de la receveuse qui ne dépendent pas elles-mêmes de cette arrivée, directement ou par une chaîne de collages (D-152).
 - Collages gauche et droit dans leurs deux réglages `keep`, bornes, solveur à deux leviers sur course entière, embranchement collé, cas particuliers du tableau de 5.8, receveuse collée à l'arrivée, lancée (D-139 Q1), cycles dans `validate`.
 - Test de coupe (D-139 Q4, D-149) : seuils en constantes du test, commentées `HYPOTHÈSE`. **Dépassement : je m'arrête et je donne la mesure à l'utilisateur, sans relâcher les seuils.**
 - Bench (D-150). ETAT reçoit les temps v4 et v5 ; le bench le précise à côté des mesures : `realisticRunsPlay()` compte 18 actions en v5 contre 16 en v4, à cause des deux `at` coupés. **Au-delà de 33 ms par mouvement, je m'arrête et je demande.**
@@ -204,7 +206,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc 0**
   - [x] **Étape 0 : branche, plan archivé, plan du lot, décisions, ETAT.** (commit « Étape 0 : plan du lot frise-1, D-140 à D-153, ETAT », après `00bd163`)
 - **Bloc A**
-  - [ ] **Étape A : types, builders, schéma, refus, branches, validation, fixture v5** (`src/v5/model`, `src/v5/test`).
+  - [x] **Étape A : types, builders, schéma, refus, branches, validation, fixture v5** (`src/v5/model`, `src/v5/test`). (commit « Étape A : modèle v5, builders, refus des versions antérieures, fixture », après `319b010`)
 - **Bloc B1**
   - [ ] **Étape B1 : compilation de ligne continue, sans collage** (`src/v5/engine`).
 - **Bloc B2**

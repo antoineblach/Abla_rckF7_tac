@@ -181,3 +181,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-151 | combinaison v4 dans le stockage du navigateur | en vigueur | non intégrée (4.4) |
 | D-152 | dépendances de l'arrivée d'une passe | en vigueur | non intégrée (4.3) |
 | D-153 | embranchement après la dernière action | en vigueur | 5.1 |
+| D-154 | numéro de « Séquence n » | en vigueur | non intégrée (4.1) |
+| D-155 | séquence dont la fin n'est pas après le début | en vigueur | non intégrée (4.3) |
+| D-156 | validation sur les instants enregistrés, le moteur sur les instants résolus | en vigueur | — |
+| D-157 | `realisticRunsPlay` en v5 | en vigueur | — |

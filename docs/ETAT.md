@@ -7,12 +7,12 @@
 
 ## En cours
 
-- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-153 (`docs/decisions/frise.md`). Étape 0 faite, aucun code.
-- Bloc suivant : A (types, builders, schéma, refus, branches, validation, fixture v5). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
+- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-157 (`docs/decisions/frise.md`). Étapes 0 et A faites : `src/v5/model` (types, schéma, refus des versions antérieures, branches, validation sauf cycles), `src/v5/test/builders.ts`, fixture `play-v5-frise.json`. L'application tourne encore sur la v4.
+- Bloc suivant : B1 (compilation de ligne continue, sans collage, `src/v5/engine`). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
 
 ## Reste à faire
 
-- Blocs A, B1, B2, C1 à C5, puis `/fin-lot`.
+- Blocs B1, B2, C1 à C5, puis `/fin-lot`.
 - Puis frise-2 à frise-4 par `/nouveau-lot` : section 7 de `docs/archive/plans/frise-spec.md`.
 - Puis 3bis-2 réduit (menu du clic droit, même course pour plusieurs joueuses) et 3bis-3 (positions préréglées), par `/nouveau-lot` (D-128).
 - Puis lot 4 (défense simulée ; plan archivé de 3bis-1, section G) et lot 5 (ateliers).
@@ -32,7 +32,7 @@
 
 - Aucun test désactivé.
 - SPEC 1.9 en frise ; `src/` reste en v4 jusqu'à la bascule (C4).
-- Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `reglages-v3.json`.
+- Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `play-v5-frise.json`, `reglages-v3.json`.
 - D-098 : une version remise à l'identique depuis l'autre PC est défaite tant que la page qui l'avait écrite est ouverte (README).
 - Hypothèses 3 et 4 sur Drive : à constater par le journal de synchronisation.
 - « Traits >= 3 px » du thème Contraste fort testé sur `render`, pas sur la surcouche d'édition.

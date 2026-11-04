@@ -168,3 +168,31 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Raison : en frise-1, le cas n'arrive que par un fichier importé ; il devient courant en frise-2, avec l'option vide.
 - Alternatives écartées : compter les embranchements dans la durée (change 5.1, à trancher par `/changement-spec`).
 - Origine : Q14 et sa précision.
+
+### D-154 : numéro de « Séquence n »
+- Date : 2026-11-04
+- Décision : le `n` du libellé calculé d'une séquence (4.1) est son rang dans le tableau `sequences`, à partir de 1, comme les lettres d'option suivent l'ordre de création (6.5). Il se recalcule après une suppression.
+- Raison : la SPEC ne dit pas ce que compte `n`. Le rang dans le tableau ne dépend ni de la ligne affichée ni d'un collage résolu.
+- Alternatives écartées : rang chronologique dans la ligne (le même bloc changerait de nom d'une ligne à l'autre, ou en déplaçant un bord).
+- Origine : étape A, précision à contredire au besoin. Non intégrée (4.1) : `/fin-lot` l'intègre.
+
+### D-155 : séquence dont la fin n'est pas après le début
+- Date : 2026-11-04
+- Décision : une séquence dont `end <= start`, sans bord collé, est signalée comme erreur (`sequenceEndBeforeStart`), et le moteur l'ignore (B1). Le fichier reste lisible. Un bord collé n'est pas contrôlé ici : sa valeur enregistrée n'est qu'un repli.
+- Raison : la v4 portait une durée `> 0` par le schéma ; la v5 porte deux instants, et un intervalle de durée négative n'a pas de sens pour 5.1. Ni le schéma (fichier entier refusé) ni le silence ne conviennent.
+- Alternatives écartées : refus par zod (fichier inutilisable pour une séquence) ; aucun contrôle (intervalles négatifs dans le moteur).
+- Origine : étape A, précision à contredire au besoin. Non intégrée (4.3) : `/fin-lot` l'intègre.
+
+### D-156 : validation sur les instants enregistrés, le moteur sur les instants résolus
+- Date : 2026-11-04
+- Décision : `validatePlay` compare les instants enregistrés et laisse de côté les bords collés et les embranchements collés, dont la valeur enregistrée n'est qu'un repli. Le moteur signale les mêmes cas sur les instants résolus, avec les mêmes codes (`startsBeforeBranch`, `startsAfterBranch`, `sequenceCrossesBranch`, `sequenceOverlap`, `branchAtNotIncreasing`), dédoublonnés par `issueKey`. Ces replis sont des avertissements : le moteur a une conduite définie (4.3). Les collages invalides restent des erreurs, comme les liens de la v4.
+- Raison : la validation métier ne compile pas ; contrôler une valeur de repli donnerait de fausses alertes.
+- Alternatives écartées : tout laisser au moteur (rien à la lecture d'un fichier, ni dans les tests du modèle).
+- Origine : étape A.
+
+### D-157 : `realisticRunsPlay` en v5
+- Date : 2026-11-04
+- Décision : le scénario suit la conversion du plan, avec deux écarts imposés par le modèle : la course de A7 est collée à l'arrivée de la passe qu'elle reçoit (au lieu du lâcher) et l'embranchement est collé à la fin de cette course. Le lâcher reste ainsi dans le tronc, avant l'embranchement ; la passe n'est pas en vol à l'embranchement ; la course qui prolonge A7 dans l'option A part sur l'embranchement, lancée. Les instants absolus reprennent ceux du moteur v4 quand ils restent valides ; le regroupement de l'option A passe à 8,5 s pour couper encore la course de A7. L'événement « lâcher d'une passe » reste couvert par `friseFixturePlay`.
+- Raison : A7 finissant au lâcher, le lâcher tomberait sur l'embranchement (action du tronc signalée) ou la suite de A7 serait retardée par D-139 Q2 ; deux alertes parasites à chaque compilation du scénario de référence.
+- Alternatives écartées : garder le lâcher avec un écart de 0,1 s (alerte « départ retardé » permanente) ; laisser la v4 telle quelle (T3 à 7,528 s : A7 s'arrête 1,4 s puis repart, sans lancée, comme en v4 où « Finit lancée » restait sans effet).
+- Origine : étape A.

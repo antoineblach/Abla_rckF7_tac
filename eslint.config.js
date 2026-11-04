@@ -99,7 +99,13 @@ export default defineConfig(
     extends: [reactRefresh.configs.vite],
   },
   {
-    files: ['src/model/**/*.ts', 'src/engine/**/*.ts', 'src/config/**/*.ts'],
+    files: [
+      'src/model/**/*.ts',
+      'src/engine/**/*.ts',
+      'src/config/**/*.ts',
+      'src/v5/model/**/*.ts',
+      'src/v5/engine/**/*.ts',
+    ],
     ignores: ['**/*.test.ts'],
     rules: {
       'no-restricted-properties': ['error', ...clockProperties],
@@ -110,8 +116,14 @@ export default defineConfig(
   },
   {
     // Lot 2: the export core is pure too; only the worker shell touches browser APIs.
-    files: ['src/render/**/*.ts', 'src/field/**/*.ts', 'src/export/**/*.ts'],
-    ignores: ['**/*.test.ts', 'src/export/worker/**'],
+    files: [
+      'src/render/**/*.ts',
+      'src/field/**/*.ts',
+      'src/export/**/*.ts',
+      'src/v5/render/**/*.ts',
+      'src/v5/export/**/*.ts',
+    ],
+    ignores: ['**/*.test.ts', 'src/export/worker/**', 'src/v5/export/worker/**'],
     rules: {
       'no-restricted-properties': ['error', ...clockProperties, ...flatProperties],
       'no-restricted-syntax': ['error', ...clockSyntax, ...flatSyntax],
@@ -120,19 +132,35 @@ export default defineConfig(
     },
   },
   {
-    files: ['src/editor/**/*.ts', 'src/player/**/*.ts', 'src/io/**/*.ts', 'src/state/**/*.ts'],
+    files: [
+      'src/editor/**/*.ts',
+      'src/player/**/*.ts',
+      'src/io/**/*.ts',
+      'src/state/**/*.ts',
+      'src/v5/editor/**/*.ts',
+      'src/v5/player/**/*.ts',
+      'src/v5/io/**/*.ts',
+      'src/v5/state/**/*.ts',
+    ],
     ignores: ['**/*.test.ts'],
     rules: { 'no-restricted-imports': ['error', nodeImports] },
   },
   {
-    files: ['src/ui/**/*.{ts,tsx}'],
+    files: ['src/ui/**/*.{ts,tsx}', 'src/v5/ui/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', nodeImports],
       'no-restricted-syntax': ['error', ...emDashSyntax],
     },
   },
   {
-    files: ['**/*.js', 'e2e/**/*.ts', '*.config.ts', 'src/test/**/*.ts', 'src/**/*.test.ts'],
+    files: [
+      '**/*.js',
+      'e2e/**/*.ts',
+      '*.config.ts',
+      'src/test/**/*.ts',
+      'src/v5/test/**/*.ts',
+      'src/**/*.test.ts',
+    ],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
