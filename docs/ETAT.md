@@ -8,7 +8,7 @@
 ## En cours
 
 - Chantier `frise-spec`, SPEC 1.9 : frise chronologique à la place des temps (`docs/plans/frise-spec.md`, D-139), sans code. Toutes les étapes sont faites.
-- À faire par l'utilisateur : relire la PR #10, surtout les « Précisions prises en écrivant les SPEC 6 à 12 » de D-139, puis fusionner.
+- PR #10 relue par l'utilisateur le 04/11, précisions de D-139 validées et retouches reportées. Reste la fusion, par l'utilisateur.
 
 ## Reste à faire
 

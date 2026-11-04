@@ -78,7 +78,7 @@ Précisions (lot 3, D-078 à D-081) :
 - Les courses des trois participantes s'arrêtent à la formation : la partie ultérieure est ignorée, dessinée en rouge et signalée ; une passe ou un jeu au pied du relayeur après la sortie reste possible ; il se dessine dans l'intervalle où il démarre (5.1).
 - Plaquée sans ballon à la formation : regroupement entièrement ignoré et signalé, sans recalage de la ligne d'avantage.
 - Maul : identique au ruck et immobile au lot 3 ; seul `kind` change.
-- Proposition à la pose : formation collée à la fin de la dernière course de la porteuse commencée au curseur, ou à sa réception si elle est plus tardive ; sans course ni réception, au curseur (6.2) ; soutien = la coéquipière la plus proche à cet instant, relayeur = la deuxième ; ruck par défaut. Repère : contour circulaire et libellé « Ruck » ou « Maul » (D-084).
+- Proposition à la pose : formation collée à la fin de la course de la joueuse cliquée en cours au curseur ou qui y démarre, ou à sa prochaine réception si elle est plus tardive ; sans course ni réception à venir, au curseur ; refus avec message si elle n'a pas le ballon à la formation (6.2) ; soutien = la coéquipière la plus proche à cet instant, relayeur = la deuxième ; ruck par défaut. Repère : contour circulaire et libellé « Ruck » ou « Maul » (D-084).
 
 ### 10.4 Jeu au pied
 

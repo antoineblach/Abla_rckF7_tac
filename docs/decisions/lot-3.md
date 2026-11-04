@@ -138,7 +138,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : SPEC 10.3, 10.4, D-078 à D-085, D-093 ; mesure à 1440 px : la barre débordait de 92 px.
 - Alternatives écartées : libellés abrégés des outils ; dossier masqué dans la barre.
 - Origine : choix technique (étape 6).
-- Précisée par D-139 : « dans ce temps » devient « au curseur » ; ballon au sol déplaçable à `t = 0` seulement.
+- Précisée par D-139 : « dans ce temps » devient « à la formation » ; ballon au sol déplaçable à `t = 0` seulement.
 
 ### D-096 : interface des modèles et de la combinaison entière (étape 7)
 - Date : 2026-10-16
