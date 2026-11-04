@@ -1,18 +1,19 @@
 # État du projet
 
 - Mise à jour : 2026-11-04
-- Branche : `frise-spec` (depuis `main` à `d33313f`), poussée ; PR #10 vers `main`, ouverte, sans fusion
-- `main` : lots 1, 2, 3, 3 bis, 3bis-1 et chantier `docs-outils` fusionnés (PR #1 à #9), CI verte, déployés sur Pages
+- Branche : `lot-frise-1` (depuis `main` à `00bd163`), poussée ; PR à la fin du lot, par `/fin-lot`
+- `main` : lots 1, 2, 3, 3 bis, 3bis-1, chantiers `docs-outils` et `frise-spec` fusionnés (PR #1 à #10, `00bd163`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` selon D-055, vérifiée le 23/10 (D-102)
 
 ## En cours
 
-- Chantier `frise-spec`, SPEC 1.9 : frise chronologique à la place des temps (`docs/plans/frise-spec.md`, D-139), sans code. Toutes les étapes sont faites.
-- PR #10 relue par l'utilisateur le 04/11, précisions de D-139 validées et retouches reportées. Reste la fusion, par l'utilisateur.
+- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-153 (`docs/decisions/frise.md`). Étape 0 faite, aucun code.
+- Bloc suivant : A (types, builders, schéma, refus, branches, validation, fixture v5). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
 
 ## Reste à faire
 
-- Après la fusion : `/nouveau-lot` pour frise-1 à frise-4 (plan, section 7).
+- Blocs A, B1, B2, C1 à C5, puis `/fin-lot`.
+- Puis frise-2 à frise-4 par `/nouveau-lot` : section 7 de `docs/archive/plans/frise-spec.md`.
 - Puis 3bis-2 réduit (menu du clic droit, même course pour plusieurs joueuses) et 3bis-3 (positions préréglées), par `/nouveau-lot` (D-128).
 - Puis lot 4 (défense simulée ; plan archivé de 3bis-1, section G) et lot 5 (ateliers).
 - Lot 3bis-1 : séance d'usage libre (`docs/RECETTE.md`), non signalée comme faite ; retour par `/correction-recette`.
@@ -21,16 +22,16 @@
 
 ## Pistes notées pour plus tard (D-118)
 
-- Vitesse initiale au temps 1 ; ballon porté du côté du sens de course (D-041).
+- Vitesse initiale à t = 0 ; ballon porté du côté du sens de course (D-041).
 
 ## Questions ouvertes
 
-- Aucune.
+- Embranchement après la dernière action (D-153) : lettre de 5.1 en frise-1 ; à reposer au `/nouveau-lot frise-2`, où l'option vide devient courante.
 
 ## Écarts connus
 
 - Aucun test désactivé.
-- SPEC 1.9 en frise ; `src/` reste en v4 jusqu'à frise-1.
+- SPEC 1.9 en frise ; `src/` reste en v4 jusqu'à la bascule (C4).
 - Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `reglages-v3.json`.
 - D-098 : une version remise à l'identique depuis l'autre PC est défaite tant que la page qui l'avait écrite est ouverte (README).
 - Hypothèses 3 et 4 sur Drive : à constater par le journal de synchronisation.

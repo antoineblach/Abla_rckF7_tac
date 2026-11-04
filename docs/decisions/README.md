@@ -16,7 +16,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
 | [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-138 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
-| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), puis les décisions de frise-1 à frise-4 |
+| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-153 (frise-1), puis les décisions de frise-2 à frise-4 |
 
 ## Lecture
 
@@ -166,4 +166,18 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-136 | départ différé en retard d'une course à durée imposée | précisée par D-139 | 5.3, 5.8 |
 | D-137 | placement et dessin des pastilles d'accélération et de freinage | en vigueur | 5.9 |
 | D-138 | précisions de l'interface du lot 3bis-1 | en vigueur | 6.5, 6.7, 7 |
-| D-139 | frise chronologique à la place des temps | en vigueur | 2, 3.3, 3.5, 4, 5, 6.1 à 6.5, 6.7, 7, 8.7, 9.2, 9.3, 10, 11.7, 12 |
+| D-139 | frise chronologique à la place des temps | précisée par D-151 et D-152 | 2, 3.3, 3.5, 4, 5, 6.1 à 6.5, 6.7, 7, 8.7, 9.2, 9.3, 10, 11.7, 12 |
+| D-140 | v5 écrite à côté de la v4, bascule en C4 | en vigueur | — |
+| D-141 | SPEC 6.3 appliquée dès frise-1 | en vigueur | 6.3 |
+| D-142 | liste « Ligne », sans création de branche ni de séquence en frise-1 | en vigueur | — |
+| D-143 | collages posés par les outils, réglés dans l'inspecteur, en frise-1 | en vigueur | — |
+| D-144 | « Couper la course ici » et coupe à la pose en frise-2 | en vigueur | — |
+| D-145 | liste des actions de toute la ligne en frise-1 | en vigueur | 6.7 |
+| D-146 | « Bord précédent » et « Bord suivant », provisoires jusqu'à frise-3 | en vigueur | — |
+| D-147 | nouvelle combinaison depuis un modèle, branche racine seule | en vigueur | 6.6 |
+| D-148 | e2e sans temps, reports limités à frise-2 | en vigueur | — |
+| D-149 | tolérance du test d'écart au point de coupe | en vigueur | 5.8 |
+| D-150 | mesure du temps de compilation | en vigueur | — |
+| D-151 | combinaison v4 dans le stockage du navigateur | en vigueur | non intégrée (4.4) |
+| D-152 | dépendances de l'arrivée d'une passe | en vigueur | non intégrée (4.3) |
+| D-153 | embranchement après la dernière action | en vigueur | 5.1 |
