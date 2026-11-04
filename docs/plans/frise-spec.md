@@ -211,7 +211,7 @@ Nouveau fichier `docs/decisions/frise.md`, ligne dans le tableau « Fichiers » 
 |---|---|
 | Remplacée par D-139 | D-012, D-106, D-108 (le solveur reste : D-129, D-130), D-109, D-113 |
 | Remplacée en partie | D-009, D-010, D-013, D-015, D-094, D-104, D-107, D-110 (la tolérance reste), D-120, D-121, D-122 (ligne de la SPEC 2), D-133 (migration ; l'allure saisie reste) |
-| Précisée | D-011, D-038 (ajoutée à l'écriture), D-058, D-063, D-075, D-081, D-082, D-085, D-119, D-128, D-129, D-131, D-136 |
+| Précisée | D-011, D-038 (ajoutée à l'écriture), D-058, D-063, D-075, D-081, D-082, D-085, D-119, D-128, D-129, D-131, D-136 ; ajoutées le 04/11 à la demande de l'utilisateur : D-003, D-014, D-026, D-044, D-048, D-060, D-062, D-072, D-079, D-083, D-095, D-101 |
 
 Décisions non intégrées : seules D-120 et D-121 en ont, traitées en section 5. Le SPEC README passe à 1.9 et cite D-139.
 
@@ -253,7 +253,7 @@ Ordre : frise-1 à 4, 3bis-2, 3bis-3, lot 4, lot 5.
 
 **Bloc B**
 - [x] **Étape 2** : SPEC 6 à 12 ; lignes du README. `/fin-etape`. (commit « Étape 2 : SPEC 6 à 12 en frise, collages précisés en 4.3 et 5.8 », après `d046bca`)
-- [ ] **Étape 3** : `CLAUDE.md` (règle 6, glossaire) ; Grep de contrôle ; ETAT ; PR vers `main`, sans fusion. `/fin-etape`.
+- [x] **Étape 3** : `CLAUDE.md` (règle 6, glossaire) ; Grep de contrôle ; ETAT ; PR vers `main`, sans fusion. `/fin-etape`. (commit « Étape 3 : CLAUDE.md, statuts précisés par D-139, PR vers main », après `0e6fbec`)
 
 Dépendances ajoutées : aucune. ARCHITECTURE, RECETTE et README attendent les `/fin-lot` de frise-N.
 

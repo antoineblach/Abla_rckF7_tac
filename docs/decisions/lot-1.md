@@ -26,6 +26,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : allures et vitesse de passe viennent de `reglages.json` ; la pureté exige de les passer en paramètre.
 - Alternatives écartées : réglages dans l'objet `caches` ; recopie des allures dans chaque combinaison (change le modèle).
 - Origine : réponse de l'utilisateur (Q3 : a).
+- Précisée par D-139 : `renderSchematic` prend un intervalle au lieu de `phaseId` (SPEC 3.3).
 
 ### D-004 : types des lots 3 à 5
 - Date : 2026-10-14
@@ -108,6 +109,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : évite des actions orphelines.
 - Alternatives écartées : garder les actions et les signaler invalides.
 - Origine : réponse de l'utilisateur (Q14).
+- Précisée par D-139 : les actions sont supprimées dans toutes les branches.
 
 ### D-015 : raccourcis et outils
 - Date : 2026-10-14
@@ -194,6 +196,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : préférences d'affichage propres à chaque poste.
 - Alternatives écartées : tout dans `reglages.json`.
 - Origine : réponse de l'utilisateur (Q26).
+- Précisée par D-139 : pause entre les séquences.
 
 ### D-027 : dossiers hors arborescence 3.2
 - Date : 2026-10-14
@@ -324,6 +327,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : séparation 3.3.7 (React affiche, Zustand porte l'état, `model`, `engine`, `io` et `editor` portent la logique) ; un retour arrière après un rechargement réécrirait la version de l'autre PC ; éviter un renommage de fichier à chaque frappe.
 - Alternatives écartées : historique conservé après rechargement ; logique dans les composants React.
 - Origine : choix technique.
+- Précisée par D-139 : en lecture, un premier clic revient à l'édition à l'instant du curseur.
 
 ### D-045 : interface du lot 1
 - Date : 2026-10-14
@@ -353,6 +357,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : recette du lot 1 ; en Chrome, la hauteur de l'arbre des temps (ligne `auto`) suivait la hauteur de l'inspecteur, et le viewport réajustait le cadre à chaque changement de taille : l'échelle changeait à chaque sélection.
 - Alternatives écartées : réajuster le cadre à chaque redimensionnement ; garder des barres qui passent à la ligne.
 - Origine : retour de recette de l'utilisateur, causes mesurées avec Playwright.
+- Précisée par D-139 : la frise remplace l'arbre des temps, hauteur fixe (SPEC 6.1).
 
 ### D-049 : vue unique pour l'édition et la lecture
 - Date : 2026-10-15

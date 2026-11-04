@@ -35,6 +35,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 9.1 interdit un rendu propre aux exports ; l'habillage n'est pas une scène.
 - Alternatives écartées : consigne en bas de l'image ; pastille seulement en mode deux vitesses.
 - Origine : réponse de l'utilisateur (Q5, Q6).
+- Précisée par D-139 : en-tête du GIF selon Q12 au lieu du numéro du temps.
 
 ### D-061 : lisibilité sur téléphone
 - Date : 2026-10-15
@@ -49,6 +50,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : le fond vert foncé du Contraste fort consomme trop d'encre à l'impression couleur ; 9.3 fixe les conventions du noir et blanc.
 - Alternatives écartées : PDF couleur en Contraste fort (proposition initiale).
 - Origine : réponse de l'utilisateur (Q8, Q9).
+- Précisée par D-139 : intervalles antérieurs en gris clair.
 
 ### D-063 : vignettes et mise en page du PDF
 - Date : 2026-10-15
@@ -121,6 +123,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : une lecture ne modifie jamais un fichier de l'utilisateur (règle 9) ; 4.4 et D-024 ; l'interface et les exports affichent les mêmes libellés.
 - Alternatives écartées : réécrire `reglages.json` en v2 dès la lecture ; 8 Mo décimaux.
 - Origine : choix technique (étape 1).
+- Précisée par D-139 : libellés des séquences et des options dans `model/labels.ts`.
 
 ### D-073 : rendu des exports (étape 2)
 - Date : 2026-10-15

@@ -30,7 +30,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 |---|---|---|---|
 | D-001 | terrain réduit selon la Règle 1 | en vigueur | 13.1 |
 | D-002 | tirets et poteaux | en vigueur | 13.1 |
-| D-003 | réglages passés au moteur | en vigueur | 3.3 |
+| D-003 | réglages passés au moteur | précisée par D-139 | 3.3 |
 | D-004 | types des lots 3 à 5 | en vigueur | 4.1 |
 | D-005 | renommage d'une combinaison | en vigueur | 8.3, 8.5 |
 | D-006 | orientation quand B attaque | en vigueur | 3.3, 5.6 |
@@ -41,7 +41,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-011 | bascule « S'arrêter aux options » | précisée par D-139 | 7 |
 | D-012 | actions de l'arbre des temps | remplacée par D-139 | 6.4 |
 | D-013 | moteur et invalidités | remplacée en partie par D-139 | 4.3, 5.4 |
-| D-014 | suppression d'une joueuse | en vigueur | 6.3 |
+| D-014 | suppression d'une joueuse | précisée par D-139 | 6.3 |
 | D-015 | raccourcis et outils | remplacée en partie par D-139 | 6.2 |
 | D-016 | numéros en double | en vigueur | 4.3 |
 | D-017 | dimensions du terrain | en vigueur | 13.1 |
@@ -53,7 +53,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-023 | noms de fichiers et relecture | en vigueur | 4.4, 8.3 |
 | D-024 | fichiers inattendus | en vigueur | 4.4 |
 | D-025 | brouillon | en vigueur | 3.5 |
-| D-026 | préférences par poste | en vigueur | 3.5 |
+| D-026 | préférences par poste | précisée par D-139 | 3.5 |
 | D-027 | dossiers hors arborescence 3.2 | en vigueur | 3.2 |
 | D-028 | protection de main | en vigueur | 3.4 |
 | D-029 | mise à jour de la SPEC et de la RECETTE en fin de lot | en vigueur | — |
@@ -71,11 +71,11 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-041 | conventions de rendu du lot 1 | en vigueur | 13.3 |
 | D-042 | comparaison des images de référence | en vigueur | — |
 | D-043 | détection et écriture dans le dossier | remplacée en partie par D-097 | 8.3 |
-| D-044 | couche d'état et interactions | en vigueur | 3.2, 3.3 |
+| D-044 | couche d'état et interactions | précisée par D-139 | 3.2, 3.3 |
 | D-045 | interface du lot 1 | précisée par D-052 | 6.1, 6.5 |
 | D-046 | réponses en français | en vigueur | — |
 | D-047 | longueur de ETAT.md | remplacée par D-124 | — |
-| D-048 | stabilité du terrain | en vigueur | 6.1 |
+| D-048 | stabilité du terrain | précisée par D-139 | 6.1 |
 | D-049 | vue unique pour l'édition et la lecture | en vigueur | 6.1, 7 |
 | D-050 | bandeau en surimpression | en vigueur | 6.1 |
 | D-051 | seuil de glisser | en vigueur | 6.2 |
@@ -87,9 +87,9 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-057 | PDF vectoriel | en vigueur | 9.3 |
 | D-058 | GIF enchaîné | précisée par D-139 | 9.2 |
 | D-059 | durées des cartons et maintiens | en vigueur | 9.2 |
-| D-060 | habillage des exports | en vigueur | 9.1 |
+| D-060 | habillage des exports | précisée par D-139 | 9.1 |
 | D-061 | lisibilité sur téléphone | précisée par D-075 | 9.2 |
-| D-062 | thèmes des exports | en vigueur | 9.1, 13.2 |
+| D-062 | thèmes des exports | précisée par D-139 | 9.1, 13.2 |
 | D-063 | vignettes et mise en page du PDF | précisée par D-075 et D-139 | 9.3 |
 | D-064 | cahier de jeu | précisée par D-075 | 9.3 |
 | D-065 | export déjà présent, échec d'écriture | en vigueur | 9.1 |
@@ -99,18 +99,18 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-069 | optimisation des GIF désactivable | en vigueur | 9.2 |
 | D-070 | prototypes et dépendances de test | en vigueur | — |
 | D-071 | résultats de l'étape 0, vectoriel confirmé | en vigueur | 9.3 |
-| D-072 | réglages v2 et valeurs de l'étape 1 | en vigueur | 4.4, 4.5 |
+| D-072 | réglages v2 et valeurs de l'étape 1 | précisée par D-139 | 4.4, 4.5 |
 | D-073 | rendu des exports (étape 2) | en vigueur | 13.2 |
 | D-074 | plan et encodage des GIF (étape 3) | en vigueur | 9.2 |
 | D-075 | mise en page et écriture des PDF (étape 4) | précisée par D-139 | 9.3 |
 | D-076 | io des exports et Worker (étape 5) | en vigueur | 9.1 |
 | D-077 | interface des exports (étape 6) | en vigueur | 9.1 |
 | D-078 | rôles de défense d'un regroupement | en vigueur | 10.3, 11.4 |
-| D-079 | participantes d'un regroupement | précisée par D-130 | 10.3 |
+| D-079 | participantes d'un regroupement | précisée par D-130, D-139 | 10.3 |
 | D-080 | maul | en vigueur | 10.3 |
 | D-081 | pose d'un regroupement | précisée par D-139 | 10.3 |
 | D-082 | ligne d'avantage en mode schéma | précisée par D-139 | 5.6 |
-| D-083 | ballon au sol et ramassage | en vigueur | 10.4 |
+| D-083 | ballon au sol et ramassage | précisée par D-139 | 10.4 |
 | D-084 | conventions graphiques du lot 3 | en vigueur | 10.4, 10.5 |
 | D-085 | calque « En-avant » | précisée par D-139 | 5.7, 10.5 |
 | D-086 | aucune alerte d'en-avant dans les exports | en vigueur | 10.5 |
@@ -122,13 +122,13 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-092 | modèles et synchronisation | en vigueur | 8.1 |
 | D-093 | raccourcis des nouveaux outils | en vigueur | 6.2 |
 | D-094 | schéma v2, modèle v1 et moteur du lot 3 | remplacée en partie par D-139 | 4.1, 4.5 |
-| D-095 | interface du jeu au pied et des regroupements (étape 6) | en vigueur | 10.3, 10.4 |
+| D-095 | interface du jeu au pied et des regroupements (étape 6) | précisée par D-139 | 10.3, 10.4 |
 | D-096 | interface des modèles et de la combinaison entière (étape 7) | remplacée en partie par D-101 | 6.6, 10.1, 10.2 |
 | D-097 | base de concurrence par l'empreinte du contenu | en vigueur | 8.3, 8.4 |
 | D-098 | écritures de la page et retour en arrière de Drive | en vigueur | 8.4 |
 | D-099 | aucune sauvegarde automatique pendant un glisser | en vigueur | 8.3 |
 | D-100 | journal de synchronisation | en vigueur | 8.3 |
-| D-101 | nouvelle combinaison depuis un modèle enregistrée à la validation de la pose | en vigueur | 6.6, 10.1 |
+| D-101 | nouvelle combinaison depuis un modèle enregistrée à la validation de la pose | précisée par D-139 | 6.6, 10.1 |
 | D-102 | le dépôt reste public | en vigueur | — |
 | D-103 | portée du lot 3 bis | en vigueur | — |
 | D-104 | combinaison v3 et migration | remplacée en partie par D-139 | 4.1, 4.5 |
