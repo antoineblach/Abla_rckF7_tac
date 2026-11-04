@@ -19,7 +19,7 @@
 | Élément | Tracé |
 |---|---|
 | Course | Trait plein fléché ; segment à l'allure sprint des réglages ou plus vite : trait plus épais (lot 3 bis, D-115) |
-| Lien de synchronisation | Tirets fins, couleur de sélection, surcouche d'édition seulement (lot 3 bis) |
+| Trait de collage | Tirets fins, couleur de sélection, surcouche d'édition seulement (lot 3 bis, D-139) |
 | Passe | Pointillés fléchés |
 | Jeu au pied | Tirets longs, ombre au sol |
 | Course groupée | Trait plein double |

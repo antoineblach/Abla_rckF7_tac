@@ -24,3 +24,4 @@ Index, règles du journal et mode de lecture : [README.md](README.md).
 - Raison : la section 16 de la SPEC disparaît au découpage de la SPEC (D-123) ; ses points 15 à 21 ne faisaient que renvoyer aux plages D-001 à D-118, couvertes par l'index de `docs/decisions/`. Quand un point change, l'entrée qui le change cite D-122, et le statut de D-122 dans l'index devient « remplacée en partie par D-xxx » (le point 9 le sera par la partie 3bis-3, positions préréglées).
 - Alternatives écartées : une entrée par point (D-122 à D-135).
 - Origine : SPEC 1.0, section 16 (journal du 14 octobre 2026) ; reportée à la demande de l'utilisateur (Q2 du plan `docs/plans/docs-outils.md`).
+- Remplacée en partie par D-139 : « Frise chronologique continue, avec embranchements d'option » à la place de « Temps organisés en arbre » (SPEC 2).

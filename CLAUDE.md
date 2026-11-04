@@ -33,7 +33,7 @@ Dans le dépôt, jamais seulement dans la conversation ni dans la mémoire autom
 3. Ambiguïté ou contradiction : s'arrêter et demander. Ne jamais trancher seul, ne jamais inventer une règle de rugby.
 4. Ne jamais implémenter un élément d'un lot ultérieur, ni rendre son arrivée plus difficile (types déclarés, interfaces ouvertes).
 5. Valeur provisoire : dans `src/config/defaults.ts`, avec un commentaire `HYPOTHÈSE` ou `SOURCE: <url>`.
-6. Modèle de données modifié : incrément de `schemaVersion`, migration, fixture de l'ancienne version, test.
+6. Modèle de données modifié : incrément de `schemaVersion`, migration, fixture de l'ancienne version, test. Seule exception : le passage à la v5 (frise, D-139), sans migration ; un fichier antérieur est refusé.
 7. Moteur et rendu purs : ni `Date.now()`, ni `Math.random()`, ni état global. Le déterminisme est testé.
 8. Rendu en aplats : ni dégradé, ni motif, ni flou d'ombre.
 9. Dossier de l'utilisateur : jamais d'effacement définitif (supprimer = déplacer dans `_corbeille/`). Un fichier invalide n'est jamais modifié ni déplacé automatiquement.
@@ -66,9 +66,13 @@ Dans le dépôt, jamais seulement dans la conversation ni dans la mémoire autom
 | Interface | Code |
 |---|---|
 | Combinaison | play |
-| Temps | phase |
+| Frise | timeline |
+| Bloc | block |
+| Bord | edge |
+| Collage | glue |
+| Séquence | sequence |
 | Option | branch |
-| Point d'option | branch point |
+| Embranchement | branch point |
 | Ligne (chemin racine-feuille) | line / branchPath |
 | Consigne | instruction |
 | Condition d'une option | condition |

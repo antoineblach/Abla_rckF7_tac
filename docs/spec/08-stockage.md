@@ -62,7 +62,7 @@ Extensions du lot 1 (D-020) : `issues()` (fichiers invalides, copies de conflit)
 ### 8.7 Bibliothèque
 
 - Deux onglets : « Combinaisons » et « Modèles » (modèles de placement, 10.1, D-096).
-- Liste avec vignette (mode schéma du premier temps), nom, catégorie, date de modification.
+- Liste avec vignette (mode schéma du premier intervalle de la ligne par défaut), nom, catégorie, date de modification.
 - Recherche par nom ; filtre par catégorie ; tri par nom ou date.
 - Dupliquer ; supprimer (corbeille, après confirmation) ; exporter en fichier ; importer.
 

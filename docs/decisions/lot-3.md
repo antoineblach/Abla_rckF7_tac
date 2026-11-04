@@ -20,6 +20,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Alternatives écartées : soutien amené par le moteur contre la plaquée ; relayeur à vitesse constante sur toute la durée.
 - Origine : réponse de l'utilisateur (Q2, Q3, Q4).
 - Précisée par D-130 (relayeur trop loin : même solveur et même bascule que les courses).
+- Précisée par D-139 : le jeu après la sortie de balle se dessine dans l'intervalle où il démarre (SPEC 5.1).
 
 ### D-080 : maul
 - Date : 2026-10-16
@@ -34,6 +35,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : SPEC 10.3 dit « les deux coéquipières les plus proches » sans dire laquelle est le soutien ni à quel instant.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q6).
+- Précisée par D-139 : formation collée à la fin de course ou à la réception.
 
 ### D-082 : ligne d'avantage en mode schéma
 - Date : 2026-10-16
@@ -41,6 +43,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : la ligne d'avantage devient variable dans le temps ; le mode schéma montre un temps à l'arrêt.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q7).
+- Précisée par D-139 : ligne d'avantage en vigueur au début de l'intervalle affiché.
 
 ### D-083 : ballon au sol et ramassage
 - Date : 2026-10-16
@@ -48,6 +51,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : SPEC 10.4 ne précise ni l'équipe de la joueuse qui ramasse ni la durée de la recherche ; D-007 renvoyait le ballon au sol au lot 3.
 - Alternatives écartées : ramassage limité à l'équipe qui attaque.
 - Origine : réponse de l'utilisateur (Q8).
+- Précisée par D-139 : recherche du ramassage sur toute la ligne (SPEC 5.4).
 
 ### D-084 : conventions graphiques du lot 3
 - Date : 2026-10-16
@@ -62,6 +66,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : SPEC 5.7 et 10.5 ne précisent ni le sens d'attaque d'une défenseure qui passe ni la vitesse à retenir à un changement de course.
 - Alternatives écartées : dérivée centrée (moitié de la vitesse au dernier pas d'une course).
 - Origine : réponse de l'utilisateur (Q10, pour l'éditeur et le lecteur).
+- Précisée par D-139 : la dérivée au lâcher se lit sur la course précédente de la ligne.
 
 ### D-086 : aucune alerte d'en-avant dans les exports
 - Date : 2026-10-16
@@ -125,6 +130,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : règle 6 de `CLAUDE.md` ; D-004 ; un regroupement valide exige que la plaquée tienne le ballon, donc aucun vol en cours : l'ordre chronologique suffit, sans itération, et le moteur reste pur.
 - Alternatives écartées : réécrire les fichiers v1 dès la lecture ; résolution itérative.
 - Origine : plan du lot 3 (sections 1 et 2), validé par l'utilisateur.
+- Remplacée en partie par D-139 : plus de durée de phase ni de migration ; les types des actions et l'ordre des événements demeurent.
 
 ### D-095 : interface du jeu au pied et des regroupements (étape 6)
 - Date : 2026-10-16
@@ -132,6 +138,7 @@ Les entrées D-078 à D-093 reprennent les réponses aux questions Q1 à Q19 du 
 - Raison : SPEC 10.3, 10.4, D-078 à D-085, D-093 ; mesure à 1440 px : la barre débordait de 92 px.
 - Alternatives écartées : libellés abrégés des outils ; dossier masqué dans la barre.
 - Origine : choix technique (étape 6).
+- Précisée par D-139 : « dans ce temps » devient « à la formation » ; ballon au sol déplaçable à `t = 0` seulement.
 
 ### D-096 : interface des modèles et de la combinaison entière (étape 7)
 - Date : 2026-10-16
@@ -179,3 +186,4 @@ Plan : `docs/archive/plans/lot-3-corrections.md`, validé le 23 octobre 2026 ave
 - Raison : Échap laissait une combinaison vide dans la bibliothèque. La précédente est relue, car elle a pu changer sur l'autre PC pendant la pose.
 - Alternatives écartées : rouvrir la précédente depuis un instantané de l'éditeur ; laisser l'éditeur vide.
 - Origine : demande de l'utilisateur (passation du 16/10) ; réponse Q2.
+- Précisée par D-139 : toute pose affiche le curseur à 0.

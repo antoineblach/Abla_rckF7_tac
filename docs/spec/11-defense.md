@@ -70,8 +70,10 @@ interface DefenseSettings {
 ### 11.7 Intégration
 
 - Mode par défenseure : `manual` ou `auto` ; mélange possible. Les défenseures manuelles ne sont jamais réappariées.
-- « Figer » : convertit la trajectoire simulée d'une défenseure en courses éditables (points simplifiés par Ramer-Douglas-Peucker, tolérance 0,3 m, HYPOTHÈSE).
-- Résultat mis en cache par (combinaison, branche, réglages) ; recalcul à chaque modification ; objectif inférieur à 50 ms par ligne (HYPOTHÈSE).
+- Une défenseure en mode auto n'a pas de bloc dans la frise (6.4, D-139).
+- Les déclenchements de la simulation sont les événements de la ligne. La simulation n'utilise que le passé, donc le tronc reste identique dans toutes les options (5.2, D-139).
+- « Figer » : convertit la trajectoire simulée d'une défenseure en courses éditables (points simplifiés par Ramer-Douglas-Peucker, tolérance 0,3 m, HYPOTHÈSE), à instant absolu dans la branche de la ligne active (D-139).
+- Résultat mis en cache par (combinaison, ligne, réglages) ; recalcul à chaque modification ; objectif inférieur à 50 ms par ligne (HYPOTHÈSE).
 - Effectifs quelconques (N contre M), y compris ateliers à effectif réduit.
 
 ### 11.8 Limites assumées

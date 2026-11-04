@@ -26,6 +26,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : allures et vitesse de passe viennent de `reglages.json` ; la pureté exige de les passer en paramètre.
 - Alternatives écartées : réglages dans l'objet `caches` ; recopie des allures dans chaque combinaison (change le modèle).
 - Origine : réponse de l'utilisateur (Q3 : a).
+- Précisée par D-139 : `renderSchematic` prend un intervalle au lieu de `phaseId` (SPEC 3.3).
 
 ### D-004 : types des lots 3 à 5
 - Date : 2026-10-14
@@ -68,6 +69,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : préserve la continuité (5.2) et le tronc commun.
 - Alternatives écartées : déplacer le dernier point de la dernière course dans un temps ancêtre ; déplacer le placement initial.
 - Origine : réponse de l'utilisateur (Q9 : a).
+- Remplacée en partie par D-139 : le terrain montre et édite l'instant du curseur ; « Placer » fixe toujours le placement de départ.
 
 ### D-010 : éditeur et lecteur
 - Date : 2026-10-14
@@ -75,6 +77,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : relation éditeur et lecteur non précisée.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q10).
+- Remplacée en partie par D-139 : plus de temps sélectionné, un seul mode à l'arrêt ; en lecture, le terrain n'est pas éditable, un geste d'édition arrête la lecture.
 
 ### D-011 : bascule « S'arrêter aux options »
 - Date : 2026-10-14
@@ -82,6 +85,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : « lecture manuelle » et « automatique » n'étaient pas définies.
 - Alternatives écartées : manuelle = pause entre les temps activée ; automatique = boucle.
 - Origine : réponse de l'utilisateur (Q11 : b).
+- Précisée par D-139 : l'arrêt a lieu à l'embranchement.
 
 ### D-012 : actions de l'arbre des temps
 - Date : 2026-10-14
@@ -89,6 +93,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : sémantique des actions de l'arbre non précisée.
 - Alternatives écartées : option créée comme copie du temps.
 - Origine : réponse de l'utilisateur (Q12, avec ajout d'« Insérer un temps après »).
+- Remplacée par D-139 : plus d'arbre des temps ; embranchements et options (créer à t, condition, défaut, dupliquer, supprimer avec confirmation, lettres recalculées), libellé stocké vide = calculé.
 
 ### D-013 : moteur et invalidités
 - Date : 2026-10-14
@@ -96,6 +101,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : les invalidités n'interrompent jamais le programme (4.3).
 - Alternatives écartées : bloquer l'action ; ignorer la passe vers l'adversaire.
 - Origine : réponse de l'utilisateur (Q13).
+- Remplacée en partie par D-139 : deux courses d'une joueuse qui se chevauchent, la seconde part à la fin de la première, signalée ; les autres replis restent.
 
 ### D-014 : suppression d'une joueuse
 - Date : 2026-10-14
@@ -103,6 +109,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : évite des actions orphelines.
 - Alternatives écartées : garder les actions et les signaler invalides.
 - Origine : réponse de l'utilisateur (Q14).
+- Précisée par D-139 : les actions sont supprimées dans toutes les branches.
 
 ### D-015 : raccourcis et outils
 - Date : 2026-10-14
@@ -110,6 +117,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : petits trous de 6.2 et 6.3.
 - Alternatives écartées : aucune proposée.
 - Origine : réponse de l'utilisateur (Q15).
+- Remplacée en partie par D-139 : outil Course et instant d'une passe posés selon le curseur (SPEC 6.2) ; le reste demeure.
 
 ### D-016 : numéros en double
 - Date : 2026-10-14
@@ -188,6 +196,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : préférences d'affichage propres à chaque poste.
 - Alternatives écartées : tout dans `reglages.json`.
 - Origine : réponse de l'utilisateur (Q26).
+- Précisée par D-139 : pause entre les séquences.
 
 ### D-027 : dossiers hors arborescence 3.2
 - Date : 2026-10-14
@@ -274,6 +283,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : seules les actions appliquées ont une durée.
 - Alternatives écartées : compter le délai des actions ignorées.
 - Origine : choix technique.
+- Précisée par D-139 : seules les actions appliquées comptent dans la durée d'une ligne (SPEC 5.1).
 
 ### D-039 : caches
 - Date : 2026-10-14
@@ -317,6 +327,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : séparation 3.3.7 (React affiche, Zustand porte l'état, `model`, `engine`, `io` et `editor` portent la logique) ; un retour arrière après un rechargement réécrirait la version de l'autre PC ; éviter un renommage de fichier à chaque frappe.
 - Alternatives écartées : historique conservé après rechargement ; logique dans les composants React.
 - Origine : choix technique.
+- Précisée par D-139 : en lecture, un premier clic revient à l'édition à l'instant du curseur.
 
 ### D-045 : interface du lot 1
 - Date : 2026-10-14
@@ -346,6 +357,7 @@ Les entrées D-001 à D-027 reprennent les réponses Q1 à Q27 au plan du lot 1 
 - Raison : recette du lot 1 ; en Chrome, la hauteur de l'arbre des temps (ligne `auto`) suivait la hauteur de l'inspecteur, et le viewport réajustait le cadre à chaque changement de taille : l'échelle changeait à chaque sélection.
 - Alternatives écartées : réajuster le cadre à chaque redimensionnement ; garder des barres qui passent à la ligne.
 - Origine : retour de recette de l'utilisateur, causes mesurées avec Playwright.
+- Précisée par D-139 : la frise remplace l'arbre des temps, hauteur fixe (SPEC 6.1).
 
 ### D-049 : vue unique pour l'édition et la lecture
 - Date : 2026-10-15

@@ -19,6 +19,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : règle 6 de `CLAUDE.md` ; garder la fluidité des combinaisons existantes ; une migration ne peut pas lancer le moteur (les positions dépendent des réglages).
 - Alternatives écartées : tableau parallèle des vitesses de segment (à resynchroniser à chaque point ajouté ou retiré) ; identifiants de points de passage.
 - Origine : plan, validé par l'utilisateur (Q2, Q4, Q8).
+- Remplacée en partie par D-139 : liens, `endsAtSpeed`, lâcher à la réception et migrations retirés ; les vitesses de segment demeurent.
 
 ### D-105 : profil de vitesse
 - Date : 2026-10-23
@@ -34,6 +35,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : sans lui, le profil marquerait un arrêt à chaque frontière de temps ; le drapeau laisse le coach privilégier la fluidité de l'option principale.
 - Alternatives écartées : règle automatique sans drapeau (ajouter une option sans suite arrêterait la course dans toutes les options) ; course lancée pendant l'attente ; décélération dans le prolongement dans une option sans suite (déplacement non dessiné).
 - Origine : réponses Q4 (avec le cas de l'attente) et Q13 a.
+- Remplacée par D-139 : lancée si et seulement si la course suivante est collée à sa fin ; l'arrêt net avec avertissement reste pour le seul cas d'une course du tronc prolongée dans une partie des options.
 
 ### D-107 : durée imposée
 - Date : 2026-10-23
@@ -42,6 +44,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Alternatives écartées : la retirer (la migration ne peut pas la convertir sans le moteur) ; la convertir en lien.
 - Origine : réponse Q5.
 - Remplacée en partie par D-129 : durée tenue exactement, sans plafond ni alerte de durée inatteignable.
+- Remplacée en partie par D-139 : le dernier geste gagne (choisir une allure retire la durée imposée ; tirer le bord droit l'impose).
 
 ### D-108 : liens de synchronisation
 - Date : 2026-10-23
@@ -50,6 +53,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Alternatives écartées : vitesse uniforme avant le rendez-vous ; lien ignoré au-delà du seuil rouge (saut quand on déplace la cible) ; résolution avant la boucle d'événements (cibles approchées).
 - Origine : réponse Q6.
 - Remplacée en partie par D-129 et D-131 (replis du délai négatif et du facteur plafonné).
+- Remplacée par D-139 : le collage remplace les liens ; le solveur reste (D-129, D-130).
 
 ### D-109 : création d'un lien
 - Date : 2026-10-23
@@ -57,6 +61,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : geste en deux temps comme les poses (D-096).
 - Alternatives écartées : raccourci C.
 - Origine : réponse Q7.
+- Remplacée par D-139 : le collage se fait dans la frise, plus de « Caler sur… » ; le refus avec message reste, à la pose.
 
 ### D-110 : lâcher des passes et des jeux au pied
 - Date : 2026-10-23
@@ -64,6 +69,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : le profil décale les arrivées de 0,1 à 0,3 s : sans tolérance, les passes enchaînées existantes deviendraient « passeuse sans ballon » ; le mode à la réception rend les enchaînements robustes aux modifications.
 - Alternatives écartées : tolérance seule ; bouton « Recaler sur la réception ».
 - Origine : réponse Q8.
+- Remplacée en partie par D-139 : un seul mode de lâcher, à son instant, collé ou non ; la tolérance de 0,5 s reste pour un lâcher non collé.
 
 ### D-111 : vitesses irréalistes, réglages v3 et sprint
 - Date : 2026-10-23
@@ -87,6 +93,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : 6.1 et D-048 (aucune taille autour du terrain ne change) ; la bande du bas est la zone du temps et la seule assez large pour les barres.
 - Alternatives écartées : onglet dans la bande du bas ; section de l'inspecteur.
 - Origine : réponse Q1.
+- Remplacée par D-139 : liste retirée ; les blocs de la frise reprennent clic, survol, Suppr, pastilles et détails en infobulle.
 
 ### D-114 : vitesse par segment
 - Date : 2026-10-23
@@ -132,6 +139,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : un ramassage n'est pas une réception (D-110 : arrivée d'une passe ou d'un jeu au pied, sortie d'un regroupement) ; « à la réception » ne se déclencherait jamais et l'outil créerait une passe en erreur, là où l'instant fixe marchait (combinaisons du lot 3 avec ballon au sol).
 - Alternatives écartées : compter le ramassage comme une réception dans le moteur (change la règle de D-110) ; « à la réception » sans exception (passe en erreur).
 - Origine : cas non couvert par le plan, constaté à l'étape 6 ; signalé à l'utilisateur ; relue et validée par l'utilisateur le 03/11.
+- Précisée par D-139 : lâcher au curseur si elle a le ballon, sinon collé à sa prochaine réception ; ramassage : instant fixe.
 
 ### D-120 : précisions de l'éditeur des liens et des segments
 - Date : 2026-10-24
@@ -144,6 +152,7 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : cohérence avec D-107 à D-109 et D-114 ; aucun geste bloqué ; clavier français.
 - Alternatives écartées : sortir du choix de la cible au premier refus ; touches lues sur le caractère seulement (Maj nécessaire en AZERTY).
 - Origine : écriture de l'étape 6 ; relue et validée par l'utilisateur le 03/11.
+- Remplacée en partie par D-139 : les parties reportées à 3bis-2 sont reprises ou sans objet (voir D-139) ; les raccourcis 1, 2, 3 et 0 demeurent.
 
 ### D-121 : précisions de l'interface du lot 3 bis
 - Date : 2026-10-24
@@ -157,10 +166,11 @@ Plan : `docs/archive/plans/lot-3bis.md`, validé le 23 octobre 2026 avec les ré
 - Raison : un message à chaque ouverture serait pénible ; lisibilité de la liste dans 176 px ; mêmes tests dans les deux navigateurs sans duplication.
 - Alternatives écartées : réécrire `reglages.json` en v3 à l'ouverture (le plan veut la réécriture au prochain enregistrement) ; message à chaque ouverture.
 - Origine : écriture de l'étape 7 ; relue et validée par l'utilisateur le 03/11.
+- Remplacée en partie par D-139 : « Changer la cible » sans objet ; « Délai calculé par le lien » devient « Départ » calculé et non modifiable ; liste des actions retirée.
 
 ## Lot 3bis-1 : le mouvement
 
-Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses Q1 à Q9 et 6 modifications de l'utilisateur. Origine commune : retour de la séance d'usage du 24/10 (accélérations trop lentes et trop contraignantes ; vitesses à calibrer avec un curseur à repères ; les plafonnements « créent le désordre ») ; règle de l'utilisateur : ne jamais bloquer, seulement signaler.
+Plan : `docs/archive/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses Q1 à Q9 et 6 modifications de l'utilisateur. Origine commune : retour de la séance d'usage du 24/10 (accélérations trop lentes et trop contraignantes ; vitesses à calibrer avec un curseur à repères ; les plafonnements « créent le désordre ») ; règle de l'utilisateur : ne jamais bloquer, seulement signaler.
 
 ### D-129 : le mouvement sert l'intention du coach
 - Date : 2026-10-25
@@ -168,6 +178,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : retour de séance du 24/10 ; un plafond décale l'action liée et désorganise le temps, là où une alerte laisse le coach juger.
 - Alternatives écartées : alerte « au-delà des bornes » dès que le levier 2 de D-130 sert, même sous les seuils (Q3) ; garder le plafond au seuil rouge.
 - Origine : prompt du lot 3bis-1 (A) ; réponse Q3 ; validation du plan (modification 3).
+- Précisée par D-139 : le principe vaut pour tout bord déplacé ou collé.
 
 ### D-130 : solveur à deux leviers
 - Date : 2026-10-25
@@ -183,6 +194,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Alternatives écartées : arriver en retard (comportement du lot 3 bis) ; course jouée à la plus grande mise à l'échelle (mouvement absurde, Q4).
 - Origine : réponses Q1 et Q4.
 - Précisée par D-136 (durée imposée d'une course en départ différé en retard).
+- Précisée par D-139 : la borne du départ est 0, la fin de la course précédente ou l'embranchement.
 
 ### D-132 : alertes d'accélération et de freinage
 - Date : 2026-10-25
@@ -199,6 +211,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Alternatives écartées : bornes de 1 à 45 km/h ; aimantation à ±1 km/h (Q8).
 - Origine : prompt (D) ; réponse Q8.
 - Précisée par D-138 (interface du curseur).
+- Remplacée en partie par D-139 : aucune migration ; l'allure saisie et le curseur demeurent.
 
 ### D-134 : réglages v4
 - Date : 2026-10-25
@@ -228,6 +241,7 @@ Plan : `docs/plans/lot-3bis-1.md`, validé le 25 octobre 2026 avec les réponses
 - Raison : D-107 (durée imposée et vitesse ajustée s'excluent) ; rendez-vous à la fin, cas par défaut : même résultat que des leviers partis des vitesses de la durée.
 - Alternatives écartées : leviers partis des vitesses déjà multipliées par le facteur de la durée imposée, segments suivants à ce facteur (un facteur de base de plus dans le moteur).
 - Origine : question de l'étape 3, réponse de l'utilisateur.
+- Précisée par D-139 : partie à sa borne sans y être collée, la course ne prolonge pas la précédente.
 
 ### D-137 : placement et dessin des pastilles d'accélération et de freinage
 - Date : 2026-10-26

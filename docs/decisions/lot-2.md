@@ -20,6 +20,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 9.2 ne fixait ni l'ordre des vitesses dans un GIF enchaîné ni le cas de plusieurs points d'option.
 - Alternatives écartées : chaque option jouée au ralenti puis à vitesse réelle ; reprise toujours au premier point d'option.
 - Origine : réponse de l'utilisateur (Q2, Q3).
+- Précisée par D-139 : reprise à l'instant de l'embranchement ; préfixe « À 4,5 s, » au lieu de « Temps n, ».
 
 ### D-059 : durées des cartons et maintiens
 - Date : 2026-10-15
@@ -34,6 +35,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 9.1 interdit un rendu propre aux exports ; l'habillage n'est pas une scène.
 - Alternatives écartées : consigne en bas de l'image ; pastille seulement en mode deux vitesses.
 - Origine : réponse de l'utilisateur (Q5, Q6).
+- Précisée par D-139 : en-tête du GIF selon Q12 au lieu du numéro du temps.
 
 ### D-061 : lisibilité sur téléphone
 - Date : 2026-10-15
@@ -48,6 +50,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : le fond vert foncé du Contraste fort consomme trop d'encre à l'impression couleur ; 9.3 fixe les conventions du noir et blanc.
 - Alternatives écartées : PDF couleur en Contraste fort (proposition initiale).
 - Origine : réponse de l'utilisateur (Q8, Q9).
+- Précisée par D-139 : intervalles antérieurs en gris clair.
 
 ### D-063 : vignettes et mise en page du PDF
 - Date : 2026-10-15
@@ -55,6 +58,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : 9.3 ne précisait ni le cadrage ni l'orientation des vignettes ni la disposition exacte des rangées.
 - Alternatives écartées : vue enregistrée de la combinaison ; rangées d'options en retrait sous leur point d'option.
 - Origine : réponse de l'utilisateur (Q10, Q11).
+- Précisée par D-139 : une vignette par intervalle ; une rangée pour les intervalles du tronc, puis une par option.
 
 ### D-064 : cahier de jeu
 - Date : 2026-10-15
@@ -119,6 +123,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : une lecture ne modifie jamais un fichier de l'utilisateur (règle 9) ; 4.4 et D-024 ; l'interface et les exports affichent les mêmes libellés.
 - Alternatives écartées : réécrire `reglages.json` en v2 dès la lecture ; 8 Mo décimaux.
 - Origine : choix technique (étape 1).
+- Précisée par D-139 : libellés des séquences et des options dans `model/labels.ts`.
 
 ### D-073 : rendu des exports (étape 2)
 - Date : 2026-10-15
@@ -140,6 +145,7 @@ Les entrées D-057 à D-070 reprennent les réponses aux questions Q1 à Q16 du 
 - Raison : D-063, D-064 et D-061 précisés là où ils ne fixaient pas le détail ; déterminisme (même PDF octet pour octet).
 - Alternatives écartées : rangées d'options en retrait ; numéros de page aussi dans le PDF d'une combinaison.
 - Origine : choix technique (étape 4).
+- Précisée par D-139 : vignettes par intervalle et titres d'option (SPEC 9.3) ; le reste de la mise en page demeure.
 
 ### D-076 : io des exports et Worker (étape 5)
 - Date : 2026-10-15
