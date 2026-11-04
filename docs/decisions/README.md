@@ -16,7 +16,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
 | [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-138 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
-| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-153 (frise-1), puis les décisions de frise-2 à frise-4 |
+| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-160 (frise-1), puis les décisions de frise-2 à frise-4 |
 
 ## Lecture
 
@@ -185,3 +185,6 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-155 | séquence dont la fin n'est pas après le début | en vigueur | non intégrée (4.3) |
 | D-156 | validation sur les instants enregistrés, le moteur sur les instants résolus | en vigueur | — |
 | D-157 | `realisticRunsPlay` en v5 | en vigueur | — |
+| D-158 | embranchement qui n'est pas après le précédent | en vigueur | non intégrée (4.3) |
+| D-159 | lecture des intervalles dans le moteur | en vigueur | non intégrée (5.1) |
+| D-160 | course d'une participante à l'instant de la formation ou de la sortie | en vigueur | non intégrée (5.3) |

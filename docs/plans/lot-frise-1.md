@@ -24,7 +24,7 @@ Ampleur : 122 fichiers mentionnent les temps (`git grep -c -i phase -- src e2e` 
 ## Stratégie : `src/v5/`
 
 - **Contenu** : seuls les modules qui dépendent du type `Play` v4 sont réécrits ou copiés sous `src/v5/`, à la même place relative (`src/v5/engine/timeline.ts`).
-- **Réutilisés depuis leur emplacement actuel**, car indépendants de `Play` et structurellement compatibles : `engine/spline`, `profile`, `vec` ; `config/defaults` ; `model/settings`, `speed`, `canonical`, `ids`, `preset`, `shortName` ; `field/` ; `render/viewport`, `themes`, `primitives`, `captions`, `layers` ; outils de `test/` sans `Play` (`memoryFs`, `memoryKv`, `recordingCtx`, `imageSnapshot`, `gifInspect`, `pdfInspect`, `driveSim`, `profileMath`).
+- **Réutilisés depuis leur emplacement actuel**, car indépendants de `Play` et structurellement compatibles : `engine/spline`, `profile`, `pass`, `vec` ; `config/defaults` ; `model/settings`, `speed`, `canonical`, `ids`, `preset`, `shortName` ; `field/` ; `render/viewport`, `themes`, `primitives`, `captions`, `layers` ; outils de `test/` sans `Play` (`memoryFs`, `memoryKv`, `recordingCtx`, `imageSnapshot`, `gifInspect`, `pdfInspect`, `driveSim`, `profileMath`).
 - **Configuration** : globs ESLint de pureté étendus à `src/v5/...` ; de A à C3, `tsc`, Vitest et Playwright n'ont rien à changer. Les images de référence v5 sont préfixées `v5-` jusqu'à la bascule.
 - **Bascule (C4)** : suppression des modules v4, `git mv` de `src/v5/*` à leur place, script jetable (scratchpad, non commité) qui raccourcit d'un niveau les imports sortant de `v5` et les chemins de fixtures des tests (`new URL('../../test/fixtures/...')`, qui ne sont pas des imports), globs ESLint rétablis. Le diff final de la PR montre des modifications en place, `src/v5` n'y apparaît plus.
 - **`e2e/a-porter/` (C4 à C5)** : `testDir: 'e2e'` parcourt les sous-dossiers, d'où un `testIgnore` provisoire dans `playwright.config.ts`, posé en C4, retiré en C5, inscrit dans « Écarts connus » d'ETAT, qui dit aujourd'hui « Aucun test désactivé ». `tsconfig.json` inclut `e2e` et ESLint tout le dépôt : ces specs restent compilées et lintées, sans exclusion. Leurs imports relatifs sont ajustés au déplacement (`export-gif` importe `../src/...`) et les helpers qu'elles utilisent restent jusqu'à C5 ; une spec qui ne compile plus à la bascule est portée dès C4.
@@ -103,6 +103,14 @@ Lecture : SPEC 5.2, 5.8, 4.3 (collage), 5.3 (solveur), D-152 ; `model/syncGraph.
 - Collages gauche et droit dans leurs deux réglages `keep`, bornes, solveur à deux leviers sur course entière, embranchement collé, cas particuliers du tableau de 5.8, receveuse collée à l'arrivée, lancée (D-139 Q1), cycles dans `validate`.
 - Test de coupe (D-139 Q4, D-149) : seuils en constantes du test, commentées `HYPOTHÈSE`. **Dépassement : je m'arrête et je donne la mesure à l'utilisateur, sans relâcher les seuils.**
 - Bench (D-150). ETAT reçoit les temps v4 et v5 ; le bench le précise à côté des mesures : `realisticRunsPlay()` compte 18 actions en v5 contre 16 en v4, à cause des deux `at` coupés. **Au-delà de 33 ms par mouvement, je m'arrête et je demande.**
+
+Reçu de l'étape B1 :
+- `src/v5/engine` ignore tous les collages : `resolveBranches`, `plannedInBranch` et `resolveSequences` (`timeline.ts`) lisent les instants enregistrés, à remplacer par les instants résolus. `simulateLine` reçoit `LineAction.planned`. `realisticRunsPlay` y déclenche donc des `runStartDelayed` parasites jusqu'à B2.
+- `motion.ts` : `getSpline` sans direction de départ, `startSpeed: 0`, `endsAtSpeed: false`, clé de `runShape` à étendre (facteurs, lancée) ; `RunMotion` n'a ni `prolongs`, ni `endsAtSpeed`, ni résultat de collage, et `actionReport` ni `atSpeed`, ni collage ; `windowSchematic` n'a pas les traits de collage.
+- Une course est construite à la demande, lecture en avant comprise : `aimed` écarte les courses d'option de la receveuse pendant la visée, `unbuildAfter` défait ce qui a été lu trop tôt, `waitForArrival` applique D-139 Q2, `freezeAt` remet en attente ce qui part à la formation ou après. `advanceOne` est l'endroit où une réception programmera un lâcher collé.
+- `issues.ts` a `runStartDelayed` (`params.delay`) et garde `runNotContinued` ; à ajouter : cycle, retard de collage, cible jamais atteinte.
+- Tests v4 non portés en B1, à porter ici : `runs.test` « runs ending at speed » (vers `launch.test`) ; `forwardPass.test` « reads the passer speed… » (lâcher à l'instant où une course démarre, D-085) ; `actionReport.test` « reports the links » et « gives the points of a link » ; `sync.test` (vers `glue`). Déterminisme des deux compilations : `runs.test` et `evaluate.test` le couvrent déjà sans collage, à refaire avec.
+- `engine/pass.ts` est réutilisé : à ne pas supprimer en C4.
 
 ### Étape C1
 
@@ -208,7 +216,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc A**
   - [x] **Étape A : types, builders, schéma, refus, branches, validation, fixture v5** (`src/v5/model`, `src/v5/test`). (commit « Étape A : modèle v5, builders, refus des versions antérieures, fixture », après `319b010`)
 - **Bloc B1**
-  - [ ] **Étape B1 : compilation de ligne continue, sans collage** (`src/v5/engine`).
+  - [x] **Étape B1 : compilation de ligne continue, sans collage** (`src/v5/engine`). (commit « Étape B1 : compilation de ligne continue, sans collage », après `191e2ba`)
 - **Bloc B2**
   - [ ] **Étape B2 : collages, graphe, lancée, D-139 Q1 et Q4, mesures dans ETAT.**
 - **Bloc C1**

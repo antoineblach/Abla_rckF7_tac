@@ -196,3 +196,24 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Raison : A7 finissant au lâcher, le lâcher tomberait sur l'embranchement (action du tronc signalée) ou la suite de A7 serait retardée par D-139 Q2 ; deux alertes parasites à chaque compilation du scénario de référence.
 - Alternatives écartées : garder le lâcher avec un écart de 0,1 s (alerte « départ retardé » permanente) ; laisser la v4 telle quelle (T3 à 7,528 s : A7 s'arrête 1,4 s puis repart, sans lancée, comme en v4 où « Finit lancée » restait sans effet).
 - Origine : étape A.
+
+### D-158 : embranchement qui n'est pas après le précédent
+- Date : 2026-11-04
+- Décision : le moteur signale `branchAtNotIncreasing` sur les instants résolus (D-156) et garde cet embranchement à l'instant du précédent : une option ne démarre jamais avant un embranchement dont elle descend. Sans `branchAt` sur une branche qui se divise (`branchAtMissing`), ses options partent à l'embranchement précédent.
+- Raison : 4.3 interdit le cas sans donner de repli, et le tronc commun (5.2) doit tenir dans un fichier modifié à la main.
+- Alternatives écartées : prendre l'instant enregistré (une action d'option pourrait démarrer avant l'embranchement de son parent et changer le tronc).
+- Origine : étape B1, précision à contredire au besoin. Non intégrée (4.3) : `/fin-lot` l'intègre.
+
+### D-159 : lecture des intervalles dans le moteur
+- Date : 2026-11-04
+- Décision : 5.1 se lit sur les instants réels d'une ligne. Un trou compte toutes les actions de la ligne qui y démarrent, ignorées comprises (elles restent à sélectionner) et action du tronc partie après l'embranchement comprise, et une action retardée compte à son départ réel. Une séquence sans action reste un intervalle. Un instant dans un trou sans action n'a pas d'intervalle : au repos, tout ce qui précède est en grisé. Une action appartient à l'intervalle où elle démarre ; une action commencée avant reste antérieure, sa part restante dans une vignette (9.3) vient en frise-4. Le champ `current` des traces suit cette règle dès frise-1 ; le plan place « traces appuyées par intervalle » en frise-3, qui garde les calques et leur rendu : le champ existait déjà pour les temps, et un `current` constant serait à retirer au lot suivant.
+- Raison : l'éditeur (6.3, D-141) a besoin de cette appartenance dès frise-1 ; une seule fonction évite deux lectures de 5.1.
+- Alternatives écartées : `current` toujours vrai jusqu'à frise-3 (l'option d'un fichier importé ne se distinguerait plus du tronc, recul sur la v4).
+- Origine : étape B1, précision à contredire au besoin. Non intégrée (5.1) : `/fin-lot` l'intègre.
+
+### D-160 : course d'une participante à l'instant de la formation ou de la sortie
+- Date : 2026-11-04
+- Décision : une course d'une participante qui démarre à l'instant exact de la formation est « pendant le regroupement » : retardée à la sortie de balle, avec l'alerte. Une course qui démarre à l'instant exact de la sortie, ou après, n'est pas retardée. Les courses ignorées de la v4 (`ignoredRuns`) disparaissent.
+- Raison : 5.3 dit « pendant ». La v4 ignorait déjà une course partant à la formation ; la participante est retenue jusqu'à la sortie, et le relayeur devient porteuse à cet instant.
+- Alternatives écartées : laisser partir la course à la formation (arrêtée aussitôt, de durée nulle).
+- Origine : étape B1, précision à contredire au besoin. Non intégrée (5.3) : `/fin-lot` l'intègre.

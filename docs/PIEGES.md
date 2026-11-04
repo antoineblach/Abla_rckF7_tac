@@ -48,6 +48,7 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - Une compilation coûte plusieurs millisecondes depuis les leviers (D-130 : environ 50 profils par résolution ; combinaison réaliste 3 puis 14 ms) : un test qui évalue à chaque instant garde un cache par ligne, sinon il dépasse 5 s en parallèle.
 - La tolérance des images de référence (0,5 % des pixels) masque un trait épaissi ou une petite dérive : après un changement de rendu, régénérer (`UPDATE_SNAPSHOTS=1`) et comparer à `HEAD` pour voir ce qui a bougé.
 - Vitest 5 : le rapporteur `basic` n'existe plus (`minimal`, ou celui par défaut), et un `console.log` n'apparaît pas pour un test réussi : pour un script jetable, écrire dans un fichier du scratchpad.
+- Point fixe de la passe : la première estimation de l'arrivée (position au lâcher) ne dépasse l'arrivée réelle que si la receveuse court vers le ballon. Un test de lecture en avant doit viser ce cas : une receveuse immobile ne lit rien d'avance, et le test passe sans rien exercer.
 - Compter une forme dans les événements de dessin (`recordingCtx`) : en N&B, le noir et le blanc des pastilles remplissent aussi jetons, pointes de flèche et rectangles du terrain ; reconnaître la forme par son chemin (sommets), pas par sa couleur seule.
 
 ## Application

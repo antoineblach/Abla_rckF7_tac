@@ -52,6 +52,8 @@ export type IssueCode =
   | 'passerWithoutBall'
   | 'simultaneousPass'
   | 'unsupportedAction'
+  // « Départ retardé de x s » (SPEC 5.2, 5.3, 4.3, D-139)
+  | 'runStartDelayed'
   // Engine validation of lot 3 (SPEC 5.7, 10.3, 10.4, D-079, D-083)
   | 'kickerWithoutBall'
   | 'tackledWithoutBall'
