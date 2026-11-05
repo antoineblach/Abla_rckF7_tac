@@ -331,6 +331,29 @@ function reachable(play: Play, actionId: Id, branchId: Id): boolean {
 }
 
 /**
+ * The reception she has just made when the cursor is on it, or null: « Bord suivant » brings the
+ * cursor exactly there (D-167, D-171). A pickup is not a reception (D-119).
+ */
+function receptionAtCursor(
+  play: Play,
+  compiled: CompiledLine,
+  playerId: Id,
+  branchId: Id,
+  t: number,
+): { actionId: Id; t: number } | null {
+  const { ball } = compiled
+  const count = ball.filter((segment) => segment.start <= t + EPSILON).length
+  const current = ball[count - 1]
+  const before = ball[count - 2]
+  if (current?.kind !== 'carried' || current.carrierId !== playerId) return null
+  if (t - current.start > CURSOR_ON_EDGE_TOLERANCE) return null
+  if (before?.kind !== 'flight' && before?.kind !== 'breakdown') return null
+  return reachable(play, before.actionId, branchId)
+    ? { actionId: before.actionId, t: current.start }
+    : null
+}
+
+/**
  * Next reception traced for a player that the engine ignores for now, her passer having no ball yet:
  * it is what she waits for (SPEC 6.2).
  */
@@ -345,16 +368,16 @@ function ignoredReception(
     ...compiled.passes.filter((pass) => pass.toId === playerId),
     ...compiled.kicks.filter((kick) => kick.receiverId === playerId),
   ]
-    .filter((thrown) => !thrown.applied && thrown.arrivalT >= t - EPSILON)
+    .filter((thrown) => !thrown.applied && thrown.arrivalT >= t - CURSOR_ON_EDGE_TOLERANCE)
     .filter((thrown) => reachable(play, thrown.actionId, branchId))
     .sort((a, b) => a.arrivalT - b.arrivalT)
   return receptions[0]?.actionId ?? null
 }
 
 /**
- * Release laid by the pass and kick tools (SPEC 6.2): at the cursor when she has the ball; else glued
- * to her next reception, gap 0; at the instant of a pickup; at the cursor, ignored and signalled,
- * when nothing is traced.
+ * Release laid by the pass and kick tools (SPEC 6.2, D-171): at the cursor when she has the ball,
+ * glued to her reception, gap 0, when the cursor is on it; else glued to her next reception, gap 0; at
+ * the instant of a pickup; at the cursor, ignored and signalled, when nothing is traced.
  */
 function toolRelease(
   play: Play,
@@ -365,8 +388,12 @@ function toolRelease(
 ): Pick<Timed, 'start' | 'startGlue'> {
   const outlook = ballOutlook(play, compiled, playerId, branchId, cursor.t)
   switch (outlook.kind) {
-    case 'holds':
-      return { start: cursor.t }
+    case 'holds': {
+      const on = receptionAtCursor(play, compiled, playerId, branchId, cursor.t)
+      return on
+        ? { start: on.t, startGlue: { targetId: on.actionId, event: 'end' } }
+        : { start: cursor.t }
+    }
     case 'pickup':
       return { start: outlook.t }
     case 'reception':

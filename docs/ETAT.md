@@ -9,7 +9,7 @@
 
 - Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-171 (`docs/decisions/frise.md`). Étapes 0, A, B1, B2, C1 et C2 faites : `src/v5/` a le modèle, le moteur, le rendu, le lecteur, les exports, images `v5-*`, et les commandes et outils de l'éditeur. L'application tourne encore sur la v4.
 - Bloc suivant : C3 (io, refus v1 à v4 en unitaire, état ; passage de relais dans la section C3 du plan). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
-- Compilation (`npm run bench`, D-150), v5 contre v4, mesure du 05/11 après C2 : une ligne 10,4 contre 17,8 ms ; glisser, toutes lignes, 10,4 contre 34,1 ms, sous la cible de 16 ms. Mesure après B2, autre séance : glisser, 19,5 contre 55,9 ms, sous le plafond de 33 ms. Scénario de référence : 18 actions contre 16 (D-157).
+- Compilation (`npm run bench`, D-150), v5 contre v4, mesure du 05/11 après C2 : une ligne 10,4 contre 17,8 ms ; glisser, toutes lignes, 10,4 contre 34,1 ms, sous la cible de 16 ms dans cette séance, où la v4 passe aussi de 55,9 à 34,1 ms ; à remesurer en C4. Mesure après B2, autre séance : glisser, 19,5 contre 55,9 ms, sous le plafond de 33 ms. Scénario de référence : 18 actions contre 16 (D-157).
 
 ## Reste à faire
 

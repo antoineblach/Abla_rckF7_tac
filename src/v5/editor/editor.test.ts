@@ -19,6 +19,7 @@ import {
   P,
   ball,
   basePlay,
+  breakdown,
   pass,
   player,
   run,
@@ -294,6 +295,56 @@ describe('pass tool at the cursor (SPEC 6.2, 5.4, D-110, D-119)', () => {
     expect(laid.start).toBeCloseTo(reception?.arrivalT ?? NaN, 9)
   })
 
+  it('glues the release to her reception when the cursor is on it, and follows it (D-171)', () => {
+    const c = ctx()
+    const play = sevenVsSevenWithOptions()
+    const arrival = compileLine(play, LINE_A, c.settings, c.caches).passes.find(
+      (p) => p.actionId === PASS_A4_A5,
+    )?.arrivalT
+    if (arrival === undefined) throw new Error('no arrival')
+    for (const t of [arrival, arrival + 0.004, arrival - 0.004]) {
+      const added = addPass(play, { line: LINE_A, t }, P.A(5), P.A(7), c)
+      const laid = passOf(added.play, added.actionId)
+      expect(laid.startGlue).toEqual({ targetId: PASS_A4_A5, event: 'end' })
+      expect(laid.start).toBe(arrival)
+    }
+    const added = addPass(play, { line: LINE_A, t: arrival }, P.A(5), P.A(7), c)
+    const moved = setStart(added.play, PASS_A4_A5, 1.5)
+    const compiled = compileLine(moved, LINE_A, c.settings, c.caches)
+    const reception = compiled.passes.find((p) => p.actionId === PASS_A4_A5)
+    const release = compiled.passes.find((p) => p.actionId === added.actionId)
+    expect(reception?.arrivalT).toBeGreaterThan(arrival)
+    expect(release?.applied).toBe(true)
+    expect(release?.releaseT).toBeCloseTo(reception?.arrivalT ?? NaN, 9)
+  })
+
+  it('releases at the cursor once it has left the reception', () => {
+    const c = ctx()
+    const play = sevenVsSevenWithOptions()
+    const arrival = compileLine(play, LINE_A, c.settings, c.caches).passes.find(
+      (p) => p.actionId === PASS_A4_A5,
+    )?.arrivalT
+    if (arrival === undefined) throw new Error('no arrival')
+    const t = arrival + 0.01
+    const added = addPass(play, { line: LINE_A, t }, P.A(5), P.A(7), c)
+    const laid = passOf(added.play, added.actionId)
+    expect(laid.start).toBe(t)
+    expect(laid.startGlue).toBeUndefined()
+  })
+
+  it('glues the release to the exit of a breakdown when the cursor is on it (D-171)', () => {
+    const c = ctx()
+    const rucked: Play = {
+      ...sevenVsSevenWithOptions(),
+      actions: [breakdown(uuid(300), P.A(4), P.A(5), P.A(3), 1, { duration: 2 })],
+      sequences: [],
+    }
+    const added = addPass(rucked, { line: LINE_A, t: 3 }, P.A(3), P.A(2), c)
+    const laid = passOf(added.play, added.actionId)
+    expect(laid.startGlue).toEqual({ targetId: uuid(300), event: 'end' })
+    expect(laid.start).toBe(3)
+  })
+
   it('glues the release to the exit of a breakdown she relays', () => {
     const c = ctx()
     const rucked = {
@@ -425,6 +476,11 @@ describe('pass tool at the cursor (SPEC 6.2, 5.4, D-110, D-119)', () => {
     const laid = passOf(added.play, added.actionId)
     expect(laid.start).toBe(pickup?.start)
     expect(laid.startGlue).toBeUndefined()
+    // Nor on the pickup itself.
+    const on = addPass(play, { line, t: pickup?.start ?? NaN }, a, b, c)
+    const onLaid = passOf(on.play, on.actionId)
+    expect(onLaid.start).toBe(pickup?.start)
+    expect(onLaid.startGlue).toBeUndefined()
   })
 
   it('does not glue to a reception out of the line of its branch (SPEC 4.3)', () => {

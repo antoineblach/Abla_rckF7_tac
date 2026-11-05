@@ -31,6 +31,7 @@ import {
   proposeBreakdown,
   setBallCarrier,
   setBallOnGround,
+  setStart,
   updateBreakdown,
   updateKick,
   updateRun,
@@ -106,6 +107,46 @@ describe('kick commands (SPEC 10.4, 6.2)', () => {
       compiled.passes.find((p) => p.actionId === uuid(202))?.arrivalT ?? NaN,
       9,
     )
+  })
+
+  it('glues the release to her reception when the cursor is on it, and follows it (D-171)', () => {
+    const c = ctx()
+    const play = sevenVsSevenWithOptions()
+    const arrival = compileLine(play, LINE_A, c.settings, c.caches).passes.find(
+      (p) => p.actionId === uuid(202),
+    )?.arrivalT
+    if (arrival === undefined) throw new Error('no arrival')
+    for (const t of [arrival, arrival + 0.004]) {
+      const added = addKick(play, { line: LINE_A, t }, P.A(5), { point: { x: 80, y: 30 } }, c)
+      const laid = actionOf(added.play, added.actionId) as KickAction
+      expect(laid.startGlue).toEqual({ targetId: uuid(202), event: 'end' })
+      expect(laid.start).toBe(arrival)
+    }
+    const added = addKick(
+      play,
+      { line: LINE_A, t: arrival },
+      P.A(5),
+      { point: { x: 80, y: 30 } },
+      c,
+    )
+    const moved = setStart(added.play, uuid(202), 1.5)
+    const compiled = compileLine(moved, LINE_A, c.settings, c.caches)
+    const kicked = compiled.kicks.find((k) => k.actionId === added.actionId)
+    expect(kicked?.applied).toBe(true)
+    expect(kicked?.releaseT).toBeCloseTo(
+      compiled.passes.find((p) => p.actionId === uuid(202))?.arrivalT ?? NaN,
+      9,
+    )
+    const left = addKick(
+      play,
+      { line: LINE_A, t: arrival + 0.01 },
+      P.A(5),
+      { point: { x: 80, y: 30 } },
+      c,
+    )
+    const leftLaid = actionOf(left.play, left.actionId) as KickAction
+    expect(leftLaid.start).toBe(arrival + 0.01)
+    expect(leftLaid.startGlue).toBeUndefined()
   })
 
   it('refuses a kick to the kicker herself or from a missing player', () => {

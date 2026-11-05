@@ -292,13 +292,13 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 ### D-171 : pose au curseur par les outils
 - Date : 2026-11-05
 - Décision : précisions de 6.2.
-  - Curseur « sur la fin » d'une course : à moins de 0,005 s, la moitié du pas du curseur (HYPOTHÈSE).
-  - Passe et jeu au pied : la sortie d'un regroupement que la passeuse relaie compte comme une réception (5.4). Curseur exactement à une réception : elle a le ballon, lâcher au curseur, non collé (lettre de 6.2).
+  - Curseur « sur la fin » d'une course ou sur une réception : à moins de 0,005 s, la moitié du pas du curseur (HYPOTHÈSE).
+  - Passe et jeu au pied : la sortie d'un regroupement que la passeuse relaie compte comme une réception (5.4). Curseur sur une réception de la passeuse : lâcher collé à cette réception, écart 0, alors qu'elle a déjà le ballon ; la passe suit si la réception bouge ensuite. Écart à la lettre de 6.2 (« lâcher au curseur »), qui reste valable hors d'une réception ; sur un ramassage, lâcher au curseur, non collé.
   - Une réception hors de la branche de la nouvelle action et de ses ancêtres n'est pas une cible (4.3) : elle ne compte pas, et la passe reste au curseur.
   - Une réception encore ignorée est une cible : on peut tracer une chaîne de passes en commençant par la fin.
   - Une réception tracée ensuite colle la première passe de sa receveuse ignorée faute de ballon, non collée et dont l'instant n'est pas après l'arrivée ; une seule par réception.
   - Regroupement : la course « en cours » comprend l'instant de sa fin ; un ramassage n'est pas une réception : sans course ni réception, formation au curseur, refusée si elle n'a pas le ballon.
   - Sélection : les actions en grisé se sélectionnent, après celles de l'intervalle, sans leurs poignées (6.3).
-- Raison : 6.2 laisse ces cas ouverts. Le curseur avance par pas de 0,01 s : sans tolérance, il ne tomberait presque jamais sur la fin d'une course.
-- Alternatives écartées : coller aussi une passe posée exactement à la réception (6.2 dit « lâcher au curseur ») ; placer la nouvelle action dans la branche de la réception (contredit 6.3).
-- Origine : étape C2, précision à contredire au besoin.
+- Raison : 6.2 laisse ces cas ouverts. Le curseur avance par pas de 0,01 s : sans tolérance, il ne tomberait presque jamais sur la fin d'une course. « Bord suivant » (D-167) amène le curseur exactement sur une arrivée de passe : c'est le geste courant pour enchaîner, et une passe non collée ne suivrait pas la réception.
+- Alternatives écartées : lâcher au curseur, non collé, sur une réception (lettre de 6.2 ; la passe ne suit plus) ; placer la nouvelle action dans la branche de la réception (contredit 6.3).
+- Origine : étape C2, précision à contredire au besoin. Curseur sur une réception : choix d'Antoine du 05/11.
