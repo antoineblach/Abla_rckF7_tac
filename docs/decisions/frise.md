@@ -273,4 +273,32 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Décision : sous la vignette d'une ligne, ses options en gras, repliées sur 3 lignes au plus, rien pour une combinaison à une seule ligne ; pas de consigne avant frise-4. La vignette garde les conventions de l'écran : ligne d'avantage à `t = 0`, partie d'une course ignorée après une formation en couleur d'erreur. En-tête du GIF : une option au libellé saisi le donne tel quel, « Sortie de mêlée, Par-dessus » ; sans libellé, « Sortie de mêlée, option B » (9.2). Une image placée après la fin de la dernière séquence n'a ni libellé de séquence ni consigne.
 - Raison : le plan dit « légende : options de la ligne » sans régler sa longueur, et une option imbriquée ne tient pas toujours sur une ligne à 60 mm ; 9.2 ne traite pas du libellé saisi.
 - Alternatives écartées : couper la légende par des points de suspension (perd la dernière condition) ; ajouter les consignes de la ligne sous la vignette (il en faudrait plusieurs, c'est le PDF en arbre de frise-4).
-- Origine : étape C1, précision à contredire au besoin.
+- Origine : étape C1, précision à contredire au besoin. Partie GIF (libellé saisi, image après la dernière séquence) intégrée à 9.2 par `/fin-lot` ; partie PDF provisoire jusqu'à frise-4.
+
+### D-169 : lâcher collé absent des simulations tant qu'il n'est pas résolu
+- Date : 2026-11-05
+- Décision : pendant la résolution des collages, une passe ou un jeu au pied dont l'instant reste à résoudre (bord gauche collé, ou bord droit qui le fait glisser) est absent des simulations, comme un regroupement (D-162). Précise D-162.
+- Raison : à son instant enregistré, un lâcher pouvait être simultané avec sa propre cible, ou prendre le ballon avant elle : la cible n'était plus jamais atteinte et la passe était ignorée. Vu en C2 sur « une réception tracée ensuite la colle », où le lâcher en attente et la réception sont au même instant ; le même défaut apparaissait dès qu'un lâcher collé gardait une valeur enregistrée périmée, par exemple après avoir déplacé la passe précédente.
+- Alternatives écartées : mettre à jour le `start` enregistré à la pose (ne règle ni les chaînes posées à l'envers, ni une valeur devenue périmée) ; ne plus compter un lâcher sans ballon parmi les passes simultanées (change la règle de 4.3, et ne règle pas le lâcher qui prend le ballon).
+- Origine : étape C2, correction du moteur de B2, précision à contredire au besoin.
+
+### D-170 : gel d'un bord collé
+- Date : 2026-11-05
+- Décision : « Décoller » et la suppression d'une cible ou d'un point cible donnent au bord les valeurs résolues : `start`, le champ adapté (`ballSpeed`, `flightTime`, `duration`), `durationOverride` pour une course dont le solveur a réglé la durée, début et fin d'une séquence, instant d'un embranchement. Un bord qui ne s'applique pas (cible jamais atteinte, avant le départ, cycle) garde ses valeurs enregistrées. Un bloc aux deux bords collés dont on retire le gauche passe en `keep: 'start'`. La commande dit combien de bords sont gelés, pour le message (C3). « Départ » est sans effet sur une action dont un collage calcule le départ (6.5). Limite : décoller le bord gauche d'une course lancée laisse la précédente freiner (5.2) ; elle finit plus tard, et la course décollée attend sa fin, avec l'alerte « départ retardé ». Le bloc bouge alors de la durée du freinage.
+- Raison : 5.8 demande que le bloc ne bouge pas. Sans `keep: 'start'`, le bloc se mettrait à glisser ; pour la lancée, 5.2 est sans exception et l'alerte dit ce qui se passe.
+- Alternatives écartées : garder la précédente lancée (drapeau retiré par D-139) ; avancer le départ de la course décollée (elle chevaucherait la précédente).
+- Origine : étape C2, précision à contredire au besoin.
+
+### D-171 : pose au curseur par les outils
+- Date : 2026-11-05
+- Décision : précisions de 6.2.
+  - Curseur « sur la fin » d'une course : à moins de 0,005 s, la moitié du pas du curseur (HYPOTHÈSE).
+  - Passe et jeu au pied : la sortie d'un regroupement que la passeuse relaie compte comme une réception (5.4). Curseur exactement à une réception : elle a le ballon, lâcher au curseur, non collé (lettre de 6.2).
+  - Une réception hors de la branche de la nouvelle action et de ses ancêtres n'est pas une cible (4.3) : elle ne compte pas, et la passe reste au curseur.
+  - Une réception encore ignorée est une cible : on peut tracer une chaîne de passes en commençant par la fin.
+  - Une réception tracée ensuite colle la première passe de sa receveuse ignorée faute de ballon, non collée et dont l'instant n'est pas après l'arrivée ; une seule par réception.
+  - Regroupement : la course « en cours » comprend l'instant de sa fin ; un ramassage n'est pas une réception : sans course ni réception, formation au curseur, refusée si elle n'a pas le ballon.
+  - Sélection : les actions en grisé se sélectionnent, après celles de l'intervalle, sans leurs poignées (6.3).
+- Raison : 6.2 laisse ces cas ouverts. Le curseur avance par pas de 0,01 s : sans tolérance, il ne tomberait presque jamais sur la fin d'une course.
+- Alternatives écartées : coller aussi une passe posée exactement à la réception (6.2 dit « lâcher au curseur ») ; placer la nouvelle action dans la branche de la réception (contredit 6.3).
+- Origine : étape C2, précision à contredire au besoin.

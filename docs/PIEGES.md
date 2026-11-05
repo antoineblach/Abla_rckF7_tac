@@ -39,6 +39,8 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 ## Outils de Claude Code
 
 - `prettier --write` reformate les fichiers : relire avant un Edit ou un Write.
+- `npm run format -- <chemins>` reformate tout le dépôt (le script contient déjà `.`), fichiers v4 compris : `npx prettier --write <chemins>`.
+- `test:short` masque `console.log` : pour déboguer, `npx vitest run <filtre>`.
 - L'outil Bash échoue sur les longs heredocs, et une commande qui lit l'entrée standard (`cat > fichier` sans heredoc) bloque : écrire les gros fichiers avec Write ou Edit, les scripts dans un fichier.
 - Les cases d'un plan sont indentées sous leur bloc (`  - [ ]`) : le motif `^- \[[ x]\]` de `/reprise` n'en trouve aucune ; chercher `^\s*- \[[ x]\]` (corrigé dans le skill).
 

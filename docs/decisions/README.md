@@ -189,10 +189,13 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-159 | lecture des intervalles dans le moteur | en vigueur | non intégrée (5.1) |
 | D-160 | course d'une participante à l'instant de la formation ou de la sortie | en vigueur | non intégrée (5.3) |
 | D-161 | seuils de l'écart au point de coupe, relatifs à la longueur | en vigueur | 5.8 |
-| D-162 | résolution des collages sur tout l'arbre, une fois par combinaison | en vigueur | non intégrée (5.8) |
+| D-162 | résolution des collages sur tout l'arbre, une fois par combinaison | précisée par D-169 | non intégrée (5.8) |
 | D-163 | passe reçue par une course collée à son arrivée | en vigueur | non intégrée (5.4) |
 | D-164 | seconde passe de la lancée | en vigueur | non intégrée (5.2) |
 | D-165 | bord gauche seul d'une séquence | en vigueur | non intégrée (5.8) |
 | D-166 | alerte d'un ballon plus lent que sa receveuse | en vigueur | non intégrée (5.4) |
 | D-167 | bords de bloc et embranchements dans le lecteur de frise-1 | en vigueur | — |
-| D-168 | vignette du PDF et en-tête du GIF en frise-1 | en vigueur | — |
+| D-168 | vignette du PDF et en-tête du GIF en frise-1 | en vigueur | non intégrée (9.2) |
+| D-169 | lâcher collé absent des simulations tant qu'il n'est pas résolu | en vigueur | non intégrée (5.8) |
+| D-170 | gel d'un bord collé | en vigueur | non intégrée (5.8) |
+| D-171 | pose au curseur par les outils | en vigueur | non intégrée (6.2) |

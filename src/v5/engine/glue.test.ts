@@ -395,6 +395,47 @@ describe('left edge (SPEC 5.4, 5.8)', () => {
     expect(codes(c)).toEqual([])
   })
 
+  it('does not simulate a release at its stored instant before it is resolved (D-169)', () => {
+    // At its stored 0.5 s, the second pass would be simultaneous with its own target.
+    const simultaneous = compile(
+      play([
+        pass(uuid(21), A(2), A(3), 0.5, { startGlue: onEnd(uuid(20)) }),
+        pass(uuid(20), A(1), A(2), 0.5),
+      ]),
+    )
+    expect(simultaneous.passes.map((x) => x.applied)).toEqual([true, true])
+    expect(codes(simultaneous)).toEqual([])
+
+    // At its stored 0.5 s, A1 still has the ball: this kick would take it from her own passes.
+    const stale = compile(
+      play([
+        pass(uuid(20), A(1), A(2), 1),
+        pass(uuid(21), A(2), A(1), 0, { startGlue: onEnd(uuid(20)) }),
+        kick(uuid(22), A(1), { point: { x: 70, y: 20 } }, 0.5, { startGlue: onEnd(uuid(21)) }),
+      ]),
+    )
+    expect(stale.passes.map((x) => x.applied)).toEqual([true, true])
+    expect(stale.kicks[0]?.applied).toBe(true)
+    expect(stale.kicks[0]?.releaseT).toBeCloseTo(stale.passes[1]?.arrivalT ?? NaN, 12)
+    expect(codes(stale)).toEqual([])
+
+    // The same with a kick to resolve, and a right edge that makes a release slide.
+    const sliding = compile(
+      play([
+        run(uuid(30), A(4), [{ x: 60, y: 15 }]),
+        kick(uuid(23), A(1), { point: { x: 70, y: 20 } }, 0.5, {
+          flightTime: 1,
+          endGlue: slides(uuid(30)),
+        }),
+        pass(uuid(20), A(1), A(2), 1),
+        pass(uuid(21), A(2), A(1), 0, { startGlue: onEnd(uuid(20)) }),
+      ]),
+    )
+    expect(sliding.passes.map((x) => x.applied)).toEqual([true, true])
+    expect(sliding.kicks[0]?.applied).toBe(true)
+    expect(sliding.kicks[0]?.arrivalT).toBeCloseTo(motionEnd(motion(sliding, uuid(30))), 9)
+  })
+
   it('takes the receptions of a player in order', () => {
     // A1 passes to A2, who gives back at the reception; A1 passes again, twice.
     const c = compile(

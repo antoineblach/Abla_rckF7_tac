@@ -138,6 +138,16 @@ Commandes sur le tableau plat : `setStart`, `setGlue` (refus : cycle, propre blo
 
 Lecture : SPEC 4.4, 3.5, 6.3 ; `io/readPlay.ts`, `draft.ts`, `readCache.ts`, `packFiles.ts`, `IdbStore.ts`, `FolderStore.ts`, `collection.ts` ; `state/editorActions.ts`, `editorStore.ts`, `playerStore.ts`, `selectors.ts`, `overlay.ts`, `session.ts`, `prefs.ts` ; `ui/strings.ts` (`state/` l'importe) ; PIEGES : Application.
 
+Reçu de l'étape C2 :
+- `src/v5/editor/commands.ts` : les commandes de pose prennent un `Cursor` (`{ line, t }`) au lieu d'un temps. `addRun`, `addPass`, `addKick`, `addBreakdown`, `proposeBreakdown`, `branchAtCursor`. `runAnchor(play, cursor, entityId, ctx)` donne l'`anchorOf` de l'outil Course. Rien à faire après une pose : plus de `markProlongedRun`.
+- Gel, à annoncer par un message : `deleteActions`, `deletePlayers`, `deleteWaypoint` prennent `ctx` et renvoient `{ play, frozen }` ; `frozen > 0` : « bord figé » (5.8). `setGlue` renvoie `refused` : `self`, `line`, `cycle`, `invalid`. `removeGlue(play, ownerId, kind, ctx)`, `setKeep`, `setOffset`, `setStart` (sans effet si un collage calcule le départ).
+- `updateRun` ne prend plus que `pace` et `durationOverride` ; `updatePass`, `updateKick`, `updateBreakdown` n'ont plus de `delay` ni de `release`. Commandes de temps retirées (D-142).
+- `hitTest(schematic, ...)` prend un `WindowSchematic` et atteint les actions en grisé : la sélection d'une action hors de l'intervalle y amène le curseur (6.3) ; le `ball` est celui de l'instant `t`, déplaçable seulement à `t = 0`.
+- `history.ts` copié dans `src/v5/editor` pour le type `Play` ; `selection`, `shortcuts`, `snap`, `spaceKey`, `tools/types` restent dans `src/editor` (pas de `Play`).
+- `state/overlay.ts` : remplir `glueLinks` depuis `WindowSchematic.glueLinks`, en écartant `to === null` (reçu de C1).
+
+Pour C4 : `src/editor/links.test.ts` disparaît, remplacé par `glues.test.ts` ; `src/editor/tools/*` et les tests de même nom sont remplacés à la bascule.
+
 Reçu de l'étape C1 :
 - `player/transport.ts` : `lineTiming(compiled)` donne `branchPoints`, `edges`, `duration` ; `tick(state, dt, timing)` et `backToBranchPoint(state, timing)` n'ont plus de `Play` ; `nextEdge`, `previousEdge` (D-146, D-167), `showLine` (D-142) ; `pauseBetweenPhases`, `phaseIndexAtTime`, `showPhase` retirés. `waitingAt` est la branche qui se divise. `player/framing.ts` copié aussi (`autoFrame`), absent du tableau des fichiers.
 - Tests de `render/speeds.test.ts` à porter avec `state/overlay.ts`, car ils passent par `buildOverlay` : « draws a link when the linked run or its target is selected » et « halos the hovered action ». L'image `v5-editor-speeds-screen-landscape` construit sa surcouche à la main : y brancher `buildOverlay`.
@@ -239,7 +249,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C1**
   - [x] **Étape C1 : rendu, lecteur, exports** (`src/v5/render`, `player`, `export`). (commit « Étape C1 : rendu, lecteur et exports sur la frise », après `4aad4e6`)
 - **Bloc C2**
-  - [ ] **Étape C2 : commandes et outils de l'éditeur** (`src/v5/editor`).
+  - [x] **Étape C2 : commandes et outils de l'éditeur** (`src/v5/editor`). (commit « Étape C2 : commandes et outils de l'éditeur sur la frise », après `97c3d60`)
 - **Bloc C3**
   - [ ] **Étape C3 : io, refus v1 à v4 en unitaire, état** (`src/v5/io`, `state`).
 - **Bloc C4**

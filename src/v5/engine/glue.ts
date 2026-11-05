@@ -354,13 +354,15 @@ function walkBranches(
     edge.keep === 'start' || analysis.gluedStarts.has(edge.ownerId)
 
   /**
-   * Breakdowns whose formation is still to resolve: left out of the simulations. At its stored
-   * instant, a formation would stop the runs of its players, the very target it may be glued to.
+   * Breakdowns and releases whose instant is still to resolve: left out of the simulations. At its
+   * stored instant, a formation would stop the runs of its players, and a release would take the ball
+   * or be simultaneous with the very target it may be glued to (D-162, D-169).
    */
-  const unformed = new Set<Id>()
+  const unresolved = new Set<Id>()
   for (const edge of analysis.order) {
     if (edge.kind === 'branchAt' || (edge.kind === 'end' && stretches(edge))) continue
-    if (states.get(edge.ownerId)?.action.type === 'breakdown') unformed.add(edge.ownerId)
+    const type = states.get(edge.ownerId)?.action.type
+    if (type === 'breakdown' || type === 'pass' || type === 'kick') unresolved.add(edge.ownerId)
   }
 
   const simulate = (line: readonly Id[]): LineSimulation => {
@@ -370,7 +372,7 @@ function walkBranches(
     return simulateLine({
       ...setup,
       branches,
-      actions: actions.filter(({ action }) => !unformed.has(action.id)),
+      actions: actions.filter(({ action }) => !unresolved.has(action.id)),
       settings,
       context,
       arrivalDependents: analysis.arrivalDependents,
@@ -627,14 +629,11 @@ function walkBranches(
     const target = readTarget(edge, targets, read)
     const state = states.get(edge.ownerId)
     // Resolved or not, it comes back in the simulations.
-    if (unformed.delete(edge.ownerId) && !target) {
-      report(edge, 'unreached', 'glueTargetUnreached')
-      return true
-    }
+    const comesBack = unresolved.delete(edge.ownerId)
     if (!target) {
       report(edge, 'unreached', 'glueTargetUnreached')
-      if (edge.kind !== 'start' || !state) return false
-      if (state.action.type !== 'pass' && state.action.type !== 'kick') return false
+      if (edge.kind !== 'start' || !state) return comesBack
+      if (state.action.type !== 'pass' && state.action.type !== 'kick') return comesBack
       state.glued = true
       state.unreached = true
       return true
@@ -647,7 +646,7 @@ function walkBranches(
     }
     const owner = state?.action ?? play.sequences.find((s) => s.id === edge.ownerId)
     if (!owner) return false
-    if (edge.kind === 'end') return applyEnd(edge, owner, wanted, read)
+    if (edge.kind === 'end') return applyEnd(edge, owner, wanted, read) || comesBack
     report(edge, 'ok')
     const sequence = sequences.get(edge.ownerId)
     if (sequence) {

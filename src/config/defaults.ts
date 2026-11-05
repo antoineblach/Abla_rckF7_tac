@@ -167,6 +167,12 @@ export const SPEED_FACTOR_SEARCH = {
  */
 export const PASS_RECEIPT_TOLERANCE = 0.5
 
+/**
+ * A cursor this close to the end of a run is on it, in seconds (SPEC 6.2). HYPOTHÈSE: half a step of
+ * the time slider, which cannot do better.
+ */
+export const CURSOR_ON_EDGE_TOLERANCE = 0.005
+
 /** Pass speed in m/s (SPEC 5.4). HYPOTHÈSE, adjustable in reglages.json. */
 export const PASS_SPEED_DEFAULT = 12
 

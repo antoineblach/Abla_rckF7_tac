@@ -7,13 +7,13 @@
 
 ## En cours
 
-- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-168 (`docs/decisions/frise.md`). Étapes 0, A, B1, B2 et C1 faites : `src/v5/` a le modèle, le moteur, le rendu, le lecteur et les exports, images `v5-*`. L'application tourne encore sur la v4.
-- Bloc suivant : C2 (commandes et outils de l'éditeur ; passage de relais dans la section C2 du plan). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
-- Compilation (`npm run bench`, D-150), v5 contre v4 : une ligne 10,3 contre 15,8 ms ; glisser, toutes lignes, 19,5 contre 55,9 ms. Cible de 16 ms manquée, sous le plafond de 33 ms. Scénario de référence : 18 actions contre 16 (D-157).
+- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-171 (`docs/decisions/frise.md`). Étapes 0, A, B1, B2, C1 et C2 faites : `src/v5/` a le modèle, le moteur, le rendu, le lecteur, les exports, images `v5-*`, et les commandes et outils de l'éditeur. L'application tourne encore sur la v4.
+- Bloc suivant : C3 (io, refus v1 à v4 en unitaire, état ; passage de relais dans la section C3 du plan). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
+- Compilation (`npm run bench`, D-150), v5 contre v4, mesure du 05/11 après C2 : une ligne 10,4 contre 17,8 ms ; glisser, toutes lignes, 10,4 contre 34,1 ms, sous la cible de 16 ms. Mesure après B2, autre séance : glisser, 19,5 contre 55,9 ms, sous le plafond de 33 ms. Scénario de référence : 18 actions contre 16 (D-157).
 
 ## Reste à faire
 
-- Blocs C2 à C5, puis `/fin-lot`.
+- Blocs C3 à C5, puis `/fin-lot`.
 - Puis frise-2 à frise-4 par `/nouveau-lot` : section 7 de `docs/archive/plans/frise-spec.md`.
 - Puis 3bis-2 réduit (menu du clic droit, même course pour plusieurs joueuses) et 3bis-3 (positions préréglées), par `/nouveau-lot` (D-128).
 - Puis lot 4 (défense simulée ; plan archivé de 3bis-1, section G) et lot 5 (ateliers).
