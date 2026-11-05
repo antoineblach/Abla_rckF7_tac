@@ -51,6 +51,25 @@ export function optionTitle(play: Play, branchId: Id): string {
   return condition === '' ? `Option ${letter}` : `Option ${letter} : ${condition}`
 }
 
+/** Options chosen along a line, from the root: « Option A : Large ; Option B » (SPEC 9.2). */
+export function lineOptionsText(play: Play, line: readonly Id[]): string {
+  return line
+    .filter((id, i) => i > 0 && branchLabelParts(play, id).option !== null)
+    .map((id) => optionTitle(play, id))
+    .join(' ; ')
+}
+
+/**
+ * Header of a GIF image (SPEC 9.2): « Sortie de mêlée, option B », « Option B » without sequence,
+ * empty in the trunk without sequence.
+ */
+export function sceneHeaderLabel(play: Play, sequenceLabel: string, branchId: Id): string {
+  const parts = branchLabelParts(play, branchId)
+  if (sequenceLabel === '') return branchLabelOf(play, branchId)
+  if (parts.custom) return `${sequenceLabel}, ${parts.custom}`
+  return parts.option ? `${sequenceLabel}, option ${parts.option}` : sequenceLabel
+}
+
 /**
  * The label typed by the user, or « Séquence n » (SPEC 4.1): n is the rank of the sequence in the
  * array, from 1 (D-154).

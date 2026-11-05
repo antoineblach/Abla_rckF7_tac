@@ -194,3 +194,5 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-164 | seconde passe de la lancée | en vigueur | non intégrée (5.2) |
 | D-165 | bord gauche seul d'une séquence | en vigueur | non intégrée (5.8) |
 | D-166 | alerte d'un ballon plus lent que sa receveuse | en vigueur | non intégrée (5.4) |
+| D-167 | bords de bloc et embranchements dans le lecteur de frise-1 | en vigueur | — |
+| D-168 | vignette du PDF et en-tête du GIF en frise-1 | en vigueur | — |

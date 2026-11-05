@@ -24,7 +24,14 @@ import {
 } from '../test/builders'
 import { lineBounds } from './bounds'
 import { createCaches } from './caches'
-import { ballObtainedAt, evaluate, positionsAt, sampleLine, windowSchematic } from './evaluate'
+import {
+  ballObtainedAt,
+  evaluate,
+  lineSchematic,
+  positionsAt,
+  sampleLine,
+  windowSchematic,
+} from './evaluate'
 import { compileLine, compileLineUncached, intervalIndexAt } from './timeline'
 import { engineIssues } from './validate'
 
@@ -744,6 +751,35 @@ describe('set pieces of lot 3: continuity and determinism (D-094)', () => {
     expect(b.gainLine.at(-1)?.x).toBe(50)
     const end = evaluate(play, lineB, 1e9, settings, caches).ball
     expect(end?.kind === 'carried' && end.carrierId).toBe(P.B(7))
+  })
+})
+
+describe('a whole line at rest (PDF of frise-1)', () => {
+  it('gives the positions at t = 0 and every action of the line in full, nothing in grey', () => {
+    const play = sevenVsSevenWithOptions()
+    const caches = createCaches()
+    const compiled = compileLine(play, LINE_B, settings, caches)
+    const schematic = lineSchematic(play, LINE_B, settings, caches)
+    expect(schematic.t).toBe(0)
+    expect(schematic.window).toBeNull()
+    for (const p of schematic.players) expect(p.pos).toEqual(play.setup.positions[p.id])
+    expect(schematic.runs.map((r) => r.actionId)).toEqual(
+      compiled.motions.filter((m) => m.source === 'run').map((m) => m.actionId),
+    )
+    expect(schematic.passes.map((p) => p.actionId)).toEqual(compiled.passes.map((p) => p.actionId))
+    expect(schematic.earlierRuns).toEqual([])
+    expect(schematic.earlierPasses).toEqual([])
+    expect(schematic.earlierKicks).toEqual([])
+    expect(schematic.earlierBreakdowns).toEqual([])
+    expect(schematic.gainLineX).toBe(play.setup.positions[P.A(4)]?.x)
+  })
+
+  it('never shows an action of another option', () => {
+    const play = sevenVsSevenWithOptions()
+    const ids = lineSchematic(play, LINE_A, settings, createCaches()).runs.map((r) => r.actionId)
+    const optionB = play.actions.filter((a) => a.branchId === P.optB).map((a) => a.id)
+    expect(optionB.length).toBeGreaterThan(0)
+    for (const id of optionB) expect(ids).not.toContain(id)
   })
 })
 

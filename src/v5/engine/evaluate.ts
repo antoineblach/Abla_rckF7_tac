@@ -406,25 +406,14 @@ function schematicGlueLinks(
   })
 }
 
-/**
- * The field of a line at t (SPEC 6.3, D-141): positions at t, actions of the interval at t in full,
- * earlier ones in grey, later ones absent.
- */
-export function windowSchematic(
-  play: Play,
-  line: readonly Id[],
-  rawT: number,
-  settings: EngineSettings,
-  caches: EvalCaches,
+/** The schematic of a line at t, the actions shown in full or in grey chosen by their start. */
+function schematicAt(
+  compiled: CompiledLine,
+  t: number,
+  window: LineInterval | null,
+  inWindow: (start: number) => boolean,
+  earlier: (start: number) => boolean,
 ): WindowSchematic {
-  const compiled = compileLine(play, line, settings, caches)
-  const t = clampTime(compiled, rawT)
-  const index = intervalIndexAt(compiled, t)
-  const window = compiled.intervals[index] ?? null
-  const inWindow = (start: number): boolean =>
-    index >= 0 && intervalIndexAt(compiled, start) === index
-  const earlier = (start: number): boolean =>
-    !inWindow(start) && start < (window ? window.start : t + 1e-9)
   const runMotions = compiled.motions.filter((m) => m.source === 'run')
   const relayMotions = compiled.motions.filter((m) => m.source === 'relay')
   return {
@@ -457,6 +446,45 @@ export function windowSchematic(
     field: { ...compiled.field },
     instruction: window?.instruction ?? '',
   }
+}
+
+/**
+ * The field of a line at t (SPEC 6.3, D-141): positions at t, actions of the interval at t in full,
+ * earlier ones in grey, later ones absent.
+ */
+export function windowSchematic(
+  play: Play,
+  line: readonly Id[],
+  rawT: number,
+  settings: EngineSettings,
+  caches: EvalCaches,
+): WindowSchematic {
+  const compiled = compileLine(play, line, settings, caches)
+  const t = clampTime(compiled, rawT)
+  const index = intervalIndexAt(compiled, t)
+  const window = compiled.intervals[index] ?? null
+  const inWindow = (start: number): boolean =>
+    index >= 0 && intervalIndexAt(compiled, start) === index
+  const earlier = (start: number): boolean =>
+    !inWindow(start) && start < (window ? window.start : t + 1e-9)
+  return schematicAt(compiled, t, window, inWindow, earlier)
+}
+
+/** A whole line at rest (PDF of frise-1): positions at t = 0, every action of the line in full. */
+export function lineSchematic(
+  play: Play,
+  line: readonly Id[],
+  settings: EngineSettings,
+  caches: EvalCaches,
+): WindowSchematic {
+  const compiled = compileLine(play, line, settings, caches)
+  return schematicAt(
+    compiled,
+    0,
+    null,
+    () => true,
+    () => false,
+  )
 }
 
 /** Position of every player at t on a line (used by editing commands). */

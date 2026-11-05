@@ -260,3 +260,17 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Raison : 5.4 demande le signalement sans dire comment le mesurer ; la vitesse de la receveuse varie pendant le vol.
 - Alternatives écartées : ne comparer qu'à l'arrivée (une receveuse qui freine à son point échapperait à l'alerte).
 - Origine : étape B2, précision à contredire au besoin. Non intégrée (5.4) : `/fin-lot` l'intègre.
+
+### D-167 : bords de bloc et embranchements dans le lecteur de frise-1
+- Date : 2026-11-05
+- Décision : « Bord précédent » et « Bord suivant » (D-146) parcourent les débuts et fins réels des blocs de la ligne, plus 0 et la durée ; un instant au-delà de la durée n'est pas un bord ; un embranchement n'en est pas un en lui-même. En lecture, « S'arrêter aux options » s'arrête à un embranchement situé exactement à la fin de la ligne, jamais à un embranchement situé après (D-153), ni à celui d'où la lecture repart.
+- Raison : D-146 parle de bord de bloc ; D-153 ne traite que de l'embranchement situé après la dernière action, et celui situé exactement à la fin est atteint.
+- Alternatives écartées : ajouter les embranchements aux bords (c'est le précédent et suivant de frise-3) ; ne pas s'arrêter à la fin de la ligne (une option vide ne proposerait jamais ses boutons).
+- Origine : étape C1, précision à contredire au besoin. Provisoire comme D-146 pour les bords ; l'arrêt à la fin de la ligne est à revoir avec la question ouverte de D-153, au `/nouveau-lot frise-2`.
+
+### D-168 : vignette du PDF et en-tête du GIF en frise-1
+- Date : 2026-11-05
+- Décision : sous la vignette d'une ligne, ses options en gras, repliées sur 3 lignes au plus, rien pour une combinaison à une seule ligne ; pas de consigne avant frise-4. La vignette garde les conventions de l'écran : ligne d'avantage à `t = 0`, partie d'une course ignorée après une formation en couleur d'erreur. En-tête du GIF : une option au libellé saisi le donne tel quel, « Sortie de mêlée, Par-dessus » ; sans libellé, « Sortie de mêlée, option B » (9.2). Une image placée après la fin de la dernière séquence n'a ni libellé de séquence ni consigne.
+- Raison : le plan dit « légende : options de la ligne » sans régler sa longueur, et une option imbriquée ne tient pas toujours sur une ligne à 60 mm ; 9.2 ne traite pas du libellé saisi.
+- Alternatives écartées : couper la légende par des points de suspension (perd la dernière condition) ; ajouter les consignes de la ligne sous la vignette (il en faudrait plusieurs, c'est le PDF en arbre de frise-4).
+- Origine : étape C1, précision à contredire au besoin.

@@ -128,11 +128,20 @@ Reçu de l'étape B2 :
 
 Lecture : SPEC 6.2, 6.3, 5.8 (Édition), 5.3 (dernier geste) ; `editor/commands.ts`, `tools/runTool.ts`, `hitTest.ts`, `transform.ts`, `presets.ts`, `placementMode.ts`.
 
+Reçu de l'étape C1 :
+- `render/renderSchematic.ts` : `drawSchematic` prend un `WindowSchematic` ; `renderSchematic(ctx, play, line, t, viewport, theme, settings, caches, options)`. Pour les tests de sélection, `windowSchematic` : `runs`, `relays`, `passes`, `kicks`, `breakdowns`, `earlier*`.
+- `render/overlay.ts` : `syncLinks` devient `glueLinks` (`{ from, to }`, sans cible nulle), à remplir depuis `WindowSchematic.glueLinks` en écartant `to === null`.
+
 Commandes sur le tableau plat : `setStart`, `setGlue` (refus : cycle, propre bloc, hors ligne), `removeGlue` (fige la valeur calculée), `setKeep`, `setOffset`. Suppression d'une cible ou d'un point : fige, avec message. Allure choisie : le dernier geste gagne (5.3). Outils 6.2 : course au curseur, collée si le curseur est sur la fin de la précédente ; curseur pendant une course : repli de 4.3 (D-144) ; passe et jeu au pied au curseur ou collés à la prochaine réception, y compris la réception tracée ensuite ; regroupement collé. Branche d'une nouvelle action : celle de la ligne à `t`. Pas de commande de branche ni de séquence (D-142). `presetPreviewPlay` : branche racine seule (D-147).
 
 ### Étape C3
 
 Lecture : SPEC 4.4, 3.5, 6.3 ; `io/readPlay.ts`, `draft.ts`, `readCache.ts`, `packFiles.ts`, `IdbStore.ts`, `FolderStore.ts`, `collection.ts` ; `state/editorActions.ts`, `editorStore.ts`, `playerStore.ts`, `selectors.ts`, `overlay.ts`, `session.ts`, `prefs.ts` ; `ui/strings.ts` (`state/` l'importe) ; PIEGES : Application.
+
+Reçu de l'étape C1 :
+- `player/transport.ts` : `lineTiming(compiled)` donne `branchPoints`, `edges`, `duration` ; `tick(state, dt, timing)` et `backToBranchPoint(state, timing)` n'ont plus de `Play` ; `nextEdge`, `previousEdge` (D-146, D-167), `showLine` (D-142) ; `pauseBetweenPhases`, `phaseIndexAtTime`, `showPhase` retirés. `waitingAt` est la branche qui se divise. `player/framing.ts` copié aussi (`autoFrame`), absent du tableau des fichiers.
+- Tests de `render/speeds.test.ts` à porter avec `state/overlay.ts`, car ils passent par `buildOverlay` : « draws a link when the linked run or its target is selected » et « halos the hovered action ». L'image `v5-editor-speeds-screen-landscape` construit sa surcouche à la main : y brancher `buildOverlay`.
+- `engine/evaluate.ts` : `lineSchematic(play, line, settings, caches)`, une ligne entière à `t = 0`. `model/labels.ts` : `lineOptionsText`, `sceneHeaderLabel`.
 
 - `io` : refus v4 et son message dans `readErrorMessage`. `collection.ts` refuse déjà d'écrire sur un fichier invalide ; `IdbStore.issues()` liste déjà une entrée invalide. `loadDraft` renvoie un statut « obsolète » au lieu de `null`.
 - **Message de démarrage du brouillon (D-151)** : il dit que le brouillon d'une version antérieure sera remplacé à la prochaine modification. Pas de restauration, pas d'effacement.
@@ -141,6 +150,8 @@ Lecture : SPEC 4.4, 3.5, 6.3 ; `io/readPlay.ts`, `draft.ts`, `readCache.ts`, `pa
 ### Étape C4
 
 Lecture : SPEC 6.5 ; `ui/inspector/*`, `ui/phases/*`, `ui/player/TransportBar.tsx`, `ui/field/FieldCanvas.tsx`, `ui/App.tsx`, `ui/dialogs/Dialogs.tsx` ; PIEGES : Application, Playwright et OPFS.
+
+Reçu de l'étape C1 : les images `v5-*` remplacent les images v4 de même nom, et le préfixe `v5-` disparaît des tests ; `vite.config.ts` pointe déjà vers `src/export/worker/emptyModule.ts`, qui reste à ce chemin après le `git mv`.
 
 Bascule (section Stratégie), puis interface portée en place.
 - Inspecteur : « Départ » (non modifiable si collé), cible et « Décoller », « Écart » ou « Temps de contrôle », « Le bloc glisse / s'étire ». « Durée » existante. Section « Temps » retirée.
@@ -226,7 +237,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc B2**
   - [x] **Étape B2 : collages, graphe, lancée, D-139 Q1 et Q4, mesures dans ETAT.** (commit « Étape B2 : collages, graphe, lancée, D-139 Q1 et Q4, mesures », après `88af1c7`)
 - **Bloc C1**
-  - [ ] **Étape C1 : rendu, lecteur, exports** (`src/v5/render`, `player`, `export`).
+  - [x] **Étape C1 : rendu, lecteur, exports** (`src/v5/render`, `player`, `export`). (commit « Étape C1 : rendu, lecteur et exports sur la frise », après `4aad4e6`)
 - **Bloc C2**
   - [ ] **Étape C2 : commandes et outils de l'éditeur** (`src/v5/editor`).
 - **Bloc C3**

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   P,
+  ROOT_BRANCH,
   basePlay,
   branch,
   friseFixturePlay,
@@ -8,7 +9,43 @@ import {
   sevenVsSevenWithOptions,
   uuid,
 } from '../test/builders'
-import { branchLabelOf, CATEGORY_LABELS, optionTitle, sequenceLabelOf } from './labels'
+import {
+  branchLabelOf,
+  CATEGORY_LABELS,
+  lineOptionsText,
+  optionTitle,
+  sceneHeaderLabel,
+  sequenceLabelOf,
+} from './labels'
+
+describe('labels of the exports (SPEC 9.2)', () => {
+  const play = basePlay({
+    branches: [
+      branch(ROOT_BRANCH, null, { branchAt: 1 }),
+      branch(uuid(1), ROOT_BRANCH, { isDefault: true, condition: 'Large', branchAt: 2 }),
+      branch(uuid(2), ROOT_BRANCH, { label: 'Par-dessus' }),
+      branch(uuid(3), uuid(1), { isDefault: true }),
+      branch(uuid(4), uuid(1), { condition: 'Montée' }),
+    ],
+  })
+
+  it('lists the options of a line, from the root', () => {
+    expect(lineOptionsText(play, [ROOT_BRANCH])).toBe('')
+    expect(lineOptionsText(play, [ROOT_BRANCH, uuid(1), uuid(4)])).toBe(
+      'Option A : Large ; Option B : Montée',
+    )
+    expect(lineOptionsText(play, [ROOT_BRANCH, uuid(2)])).toBe('Option B')
+  })
+
+  it('heads a GIF image with the sequence and the option', () => {
+    expect(sceneHeaderLabel(play, 'Sortie de mêlée', uuid(4))).toBe('Sortie de mêlée, option B')
+    expect(sceneHeaderLabel(play, '', uuid(4))).toBe('Option B')
+    expect(sceneHeaderLabel(play, 'Sortie de mêlée', ROOT_BRANCH)).toBe('Sortie de mêlée')
+    expect(sceneHeaderLabel(play, '', ROOT_BRANCH)).toBe('')
+    expect(sceneHeaderLabel(play, 'Sortie de mêlée', uuid(2))).toBe('Sortie de mêlée, Par-dessus')
+    expect(sceneHeaderLabel(play, '', uuid(2))).toBe('Par-dessus')
+  })
+})
 
 describe('labels (SPEC 4.1, 6.5)', () => {
   const play = sevenVsSevenWithOptions()
