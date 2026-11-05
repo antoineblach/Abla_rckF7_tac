@@ -1004,10 +1004,11 @@ function holdsAt(compiled: CompiledLine, playerId: Id, t: number): boolean {
 }
 
 /**
- * Proposal when a breakdown is laid on a player (SPEC 6.2, D-081): formation glued to the end of her
- * run in progress at the cursor or starting there, or to her next reception if later; at the cursor
- * without either. Support = the closest teammate at that instant, relayer = the second closest.
- * Refused when she has no ball at the formation or fewer than two teammates.
+ * Proposal when a breakdown is laid on a player (SPEC 6.2, D-081, D-171): formation glued to the end
+ * of her run in progress at the cursor or starting there, or to her next reception, or the one the
+ * cursor is on, if later; at the cursor without either. Support = the closest teammate at that
+ * instant, relayer = the second closest. Refused when she has no ball at the formation or fewer than
+ * two teammates.
  */
 export function proposeBreakdown(
   play: Play,
@@ -1023,11 +1024,17 @@ export function proposeBreakdown(
   const running = runsOf(compiled, tackledId)
     .filter((m) => m.start <= t + EPSILON && t <= motionEnd(m) + CURSOR_ON_EDGE_TOLERANCE)
     .at(-1)
-  const reception = ballOutlook(play, compiled, tackledId, branchId, t)
+  const outlook = ballOutlook(play, compiled, tackledId, branchId, t)
+  const reception =
+    outlook.kind === 'reception'
+      ? outlook
+      : outlook.kind === 'holds'
+        ? receptionAtCursor(play, compiled, tackledId, branchId, t)
+        : null
   const runEnd = running ? motionEnd(running) : null
   let start = t
   let glue: GlueRef | null = null
-  if (reception.kind === 'reception' && (runEnd === null || reception.t > runEnd)) {
+  if (reception && (runEnd === null || reception.t > runEnd + EPSILON)) {
     start = reception.t
     glue = { targetId: reception.actionId, event: 'end' }
   } else if (running && runEnd !== null) {

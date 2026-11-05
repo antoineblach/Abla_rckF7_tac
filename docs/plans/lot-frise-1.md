@@ -249,7 +249,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C1**
   - [x] **Étape C1 : rendu, lecteur, exports** (`src/v5/render`, `player`, `export`). (commit « Étape C1 : rendu, lecteur et exports sur la frise », après `4aad4e6`)
 - **Bloc C2**
-  - [x] **Étape C2 : commandes et outils de l'éditeur** (`src/v5/editor`). (commit « Étape C2 : commandes et outils de l'éditeur sur la frise », après `97c3d60` ; retouche « Étape C2 : lâcher collé à la réception sous le curseur (D-171) », après `e33e1c5`)
+  - [x] **Étape C2 : commandes et outils de l'éditeur** (`src/v5/editor`). (commit « Étape C2 : commandes et outils de l'éditeur sur la frise », après `97c3d60` ; retouches « Étape C2 : lâcher collé à la réception sous le curseur (D-171) », après `e33e1c5`, et « Étape C2 : formation collée à la réception sous le curseur (D-171) », après `ed1d372`)
 - **Bloc C3**
   - [ ] **Étape C3 : io, refus v1 à v4 en unitaire, état** (`src/v5/io`, `state`).
 - **Bloc C4**

@@ -220,6 +220,95 @@ describe('breakdown laid at the cursor (SPEC 6.2, 10.3, D-081)', () => {
     expect(proposal).toMatchObject({ ok: true, start: 5, glue: null })
   })
 
+  describe('cursor on a reception (D-171)', () => {
+    const PASS = uuid(402)
+    const arrivalOf = (play: Play, c: CommandContext): number => {
+      const compiled = compileLine(play, ROOT_LINE, c.settings, c.caches)
+      const arrival = compiled.passes.find((p) => p.actionId === PASS)?.arrivalT
+      if (arrival === undefined) throw new Error('no arrival')
+      return arrival
+    }
+
+    it('glues the formation to it, gap 0, and follows it', () => {
+      const c = ctx()
+      const play = contactPlay([pass(PASS, P.A(4), P.A(5), 4)])
+      const arrival = arrivalOf(play, c)
+      for (const t of [arrival, arrival + 0.004, arrival - 0.004]) {
+        expect(proposeBreakdown(play, { line: ROOT_LINE, t }, P.A(5), c)).toMatchObject({
+          ok: true,
+          start: arrival,
+          glue: { targetId: PASS, event: 'end' },
+        })
+      }
+      const added = addBreakdown(play, { line: ROOT_LINE, t: arrival }, P.A(5), c)
+      const moved = setStart(added.play, PASS, 5)
+      const compiled = compileLine(moved, ROOT_LINE, c.settings, c.caches)
+      expect(compiled.breakdowns[0]?.applied).toBe(true)
+      expect(compiled.breakdowns[0]?.start).toBeCloseTo(arrivalOf(moved, c), 9)
+    })
+
+    it('forms at the cursor, not glued, once it has left the reception', () => {
+      const c = ctx()
+      const play = contactPlay([pass(PASS, P.A(4), P.A(5), 4)])
+      const t = arrivalOf(play, c) + 0.01
+      expect(proposeBreakdown(play, { line: ROOT_LINE, t }, P.A(5), c)).toMatchObject({
+        ok: true,
+        start: t,
+        glue: null,
+      })
+    })
+
+    it('prefers the run that ends at this instant', () => {
+      const c = ctx()
+      const play: Play = {
+        ...contactPlay(),
+        actions: [
+          run(uuid(401), P.A(5), [{ x: 45, y: 37 }], {
+            endGlue: { targetId: PASS, event: 'end', keep: 'duration' },
+          }),
+          pass(PASS, P.A(4), P.A(5), 4),
+        ],
+      }
+      const proposal = proposeBreakdown(play, { line: ROOT_LINE, t: arrivalOf(play, c) }, P.A(5), c)
+      expect(proposal).toMatchObject({ ok: true, glue: { targetId: uuid(401), event: 'end' } })
+    })
+
+    it('keeps the end of the run still in progress on it (SPEC 6.2)', () => {
+      const c = ctx()
+      const play = contactPlay([pass(PASS, P.A(4), P.A(5), 0.5)])
+      const proposal = proposeBreakdown(play, { line: ROOT_LINE, t: arrivalOf(play, c) }, P.A(5), c)
+      expect(proposal).toMatchObject({
+        ok: true,
+        start: 3,
+        glue: { targetId: uuid(401), event: 'end' },
+      })
+    })
+
+    it('counts the exit of a breakdown she relays, not a pickup', () => {
+      const c = ctx()
+      const rucked = contactPlay([breakdown(uuid(403), P.A(4), P.A(5), P.A(3), 1, { duration: 1 })])
+      expect(proposeBreakdown(rucked, { line: ROOT_LINE, t: 2 }, P.A(3), c)).toMatchObject({
+        ok: true,
+        start: 2,
+        glue: { targetId: uuid(403), event: 'end' },
+      })
+      const ground: Play = {
+        ...contactPlay(),
+        setup: {
+          ...contactPlay().setup,
+          ballCarrierId: null,
+          ballPosition: { x: 40.5, y: 35 },
+        },
+        actions: [],
+      }
+      expect(proposeBreakdown(ground, { line: ROOT_LINE, t: 0 }, P.A(4), c)).toMatchObject({
+        ok: true,
+        start: 0,
+        glue: null,
+      })
+    })
+  })
+
   it('refuses a player without the ball at the formation, or without two teammates', () => {
     const noBall = { ok: false, reason: 'noBall' }
     const cursor = { line: ROOT_LINE, t: 1 }
