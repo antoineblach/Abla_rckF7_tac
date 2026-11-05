@@ -7,13 +7,13 @@
 
 ## En cours
 
-- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-171 (`docs/decisions/frise.md`). Étapes 0, A, B1, B2, C1 et C2 faites : `src/v5/` a le modèle, le moteur, le rendu, le lecteur, les exports, images `v5-*`, et les commandes et outils de l'éditeur. L'application tourne encore sur la v4.
-- Bloc suivant : C3 (io, refus v1 à v4 en unitaire, état ; passage de relais dans la section C3 du plan). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
+- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-174 (`docs/decisions/frise.md`). Étapes 0, A, B1, B2, C1, C2 et C3 faites : `src/v5/` a le modèle, le moteur, le rendu, le lecteur, les exports, images `v5-*`, l'éditeur, `io`, `state`, `ui/strings` et `ui/describe`. L'application tourne encore sur la v4.
+- Bloc suivant : C4 (bascule, suppressions, interface, e2e non portés mis de côté ; passage de relais dans la section C4 du plan). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à cette bascule (D-140). Dès C4, `/fin-etape` relance les e2e portés.
 - Compilation (`npm run bench`, D-150), v5 contre v4, mesure du 05/11 après C2 : une ligne 10,4 contre 17,8 ms ; glisser, toutes lignes, 10,4 contre 34,1 ms, sous la cible de 16 ms dans cette séance, où la v4 passe aussi de 55,9 à 34,1 ms ; à remesurer en C4. Mesure après B2, autre séance : glisser, 19,5 contre 55,9 ms, sous le plafond de 33 ms. Scénario de référence : 18 actions contre 16 (D-157).
 
 ## Reste à faire
 
-- Blocs C3 à C5, puis `/fin-lot`.
+- Blocs C4 et C5, puis `/fin-lot`.
 - Puis frise-2 à frise-4 par `/nouveau-lot` : section 7 de `docs/archive/plans/frise-spec.md`.
 - Puis 3bis-2 réduit (menu du clic droit, même course pour plusieurs joueuses) et 3bis-3 (positions préréglées), par `/nouveau-lot` (D-128).
 - Puis lot 4 (défense simulée ; plan archivé de 3bis-1, section G) et lot 5 (ateliers).
@@ -28,6 +28,7 @@
 ## Questions ouvertes
 
 - Embranchement après la dernière action (D-153) : lettre de 5.1 en frise-1 ; à reposer au `/nouveau-lot frise-2`, où l'option vide devient courante.
+- D-172 à D-174 : précisions de l'étape C3, à contredire au besoin ; D-172 retire le mode de lecture du store (à l'arrêt, le terrain édite).
 
 ## Écarts connus
 

@@ -163,6 +163,16 @@ Lecture : SPEC 6.5 ; `ui/inspector/*`, `ui/phases/*`, `ui/player/TransportBar.ts
 
 Reçu de l'étape C1 : les images `v5-*` remplacent les images v4 de même nom, et le préfixe `v5-` disparaît des tests ; `vite.config.ts` pointe déjà vers `src/export/worker/emptyModule.ts`, qui reste à ce chemin après le `git mv`.
 
+Reçu de l'étape C3 :
+- Restent en place, non copiés : `io/` `conflicts`, `download`, `exportsFolder`, `fileNames`, `folderAccess`, `fs/`, `kv`, `ownWrites`, `readCache`, `readPreset`, `serialize`, `syncLog`, `trash` ; `state/` `exportStore`, `panelsStore`, `prefs` (y retirer `pauseBetweenPhases`), avec leurs tests ; `ui/format`. `src/state/links.test.ts` disparaît, remplacé par `glues.test.ts` et `cursor.test.ts`.
+- `src/v5/ui/describe.test.ts` n'a plus les tests « rows of the list » : à reprendre avec `actionRows`. Les tests de surcouche de `render/speeds.test.ts` sont dans `state/cursor.test.ts`.
+- Plus de `mode` (D-172) : `s.mode === 'play'` devient `s.transport.playing` dans `FieldCanvas`, `ActionList`, `TransportBar` ; le bouton de retour à l'embranchement ne dépend plus du mode (à l'arrêt après une option). `data-mode` du canevas : à calculer depuis `playing`, des e2e le lisent.
+- Plus de `selectedPhaseId`, `selectPhase`, `showPhaseInPlayer`, `syncLineWithPlay`, `enterEditMode` (`pausePlayer`), `nextPhaseInPlayer` (`nextEdgeInPlayer`), `previousPhaseInPlayer` (`previousEdgeInPlayer`), `startSyncPick`, `cancelSyncPick`, dialogue `confirmDeletePhase`. Nouveaux : `showLineInPlayer`, `showActionInPlayer`, `currentCursor` ; le transport suit le store d'édition par abonnement, rien à brancher dans la session.
+- `buildOverlay` prend `hoverSchematic` et `hoverOverlay` son schéma : `lineSchematic(play, line, ...)`, seulement si une action est survolée (D-173). `schematic` : `currentSchematic()` ou `windowSchematic` à `t`.
+- `selectors` : `lineReportOf` (ex `phaseReportOf`), `actionReportOf(play, line, id, settings)`, `actionsInProgress` (D-145), `lineChoices` (D-142), `runDuration` et `kickLanding` prennent la ligne ; `displayedPhaseId`, `labelParts`, `siblingsOf`, `phaseDurationAt`, `syncPickPrompt` retirés.
+- `describe` : `glueTargetText`, `glueText`, `glueStatusText`, `glueFactorsText` à la place de `syncTargetText`, `rendezVousText`, `syncResultText` ; `actionDetails(play, row)` sans `link` ni `delay` ; `releaseModeText(play, report)`. `strings` : plus de `phaseLabel` ni `TEXT.syncPick` ; `NOTICES` : `placementAtStart`, `edgeFrozen`.
+- Inspecteur : supprimer passe par `deleteSelection` (message de gel) ; `removeGlue` et les suppressions prennent `commandContext()`. `setGlue` n'a aucun appelant avant frise-2, donc pas de message de refus.
+
 Bascule (section Stratégie), puis interface portée en place.
 - Inspecteur : « Départ » (non modifiable si collé), cible et « Décoller », « Écart » ou « Temps de contrôle », « Le bloc glisse / s'étire ». « Durée » existante. Section « Temps » retirée.
 - Barre de lecture : liste « Ligne » (D-142), « Bord précédent » et « Bord suivant » (D-146). « Pause entre les temps » retirée, `pauseBetweenPhases` retiré des préférences du poste. Arbre retiré. Liste des actions (D-145). Textes « temps » réécrits. Vignette de bibliothèque : `t = 0`, ligne par défaut.
@@ -251,7 +261,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C2**
   - [x] **Étape C2 : commandes et outils de l'éditeur** (`src/v5/editor`). (commit « Étape C2 : commandes et outils de l'éditeur sur la frise », après `97c3d60` ; retouches « Étape C2 : lâcher collé à la réception sous le curseur (D-171) », après `e33e1c5`, et « Étape C2 : formation collée à la réception sous le curseur (D-171) », après `ed1d372`)
 - **Bloc C3**
-  - [ ] **Étape C3 : io, refus v1 à v4 en unitaire, état** (`src/v5/io`, `state`).
+  - [x] **Étape C3 : io, refus v1 à v4 en unitaire, état** (`src/v5/io`, `state`). (commit « Étape C3 : stockage, refus des versions antérieures et état sur la frise », après `3395d65`)
 - **Bloc C4**
   - [ ] **Étape C4 : bascule, suppressions, interface, e2e non portés mis de côté** (`testIgnore` provisoire).
 - **Bloc C5**

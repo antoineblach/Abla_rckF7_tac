@@ -42,6 +42,7 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - `npm run format -- <chemins>` reformate tout le dépôt (le script contient déjà `.`), fichiers v4 compris : `npx prettier --write <chemins>`.
 - `test:short` masque `console.log` : pour déboguer, `npx vitest run <filtre>`.
 - L'outil Bash échoue sur les longs heredocs, et une commande qui lit l'entrée standard (`cat > fichier` sans heredoc) bloque : écrire les gros fichiers avec Write ou Edit, les scripts dans un fichier.
+- Grep : un `glob` à accolades dont les éléments contiennent un `/` (`{io,state}/**/*.ts`, `{engine/a,model/b}.ts`) ne trouve rien, sans erreur : faux négatif. Viser le dossier par `path`, ou des accolades sans `/`.
 - Les cases d'un plan sont indentées sous leur bloc (`  - [ ]`) : le motif `^- \[[ x]\]` de `/reprise` n'en trouve aucune ; chercher `^\s*- \[[ x]\]` (corrigé dans le skill).
 
 ## Vitest et images de référence

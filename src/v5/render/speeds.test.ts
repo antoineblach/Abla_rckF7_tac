@@ -9,6 +9,8 @@ import { timeAtDistance } from '../../engine/profile'
 import type { SceneState } from '../engine/sceneState'
 import { compileLine } from '../engine/timeline'
 import { defaultSettings, engineSettingsOf } from '../../model/settings'
+import { EMPTY_SELECTION } from '../../editor/selection'
+import { buildOverlay } from '../state/overlay'
 import { ACCELS, accelPlay, ROOT_BRANCH, SPEEDS, speedsPlay } from '../test/builders'
 import { compareWithSnapshot, createTestCanvas } from '../../test/imageSnapshot'
 import { createRecordingContext, paintEvents, type PaintEvent } from '../../test/recordingCtx'
@@ -321,16 +323,23 @@ describe('lot 3 bis: reference images', () => {
     const v = viewport()
     drawSchematic(ctx, schematic(), v, THEMES.screen, { forwardPass: true, speedBadges: true })
     const s = schematic()
-    const link = s.glueLinks.find((l) => l.ownerId === RUN_LINKED)
-    const hovered = s.passes.find((p) => p.actionId === PASS)
-    if (!link?.to || !hovered) throw new Error('no glue line or no pass')
-    renderOverlay(ctx, v, THEMES.screen, {
-      ...EMPTY_OVERLAY,
-      selectedPaths: s.runs.filter((r) => r.actionId === RUN_LINKED).map((r) => r.points),
-      handles: s.runs.flatMap((r) => r.waypoints),
-      glueLinks: [{ from: link.from, to: link.to }],
-      hover: { paths: [[hovered.from, hovered.to]], points: [] },
+    const overlay = buildOverlay({
+      play,
+      schematic: s,
+      hoverSchematic: s,
+      selection: { ...EMPTY_SELECTION, actions: [RUN_LINKED] },
+      tool: 'select',
+      runDraft: null,
+      passFromId: null,
+      kickFromId: null,
+      placement: null,
+      cursor: null,
+      selectionBox: null,
+      hoveredActionId: PASS,
     })
+    expect(overlay.glueLinks).toHaveLength(1)
+    expect(overlay.hover?.paths).toHaveLength(1)
+    renderOverlay(ctx, v, THEMES.screen, overlay)
     const result = await compareWithSnapshot(canvas, 'v5-editor-speeds-screen-landscape')
     expect(result.pass, result.message).toBe(true)
   })

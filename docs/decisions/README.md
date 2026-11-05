@@ -16,7 +16,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
 | [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-138 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
-| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-166 (frise-1), puis les décisions de frise-2 à frise-4 |
+| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-174 (frise-1), puis les décisions de frise-2 à frise-4 |
 
 ## Lecture
 
@@ -199,3 +199,6 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-169 | lâcher collé absent des simulations tant qu'il n'est pas résolu | en vigueur | non intégrée (5.8) |
 | D-170 | gel d'un bord collé | en vigueur | non intégrée (5.8) |
 | D-171 | pose au curseur par les outils | en vigueur | non intégrée (6.2) |
+| D-172 | à l'arrêt, le terrain édite : plus de mode de lecture | en vigueur | non intégrée (6.3) |
+| D-173 | halo de survol sur toute la ligne | en vigueur | — |
+| D-174 | message propre pour les combinaisons refusées à l'import | en vigueur | non intégrée (4.4) |

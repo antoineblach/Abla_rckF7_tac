@@ -302,3 +302,28 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Raison : 6.2 laisse ces cas ouverts. Le curseur avance par pas de 0,01 s : sans tolérance, il ne tomberait presque jamais sur la fin d'une course. « Bord suivant » (D-167) amène le curseur exactement sur une arrivée de passe : c'est le geste courant pour enchaîner, et une passe non collée ne suivrait pas la réception.
 - Alternatives écartées : lâcher au curseur, non collé, sur une réception (lettre de 6.2 ; la passe ne suit plus) ; placer la nouvelle action dans la branche de la réception (contredit 6.3).
 - Origine : étape C2, précision à contredire au besoin. Curseur sur une réception, passe, jeu au pied et regroupement : choix d'Antoine du 05/11. Priorité de la course encore en cours : choix de l'étape, à contredire au besoin.
+
+### D-172 : à l'arrêt, le terrain édite : plus de mode de lecture
+- Date : 2026-11-05
+- Décision : le store du lecteur n'a plus de `mode` ; il se lit dans `transport.playing`. Lecture en cours : terrain non éditable. À l'arrêt, quelle qu'en soit la cause (pause, fin de ligne, attente à un embranchement, curseur déplacé) : le terrain édite l'instant du curseur. Le premier clic pendant la lecture met en pause, sans rien modifier.
+  - Une modification (une étape d'annulation) arrête la lecture ; un enregistrement ou un rechargement ne l'arrête pas.
+  - Déplacer le curseur ou lancer la lecture abandonne le tracé en cours d'un outil et le message affiché : ils portaient sur l'instant précédent. Un saut au même instant les garde.
+  - Ouvrir une combinaison, même celle déjà ouverte, remet la ligne par défaut et `t = 0`. Après un changement de la combinaison, la ligne reste si elle est encore valide, complétée par les options par défaut ; sinon, ligne par défaut. Le curseur est ramené dans la durée, à la fin d'un geste seulement : un glisser qui raccourcit la ligne ne le perd pas.
+  - La sélection qui amène le curseur à une action (6.3) vaut aussi pour le jeu au pied et le regroupement que l'outil vient de poser et de sélectionner, quand ils tombent hors de l'intervalle. Une action retirée de la sélection par Maj+clic ne le déplace pas.
+- Raison : lettre de 6.3 (« un seul mode à l'arrêt »), que `mode` aurait contredite : en v4, une pause ou un saut restait en lecture, non éditable. Une seule source de vérité.
+- Alternatives écartées : garder `mode` dans le store (deux états à tenir d'accord, et un état « arrêté non éditable » que 6.3 exclut) ; ne pas ramener le curseur à l'ouverture de la même combinaison (l'ouverture remet déjà tout le reste).
+- Origine : étape C3, lecture de 6.3, précision à contredire au besoin.
+
+### D-173 : halo de survol sur toute la ligne
+- Date : 2026-11-05
+- Décision : le halo de la liste des actions (D-113, D-145) se calcule sur la ligne entière (`lineSchematic`), en édition comme en lecture : une action de la ligne qui n'est pas encore dessinée à l'instant du curseur reçoit son halo.
+- Raison : D-145 garde le survol inchangé, et en v4 le halo montrait toute action de la liste, dont celles au-delà de `t`. Le schéma à `t` n'a pas les actions ultérieures (6.3).
+- Alternatives écartées : halo sur le seul schéma à `t` (survoler une ligne de la liste ne montrerait rien pour les actions à venir).
+- Origine : étape C3, précision à contredire au besoin.
+
+### D-174 : message propre pour les combinaisons refusées à l'import
+- Date : 2026-11-05
+- Décision : à l'import, les combinaisons d'une version antérieure à 5 sont comptées à part des éléments invalides, avec leur message : « 2 combinaisons d'une version antérieure de l'outil refusées : non importées. ». Dans le dossier et la bibliothèque du navigateur, le message de lecture dit la version et que le fichier n'est ni modifié ni déplacé. `loadDraft` renvoie `'obsolete'` pour un brouillon antérieur, `null` restant réservé à un brouillon absent ou illisible.
+- Raison : 4.4 demande « un message clair » ; « élément invalide ignoré » ne dirait pas pourquoi une combinaison valide en v4 est écartée.
+- Alternatives écartées : le seul message « invalide » de l'import.
+- Origine : étape C3, précise D-139 et D-151.
