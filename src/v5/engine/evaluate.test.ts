@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { distance } from '../../engine/vec'
+import { canonicalJson } from '../../model/canonical'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../../model/settings'
 import { PROFILE_TOLERANCE, straightRun } from '../../test/profileMath'
 import { allLines } from '../model/branches'
@@ -14,6 +15,7 @@ import {
   kick,
   pass,
   player,
+  realisticRunsPlay,
   run,
   sequence,
   setPiecesPlay,
@@ -66,7 +68,21 @@ describe('evaluation of every leaf', () => {
     expect(endB.ball?.kind === 'carried' && endB.ball.carrierId).toBe(P.A(5))
   })
 
-  it('never throws on the fixture, glues ignored until they are resolved', () => {
+  it('gives the same canonical JSON for two compilations, glues included', () => {
+    for (const play of [friseFixturePlay(), realisticRunsPlay()]) {
+      for (const line of allLines(play)) {
+        const a = compileLine(play, line, settings, createCaches())
+        const b = compileLine(structuredClone(play), line, settings, createCaches())
+        expect(canonicalJson(a)).toBe(canonicalJson(b))
+        // A resolution shared with another line changes nothing.
+        const shared = createCaches()
+        for (const other of allLines(play)) compileLine(play, other, settings, shared)
+        expect(canonicalJson(compileLine(play, line, settings, shared))).toBe(canonicalJson(a))
+      }
+    }
+  })
+
+  it('never throws on the fixture', () => {
     const play = friseFixturePlay()
     const caches = createCaches()
     for (const line of allLines(play)) {

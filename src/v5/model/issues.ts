@@ -63,6 +63,14 @@ export type IssueCode =
   // Glues, business validation (SPEC 4.3, 5.8, D-139)
   | 'glueTargetMissing'
   | 'glueTargetInvalid'
+  | 'glueCycle'
+  // Glues, engine validation (SPEC 5.4, 5.8): target never reached; « il aurait fallu partir x s
+  // plus tôt »; arrival late by x s
+  | 'glueTargetUnreached'
+  | 'glueStartedLate'
+  | 'glueArrivesLate'
+  // The ball goes slower than its receiver: the convergence is not guaranteed (SPEC 5.4)
+  | 'ballSlowerThanReceiver'
   // Engine validation of lot 3 bis (SPEC 5.2, 5.3, 5.9)
   | 'runSpeedHigh'
   | 'runSpeedTooHigh'

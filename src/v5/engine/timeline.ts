@@ -1,31 +1,39 @@
-// Compilation of a line, a path from the root to a leaf (SPEC 5.1 to 5.7, 10.3, 10.4, D-139): one
-// simulation over the whole line gives the motions of each player and the ball; the instants of
-// its branch points, its sequences and its intervals are resolved around it.
-// Pure: the result depends only on the inputs.
+// Compilation of a line, a path from the root to a leaf (SPEC 5.1 to 5.8, 10.3, 10.4, D-139): the
+// glues resolved over the whole tree, then one simulation over the whole line give the motions of
+// each player and the ball; the instants of its branch points, its sequences and its intervals are
+// resolved around it. Pure: the result depends only on the inputs.
 import { copy } from '../../engine/vec'
 import { contentHash } from '../../model/canonical'
 import type { EngineSettings } from '../../model/settings'
-import { childrenOf, findBranch } from '../model/branches'
 import type { Issue, IssueTarget } from '../model/issues'
 import { sequenceLabelOf } from '../model/labels'
 import {
   isBall,
-  isPlayer,
   type BreakdownKind,
   type Id,
   type KickKind,
   type Play,
   type PlayerEntity,
   type Team,
-  type Timed,
   type Vec2,
 } from '../model/types'
 import type { EvalCaches } from './caches'
-import { motionAt, motionPosition, motionEnd, type MotionContext, type RunMotion } from './motion'
+import {
+  compiledGlues,
+  lineActions,
+  lineBranches,
+  plannedInBranch,
+  resolvePlay,
+  type CompiledGlue,
+  type PlayResolution,
+} from './glue'
+import { notContinuedIssues } from './launch'
+import { motionAt, motionPosition, motionEnd, type RunMotion } from './motion'
 import { accelAlertsOf, speedIssues, speedLevelsOf } from './runAlerts'
 import type { LineInterval } from './sceneState'
-import { simulateLine, type LineAction, type LineSimulation } from './simulate'
+import { simulateLine, type LineSimulation } from './simulate'
 
+export type { CompiledGlue, GlueStatus } from './glue'
 export type { AccelAlert, RunMotion, SpeedLevel } from './motion'
 
 export interface CompiledPass {
@@ -150,6 +158,8 @@ export interface CompiledLine {
   intervals: LineInterval[]
   /** Actual span of the actions and sequences of the line, by id. */
   blocks: Record<Id, BlockSpan>
+  /** Glued edges of the line that apply, resolved (SPEC 5.8). */
+  glues: CompiledGlue[]
   /** Gain line changes in time order; empty without ball (SPEC 5.6). */
   gainLine: GainLineChange[]
   attackingTeam: Team
@@ -185,97 +195,33 @@ export function gainLineAt(compiled: CompiledLine, t: number): number | null {
   return x
 }
 
-function initialHolder(play: Play): BallHolder {
-  if (!play.entities.some(isBall)) return { kind: 'none' }
-  const { ballCarrierId, ballPosition } = play.setup
-  const carrier = play.entities.find((e) => e.id === ballCarrierId)
-  if (ballCarrierId !== null && isPlayer(carrier) && play.setup.positions[ballCarrierId]) {
-    return { kind: 'carried', carrierId: ballCarrierId }
-  }
-  if (ballPosition) return { kind: 'loose', pos: copy(ballPosition) }
-  return { kind: 'none' }
-}
-
-/**
- * Branches of the line with their instants, up to the first one that does not continue it. A branch
- * point not after the previous one stays at the previous one: an option never starts before a
- * branch point it comes from (D-158).
- */
-function resolveBranches(play: Play, line: readonly Id[], issues: Issue[]): CompiledBranch[] {
-  const branches: CompiledBranch[] = []
-  let latest = 0
-  let previous: Id | null = null
-  for (const id of line) {
-    const branch = findBranch(play, id)
-    if (!branch || branch.parentId !== previous) break
-    const stored =
-      branch.branchAt !== undefined && childrenOf(play, id).length > 0 ? branch.branchAt : null
-    const start = latest
-    if (stored !== null) {
-      if (branches.length > 0 && stored <= latest) {
-        issues.push({
-          code: 'branchAtNotIncreasing',
-          severity: 'error',
-          target: { kind: 'branch', id },
-        })
-      }
-      latest = Math.max(latest, stored)
-    }
-    branches.push({ id, start, branchAt: stored === null ? null : latest })
-    previous = id
-  }
-  return branches
-}
-
-/**
- * Instant asked for by a block once in its branch (SPEC 4.3): an option does not start before its
- * branch point; a block of the trunk from the branch point on stays common, signalled.
- */
-function plannedInBranch(
-  block: Timed,
-  branch: CompiledBranch,
-  target: IssueTarget,
-  issues: Issue[],
-): number {
-  const planned = Math.max(block.start, branch.start)
-  if (block.start < branch.start) {
-    issues.push({
-      code: 'startsBeforeBranch',
-      severity: 'warning',
-      target,
-      params: { branchAt: branch.start },
-    })
-  }
-  if (branch.branchAt !== null && planned >= branch.branchAt) {
-    issues.push({
-      code: 'startsAfterBranch',
-      severity: 'warning',
-      target,
-      params: { branchAt: branch.branchAt },
-    })
-  }
-  return planned
-}
-
 /**
  * Sequences of the line after the fallbacks of SPEC 4.3, in time order: an option does not start
  * before its branch point, a sequence is cut at the branch point it crosses, the second of two
  * overlapping sequences starts at the end of the first. One left empty is dropped, like a sequence
- * whose end is not after its start (D-155).
+ * whose end is not after its start (D-155), signalled here when an edge is glued.
  */
 function resolveSequences(
   play: Play,
   branches: readonly CompiledBranch[],
+  resolution: PlayResolution,
   issues: Issue[],
 ): CompiledSequence[] {
   const inBranches: CompiledSequence[] = []
   for (const sequence of play.sequences) {
     const branch = branches.find((candidate) => candidate.id === sequence.branchId)
-    if (!branch || sequence.end <= sequence.start) continue
+    if (!branch) continue
     const target: IssueTarget = { kind: 'sequence', id: sequence.id, branchId: sequence.branchId }
-    const start = plannedInBranch(sequence, branch, target, issues)
-    let end = sequence.end
-    if (branch.branchAt !== null && start < branch.branchAt && end > branch.branchAt) {
+    const span = resolution.sequences.get(sequence.id) ?? sequence
+    if (span.end <= span.start) {
+      if (sequence.startGlue || sequence.endGlue) {
+        issues.push({ code: 'sequenceEndBeforeStart', severity: 'error', target })
+      }
+      continue
+    }
+    const start = plannedInBranch(span.start, branch, target, issues)
+    let end = span.end
+    if (branch.branchAt !== null && start < branch.branchAt && end > branch.branchAt + 1e-9) {
       issues.push({
         code: 'sequenceCrossesBranch',
         severity: 'warning',
@@ -377,36 +323,28 @@ export function compileLineUncached(
   settings: EngineSettings,
   caches: EvalCaches,
 ): CompiledLine {
+  const resolution = resolvePlay(play, settings, caches)
+  const { setup, context, launched, prolongs, prolongedBy, analysis } = resolution
+  const { players, startPositions, holderAtStart } = setup
   const issues: Issue[] = []
-  const branches = resolveBranches(play, line, issues)
-  const branchIndex = new Map(branches.map((branch, index) => [branch.id, index]))
-  const actions: LineAction[] = []
-  play.actions.forEach((action, index) => {
-    const rank = branchIndex.get(action.branchId)
-    const branch = rank === undefined ? undefined : branches[rank]
-    if (rank === undefined || !branch) return
-    const target = { kind: 'action', id: action.id, branchId: action.branchId } as const
-    const planned = plannedInBranch(action, branch, target, issues)
-    actions.push({ action, index, branchIndex: rank, planned })
-  })
-  const players = play.entities.filter(isPlayer).filter((p) => play.setup.positions[p.id])
-  const startPositions: Record<Id, Vec2> = {}
-  for (const p of players) {
-    const pos = play.setup.positions[p.id]
-    if (pos) startPositions[p.id] = copy(pos)
-  }
-  const context: MotionContext = { settings, caches, shapes: new Map() }
-  const holderAtStart = initialHolder(play)
+  const branches = lineBranches(play, line, resolution.branchAt, issues)
+  const actions = lineActions(play, branches, resolution.actions, launched, prolongs, issues)
   const simulation = simulateLine({
+    ...setup,
     branches,
     actions,
-    players,
-    startPositions,
-    holderAtStart,
     settings,
     context,
+    arrivalDependents: analysis.arrivalDependents,
   })
+  const lineIds = branches.map((branch) => branch.id)
   issues.push(...simulation.issues)
+  for (const issue of resolution.issues) {
+    const { target } = issue
+    const branchId = target.kind === 'branch' ? target.id : 'branchId' in target && target.branchId
+    if (branchId !== false && lineIds.includes(branchId)) issues.push(issue)
+  }
+  issues.push(...notContinuedIssues(play, lineIds, simulation.motions, prolongedBy))
   for (const motion of simulation.motions) {
     motion.speedLevels = speedLevelsOf(motion, settings)
     motion.accelAlerts = accelAlertsOf(motion, settings)
@@ -421,7 +359,7 @@ export function compileLineUncached(
     }
     issues.push(...speedIssues(motion))
   }
-  const sequences = resolveSequences(play, branches, issues)
+  const sequences = resolveSequences(play, branches, resolution, issues)
   const blocks = actionSpans(simulation)
   const actionStarts = Object.values(blocks).map((span) => span.start)
   for (const sequence of sequences)
@@ -435,11 +373,11 @@ export function compileLineUncached(
   }
   gainLine.push(...simulation.gainLine)
   return {
-    line: branches.map((branch) => branch.id),
+    line: lineIds,
     duration: simulation.duration,
-    players,
+    players: [...players],
     hasBall: play.entities.some(isBall),
-    startPositions,
+    startPositions: { ...startPositions },
     motions: simulation.motions,
     passes: simulation.passes,
     kicks: simulation.kicks,
@@ -449,6 +387,7 @@ export function compileLineUncached(
     sequences,
     intervals: lineIntervals(branches, sequences, actionStarts, simulation.duration),
     blocks,
+    glues: compiledGlues(play, settings, lineIds, resolution, simulation),
     gainLine,
     attackingTeam: play.attackingTeam,
     field: { length: play.field.length, width: play.field.width, inGoal: play.field.inGoal },

@@ -13,7 +13,7 @@ import {
   type RunMotion,
   type SpeedLevel,
 } from './motion'
-import { compileLine } from './timeline'
+import { compileLine, type CompiledGlue } from './timeline'
 
 /** Speed of a segment: the pace of the run, a pace of its own, or a typed speed (D-114). */
 export type SegmentSpeedSource = 'run' | Pace | 'custom'
@@ -66,6 +66,14 @@ export interface RunReport {
   accelFactor: number
   /** Frozen by a breakdown at this instant, null otherwise. */
   cutAt: number | null
+  /** Ends at speed: the next run of the player is glued to its end, without gap (SPEC 5.2). */
+  endsAtSpeed: boolean
+  /** Ends at speed and is not stopped by a breakdown. */
+  atSpeed: boolean
+  /** Starts at speed, prolonging the run before it (SPEC 5.2). */
+  prolongs: boolean
+  startGlue: CompiledGlue | null
+  endGlue: CompiledGlue | null
 }
 
 export interface PassReport {
@@ -83,6 +91,8 @@ export interface PassReport {
   distance: number
   flight: number
   forward: boolean
+  startGlue: CompiledGlue | null
+  endGlue: CompiledGlue | null
 }
 
 export interface KickReport {
@@ -99,6 +109,8 @@ export interface KickReport {
   applied: boolean
   distance: number
   flight: number
+  startGlue: CompiledGlue | null
+  endGlue: CompiledGlue | null
 }
 
 export interface BreakdownReport {
@@ -112,6 +124,8 @@ export interface BreakdownReport {
   start: number
   end: number
   applied: boolean
+  startGlue: CompiledGlue | null
+  endGlue: CompiledGlue | null
 }
 
 export type ActionReport = RunReport | PassReport | KickReport | BreakdownReport
@@ -170,7 +184,9 @@ function segmentsOf(run: RunAction, motion: RunMotion): SegmentReport[] {
   })
 }
 
-function runReport(run: RunAction, motion: RunMotion): RunReport {
+type EdgeReports = Pick<RunReport, 'startGlue' | 'endGlue'>
+
+function runReport(run: RunAction, motion: RunMotion, edges: EdgeReports): RunReport {
   const end = motionEnd(motion)
   const covered = motionDistance(motion, Infinity)
   const duration = Math.max(0, end - motion.start)
@@ -197,11 +213,15 @@ function runReport(run: RunAction, motion: RunMotion): RunReport {
     factor: motion.factor,
     accelFactor: motion.accelFactor,
     cutAt: motion.until === null || motion.until >= end ? null : motion.until,
+    endsAtSpeed: motion.endsAtSpeed,
+    atSpeed: motion.endsAtSpeed && motion.until === null,
+    prolongs: motion.launch !== null,
+    ...edges,
   }
 }
 
 /** A run without motion stays listed, to be selected and removed. */
-function unplayedRun(run: RunAction): RunReport {
+function unplayedRun(run: RunAction, edges: EdgeReports): RunReport {
   return {
     kind: 'run',
     actionId: run.id,
@@ -220,6 +240,10 @@ function unplayedRun(run: RunAction): RunReport {
     factor: 1,
     accelFactor: 1,
     cutAt: null,
+    endsAtSpeed: false,
+    atSpeed: false,
+    prolongs: false,
+    ...edges,
   }
 }
 
@@ -235,10 +259,13 @@ export function lineReport(
   play.actions.forEach((a, index) => {
     if (!compiled.line.includes(a.branchId)) return
     const push = (row: ActionReport) => rows.push({ row, index })
+    const glueOf = (kind: 'start' | 'end'): CompiledGlue | null =>
+      compiled.glues.find((g) => g.ownerId === a.id && g.kind === kind) ?? null
+    const edges: EdgeReports = { startGlue: glueOf('start'), endGlue: glueOf('end') }
     switch (a.type) {
       case 'run': {
         const motion = compiled.motions.find((m) => m.source === 'run' && m.actionId === a.id)
-        push(motion ? runReport(a, motion) : unplayedRun(a))
+        push(motion ? runReport(a, motion, edges) : unplayedRun(a, edges))
         return
       }
       case 'pass': {
@@ -257,6 +284,7 @@ export function lineReport(
           distance: distance(p.from, p.to),
           flight: p.arrivalT - p.releaseT,
           forward: p.forward,
+          ...edges,
         })
         return
       }
@@ -276,6 +304,7 @@ export function lineReport(
           applied: k.applied,
           distance: distance(k.from, k.to),
           flight: k.arrivalT - k.releaseT,
+          ...edges,
         })
         return
       }
@@ -292,6 +321,7 @@ export function lineReport(
           start: b.start,
           end: b.end,
           applied: b.applied,
+          ...edges,
         })
         return
       }

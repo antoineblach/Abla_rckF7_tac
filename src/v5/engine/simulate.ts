@@ -2,8 +2,10 @@
 // formations are processed in time order; between two of them, flight arrivals, breakdown ends and
 // loose-ball pickups are resolved. A run is built at its start, from the position of its player at
 // that instant, when something first needs her position: this settles the freeze by a breakdown,
-// the wait after an overlap and the relay. A flight reads the future of its receiver, which nothing
-// can change: no breakdown applies while the ball flies. Pure: the result depends only on the inputs.
+// the wait after an overlap, the relay and the launch. A flight reads the future of its receiver,
+// which nothing can change: no breakdown applies while the ball flies. The glues are resolved around
+// it (`glue.ts`): it receives their instants, levers and fields. Pure: the result depends only on
+// the inputs.
 import { PASS_RECEIPT_TOLERANCE, RELAY_OFFSET } from '../../config/defaults'
 import { solvePassArrival } from '../../engine/pass'
 import { copy, distance } from '../../engine/vec'
@@ -11,25 +13,31 @@ import type { EngineSettings } from '../../model/settings'
 import type { Issue, IssueTarget } from '../model/issues'
 import {
   attackDirection,
+  isBall,
+  isPlayer,
   isReceiverTarget,
   type Action,
   type BreakdownAction,
   type Id,
   type KickAction,
   type PassAction,
+  type Play,
   type PlayerEntity,
   type RunAction,
   type Vec2,
 } from '../model/types'
 import { findPickup, isForwardPass, kickFlightTime, velocityBefore } from './ballEvents'
 import {
+  launchOf,
   motionAt,
   motionEnd,
   motionPosition,
+  motionSpeed,
   relayMotion,
   runMotion,
   type MotionContext,
   type RunMotion,
+  type RunSpec,
 } from './motion'
 import type {
   BallHolder,
@@ -43,25 +51,68 @@ import type {
 
 const SIMULTANEOUS_EPSILON = 1e-9
 
+/** Instants at which the speed of a receiver is read against the ball during a flight (SPEC 5.4). */
+const FLIGHT_SAMPLES = 8
+
+const NO_RUN: ReadonlySet<Id> = new Set()
+
 /** An action of the line, with the instant it asks for once in its branch (SPEC 4.3). */
 export interface LineAction {
+  /** The action, with the field of its right edge adapted when it is glued (SPEC 5.8). */
   action: Action
   /** Rank in the array of the play: it breaks ties. */
   index: number
   /** Rank of its branch in the line. */
   branchIndex: number
   planned: number
+  /** Left edge glued: a release has no tolerance (SPEC 5.4). */
+  glued: boolean
+  /** Release glued to a target never reached: ignored and signalled (SPEC 5.4, 5.8). */
+  unreached: boolean
+  /** Pass whose receiver meets it, glued to its arrival: it arrives then, at her point (SPEC 5.8). */
+  meetAt: number | null
+  /** Levers, imposed duration and end at speed of a run; the launch is decided at its start. */
+  spec: Omit<RunSpec, 'launch'>
+  /** The run that this one prolongs when it really starts at its end (SPEC 5.2). */
+  prolongs: Id | null
 }
 
-export interface SimulationInput {
-  branches: readonly CompiledBranch[]
-  actions: readonly LineAction[]
+/** What every simulation of a play starts from. */
+export interface LineSetup {
   /** Players with a starting position. */
   players: readonly PlayerEntity[]
   startPositions: Readonly<Record<Id, Vec2>>
   holderAtStart: BallHolder
+}
+
+export interface SimulationInput extends LineSetup {
+  branches: readonly CompiledBranch[]
+  actions: readonly LineAction[]
   settings: EngineSettings
   context: MotionContext
+  /** By pass: the runs that depend on its arrival, left out of what it reads (D-152). */
+  arrivalDependents: ReadonlyMap<Id, ReadonlySet<Id>>
+}
+
+function initialHolder(play: Play): BallHolder {
+  if (!play.entities.some(isBall)) return { kind: 'none' }
+  const { ballCarrierId, ballPosition } = play.setup
+  const carrier = play.entities.find((e) => e.id === ballCarrierId)
+  if (ballCarrierId !== null && isPlayer(carrier) && play.setup.positions[ballCarrierId]) {
+    return { kind: 'carried', carrierId: ballCarrierId }
+  }
+  if (ballPosition) return { kind: 'loose', pos: copy(ballPosition) }
+  return { kind: 'none' }
+}
+
+export function lineSetup(play: Play): LineSetup {
+  const players = play.entities.filter(isPlayer).filter((p) => play.setup.positions[p.id])
+  const startPositions: Record<Id, Vec2> = {}
+  for (const p of players) {
+    const pos = play.setup.positions[p.id]
+    if (pos) startPositions[p.id] = copy(pos)
+  }
+  return { players, startPositions, holderAtStart: initialHolder(play) }
 }
 
 export interface LineSimulation {
@@ -88,6 +139,9 @@ interface QueuedEvent {
   /** Instant asked for, kept when a release waits for a reception (tolerance, D-110). */
   planned: number
   postponed: boolean
+  glued: boolean
+  unreached: boolean
+  meetAt: number | null
 }
 
 /** A run not built yet. */
@@ -98,6 +152,8 @@ interface PendingRun {
   planned: number
   /** Not before this instant: `planned`, or the arrival of a flight at a branch point (D-139 Q2). */
   ready: number
+  spec: Omit<RunSpec, 'launch'>
+  prolongs: Id | null
 }
 
 const byReadiness = (a: PendingRun, b: PendingRun): number => a.ready - b.ready || a.index - b.index
@@ -110,6 +166,7 @@ const targetOf = (action: Action): IssueTarget => ({
 
 export function simulateLine(input: SimulationInput): LineSimulation {
   const { actions, branches, holderAtStart, settings, startPositions, context } = input
+  const { arrivalDependents } = input
   const players = new Map(input.players.map((p) => [p.id, p]))
   const playerIds = input.players.map((p) => p.id)
   const issues: Issue[] = []
@@ -127,13 +184,17 @@ export function simulateLine(input: SimulationInput): LineSimulation {
   const pendingOf = new Map<Id, PendingRun>()
   /** Instant of the ball out of the breakdown each participant is held in, the latest one. */
   const heldUntil = new Map<Id, number>()
-  /** While a flight is aimed: the runs of the receiver beyond this rank of the line are set aside. */
-  let aiming: { receiverId: Id; lastIndex: number } | null = null
+  /**
+   * While a flight is aimed, the runs set aside: those of the receiver beyond this rank of the line
+   * (D-139 Q2), and those that depend on its arrival (D-152).
+   */
+  let aiming: { receiverId: Id; lastIndex: number | null; excluded: ReadonlySet<Id> } | null = null
 
-  for (const { action, index, branchIndex, planned } of actions) {
+  for (const line of actions) {
+    const { action, index, branchIndex, planned, glued, unreached, meetAt, spec, prolongs } = line
     if (action.type === 'run') {
       if (!players.has(action.entityId)) continue
-      const entry = { run: action, index, branchIndex, planned, ready: planned }
+      const entry = { run: action, index, branchIndex, planned, ready: planned, spec, prolongs }
       pendingOf.set(action.id, entry)
       waiting.set(action.entityId, [...(waiting.get(action.entityId) ?? []), entry])
     } else if (action.type === 'groupRun') {
@@ -144,7 +205,7 @@ export function simulateLine(input: SimulationInput): LineSimulation {
         params: { type: action.type },
       })
     } else {
-      queue.push({ t: planned, index, action, planned, postponed: false })
+      queue.push({ t: planned, index, action, planned, postponed: false, glued, unreached, meetAt })
     }
   }
   for (const entries of waiting.values()) entries.sort(byReadiness)
@@ -166,7 +227,28 @@ export function simulateLine(input: SimulationInput): LineSimulation {
     const free = Math.max(last ? motionEnd(last) : 0, heldUntil.get(id) ?? 0)
     const start = Math.max(entry.ready, free)
     const from = builtPosition(id, start)
-    if (from) motions.push(runMotion(entry.run, from, entry.planned, start, context))
+    if (!from) return
+    // Read in the model, and it really starts at the end of the run before (SPEC 5.2).
+    const launch =
+      entry.prolongs !== null &&
+      last?.actionId === entry.prolongs &&
+      last.endsAtSpeed &&
+      last.until === null &&
+      Math.abs(start - motionEnd(last)) <= SIMULTANEOUS_EPSILON
+        ? launchOf(last)
+        : null
+    const spec = { ...entry.spec, launch }
+    motions.push(runMotion(entry.run, from, entry.planned, start, spec, context))
+  }
+
+  const setAside = (entry: PendingRun): boolean => {
+    if (!aiming) return false
+    if (aiming.excluded.has(entry.run.id)) return true
+    return (
+      aiming.receiverId === entry.run.entityId &&
+      aiming.lastIndex !== null &&
+      entry.branchIndex > aiming.lastIndex
+    )
   }
 
   /** Builds the runs of a player ready at t, in the order they are ready. */
@@ -177,7 +259,7 @@ export function simulateLine(input: SimulationInput): LineSimulation {
     while (i < entries.length) {
       const entry = entries[i] as PendingRun
       if (entry.ready > t) return
-      if (aiming?.receiverId === id && entry.branchIndex > aiming.lastIndex) {
+      if (setAside(entry)) {
         i++
         continue
       }
@@ -216,12 +298,17 @@ export function simulateLine(input: SimulationInput): LineSimulation {
   }
 
   /**
-   * Reads the receiver of a flight, without her runs that belong to an option of the next branch
-   * point: the flight only depends on the trunk (SPEC 5.2, D-139 Q2).
+   * Reads for a flight, without the runs of the receiver that belong to an option of the next branch
+   * point: the flight only depends on the trunk (SPEC 5.2, D-139 Q2); and without the runs that
+   * depend on its arrival (D-152).
    */
-  const aimed = <T>(receiverId: Id, releaseT: number, read: () => T): T => {
-    const branchPoint = nextBranchPoint(releaseT)
-    aiming = branchPoint === null ? null : { receiverId, lastIndex: branchPoint }
+  const aimed = <T>(
+    receiverId: Id,
+    releaseT: number,
+    excluded: ReadonlySet<Id>,
+    read: () => T,
+  ): T => {
+    aiming = { receiverId, lastIndex: nextBranchPoint(releaseT), excluded }
     const result = read()
     aiming = null
     return result
@@ -295,7 +382,7 @@ export function simulateLine(input: SimulationInput): LineSimulation {
    * the event is put back at the reception. True when postponed.
    */
   const postpone = (event: QueuedEvent, playerId: Id): boolean => {
-    if (event.postponed || carries(playerId)) return false
+    if (event.postponed || event.glued || carries(playerId)) return false
     const reception = upcomingReception(playerId)
     if (reception === null || reception > event.t + PASS_RECEIPT_TOLERANCE) return false
     queue.push({ ...event, t: reception, postponed: true })
@@ -325,6 +412,22 @@ export function simulateLine(input: SimulationInput): LineSimulation {
     })
   }
 
+  /** The ball goes slower than its receiver during its flight (SPEC 5.4). */
+  const slowerThanReceiver = (
+    id: Id,
+    speed: number,
+    releaseT: number,
+    arrivalT: number,
+  ): boolean => {
+    const motions = motionsOf.get(id) ?? []
+    for (let k = 0; k <= FLIGHT_SAMPLES; k++) {
+      const t = releaseT + ((arrivalT - releaseT) * k) / FLIGHT_SAMPLES
+      const motion = motionAt(motions, id, t)
+      if (motion && motionSpeed(motion, t) > speed) return true
+    }
+    return false
+  }
+
   const handlePass = (action: PassAction, event: QueuedEvent): void => {
     const releaseT = event.t
     const target = targetOf(action)
@@ -332,8 +435,11 @@ export function simulateLine(input: SimulationInput): LineSimulation {
     const receiver = players.get(action.toId)
     if (!passer || !receiver) return
     if (postpone(event, passer.id)) return
-    const from = at(passer.id, releaseT)
-    const receiverAtRelease = at(receiver.id, releaseT)
+    const excluded = arrivalDependents.get(action.id) ?? NO_RUN
+    const [from, receiverAtRelease] = aimed(receiver.id, releaseT, excluded, () => [
+      at(passer.id, releaseT),
+      at(receiver.id, releaseT),
+    ])
     if (!from || !receiverAtRelease) return
     const compiled = {
       actionId: action.id,
@@ -354,6 +460,10 @@ export function simulateLine(input: SimulationInput): LineSimulation {
         forward: false,
       })
     }
+    if (event.unreached) {
+      ignored('passerWithoutBall')
+      return
+    }
     if (simultaneous(releaseT)) {
       ignored('simultaneousPass')
       return
@@ -368,17 +478,17 @@ export function simulateLine(input: SimulationInput): LineSimulation {
       issues.push({ code: 'passToOpponent', severity: 'error', target })
     }
     const speed = action.ballSpeed ?? settings.passSpeed
-    const { arrivalT, to } = aimed(receiver.id, releaseT, () => {
-      const arrival = solvePassArrival(
-        from,
-        releaseT,
-        speed,
-        (t) => at(receiver.id, t) ?? receiverAtRelease,
-      )
+    const { arrivalT, to } = aimed(receiver.id, releaseT, excluded, () => {
+      const arrival =
+        event.meetAt ??
+        solvePassArrival(from, releaseT, speed, (t) => at(receiver.id, t) ?? receiverAtRelease)
       return { arrivalT: arrival, to: at(receiver.id, arrival) ?? receiverAtRelease }
     })
     unbuildAfter(receiver.id, arrivalT)
     waitForArrival(receiver.id, releaseT, arrivalT)
+    if (slowerThanReceiver(receiver.id, speed, releaseT, arrivalT)) {
+      issues.push({ code: 'ballSlowerThanReceiver', severity: 'warning', target })
+    }
     // Speed of the passer when she lets go, read before any run she starts then (D-085).
     const forward = isForwardPass(
       from,
@@ -409,7 +519,7 @@ export function simulateLine(input: SimulationInput): LineSimulation {
       if (!receiver) return
       const id = receiver.id
       receiverId = id
-      to = aimed(id, releaseT, () => at(id, arrivalT))
+      to = aimed(id, releaseT, NO_RUN, () => at(id, arrivalT))
     } else {
       to = copy(action.target.point)
     }
@@ -432,6 +542,10 @@ export function simulateLine(input: SimulationInput): LineSimulation {
       if (receiverId !== null) unbuildAfter(receiverId, releaseT)
       issues.push({ code, severity: 'error', target })
       kicks.push(compiled)
+    }
+    if (event.unreached) {
+      ignored('kickerWithoutBall')
+      return
     }
     if (simultaneous(releaseT)) {
       ignored('simultaneousPass')
@@ -534,7 +648,8 @@ export function simulateLine(input: SimulationInput): LineSimulation {
         }
       }
       if (!next) return
-      if (advanceOne(next.t)) continue
+      // A glued event comes with its target, a reception included, whatever the rounding (SPEC 5.4).
+      if (advanceOne(next.glued ? next.t + SIMULTANEOUS_EPSILON : next.t)) continue
       queue.splice(queue.indexOf(next), 1)
       const action = next.action
       if (action.type === 'pass') handlePass(action, next)

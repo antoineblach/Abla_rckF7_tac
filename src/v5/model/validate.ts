@@ -4,7 +4,7 @@
 import { FIELD_LIMITS, INSTRUCTION_RECOMMENDED_LENGTH } from '../../config/defaults'
 import { allLines, childrenOf, findBranch } from './branches'
 import type { Issue, IssueTarget } from './issues'
-import { glueProblem } from './syncGraph'
+import { analyseGlues, glueProblem } from './syncGraph'
 import {
   isPlayer,
   isReceiverTarget,
@@ -390,6 +390,15 @@ function checkGlues(play: Play): Issue[] {
   }
   for (const action of play.actions) visitBlock(action, actionTarget(action))
   for (const sequence of play.sequences) visitBlock(sequence, sequenceTarget(sequence))
+  for (const edge of analyseGlues(play).cyclic) {
+    const { ownerId, branchId, kind } = edge
+    const isSequence = play.sequences.some((sequence) => sequence.id === ownerId)
+    const target: IssueTarget =
+      kind === 'branchAt'
+        ? { kind: 'branch', id: ownerId }
+        : { kind: isSequence ? 'sequence' : 'action', id: ownerId, branchId }
+    issues.push({ code: 'glueCycle', severity: 'error', target, key: kind })
+  }
   return issues
 }
 

@@ -33,7 +33,9 @@ import {
   intervalIndexAt,
   positionAt,
   type BallSegment,
+  type CompiledGlue,
   type CompiledLine,
+  type GlueStatus,
 } from './timeline'
 
 function clampTime(compiled: CompiledLine, t: number): number {
@@ -291,6 +293,21 @@ export interface SchematicBreakdown {
   applied: boolean
 }
 
+/**
+ * A glue line of a block of the window (SPEC 5.8): from the point of the edge to the point of the
+ * target; editor overlay only, never exported. The overlay draws it when the block or its target is
+ * selected.
+ */
+export interface SchematicGlueLink {
+  ownerId: Id
+  targetId: Id
+  kind: CompiledGlue['kind']
+  from: Vec2
+  /** Null when the target has no point on the field or is never reached. */
+  to: Vec2 | null
+  status: GlueStatus
+}
+
 /** The field at an instant at rest (SPEC 6.3): the window is the interval at that instant. */
 export interface WindowSchematic {
   /** Path of the line. */
@@ -310,6 +327,8 @@ export interface WindowSchematic {
   breakdowns: SchematicBreakdown[]
   /** Speeds, accelerations and brakings of the runs of the window beyond a threshold (editor). */
   speedBadges: SpeedBadge[]
+  /** Glue lines of the blocks of the window (editor overlay, SPEC 5.8). */
+  glueLinks: SchematicGlueLink[]
   /** Applied runs and relays that start before the window (applied parts only, grey). */
   earlierRuns: SchematicRun[]
   earlierPasses: SchematicPass[]
@@ -376,6 +395,17 @@ function schematicBreakdown(compiled: CompiledLine['breakdowns'][number]): Schem
   }
 }
 
+function schematicGlueLinks(
+  compiled: CompiledLine,
+  inWindow: (start: number) => boolean,
+): SchematicGlueLink[] {
+  return compiled.glues.flatMap(({ ownerId, targetId, kind, from, to, status }) => {
+    const block = compiled.blocks[ownerId]
+    if (!from || !block || !inWindow(block.start)) return []
+    return [{ ownerId, targetId, kind, from: copy(from), to: to ? copy(to) : null, status }]
+  })
+}
+
 /**
  * The field of a line at t (SPEC 6.3, D-141): positions at t, actions of the interval at t in full,
  * earlier ones in grey, later ones absent.
@@ -411,6 +441,7 @@ export function windowSchematic(
     speedBadges: compiled.motions
       .filter((m) => inWindow(m.start))
       .flatMap((m) => speedBadgesOf(m, Infinity)),
+    glueLinks: schematicGlueLinks(compiled, inWindow),
     earlierRuns: compiled.motions
       .filter((m) => earlier(m.start))
       .map((m) => ({ ...schematicRun(m), ignoredPoints: [] })),

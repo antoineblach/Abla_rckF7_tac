@@ -116,6 +116,12 @@ Reçu de l'étape B1 :
 
 Lecture : SPEC 3.3, 7, 9.2 et 9.3 par Grep ; `render/render.ts`, `renderSchematic.ts`, `overlay.ts` ; `player/transport.ts` ; `export/gif/timeline.ts`, `frame.ts`, `pdf/layout.ts`, `thumbnail.ts`, `write.ts` ; PIEGES : jsPDF et pdf.js, gifenc, Vitest et images de référence.
 
+Reçu de l'étape B2 :
+- `src/v5/engine` résout les collages (`glue.ts`, `launch.ts`). `compileLine` donne `glues` (`CompiledGlue` : bord, cible, statut, instant, points). `RunMotion` a `endsAtSpeed` et `launch` (prolonge si non nul) à la place de `prolongs`. `WindowSchematic.glueLinks` donne les traits de collage de la fenêtre, pour la surcouche d'édition, jamais exportés (5.8). `lineReport` donne `endsAtSpeed`, `atSpeed`, `prolongs`, `startGlue`, `endGlue` ; il n'y a plus de `launchWait`.
+- Pour C2 : `model/syncGraph.ts` exporte `glueEdges`, `edgeKey`, `analyseGlues`, `createsCycle(play, edge)` (refus à la pose) et `meetsOwnPass`.
+- Pour C3 : codes à traduire dans `ui/strings.ts` : `glueCycle`, `glueTargetUnreached`, `glueStartedLate` (`params.late`), `glueArrivesLate` (`params.late`), `ballSlowerThanReceiver` ; `runNotContinued` a `params.option`, le libellé de l'option.
+- Pour C4 : `src/v5/engine/compile.bench.ts` importe la v4 : retirer ce côté à la bascule, avec les imports `model/phaseTree`, `model/types` et `test/builders`. `glue.test`, `launch.test`, `cut.test`, `profileCount.test` et `syncGraph.test` n'importent que ce qui reste.
+
 `render` et `renderSchematic` sur la fenêtre de B1. Lecteur : `transport.ts` porté sur les instants de la ligne, sauts au bord de bloc voisin (D-146), arrêt à l'embranchement gardé. GIF : plan des images, reprise à l'instant de l'embranchement, bornée à la durée (D-153), cartons d'option sans préfixe. PDF : une vignette par ligne, positions à `t = 0`, toutes les actions de la ligne en plein, légende : options de la ligne. Images régénérées et comparées à la référence v4 (PIEGES).
 
 ### Étape C2
@@ -164,7 +170,7 @@ Lecture : `e2e/a-porter/*`, `e2e/support/*` ; PIEGES : Playwright et OPFS.
 | Lancée : collée sans écart, écart positif, partie à sa borne, arrêtée par un regroupement | B2 | `launch.test` |
 | Déterminisme : deux compilations, même JSON canonique | B2 | `evaluate.test` |
 | Temps de compilation : bench hors CI, nombre de profils plafonné en CI, sans horloge (D-150) | B2 | `compile.bench`, `profileCount.test` |
-| Écart au point de coupe, D-139 Q4 (D-149) : virage jusqu'à 45°, trajectoire <= 0,5 m, instant au point de coupe et à l'arrivée <= 0,25 s ; ligne droite, <= 0,01 m et 0,02 s | B2 | `cut.test` |
+| Écart au point de coupe, D-139 Q4 (D-161, qui remplace D-149) : virage jusqu'à 45°, trajectoire <= 5 % de la longueur, instant au point de coupe <= 0,25 s, à l'arrivée <= 0,4 s ; ligne droite, <= 0,01 m et 0,03 s | B2 | `cut.test` |
 
 **Refus de v1 à v4, sans écriture (contrainte 6) :**
 
@@ -218,7 +224,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc B1**
   - [x] **Étape B1 : compilation de ligne continue, sans collage** (`src/v5/engine`). (commit « Étape B1 : compilation de ligne continue, sans collage », après `191e2ba`)
 - **Bloc B2**
-  - [ ] **Étape B2 : collages, graphe, lancée, D-139 Q1 et Q4, mesures dans ETAT.**
+  - [x] **Étape B2 : collages, graphe, lancée, D-139 Q1 et Q4, mesures dans ETAT.** (commit « Étape B2 : collages, graphe, lancée, D-139 Q1 et Q4, mesures », après `88af1c7`)
 - **Bloc C1**
   - [ ] **Étape C1 : rendu, lecteur, exports** (`src/v5/render`, `player`, `export`).
 - **Bloc C2**

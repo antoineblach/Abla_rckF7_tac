@@ -109,6 +109,63 @@ describe('trunk identical in every line (SPEC 5.2)', () => {
     expectSameTrunks(play, 0.1)
   })
 
+  it('holds with a run of the trunk prolonged by part of the options (D-139 Q1)', () => {
+    // Ends after the branch point, at speed in every line: option A goes on, option B stops short.
+    const first = run(uuid(30), A1, [{ x: 60, y: 30 }], { pace: 'sprint' })
+    const play = twoOptions(
+      [
+        first,
+        run(uuid(31), A1, [{ x: 70, y: 40 }], {
+          branchId: P.optA,
+          pace: 'sprint',
+          startGlue: { targetId: first.id, event: 'end' },
+        }),
+        run(uuid(32), A2, [{ x: 50, y: 42 }], { branchId: P.optB, start: 2 }),
+      ],
+      2,
+    )
+    expectSameTrunks(play)
+    const end = (line: Id[]) => compile(play, line).motions.find((m) => m.actionId === first.id)
+    expect(end(LINE_B)).toEqual(end(LINE_A))
+    expect(end(LINE_A)?.endsAtSpeed).toBe(true)
+  })
+
+  it('holds with glues that read the trunk: nothing of an option reaches back', () => {
+    // In the trunk: A2 ends with A1, A3 starts at her end; the branch point is glued to that start.
+    const a1 = run(uuid(30), A1, [{ x: 60, y: 30 }])
+    const a2 = run(uuid(31), A2, [{ x: 50, y: 42 }], {
+      endGlue: { targetId: a1.id, event: 'end', keep: 'duration' },
+    })
+    const a3 = run(uuid(32), A3, [{ x: 50, y: 50 }], {
+      startGlue: { targetId: a2.id, event: 'start', offset: 0.5 },
+    })
+    const play: Play = {
+      ...twoOptions(
+        [
+          a1,
+          a2,
+          a3,
+          run(uuid(33), A1, [{ x: 70, y: 30 }], {
+            branchId: P.optA,
+            startGlue: { targetId: P.root, event: 'end', offset: 0.1 },
+          }),
+          breakdown(uuid(34), A2, A1, A3, 9, {
+            branchId: P.optB,
+            startGlue: { targetId: P.root, event: 'end', offset: 0.1 },
+          }),
+        ],
+        1,
+      ),
+    }
+    play.branches = play.branches.map((b) =>
+      b.id === P.root ? { ...b, branchAtGlue: { targetId: a3.id, event: 'start' } } : b,
+    )
+    expectSameTrunks(play)
+    const [lineA, lineB] = [compile(play, LINE_A), compile(play, LINE_B)]
+    expect(lineA.branches[0]?.branchAt).toBe(lineB.branches[0]?.branchAt)
+    expect(lineA.branches[0]?.branchAt).toBeGreaterThan(0.5)
+  })
+
   it('holds for an action started before the branch point: it goes on in every option', () => {
     // A2 runs from 0 to well after the branch point at 1 s; each option does something else.
     const play = twoOptions(

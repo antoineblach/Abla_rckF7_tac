@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../../model/settings'
 import type { Action, Id, Play } from '../model/types'
-import { P, basePlay, ball, breakdown, kick, pass, player, run, uuid } from '../test/builders'
+import {
+  P,
+  basePlay,
+  ball,
+  branch,
+  breakdown,
+  kick,
+  pass,
+  player,
+  realisticRunsPlay,
+  run,
+  uuid,
+} from '../test/builders'
 import { lineReport, type ActionReport } from './actionReport'
 import { createCaches } from './caches'
 import { evaluate, windowSchematic } from './evaluate'
@@ -25,6 +37,76 @@ function rowOf(rows: ActionReport[], id: Id): ActionReport {
   if (!row) throw new Error(`no row ${id}`)
   return row
 }
+
+describe('glues and runs at speed in the report (SPEC 5.2, 5.8)', () => {
+  const fixture = realisticRunsPlay()
+  const rows = lineReport(fixture, [P.root, P.optA], settings, createCaches()).rows
+
+  it('reports the runs at speed and those that prolong them', () => {
+    expect(rowOf(rows, uuid(500))).toMatchObject({ endsAtSpeed: true, atSpeed: true })
+    expect(rowOf(rows, uuid(510))).toMatchObject({ prolongs: true, endsAtSpeed: false })
+    // Stopped by the ruck: she does not go on at speed.
+    expect(rowOf(rows, uuid(520))).toMatchObject({ atSpeed: false })
+  })
+
+  it('reports the glues of each edge, with their result', () => {
+    expect(rowOf(rows, uuid(512))).toMatchObject({
+      startGlue: null,
+      endGlue: { status: 'ok', targetId: uuid(511), kind: 'end' },
+    })
+    expect(rowOf(rows, uuid(513))).toMatchObject({ startGlue: { status: 'ok' }, endGlue: null })
+    expect(rowOf(rows, uuid(521))).toMatchObject({ startGlue: null, endGlue: null })
+    expect(rowOf(rows, uuid(522))).toMatchObject({ endGlue: { status: 'late' } })
+  })
+})
+
+describe('glue lines of the window (SPEC 5.8)', () => {
+  const p = play([
+    run(uuid(10), A(1), [{ x: 70, y: 30 }]),
+    run(uuid(11), A(2), [{ x: 50, y: 25 }], {
+      endGlue: { targetId: uuid(10), event: 'end', keep: 'duration' },
+    }),
+  ])
+
+  it('gives the point of the edge and the point of the target', () => {
+    const links = windowSchematic(p, LINE, 0, settings, createCaches()).glueLinks
+    expect(links).toEqual([
+      {
+        ownerId: uuid(11),
+        targetId: uuid(10),
+        kind: 'end',
+        from: { x: 50, y: 25 },
+        to: { x: 70, y: 30 },
+        status: 'ok',
+      },
+    ])
+  })
+
+  it('leaves out a block outside the window, and an edge without a point', () => {
+    const withBranchPoint = play([
+      run(uuid(10), A(1), [{ x: 70, y: 30 }]),
+      run(uuid(11), A(2), [{ x: 50, y: 25 }], {
+        branchId: P.optA,
+        start: 9,
+        startGlue: { targetId: P.root, event: 'end' },
+      }),
+    ])
+    const split: Play = {
+      ...withBranchPoint,
+      branches: [
+        branch(P.root, null, { branchAt: 3, branchAtGlue: { targetId: uuid(10), event: 'end' } }),
+        branch(P.optA, P.root, { isDefault: true }),
+        branch(P.optB, P.root),
+      ],
+    }
+    const line = [P.root, P.optA]
+    const inTrunk = windowSchematic(split, line, 0, settings, createCaches()).glueLinks
+    expect(inTrunk).toEqual([])
+    const end = windowSchematic(split, line, 100, settings, createCaches())
+    expect(end.glueLinks.map((l) => l.ownerId)).toEqual([uuid(11)])
+    expect(end.glueLinks[0]?.to).toBeNull()
+  })
+})
 
 describe('report of the actions of a line (SPEC 6.7, D-113, D-145)', () => {
   const p = play([

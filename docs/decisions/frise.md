@@ -135,6 +135,7 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Origine : Q9 et correction 3 du plan.
 
 ### D-149 : tolérance du test d'écart au point de coupe
+- Remplacée par D-161 : les seuils en valeur absolue ne tiennent pas au-delà de 8 m de part et d'autre du point de coupe.
 - Date : 2026-11-04
 - Décision : virage jusqu'à 45° : écart de trajectoire <= 0,5 m, instant au point de coupe et à l'arrivée <= 0,25 s. Ligne droite : <= 0,01 m et 0,02 s. Seuils en constantes du test, commentées `HYPOTHÈSE` : ce sont des estimations, pas encore des mesures. Dépassement : arrêt et mesure donnée à l'utilisateur, jamais de seuil relâché seul.
 - Raison : 5.8 dit le résultat proche mais pas identique ; un seuil fixé d'avance dit ce que « proche » veut dire.
@@ -217,3 +218,45 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Raison : 5.3 dit « pendant ». La v4 ignorait déjà une course partant à la formation ; la participante est retenue jusqu'à la sortie, et le relayeur devient porteuse à cet instant.
 - Alternatives écartées : laisser partir la course à la formation (arrêtée aussitôt, de durée nulle).
 - Origine : étape B1, précision à contredire au besoin. Non intégrée (5.3) : `/fin-lot` l'intègre.
+
+### D-161 : seuils de l'écart au point de coupe, relatifs à la longueur
+- Date : 2026-11-04
+- Décision : remplace D-149. Virage jusqu'à 45° : écart de trajectoire <= 5 % de la longueur de la course, instant au point de coupe <= 0,25 s, instant à l'arrivée <= 0,4 s. Ligne droite : <= 0,01 m et 0,03 s. Constantes de `cut.test`, commentées `HYPOTHÈSE`. Géométries : 5/5 à 20/20 m, 20/10, 10/20, 30/10, 10/30 m, à la marche, au trot et au sprint.
+- Raison : mesures à 45° contre une course entière. Trajectoire : 5/5 m 0,26 ; 8/8 m 0,42 ; 10/10 m 0,53 ; 20/20 m 1,05 ; 10/30 m 1,99 m. Elle est proportionnelle aux longueurs (2,6 à 5 %), car la première course coupée est droite et la seconde suit le raccord de 5.2 : un seuil en mètres ne dit rien. Instant au point de coupe : <= 0,09 s. Instant à l'arrivée : jusqu'à 0,39 s (10/30 m, sprint). Ligne droite : trajectoire nulle, instants <= 0,001 s. Comparé une fois au rendez-vous de la v4 sur une seule course (hors test, la v4 disparaît en C4) : instant de coupe nul, arrivée <= 0,23 s en virage, <= 0,024 s en ligne droite. Le comportement ne change pas et reste conforme à 5.2 et 5.8 (« proche, pas identique »).
+- Alternatives écartées : garder les seuils en bornant le test à 8 m de part et d'autre du point de coupe (l'écart au-delà n'est plus couvert) ; garder sa courbe d'origine à la première course coupée, par `/changement-spec` (contredit « la course précédente ne change pas » de 5.2 et demande une donnée de plus dans le modèle).
+- Origine : dépassement constaté en B2, mesures données à l'utilisateur, réponse du 04/11.
+
+### D-162 : résolution des collages sur tout l'arbre, une fois par combinaison
+- Date : 2026-11-04
+- Décision : `resolvePlay` parcourt les branches de la racine aux feuilles et résout chaque bord une seule fois, dans sa branche, avec les actions de cette branche et de ses ancêtres ; le résultat est partagé par toutes les lignes et mis en cache. Une simulation n'est refaite que si le bord précédent a changé ce qu'elle lit. Dans le graphe, un point de passage se lit comme la fin de la course. Ordre : celui des dépendances (4.3) ; là où il laisse le choix, la course précédente de la joueuse, l'événement de ballon précédent et le regroupement qui peut arrêter une course passent d'abord, sans jamais faire un cycle. Un regroupement dont la formation reste à résoudre est absent des simulations.
+- Raison : le tronc est identique par construction et le budget se mesure sur toutes les lignes (D-150). À son instant enregistré, une formation arrêterait les courses de ses participantes : un regroupement collé à la fin d'une course de la plaquée ne suivrait plus cette course quand elle s'allonge. Les autres blocs restent à leur valeur enregistrée, comme le dit 5.8.
+- Alternatives écartées : résoudre ligne par ligne (tronc recalculé pour chaque ligne) ; un point fixe sur tous les bords (5.8 fixe un seul passage).
+- Origine : étape B2, précision à contredire au besoin. Non intégrée (5.8) : `/fin-lot` l'intègre.
+
+### D-163 : passe reçue par une course collée à son arrivée
+- Date : 2026-11-04
+- Décision : le bord droit de la course de la receveuse lit le lâcher et les courses de la passeuse, l'arrivée de la passe lit la course de la receveuse (4.3). Quand elle atteint son point à l'heure, sans écart, la passe arrive à cet instant et à ce point, sans point fixe. Si elle ne peut pas y être, la passe suit le point fixe de 5.4.
+- Raison : 5.8 dit que la passe arrive au point de rendez-vous quand elle y arrive. Avec une receveuse lancée à ce point, les 5 itérations de 5.4 laissent 4 ms et 4 cm d'écart, et ce qui est collé à l'arrivée se décale d'autant.
+- Alternatives écartées : garder le seul point fixe (rendez-vous inexact) ; augmenter ses itérations pour toutes les passes (D-037).
+- Origine : étape B2, précision à contredire au besoin. Non intégrée (5.4) : `/fin-lot` l'intègre.
+
+### D-164 : seconde passe de la lancée
+- Date : 2026-11-04
+- Décision : une course dont aucune suivante collée ne part réellement à sa fin, dans aucune ligne, freine normalement et ne redevient jamais lancée : la suivante part à l'embranchement après sa fin (5.2), mais aussi retardée par un chevauchement, par un regroupement, ou par D-139 Q2. Tout cela se règle dans la même et unique seconde passe. Une course du tronc arrêtée par le regroupement d'une seule option reste lancée si une autre option la prolonge. Le premier embranchement nommé par `runNotContinued` est le premier de la ligne qui s'écarte des courses qui la prolongent.
+- Raison : 5.2 ne cite que l'embranchement et le regroupement ; les autres cas ont la même lecture (« elle n'est pas prolongée »), et une lancée sans suite serait un arrêt net sans raison. Le tronc reste identique entre les options.
+- Alternatives écartées : une seconde passe par cause ; garder lancée une course dont la suivante part plus tard (arrêt net, sans aucune option en cause).
+- Origine : étape B2, précision à contredire au besoin. Non intégrée (5.2) : `/fin-lot` l'intègre.
+
+### D-165 : bord gauche seul d'une séquence
+- Date : 2026-11-04
+- Décision : la fin d'une séquence étant un instant, son bord gauche collé déplace son début et sa fin reste (D-139 Q6, l'autre bord ne bouge pas). Si le début résolu atteint la fin, la séquence est ignorée et signalée (`sequenceEndBeforeStart`). Précise D-155, qui laissait ce cas de côté.
+- Raison : 4.1 porte deux instants ; aucun champ de durée à garder.
+- Alternatives écartées : faire glisser la séquence entière (autre règle que le bord gauche de D-139 Q6).
+- Origine : étape B2, précision à contredire au besoin. Non intégrée (5.8) : `/fin-lot` l'intègre.
+
+### D-166 : alerte d'un ballon plus lent que sa receveuse
+- Date : 2026-11-04
+- Décision : pour toute passe appliquée, la vitesse de la receveuse est lue à 9 instants régulièrement répartis sur le vol ; au-dessus de la vitesse du ballon : `ballSlowerThanReceiver`, un avertissement. Codes des collages : `glueCycle`, `glueTargetUnreached` (erreurs), `glueStartedLate` (« il aurait fallu partir x s plus tôt »), `glueArrivesLate` (retard en secondes), avertissements.
+- Raison : 5.4 demande le signalement sans dire comment le mesurer ; la vitesse de la receveuse varie pendant le vol.
+- Alternatives écartées : ne comparer qu'à l'arrivée (une receveuse qui freine à son point échapperait à l'alerte).
+- Origine : étape B2, précision à contredire au besoin. Non intégrée (5.4) : `/fin-lot` l'intègre.

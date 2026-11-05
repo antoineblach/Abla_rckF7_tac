@@ -334,6 +334,28 @@ describe('business validation (SPEC 4.3)', () => {
         (issue) => issue.code === 'glueTargetInvalid' || issue.code === 'glueTargetMissing',
       )
 
+    it('reports each glue of a cycle on its block, the graph being tested with it', () => {
+      const issues = validatePlay(
+        scene([
+          run(uuid(501), P.A(1), [{ x: 1, y: 1 }], {
+            endGlue: { targetId: uuid(502), event: 'end', keep: 'duration' },
+          }),
+          run(uuid(502), P.A(2), [{ x: 2, y: 2 }], {
+            endGlue: { targetId: uuid(501), event: 'end', keep: 'duration' },
+          }),
+        ]),
+      ).filter((issue) => issue.code === 'glueCycle')
+      expect(issues.map((issue) => issue.target)).toEqual([
+        { kind: 'action', id: uuid(501), branchId: P.root },
+        { kind: 'action', id: uuid(502), branchId: P.root },
+      ])
+      expect(issues.map((issue) => issue.key)).toEqual(['end', 'end'])
+    })
+
+    it('accepts the glues of the fixture, without any cycle', () => {
+      expect(validatePlay(friseFixturePlay()).map((issue) => issue.code)).not.toContain('glueCycle')
+    })
+
     it('accepts every event of a block of the line', () => {
       const target = run(uuid(502), P.A(4), [
         { x: 1, y: 1 },

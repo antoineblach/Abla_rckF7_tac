@@ -77,6 +77,27 @@ describe('forward pass check (SPEC 5.7)', () => {
     expect(forward(behind)).toBe(false)
   })
 
+  it('reads the passer speed on her run before, for a release at the start of the next (D-085)', () => {
+    // Both sprint 15 m and go on at speed. The passer lets go as her run starts: the ball keeps the
+    // speed she had, read on her first run.
+    const P1_NEXT = uuid(42)
+    const P2_NEXT = uuid(43)
+    const play = passPlay({ x: 40, y: 30 }, { x: 40, y: 25 }, [
+      sprint(P1, { x: 55, y: 30 }),
+      sprint(P2, { x: 55, y: 25 }),
+      run(P1_NEXT, P1, [{ x: 90, y: 30 }], {
+        pace: 'sprint',
+        startGlue: { targetId: uuid(40), event: 'end' },
+      }),
+      run(P2_NEXT, P2, [{ x: 90, y: 25 }], {
+        pace: 'sprint',
+        startGlue: { targetId: uuid(41), event: 'end' },
+      }),
+      pass(PASS, P1, P2, 0, { startGlue: { targetId: P1_NEXT, event: 'start' } }),
+    ])
+    expect(forward(play)).toBe(false)
+  })
+
   it('flags the same pass when the passer had already stopped', () => {
     // The passer stops after 2.9 s; the receiver still runs at full speed at 4 s.
     const play = passPlay({ x: 40, y: 30 }, { x: 40, y: 25 }, [

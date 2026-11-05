@@ -7,12 +7,13 @@
 
 ## En cours
 
-- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-160 (`docs/decisions/frise.md`). Étapes 0, A et B1 faites : `src/v5/model`, `src/v5/test/builders.ts`, fixture `play-v5-frise.json`, `src/v5/engine` (simulation chronologique d'une ligne, replis de 4.3, D-139 Q2, intervalles, schéma d'une fenêtre ; sans collage ni lancée). L'application tourne encore sur la v4.
-- Bloc suivant : B2 (collages, graphe, lancée, D-139 Q1 et Q4, mesures ; passage de relais dans la section B2 du plan). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
+- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-166 (`docs/decisions/frise.md`). Étapes 0, A, B1 et B2 faites : `src/v5/model`, `src/v5/test/builders.ts`, fixture `play-v5-frise.json`, `src/v5/engine` complet (collages, lancée). L'application tourne encore sur la v4.
+- Bloc suivant : C1 (rendu, lecteur, exports ; passage de relais dans la section C1 du plan). v5 écrite dans `src/v5/`, à côté de la v4, jusqu'à la bascule en C4 (D-140).
+- Compilation (`npm run bench`, D-150), v5 contre v4 : une ligne 10,3 contre 15,8 ms ; mouvement de glisser, toutes lignes, 19,5 contre 55,9 ms. Cible de 16 ms manquée, sous le plafond de 33 ms. Écarts du scénario de référence avec la v4 (D-157) : 18 actions contre 16, A7 collée à l'arrivée de la passe, embranchement collé à la fin de cette course, regroupement de l'option A à 8,5 s.
 
 ## Reste à faire
 
-- Blocs B2, C1 à C5, puis `/fin-lot`.
+- Blocs C1 à C5, puis `/fin-lot`.
 - Puis frise-2 à frise-4 par `/nouveau-lot` : section 7 de `docs/archive/plans/frise-spec.md`.
 - Puis 3bis-2 réduit (menu du clic droit, même course pour plusieurs joueuses) et 3bis-3 (positions préréglées), par `/nouveau-lot` (D-128).
 - Puis lot 4 (défense simulée ; plan archivé de 3bis-1, section G) et lot 5 (ateliers).
@@ -31,8 +32,7 @@
 ## Écarts connus
 
 - Aucun test désactivé.
-- SPEC 1.9 en frise ; `src/` reste en v4 jusqu'à la bascule (C4). Moteur v5 sans collage ni lancée jusqu'à B2.
-- Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `play-v5-frise.json`, `reglages-v3.json`.
+- SPEC 1.9 en frise ; `src/` reste en v4 jusqu'à la bascule (C4).- Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `play-v5-frise.json`, `reglages-v3.json`.
 - D-098 : une version remise à l'identique depuis l'autre PC est défaite tant que la page qui l'avait écrite est ouverte (README).
 - Hypothèses 3 et 4 sur Drive : à constater par le journal de synchronisation.
 - « Traits >= 3 px » du thème Contraste fort testé sur `render`, pas sur la surcouche d'édition.

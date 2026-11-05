@@ -5,6 +5,7 @@ import { ARC_LENGTH_SAMPLES_PER_SEGMENT } from '../../config/defaults'
 import {
   buildProfile,
   distanceAt,
+  endSpeedOf,
   segmentPeak,
   solveLevers,
   speedAt,
@@ -12,7 +13,7 @@ import {
   withDuration,
   type SpeedProfile,
 } from '../../engine/profile'
-import { buildSpline, pointAtDistance, type Spline } from '../../engine/spline'
+import { buildSpline, endDirection, pointAtDistance, type Spline } from '../../engine/spline'
 import { copy } from '../../engine/vec'
 import { canonicalJson } from '../../model/canonical'
 import type { EngineSettings } from '../../model/settings'
@@ -36,6 +37,38 @@ export interface AccelAlert {
   peak: number
   /** Arc length of its badge, clear of the ends of the segment (D-132). */
   badgeAt: number
+}
+
+/** Speed and direction a run starts with when it prolongs a run ending at speed (SPEC 5.2). */
+export interface Launch {
+  speed: number
+  direction: Vec2
+}
+
+/** Levers of a run solved for a glued edge (SPEC 5.3, D-130). */
+export interface RunLevers {
+  factor: number
+  timeScale: number
+  /** Duration met exactly; null when the search stops at its slowest. */
+  duration: number | null
+}
+
+/** What makes a run differ from its stored speeds (SPEC 5.2, 5.3, 5.8). */
+export interface RunSpec {
+  /** Levers solved for a glued edge: they replace an imposed duration. */
+  levers: RunLevers | null
+  /** The imposed duration does not apply (D-136). */
+  ignoreImposed: boolean
+  /** Ends at the speed of its last segment instead of stopping. */
+  endsAtSpeed: boolean
+  launch: Launch | null
+}
+
+export const PLAIN_RUN: RunSpec = {
+  levers: null,
+  ignoreImposed: false,
+  endsAtSpeed: false,
+  launch: null,
 }
 
 export interface RunMotion {
@@ -62,6 +95,10 @@ export interface RunMotion {
   factor: number
   /** Factor on the accelerations (k², D-130), 1 otherwise. */
   accelFactor: number
+  /** Ends at speed: the next run of the player is glued to its end, without gap (SPEC 5.2). */
+  endsAtSpeed: boolean
+  /** Prolongs the run before it (SPEC 5.2), null when it starts from rest. */
+  launch: Launch | null
   /** Spline segments at the sprint pace of the settings or faster: drawn thicker (D-115). */
   fastSegments: boolean[]
   /** Spline segments whose peak is beyond a speed threshold (SPEC 5.9), else null. */
@@ -80,19 +117,36 @@ interface RunShape {
   fastSegments: boolean[]
 }
 
+/** Curve and profile of a relayer joining a breakdown, whatever the formation instant. */
+interface RelayShape {
+  spline: Spline
+  profile: SpeedProfile
+  factor: number
+  timeScale: number
+  late: { speed: number; accel: number } | null
+}
+
 /** What the motions of a compilation share. */
 export interface MotionContext {
   settings: EngineSettings
   caches: EvalCaches
-  /** Shapes of this compilation, by run and start position: one profile per distinct request. */
+  /** Shapes of this compilation, by run, start position and spec: one per distinct request. */
   shapes: Map<string, RunShape>
+  /** Levers solved in this compilation, by the same key and the duration wanted. */
+  solved: Map<string, RunLevers | null>
+  /** Moves of a relayer in this compilation, by breakdown, positions and duration. */
+  relays: Map<string, RelayShape>
 }
 
-function getSpline(points: Vec2[], caches: EvalCaches): Spline {
-  const key = canonicalJson(points)
+export function createMotionContext(settings: EngineSettings, caches: EvalCaches): MotionContext {
+  return { settings, caches, shapes: new Map(), solved: new Map(), relays: new Map() }
+}
+
+function getSpline(points: Vec2[], direction: Vec2 | null, caches: EvalCaches): Spline {
+  const key = canonicalJson(direction ? { points, direction } : points)
   const cached = caches.splines.get(key)
   if (cached) return cached
-  const spline = buildSpline(points, ARC_LENGTH_SAMPLES_PER_SEGMENT)
+  const spline = buildSpline(points, ARC_LENGTH_SAMPLES_PER_SEGMENT, direction)
   caches.splines.set(key, spline)
   return spline
 }
@@ -113,6 +167,7 @@ function shapeWithLevers(
   inputTargets: readonly number[],
   factor: number,
   timeScale: number,
+  spec: RunSpec,
   { settings }: MotionContext,
 ): RunShape {
   const scaled = spline.sourceSegments.map((index) => (inputTargets[index] ?? 0) * factor)
@@ -120,8 +175,8 @@ function shapeWithLevers(
     spline,
     targets: scaled,
     boundScale: scaled.map(() => timeScale),
-    startSpeed: 0,
-    endsAtSpeed: false,
+    startSpeed: spec.launch?.speed ?? 0,
+    endsAtSpeed: spec.endsAtSpeed,
     motion: settings.motion,
     sprint: settings.paces.sprint,
   })
@@ -136,33 +191,109 @@ function shapeWithLevers(
   }
 }
 
-/** The shape of a run from a position, its imposed duration met exactly (D-107, D-129). */
-function runShape(run: RunAction, from: Vec2, context: MotionContext): RunShape {
-  const key = `${run.id}|${from.x}|${from.y}`
+/** Key of a run from a position with this spec, its levers aside. */
+function specKey(run: RunAction, from: Vec2, spec: RunSpec): string {
+  const { launch } = spec
+  const launched = launch ? `${launch.speed}|${launch.direction.x}|${launch.direction.y}` : ''
+  return `${run.id}|${from.x}|${from.y}|${spec.endsAtSpeed}|${spec.ignoreImposed}|${launched}`
+}
+
+/** The curve of a run from a position, and the target speeds drawn on it. */
+function runCurve(
+  run: RunAction,
+  from: Vec2,
+  spec: RunSpec,
+  { settings, caches }: MotionContext,
+): { spline: Spline; inputTargets: number[] } {
+  return {
+    spline: getSpline(
+      [from, ...run.waypoints.map((w) => ({ x: w.x, y: w.y }))],
+      spec.launch?.direction ?? null,
+      caches,
+    ),
+    inputTargets: run.waypoints.map((w) => speedOf(w.speed ?? run.pace, settings.paces)),
+  }
+}
+
+/**
+ * The shape of a run from a position: its levers, or its imposed duration met exactly (D-107,
+ * D-129), or its stored speeds.
+ */
+function runShape(run: RunAction, from: Vec2, spec: RunSpec, context: MotionContext): RunShape {
+  const { levers } = spec
+  const leversKey = levers ? `${levers.factor}|${levers.timeScale}|${levers.duration}` : ''
+  const key = `${specKey(run, from, spec)}|${leversKey}`
   const known = context.shapes.get(key)
   if (known) return known
-  const { settings, caches } = context
-  const spline = getSpline([from, ...run.waypoints.map((w) => ({ x: w.x, y: w.y }))], caches)
-  const inputTargets = run.waypoints.map((w) => speedOf(w.speed ?? run.pace, settings.paces))
+  const { spline, inputTargets } = runCurve(run, from, spec, context)
   const build = (factor: number, timeScale: number) =>
-    shapeWithLevers(spline, inputTargets, factor, timeScale, context)
-  let shape = build(1, 1)
+    shapeWithLevers(spline, inputTargets, factor, timeScale, spec, context)
+  let shape: RunShape
   const imposed = run.durationOverride
-  if (imposed !== undefined) {
+  if (levers) {
+    const built = build(levers.factor, levers.timeScale)
+    shape =
+      levers.duration === null
+        ? built
+        : { ...built, profile: withDuration(built.profile, levers.duration) }
+  } else if (imposed !== undefined && !spec.ignoreImposed) {
     const solution = solveLevers(
       (factor, timeScale) => build(factor, timeScale).profile,
       (profile) => profile.duration,
       imposed,
-      switchFactorOf(inputTargets, settings),
+      switchFactorOf(inputTargets, context.settings),
     )
     // Beyond the bounds of the search, the whole profile is scaled in time (D-136).
     shape = {
       ...build(solution.factor, solution.timeScale),
       profile: withDuration(solution.profile, imposed),
     }
+  } else {
+    shape = build(1, 1)
   }
   context.shapes.set(key, shape)
   return shape
+}
+
+/**
+ * The levers of a run from its stored speeds so that it lasts `duration` (SPEC 5.3, 5.8, D-136);
+ * null beyond the bound of the search.
+ */
+export function solveRun(
+  run: RunAction,
+  from: Vec2,
+  spec: RunSpec,
+  duration: number,
+  context: MotionContext,
+): RunLevers | null {
+  const key = `${specKey(run, from, spec)}|${duration}`
+  const known = context.solved.get(key)
+  if (known !== undefined) return known
+  const { spline, inputTargets } = runCurve(run, from, spec, context)
+  const solution = solveLevers(
+    (factor, timeScale) =>
+      shapeWithLevers(spline, inputTargets, factor, timeScale, spec, context).profile,
+    (profile) => profile.duration,
+    duration,
+    switchFactorOf(inputTargets, context.settings),
+  )
+  const levers =
+    solution.status === 'beyond'
+      ? null
+      : {
+          factor: solution.factor,
+          timeScale: solution.timeScale,
+          duration: solution.status === 'met' ? duration : null,
+        }
+  context.solved.set(key, levers)
+  return levers
+}
+
+/** What a run that prolongs this one starts with; null when it ends at rest (SPEC 5.2). */
+export function launchOf(previous: RunMotion): Launch | null {
+  const speed = endSpeedOf(previous.profile)
+  const direction = endDirection(previous.spline)
+  return speed > 0 && direction ? { speed, direction } : null
 }
 
 /** Motion of a run starting at `start` from `from`. */
@@ -171,9 +302,10 @@ export function runMotion(
   from: Vec2,
   planned: number,
   start: number,
+  spec: RunSpec,
   context: MotionContext,
 ): RunMotion {
-  const shape = runShape(run, from, context)
+  const shape = runShape(run, from, spec, context)
   return {
     actionId: run.id,
     entityId: run.entityId,
@@ -189,10 +321,53 @@ export function runMotion(
     targets: shape.targets,
     factor: shape.factor,
     accelFactor: shape.accelFactor,
+    endsAtSpeed: spec.endsAtSpeed,
+    launch: spec.launch,
     fastSegments: shape.fastSegments,
     speedLevels: [],
     accelAlerts: [],
   }
+}
+
+function relayShape(
+  action: BreakdownAction,
+  from: Vec2,
+  to: Vec2,
+  context: MotionContext,
+): RelayShape {
+  const key = `${action.id}|${from.x}|${from.y}|${to.x}|${to.y}|${action.duration}`
+  const known = context.relays.get(key)
+  if (known) return known
+  const { settings, caches } = context
+  const spline = getSpline([from, to], null, caches)
+  const sprint = settings.paces.sprint
+  const build = (factor: number, timeScale: number): SpeedProfile =>
+    buildProfile({
+      spline,
+      targets: [sprint * factor],
+      boundScale: [timeScale],
+      startSpeed: 0,
+      endsAtSpeed: false,
+      motion: settings.motion,
+      sprint,
+    })
+  const profile = build(1, 1)
+  let shape: RelayShape = { spline, profile, factor: 1, timeScale: 1, late: null }
+  if (profile.duration > action.duration) {
+    const solution = solveLevers(
+      build,
+      (p) => p.duration,
+      action.duration,
+      switchFactorOf([sprint], settings),
+    )
+    // Too far at sprint pace: she still arrives at the exit (D-079, D-136).
+    const scaled = withDuration(solution.profile, action.duration)
+    const { factor, timeScale } = solution
+    const late = { speed: segmentPeak(scaled, 0), accel: timeScale * timeScale }
+    shape = { spline, profile: scaled, factor, timeScale, late }
+  }
+  context.relays.set(key, shape)
+  return shape
 }
 
 /**
@@ -206,37 +381,9 @@ export function relayMotion(
   formation: number,
   context: MotionContext,
 ): { motion: RunMotion; late: { speed: number; accel: number } | null } {
-  const { settings, caches } = context
-  const spline = getSpline([from, to], caches)
-  const sprint = settings.paces.sprint
-  const build = (factor: number, timeScale: number): SpeedProfile =>
-    buildProfile({
-      spline,
-      targets: [sprint * factor],
-      boundScale: [timeScale],
-      startSpeed: 0,
-      endsAtSpeed: false,
-      motion: settings.motion,
-      sprint,
-    })
-  let factor = 1
-  let timeScale = 1
-  let profile = build(1, 1)
-  let late: { speed: number; accel: number } | null = null
-  if (profile.duration > action.duration) {
-    const solution = solveLevers(
-      build,
-      (p) => p.duration,
-      action.duration,
-      switchFactorOf([sprint], settings),
-    )
-    factor = solution.factor
-    timeScale = solution.timeScale
-    // Too far at sprint pace: she still arrives at the exit (D-079, D-136).
-    profile = withDuration(solution.profile, action.duration)
-    late = { speed: segmentPeak(profile, 0), accel: timeScale * timeScale }
-  }
-  const speed = sprint * factor * timeScale
+  const { settings } = context
+  const { spline, profile, factor, timeScale, late } = relayShape(action, from, to, context)
+  const speed = settings.paces.sprint * factor * timeScale
   return {
     motion: {
       actionId: action.id,
@@ -253,6 +400,8 @@ export function relayMotion(
       targets: [speed],
       factor: factor * timeScale,
       accelFactor: timeScale * timeScale,
+      endsAtSpeed: false,
+      launch: null,
       fastSegments: fastOf([speed], settings),
       speedLevels: [],
       accelAlerts: [],
