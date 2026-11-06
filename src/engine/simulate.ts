@@ -28,6 +28,7 @@ import {
 } from '../model/types'
 import { findPickup, isForwardPass, kickFlightTime, velocityBefore } from './ballEvents'
 import {
+  arrivalCapOf,
   launchOf,
   motionAt,
   motionEnd,
@@ -56,6 +57,9 @@ const FLIGHT_SAMPLES = 8
 
 const NO_RUN: ReadonlySet<Id> = new Set()
 
+/** What a run asks for before it starts; its launch and its arrival cap are decided at its start. */
+type PlannedSpec = Omit<RunSpec, 'launch' | 'arrivalCap'>
+
 /** An action of the line, with the instant it asks for once in its branch (SPEC 4.3). */
 export interface LineAction {
   /** The action, with the field of its right edge adapted when it is glued (SPEC 5.8). */
@@ -71,8 +75,8 @@ export interface LineAction {
   unreached: boolean
   /** Pass whose receiver meets it, glued to its arrival: it arrives then, at her point (SPEC 5.8). */
   meetAt: number | null
-  /** Levers, imposed duration and end at speed of a run; the launch is decided at its start. */
-  spec: Omit<RunSpec, 'launch'>
+  /** Levers, imposed duration and end at speed of a run. */
+  spec: PlannedSpec
   /** The run that this one prolongs when it really starts at its end (SPEC 5.2). */
   prolongs: Id | null
 }
@@ -92,6 +96,8 @@ export interface SimulationInput extends LineSetup {
   context: MotionContext
   /** By pass: the runs that depend on its arrival, left out of what it reads (D-152). */
   arrivalDependents: ReadonlyMap<Id, ReadonlySet<Id>>
+  /** By run ending at speed: the runs that bound its arrival speed (D-176). */
+  followers: ReadonlyMap<Id, readonly RunAction[]>
 }
 
 function initialHolder(play: Play): BallHolder {
@@ -152,7 +158,7 @@ interface PendingRun {
   planned: number
   /** Not before this instant: `planned`, or the arrival of a flight at a branch point (D-139 Q2). */
   ready: number
-  spec: Omit<RunSpec, 'launch'>
+  spec: PlannedSpec
   prolongs: Id | null
 }
 
@@ -166,7 +172,7 @@ const targetOf = (action: Action): IssueTarget => ({
 
 export function simulateLine(input: SimulationInput): LineSimulation {
   const { actions, branches, holderAtStart, settings, startPositions, context } = input
-  const { arrivalDependents } = input
+  const { arrivalDependents, followers } = input
   const players = new Map(input.players.map((p) => [p.id, p]))
   const playerIds = input.players.map((p) => p.id)
   const issues: Issue[] = []
@@ -237,7 +243,10 @@ export function simulateLine(input: SimulationInput): LineSimulation {
       Math.abs(start - motionEnd(last)) <= SIMULTANEOUS_EPSILON
         ? launchOf(last)
         : null
-    const spec = { ...entry.spec, launch }
+    const arrivalCap = entry.spec.endsAtSpeed
+      ? arrivalCapOf(entry.run, from, launch?.direction ?? null, followers, context)
+      : null
+    const spec = { ...entry.spec, launch, arrivalCap }
     motions.push(runMotion(entry.run, from, entry.planned, start, spec, context))
   }
 

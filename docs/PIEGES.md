@@ -54,6 +54,7 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - Point fixe de la passe : la première estimation de l'arrivée (position au lâcher) ne dépasse l'arrivée réelle que si la receveuse court vers le ballon. Un test de lecture en avant doit viser ce cas : une receveuse immobile ne lit rien d'avance, et le test passe sans rien exercer.
 - Vitest 5 : `bench` n'est plus exporté, c'est un élément du contexte d'un test (`test('x', async ({ bench }) => bench.compare(bench('a', fn), bench('b', fn)))`) ; le tableau des résultats n'apparaît qu'avec `--reporter=verbose`, et l'avertissement sur les accès aux exports vaut pour les deux côtés d'une comparaison.
 - Un test de collage qui attend un départ à la borne doit vérifier que la course est vraiment trop longue : marge à calculer, sinon le départ calculé reste après la borne et le test échoue sans défaut du moteur.
+- Test d'une chaîne de courses collées : le `start` enregistré compte dans la résolution, les courses étant bâties par ordre de `start`. Laissé à 0 par le constructeur `run`, la troisième passe avant la deuxième et la chaîne se rompt sans alerte ; le test peut alors passer à vide (vitesses nulles des deux côtés). Donner des `start` croissants et exiger `launch` non nul.
 - Compter une forme dans les événements de dessin (`recordingCtx`) : en N&B, le noir et le blanc des pastilles remplissent aussi jetons, pointes de flèche et rectangles du terrain ; reconnaître la forme par son chemin (sommets), pas par sa couleur seule.
 
 ## Application

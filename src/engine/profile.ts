@@ -29,6 +29,11 @@ export interface ProfileInput {
   startSpeed: number
   /** Ends at the cap of its last sample instead of stopping (« Finit lancée »). */
   endsAtSpeed: boolean
+  /**
+   * When it ends at speed: its arrival is at most this, in m/s, not scaled by k (D-176). Its backward
+   * pass anticipates this braking.
+   */
+  endSpeedCap?: number | null
   motion: MotionSettings
   /** Sprint pace: a slower target starts with a proportionally lower acceleration (D-135). */
   sprint: number
@@ -78,7 +83,10 @@ interface SegmentBounds {
   minCornerSpeed: number
 }
 
-function segmentBounds(input: ProfileInput, segment: number): SegmentBounds {
+/** What bounds a profile: all of its input but the start speed. */
+type BoundsInput = Omit<ProfileInput, 'startSpeed'>
+
+function segmentBounds(input: BoundsInput, segment: number): SegmentBounds {
   const { motion } = input
   const target = input.targets[segment] ?? 0
   const k = input.boundScale?.[segment] ?? 1
@@ -94,10 +102,67 @@ function segmentBounds(input: ProfileInput, segment: number): SegmentBounds {
   }
 }
 
+/** Cap of a sample of curvature kappa in a turn, its target aside. */
+function cornerCapOf(bounds: SegmentBounds, kappa: number): number {
+  const corner = kappa > 0 ? Math.sqrt(bounds.lateralAccel / kappa) : Infinity
+  return Math.max(bounds.minCornerSpeed, corner)
+}
+
 /** Cap of a sample of curvature kappa within a segment: its target, slower in a turn. */
 function capOf(bounds: SegmentBounds, kappa: number): number {
-  const corner = kappa > 0 ? Math.sqrt(bounds.lateralAccel / kappa) : Infinity
-  return Math.min(bounds.target, Math.max(bounds.minCornerSpeed, corner))
+  return Math.min(bounds.target, cornerCapOf(bounds, kappa))
+}
+
+/** What the samples of a run are bounded by. */
+interface SampleBounds {
+  /** Bounds of interval k, from sample k to sample k + 1. */
+  segmentOf: (k: number) => SegmentBounds
+  /** Cap of each sample. */
+  caps: number[]
+  /** Cap of sample k in a turn, its target aside. */
+  cornerCap: (k: number) => number
+}
+
+function sampleBounds(input: BoundsInput): SampleBounds {
+  const { spline } = input
+  const last = spline.cumulative.length - 1
+  const perSegment = spline.samplesPerSegment
+  const segments = Math.max(1, input.targets.length)
+  const bounds = Array.from({ length: segments }, (_, j) => segmentBounds(input, j))
+  const segmentOf = (k: number): SegmentBounds =>
+    bounds[Math.min(Math.floor(k / perSegment), segments - 1)] ?? segmentBounds(input, 0)
+  /** A cap at sample k; at a waypoint, the slower of both segments. */
+  const atSample = (k: number, cap: (of: SegmentBounds, kappa: number) => number): number => {
+    const kappa = curvatureAt(spline.samples, k === 0 ? 1 : k === last ? last - 1 : k)
+    const own = cap(segmentOf(Math.min(k, last - 1)), kappa)
+    return k > 0 && k < last && k % perSegment === 0
+      ? Math.min(own, cap(segmentOf(k - 1), kappa))
+      : own
+  }
+  const caps: number[] = []
+  for (let k = 0; k <= last; k++) caps.push(atSample(k, capOf))
+  return { segmentOf, caps, cornerCap: (k) => atSample(k, cornerCapOf) }
+}
+
+/**
+ * A run started above its target, slowed by its solver (f < 1), brakes from its start speed to its
+ * target at the constant braking, within the turns (D-176): the caps are raised on that prefix, the
+ * target ignored. A natural run is not touched: it starts at most at its admissible speed, so this
+ * braking is already under its caps.
+ */
+function raiseCapsFromStart(
+  startSpeed: number,
+  s: readonly number[],
+  { caps, segmentOf, cornerCap }: SampleBounds,
+): void {
+  if (startSpeed <= 0) return
+  let reachable = startSpeed
+  for (let k = 1; k < caps.length; k++) {
+    const ds = (s[k] ?? 0) - (s[k - 1] ?? 0)
+    reachable = Math.sqrt(Math.max(0, reachable ** 2 - 2 * segmentOf(k - 1).decel * ds))
+    if (reachable <= (caps[k] ?? 0)) return
+    caps[k] = Math.min(reachable, cornerCap(k))
+  }
 }
 
 /**
@@ -143,31 +208,19 @@ export function buildProfile(input: ProfileInput): SpeedProfile {
     }
   }
   const last = n - 1
-  const segments = Math.max(1, input.targets.length)
-  const bounds = Array.from({ length: segments }, (_, j) => segmentBounds(input, j))
-  /** Segment of interval k, from sample k to sample k + 1. */
-  const segmentOf = (k: number): SegmentBounds =>
-    bounds[Math.min(Math.floor(k / perSegment), segments - 1)] ?? segmentBounds(input, 0)
-  const caps: number[] = []
-  for (let k = 0; k < n; k++) {
-    const kappa = curvatureAt(spline.samples, k === 0 ? 1 : k === last ? last - 1 : k)
-    const own = capOf(segmentOf(Math.min(k, last - 1)), kappa)
-    // At a waypoint, the slower of both segments.
-    caps.push(
-      k > 0 && k < last && k % perSegment === 0
-        ? Math.min(own, capOf(segmentOf(k - 1), kappa))
-        : own,
-    )
-  }
+  const sampled = sampleBounds(input)
+  const { segmentOf, caps } = sampled
   const v = new Array<number>(n).fill(0)
   v[0] = Math.max(0, input.startSpeed)
+  raiseCapsFromStart(v[0], s, sampled)
   for (let k = 0; k < last; k++) {
     const ds = (s[k + 1] ?? 0) - (s[k] ?? 0)
     const { accel, asymptote } = segmentOf(k)
     v[k + 1] = accelerate(v[k] ?? 0, ds, caps[k + 1] ?? 0, accel, asymptote)
   }
-  if (!input.endsAtSpeed) v[last] = 0
-  // The imposed start speed wins over braking (continuity, D-106).
+  v[last] = input.endsAtSpeed ? Math.min(v[last] ?? 0, input.endSpeedCap ?? Infinity) : 0
+  // The imposed start speed wins over braking (continuity, D-106): it goes beyond the admissible
+  // speed only in the cases of SPEC 5.9, and its first interval then brakes harder.
   for (let k = last - 1; k >= 1; k--) {
     const ds = (s[k + 1] ?? 0) - (s[k] ?? 0)
     v[k] = Math.min(v[k] ?? 0, Math.sqrt((v[k + 1] ?? 0) ** 2 + 2 * segmentOf(k).decel * ds))
@@ -193,6 +246,25 @@ export function buildProfile(input: ProfileInput): SpeedProfile {
     length: spline.length,
     samplesPerSegment: perSegment,
   }
+}
+
+/**
+ * The highest speed a run can start at and still hold its caps without braking harder (SPEC 5.2,
+ * D-176): its backward pass alone, from its end to its first sample included. It does not depend on
+ * how the run really starts. Infinity for a run without length, which bounds nothing.
+ */
+export function admissibleStartSpeed(input: BoundsInput): number {
+  const { spline } = input
+  const s = spline.cumulative
+  const last = s.length - 1
+  if (last < 1 || spline.length <= 0) return Infinity
+  const { segmentOf, caps } = sampleBounds(input)
+  let speed = input.endsAtSpeed ? Math.min(caps[last] ?? 0, input.endSpeedCap ?? Infinity) : 0
+  for (let k = last - 1; k >= 0; k--) {
+    const ds = (s[k + 1] ?? 0) - (s[k] ?? 0)
+    speed = Math.min(caps[k] ?? 0, Math.sqrt(speed ** 2 + 2 * segmentOf(k).decel * ds))
+  }
+  return speed
 }
 
 /** Interval k such that t[k] <= time < t[k + 1] (clamped). */

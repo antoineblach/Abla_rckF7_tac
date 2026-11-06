@@ -336,6 +336,7 @@ export function compileLineUncached(
     settings,
     context,
     arrivalDependents: analysis.arrivalDependents,
+    followers: resolution.followers,
   })
   const lineIds = branches.map((branch) => branch.id)
   issues.push(...simulation.issues)

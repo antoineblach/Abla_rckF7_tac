@@ -1,11 +1,12 @@
 // Runs ending at speed (SPEC 5.2, D-139): the rule reads in the model, without flag. A run ends at
-// speed if and only if the next run of the player in the line is glued to its end, without gap. A
-// run of the trunk prolonged by part of the options ends at speed in every line (D-139 Q1). Pure.
+// speed if and only if the next run of the player in the line is glued to its end, without gap; it
+// arrives at most at the admissible speed of the runs that prolong it (D-176). A run of the trunk
+// prolonged by part of the options ends at speed in every line (D-139 Q1). Pure.
 import { pathToBranch } from '../model/branches'
 import type { Issue } from '../model/issues'
 import { branchLabelOf } from '../model/labels'
 import type { GlueAnalysis } from '../model/syncGraph'
-import type { Id, Play } from '../model/types'
+import type { Id, Play, RunAction } from '../model/types'
 import type { RunMotion } from './motion'
 
 const NO_GAP = 1e-9
@@ -23,6 +24,19 @@ export function prolongedRuns(play: Play, analysis: GlueAnalysis): Map<Id, Id> {
     const previous = play.actions.find((action) => action.id === edge.glue.targetId)
     if (next?.type !== 'run' || previous?.type !== 'run') continue
     if (next.entityId === previous.entityId) result.set(next.id, previous.id)
+  }
+  return result
+}
+
+/**
+ * By run, the runs to read for its arrival speed (D-176), from pairs next run → run it prolongs:
+ * every candidate at first, then the ones that really start at its end.
+ */
+export function followersOf(play: Play, pairs: ReadonlyMap<Id, Id>): Map<Id, RunAction[]> {
+  const result = new Map<Id, RunAction[]>()
+  for (const [nextId, previousId] of pairs) {
+    const next = play.actions.find((action) => action.id === nextId)
+    if (next?.type === 'run') result.set(previousId, [...(result.get(previousId) ?? []), next])
   }
   return result
 }

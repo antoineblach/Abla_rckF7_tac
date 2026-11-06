@@ -865,6 +865,56 @@ describe('the five events (SPEC 5.8)', () => {
     expect(motionSpeed(glued, motionEnd(glued) - 1e-6)).toBeGreaterThan(1)
   })
 
+  it('lands on her point when she then turns: arrival exact, speed bounded (D-152, D-176)', () => {
+    const c = compile(
+      play([
+        pass(uuid(20), A(1), A(2), 3),
+        run(uuid(11), A(2), [{ x: 60, y: 25 }], {
+          pace: 'sprint',
+          endGlue: stretches(uuid(20)),
+        }),
+        run(uuid(12), A(2), [{ x: 65, y: 35 }], { pace: 'sprint', startGlue: onEnd(uuid(11)) }),
+      ]),
+    )
+    const glued = motion(c, uuid(11))
+    expect(glueOf(c, uuid(11))?.status).toBe('ok')
+    expect(glueOf(c, uuid(12), 'start')?.status).toBe('ok')
+    expect(c.passes[0]?.arrivalT).toBeCloseTo(motionEnd(glued), 9)
+    expect(distance(c.passes[0]?.to ?? { x: 0, y: 0 }, { x: 60, y: 25 })).toBeLessThan(1e-9)
+    expect(glued.arrivalCap).toBeLessThan(5.5)
+    expect(motionSpeed(glued, motionEnd(glued) - 1e-9)).toBeLessThanOrEqual(
+      (glued.arrivalCap ?? NaN) + 1e-6,
+    )
+    expect(motion(c, uuid(12)).start).toBeCloseTo(motionEnd(glued), 9)
+  })
+
+  it('meets a rendez-vous on the run before a turn, its levers anticipating it (D-176)', () => {
+    const wanted = 1.8
+    const c = compile(
+      play([
+        run(uuid(10), A(1), [{ x: 45, y: 30 }], { durationOverride: wanted }),
+        run(uuid(11), A(2), [{ x: 60, y: 25 }], {
+          pace: 'sprint',
+          endGlue: stretches(uuid(10)),
+        }),
+        run(uuid(12), A(2), [{ x: 65, y: 35 }], { pace: 'sprint', startGlue: onEnd(uuid(11)) }),
+      ]),
+    )
+    const before = motion(c, uuid(11))
+    const after = motion(c, uuid(12))
+    expect(glueOf(c, uuid(11))?.status).toBe('ok')
+    expect(motionEnd(before)).toBeCloseTo(wanted, 9)
+    expect(after.start).toBeCloseTo(wanted, 9)
+    expect(before.accelFactor).toBeGreaterThan(1)
+    // A bound in m/s, not scaled by k; the alert is on the run sped up, not on the next one.
+    expect(motionSpeed(before, wanted - 1e-9)).toBeLessThanOrEqual(
+      (before.arrivalCap ?? NaN) + 1e-6,
+    )
+    expect(motionSpeed(after, after.start)).toBeLessThanOrEqual((before.arrivalCap ?? NaN) + 1e-6)
+    expect(before.accelAlerts.some((alert) => alert.kind === 'brake')).toBe(true)
+    expect(after.accelAlerts.filter((alert) => alert.kind === 'brake')).toEqual([])
+  })
+
   it('passes at the reception of a receiver glued to it, the next pass after her arrival', () => {
     const c = compile(
       play([

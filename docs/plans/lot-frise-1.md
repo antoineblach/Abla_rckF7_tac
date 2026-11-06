@@ -307,7 +307,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C4**
   - [x] **Étape C4 : bascule, suppressions, interface, e2e non portés mis de côté** (`testIgnore` provisoire). (commit « Étape C4 : bascule sur la frise, interface portée, e2e non portés mis de côté », après `8ce5af4`)
 - **Bloc C4b**
-  - [ ] **Étape C4b : raccord de deux courses collées, vitesse admise de la suite (D-176, SPEC 1.10 déjà écrite).**
+  - [x] **Étape C4b : raccord de deux courses collées, vitesse admise de la suite (D-176, SPEC 1.10 déjà écrite).** (commit « Étape C4b : raccord de deux courses collées, vitesse admise de la suite (D-176) », après `0691291`)
 - **Bloc C5**
   - [ ] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.**
 - [ ] **`/fin-lot`**, lancé par l'utilisateur : SPEC, ARCHITECTURE, RECETTE, README, ETAT, PR vers `main`.

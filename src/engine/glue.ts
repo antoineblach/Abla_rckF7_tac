@@ -3,7 +3,7 @@
 // order of the dependency graph: the trunk is the same in every line by construction. For each edge,
 // the line is simulated with the current values and the instant of the target is read there; then
 // the block is adjusted. One compilation for the whole tree, shared by its lines; at most one more
-// for the runs of the trunk whose next run really starts after their end (SPEC 5.2). Pure.
+// when a next run does not really start at the end of the run it may prolong (SPEC 5.2). Pure.
 import { PASS_FIXED_POINT_ITERATIONS } from '../config/defaults'
 import { copy, distance } from './vec'
 import { contentHash } from '../model/canonical'
@@ -21,7 +21,7 @@ import {
 import type { Action, Id, Play, RunAction, Sequence, Vec2 } from '../model/types'
 import { kickFlightTime } from './ballEvents'
 import type { EvalCaches } from './caches'
-import { prolongedRuns } from './launch'
+import { followersOf, prolongedRuns } from './launch'
 import {
   createMotionContext,
   motionAt,
@@ -102,6 +102,8 @@ export interface PlayResolution {
   prolongs: ReadonlyMap<Id, Id>
   /** By run ending at speed, the runs that really prolong it. */
   prolongedBy: ReadonlyMap<Id, readonly Id[]>
+  /** By run ending at speed, the runs that bound its arrival speed (D-176). */
+  followers: ReadonlyMap<Id, readonly RunAction[]>
 }
 
 /**
@@ -338,6 +340,7 @@ function walkBranches(
   context: MotionContext,
   launched: ReadonlySet<Id>,
   prolongs: ReadonlyMap<Id, Id>,
+  followers: ReadonlyMap<Id, readonly RunAction[]>,
 ): Walk {
   const walk: Walk = {
     actions: initialStates(play),
@@ -376,6 +379,7 @@ function walkBranches(
       settings,
       context,
       arrivalDependents: analysis.arrivalDependents,
+      followers,
     })
   }
 
@@ -508,6 +512,7 @@ function walkBranches(
       ignoreImposed: true,
       endsAtSpeed: motion.endsAtSpeed,
       launch: motion.launch,
+      arrivalCap: motion.arrivalCap,
     }
     const solved = (bound: number): RunLevers | null =>
       wanted > bound + EPSILON ? solveRun(run, from, spec, wanted - bound, context) : null
@@ -659,10 +664,12 @@ function walkBranches(
     return true
   }
 
-  const followers = new Map<Id, Id[]>()
+  const candidatesIn = new Map<Id, Id[]>()
   for (const id of prolongs.keys()) {
     const branchId = states.get(id)?.action.branchId
-    if (branchId !== undefined) followers.set(branchId, [...(followers.get(branchId) ?? []), id])
+    if (branchId !== undefined) {
+      candidatesIn.set(branchId, [...(candidatesIn.get(branchId) ?? []), id])
+    }
   }
 
   const seen = new Set<Id>()
@@ -675,7 +682,7 @@ function walkBranches(
     for (const edge of analysis.order) {
       if (edge.branchId === branchId && applyEdge(edge, read)) current = null
     }
-    const inBranch = followers.get(branchId)
+    const inBranch = candidatesIn.get(branchId)
     if (inBranch) {
       const final = read()
       for (const id of inBranch) {
@@ -705,14 +712,19 @@ export function resolvePlay(
   const context = createMotionContext(settings, caches)
   const prolongs = prolongedRuns(play, analysis)
   let launched: ReadonlySet<Id> = new Set(prolongs.values())
-  const walkWith = (ending: ReadonlySet<Id>): Walk =>
-    walkBranches(play, settings, analysis, setup, context, ending, prolongs)
-  let walk = walkWith(launched)
-  // A run none of whose next runs really starts at its end brakes normally, and never goes back to
-  // speed: this is the only second pass (SPEC 5.2).
-  if ([...launched].some((id) => !walk.prolongedBy.has(id))) {
-    launched = new Set(walk.prolongedBy.keys())
-    walk = walkWith(launched)
+  let followers: ReadonlyMap<Id, readonly RunAction[]> = followersOf(play, prolongs)
+  const walkWith = (): Walk =>
+    walkBranches(play, settings, analysis, setup, context, launched, prolongs, followers)
+  let walk = walkWith()
+  // A next run that does not really start at the end of its run does not count: a run left without
+  // any brakes normally, and never goes back to speed; the others arrive at the admissible speed of
+  // the real ones. This is the only second pass (SPEC 5.2, D-176).
+  const { prolongedBy } = walk
+  const real = [...prolongs].filter(([next, previous]) => prolongedBy.get(previous)?.includes(next))
+  if (real.length < prolongs.size) {
+    launched = new Set(prolongedBy.keys())
+    followers = followersOf(play, new Map(real))
+    walk = walkWith()
   }
   const resolution: PlayResolution = {
     analysis,
@@ -726,6 +738,7 @@ export function resolvePlay(
     launched,
     prolongs,
     prolongedBy: walk.prolongedBy,
+    followers,
   }
   caches.resolutions.set(key, resolution)
   return resolution

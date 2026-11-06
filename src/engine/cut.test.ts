@@ -1,8 +1,10 @@
-// Gap at a cut point (D-139 Q4, D-161): two runs glued against one run through the same points, at
-// the same speeds. Close, not identical: the first run is straight and the junction changes the
-// trajectory near the point (SPEC 5.8).
+// Gap at a cut point (D-139 Q4, D-161, D-176): two runs glued against one run through the same
+// points, at the same speeds. Close, not identical: the first run is straight and the junction
+// changes the trajectory near the point (SPEC 5.8).
 import { describe, expect, it } from 'vitest'
-import { pointAtDistance } from './spline'
+import { ARC_LENGTH_SAMPLES_PER_SEGMENT } from '../config/defaults'
+import { buildProfile, brakingOf } from './profile'
+import { buildSpline, pointAtDistance } from './spline'
 import { distance } from './vec'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../model/settings'
 import type { Pace, Play, Vec2 } from '../model/types'
@@ -42,6 +44,14 @@ const TURN_ARRIVAL_INSTANT = 0.4
 const STRAIGHT_TRAJECTORY = 0.01
 /** HYPOTHÈSE (D-161): straight line: gap of each instant, in seconds. */
 const STRAIGHT_INSTANT = 0.03
+/** HYPOTHÈSE (D-176): turn at 90°: gap of the instant at the cut point, in seconds. */
+const RIGHT_ANGLE_CUT_INSTANT = 0.3
+/** HYPOTHÈSE (D-176): turn at 90°, jog and sprint: gap of the instant of arrival, in seconds. */
+const RIGHT_ANGLE_ARRIVAL_INSTANT = 0.6
+/** HYPOTHÈSE (D-176): turn at 90°, walk: gap of the instant of arrival, in seconds. */
+const RIGHT_ANGLE_WALK_ARRIVAL_INSTANT = 1.2
+/** Rounding of the speeds at a junction. */
+const BRAKING_TOLERANCE = 1e-6
 
 interface Geometry {
   start: Vec2
@@ -126,8 +136,15 @@ function gaps(g: Geometry, pace: Pace) {
     trajectory: trajectoryGap(sampled(whole), [...sampled(before), ...sampled(after)]),
     atCut: Math.abs(whole.start + waypointTime(whole, 0) - motionEnd(before)),
     atArrival: Math.abs(motionEnd(whole) - motionEnd(after)),
+    before,
+    after,
+    codes: cut.issues.map((issue) => issue.code),
   }
 }
+
+/** Hardest braking of a motion, its junction included. */
+const peakBraking = ({ profile }: RunMotion): number =>
+  Math.max(0, ...profile.v.slice(1).map((_, k) => brakingOf(profile, k)))
 
 describe('gap at a cut point against one whole run (D-139 Q4, D-161)', () => {
   it('stays within the thresholds in a straight line', () => {
@@ -143,7 +160,7 @@ describe('gap at a cut point against one whole run (D-139 Q4, D-161)', () => {
 
   it('stays within the thresholds in a turn up to 45°', () => {
     for (const [a, b] of LEGS) {
-      for (const degrees of [15, 30, 45]) {
+      for (const degrees of [15, 30, 38, 45]) {
         for (const pace of PACES) {
           const label = `${a}/${b} ${degrees}° ${pace}`
           const found = gaps(geometry(a, b, degrees), pace)
@@ -152,6 +169,73 @@ describe('gap at a cut point against one whole run (D-139 Q4, D-161)', () => {
           expect(found.atArrival, label).toBeLessThanOrEqual(TURN_ARRIVAL_INSTANT)
         }
       }
+    }
+  })
+
+  it('stays within the thresholds at a right angle (D-176)', () => {
+    for (const [a, b] of LEGS) {
+      for (const pace of PACES) {
+        const label = `${a}/${b} ${pace}`
+        const found = gaps(geometry(a, b, 90), pace)
+        expect(found.atCut, label).toBeLessThanOrEqual(RIGHT_ANGLE_CUT_INSTANT)
+        expect(found.atArrival, label).toBeLessThanOrEqual(
+          pace === 'walk' ? RIGHT_ANGLE_WALK_ARRIVAL_INSTANT : RIGHT_ANGLE_ARRIVAL_INSTANT,
+        )
+      }
+    }
+  })
+})
+
+describe('junction of two runs glued (D-176)', () => {
+  it('never brakes harder than the braking of the settings, up to a right angle', () => {
+    for (const [a, b] of LEGS) {
+      for (const degrees of [38, 45, 90]) {
+        for (const pace of PACES) {
+          const label = `${a}/${b} ${degrees}° ${pace}`
+          const found = gaps(geometry(a, b, degrees), pace)
+          expect(found.codes, label).not.toContain('runBrakeTooHigh')
+          expect(peakBraking(found.before), label).toBeLessThanOrEqual(
+            settings.motion.decel + BRAKING_TOLERANCE,
+          )
+          expect(peakBraking(found.after), label).toBeLessThanOrEqual(
+            settings.motion.decel + BRAKING_TOLERANCE,
+          )
+        }
+      }
+    }
+  })
+
+  it('leaves a straight line as it was: the next run does not limit the first one', () => {
+    for (const [a, b] of LEGS) {
+      for (const pace of PACES) {
+        const { before } = gaps(geometry(a, b, 0), pace)
+        expect(before.profile, `${a}/${b} ${pace}`).toEqual(
+          buildProfile({
+            spline: before.spline,
+            targets: before.targets,
+            startSpeed: 0,
+            endsAtSpeed: true,
+            motion: settings.motion,
+            sprint: settings.paces.sprint,
+          }),
+        )
+      }
+    }
+  })
+
+  it('changes no trajectory: only the speeds on the curves', () => {
+    for (const degrees of [38, 45, 90]) {
+      const g = geometry(10, 10, degrees)
+      const { before, after } = gaps(g, 'sprint')
+      const alone = motionOf(
+        compile(scene(g, [run(BEFORE, A, [g.cut], { pace: 'sprint' })])),
+        BEFORE,
+      )
+      expect(before.spline).toEqual(alone.spline)
+      const joined = buildSpline([g.cut, g.end], ARC_LENGTH_SAMPLES_PER_SEGMENT, { x: 1, y: 0 })
+      after.spline.samples.forEach((point, k) => {
+        expect(distance(point, joined.samples[k] ?? { x: NaN, y: NaN })).toBeLessThan(1e-9)
+      })
     }
   })
 })

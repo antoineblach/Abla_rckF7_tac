@@ -3,6 +3,7 @@
 // Pure: the result depends only on the inputs.
 import { ARC_LENGTH_SAMPLES_PER_SEGMENT } from '../config/defaults'
 import {
+  admissibleStartSpeed,
   buildProfile,
   distanceAt,
   endSpeedOf,
@@ -59,9 +60,11 @@ export interface RunSpec {
   levers: RunLevers | null
   /** The imposed duration does not apply (D-136). */
   ignoreImposed: boolean
-  /** Ends at the speed of its last segment instead of stopping. */
+  /** Ends at speed instead of stopping. */
   endsAtSpeed: boolean
   launch: Launch | null
+  /** Highest arrival speed when it ends at speed (D-176), a bound in m/s, null otherwise. */
+  arrivalCap: number | null
 }
 
 export const PLAIN_RUN: RunSpec = {
@@ -69,6 +72,7 @@ export const PLAIN_RUN: RunSpec = {
   ignoreImposed: false,
   endsAtSpeed: false,
   launch: null,
+  arrivalCap: null,
 }
 
 export interface RunMotion {
@@ -99,6 +103,8 @@ export interface RunMotion {
   endsAtSpeed: boolean
   /** Prolongs the run before it (SPEC 5.2), null when it starts from rest. */
   launch: Launch | null
+  /** Highest arrival speed when it ends at speed (D-176), null otherwise and for a relayer. */
+  arrivalCap: number | null
   /** Spline segments at the sprint pace of the settings or faster: drawn thicker (D-115). */
   fastSegments: boolean[]
   /** Spline segments whose peak is beyond a speed threshold (SPEC 5.9), else null. */
@@ -177,6 +183,7 @@ function shapeWithLevers(
     boundScale: scaled.map(() => timeScale),
     startSpeed: spec.launch?.speed ?? 0,
     endsAtSpeed: spec.endsAtSpeed,
+    endSpeedCap: spec.arrivalCap,
     motion: settings.motion,
     sprint: settings.paces.sprint,
   })
@@ -195,24 +202,55 @@ function shapeWithLevers(
 function specKey(run: RunAction, from: Vec2, spec: RunSpec): string {
   const { launch } = spec
   const launched = launch ? `${launch.speed}|${launch.direction.x}|${launch.direction.y}` : ''
-  return `${run.id}|${from.x}|${from.y}|${spec.endsAtSpeed}|${spec.ignoreImposed}|${launched}`
+  const ends = `${spec.endsAtSpeed}|${spec.arrivalCap}`
+  return `${run.id}|${from.x}|${from.y}|${ends}|${spec.ignoreImposed}|${launched}`
 }
 
 /** The curve of a run from a position, and the target speeds drawn on it. */
 function runCurve(
   run: RunAction,
   from: Vec2,
-  spec: RunSpec,
+  direction: Vec2 | null,
   { settings, caches }: MotionContext,
 ): { spline: Spline; inputTargets: number[] } {
   return {
-    spline: getSpline(
-      [from, ...run.waypoints.map((w) => ({ x: w.x, y: w.y }))],
-      spec.launch?.direction ?? null,
-      caches,
-    ),
+    spline: getSpline([from, ...run.waypoints.map((w) => ({ x: w.x, y: w.y }))], direction, caches),
     inputTargets: run.waypoints.map((w) => speedOf(w.speed ?? run.pace, settings.paces)),
   }
+}
+
+/**
+ * Highest arrival speed of a run ending at speed (SPEC 5.2, D-176): the smallest admissible speed of
+ * the runs that prolong it, each on its curve joined to this run, from its waypoints and its stored
+ * speeds. It reads neither their start nor their levers, so it adds no edge to the dependency graph
+ * (SPEC 4.3); in a chain, it goes from the last run to the first.
+ */
+export function arrivalCapOf(
+  run: RunAction,
+  from: Vec2,
+  direction: Vec2 | null,
+  followers: ReadonlyMap<Id, readonly RunAction[]>,
+  context: MotionContext,
+): number {
+  const { motion, paces } = context.settings
+  const { spline } = runCurve(run, from, direction, context)
+  const end = spline.points[spline.points.length - 1] ?? from
+  const arrival = endDirection(spline)
+  let cap = Infinity
+  for (const follower of followers.get(run.id) ?? []) {
+    const curve = runCurve(follower, end, arrival, context)
+    const chained = followers.has(follower.id)
+    const admissible = admissibleStartSpeed({
+      spline: curve.spline,
+      targets: curve.spline.sourceSegments.map((index) => curve.inputTargets[index] ?? 0),
+      endsAtSpeed: chained,
+      endSpeedCap: chained ? arrivalCapOf(follower, end, arrival, followers, context) : null,
+      motion,
+      sprint: paces.sprint,
+    })
+    cap = Math.min(cap, admissible)
+  }
+  return cap
 }
 
 /**
@@ -225,7 +263,7 @@ function runShape(run: RunAction, from: Vec2, spec: RunSpec, context: MotionCont
   const key = `${specKey(run, from, spec)}|${leversKey}`
   const known = context.shapes.get(key)
   if (known) return known
-  const { spline, inputTargets } = runCurve(run, from, spec, context)
+  const { spline, inputTargets } = runCurve(run, from, spec.launch?.direction ?? null, context)
   const build = (factor: number, timeScale: number) =>
     shapeWithLevers(spline, inputTargets, factor, timeScale, spec, context)
   let shape: RunShape
@@ -269,7 +307,7 @@ export function solveRun(
   const key = `${specKey(run, from, spec)}|${duration}`
   const known = context.solved.get(key)
   if (known !== undefined) return known
-  const { spline, inputTargets } = runCurve(run, from, spec, context)
+  const { spline, inputTargets } = runCurve(run, from, spec.launch?.direction ?? null, context)
   const solution = solveLevers(
     (factor, timeScale) =>
       shapeWithLevers(spline, inputTargets, factor, timeScale, spec, context).profile,
@@ -323,6 +361,7 @@ export function runMotion(
     accelFactor: shape.accelFactor,
     endsAtSpeed: spec.endsAtSpeed,
     launch: spec.launch,
+    arrivalCap: spec.arrivalCap,
     fastSegments: shape.fastSegments,
     speedLevels: [],
     accelAlerts: [],
@@ -402,6 +441,7 @@ export function relayMotion(
       accelFactor: timeScale * timeScale,
       endsAtSpeed: false,
       launch: null,
+      arrivalCap: null,
       fastSegments: fastOf([speed], settings),
       speedLevels: [],
       accelAlerts: [],

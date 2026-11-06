@@ -7,6 +7,7 @@ import { straightRun, PROFILE_TOLERANCE } from '../test/profileMath'
 import { createCaches } from './caches'
 import { evaluate } from './evaluate'
 import { motionEnd, motionSpeed, motionVelocity, type RunMotion } from './motion'
+import { brakingOf } from './profile'
 import { compileLine, type CompiledLine } from './timeline'
 
 const settings: EngineSettings = engineSettingsOf(defaultSettings())
@@ -50,6 +51,11 @@ function motionOf(compiled: CompiledLine, id: Id): RunMotion {
 }
 
 const codes = (compiled: CompiledLine) => compiled.issues.map((i) => i.code)
+/** Hardest braking of a motion, its junction included. */
+const peakBraking = ({ profile }: RunMotion): number =>
+  Math.max(0, ...profile.v.slice(1).map((_, k) => brakingOf(profile, k)))
+/** Rounding of the speeds at a junction. */
+const BRAKING_TOLERANCE = 1e-6
 const glued = (targetId: Id, offset?: number): GlueRef => ({
   targetId,
   event: 'end',
@@ -68,13 +74,13 @@ describe('run ending at speed (SPEC 5.2)', () => {
     const a = motionOf(compiled, FIRST)
     const b = motionOf(compiled, NEXT)
     expect(a.endsAtSpeed).toBe(true)
-    expect(
-      Math.abs(a.duration - straightRun(20, 5.5, motionSettings, sprint, 0, 5.5)),
-    ).toBeLessThan(PROFILE_TOLERANCE)
     const junction = motionEnd(a)
     expect(b.start).toBeCloseTo(junction, 12)
-    expect(motionSpeed(a, junction - 1e-9)).toBeCloseTo(5.5, 6)
-    expect(motionSpeed(b, junction)).toBeCloseTo(5.5, 6)
+    // At the admissible speed of the next run, which turns: under its pace (D-176).
+    const arrival = a.arrivalCap ?? NaN
+    expect(arrival).toBeLessThan(5.5)
+    expect(motionSpeed(a, junction - 1e-9)).toBeCloseTo(arrival, 6)
+    expect(motionSpeed(b, junction)).toBeCloseTo(arrival, 6)
     // Same velocity on both sides: speed, and direction (tangent junction) up to the chord of one
     // sample interval.
     const before = motionVelocity(a, junction - 1e-6)
@@ -87,14 +93,27 @@ describe('run ending at speed (SPEC 5.2)', () => {
     expect(b.spline.startDirection).toEqual(endDirection(a.spline))
     // Its waypoints are those drawn; the run before does not change (SPEC 5.2).
     expect(b.waypoints).toEqual([{ x: 70, y: 40 }])
-    // Its start speed wins over the braking into the turn: the braking alert tells (D-132).
-    expect(codes(compiled)).toEqual(['runBrakeTooHigh'])
+    // It starts at a speed its curve admits: no braking alert (D-176).
+    expect(codes(compiled)).toEqual([])
+    expect(peakBraking(b)).toBeLessThanOrEqual(motionSettings.decel + BRAKING_TOLERANCE)
   })
 
-  it('does not depend on the next run: only its first flag, read in the model', () => {
+  it('ends at the speed of its pace before a straight next run', () => {
+    const a = motionOf(compile(play([first, next({ waypoints: [{ x: 80, y: 30 }] })])), FIRST)
+    expect(
+      Math.abs(a.duration - straightRun(20, 5.5, motionSettings, sprint, 0, 5.5)),
+    ).toBeLessThan(PROFILE_TOLERANCE)
+    expect(motionSpeed(a, motionEnd(a) - 1e-9)).toBeCloseTo(5.5, 6)
+  })
+
+  it('does not depend on the next run as long as that one does not limit it', () => {
     const shape = (x: number) =>
-      motionOf(compile(play([first, next({ waypoints: [{ x, y: 40 }] })])), FIRST)
+      motionOf(compile(play([first, next({ waypoints: [{ x, y: 30 }] })])), FIRST)
     expect(shape(70).profile).toEqual(shape(90).profile)
+    // A next run that turns limits it: it brakes for it.
+    expect(motionOf(compile(play([first, next()])), FIRST).duration).toBeGreaterThan(
+      shape(70).duration,
+    )
   })
 
   it('brakes to a stop when the next run has a gap: it is a wait', () => {
@@ -162,7 +181,7 @@ describe('run ending at speed (SPEC 5.2)', () => {
     expect(b.launch).not.toBeNull()
     expect(b.start).toBeCloseTo(motionEnd(a), 12)
     expect(motionEnd(b)).toBeCloseTo(motionEnd(motionOf(compiled, uuid(40))), 9)
-    expect(motionSpeed(b, b.start)).toBeCloseTo(5.5, 9)
+    expect(motionSpeed(b, b.start)).toBeCloseTo(a.arrivalCap ?? NaN, 9)
   })
 
   it('keeps its start speed under an imposed duration beyond the bounds (D-130)', () => {
@@ -171,7 +190,7 @@ describe('run ending at speed (SPEC 5.2)', () => {
     expect(b.launch).not.toBeNull()
     expect(b.duration).toBeCloseTo(1, 9)
     expect(b.accelFactor).toBeGreaterThan(1)
-    expect(motionSpeed(b, b.start)).toBeCloseTo(5.5, 9)
+    expect(motionSpeed(b, b.start)).toBeCloseTo(motionOf(compiled, FIRST).arrivalCap ?? NaN, 9)
   })
 
   it('is never at speed when a breakdown stops it, recompiled with a normal braking', () => {
@@ -190,6 +209,161 @@ describe('run ending at speed (SPEC 5.2)', () => {
   })
 })
 
+describe('arrival at the admissible speed of the next run (SPEC 5.2, D-176)', () => {
+  it('goes through a chain of three without braking harder', () => {
+    // 20 m, then 2 m at 60°, then 20 m at 60° more.
+    const middle = { x: 61, y: 30 + Math.sqrt(3) }
+    const end = { x: middle.x - 10, y: middle.y + 10 * Math.sqrt(3) }
+    const compiled = compile(
+      play([
+        first,
+        next({ waypoints: [middle] }),
+        run(uuid(33), A1, [end], { pace: 'sprint', start: 6, startGlue: glued(NEXT) }),
+      ]),
+    )
+    const runs = [FIRST, NEXT, uuid(33)].map((id) => motionOf(compiled, id))
+    for (const m of runs) {
+      expect(peakBraking(m)).toBeLessThanOrEqual(motionSettings.decel + BRAKING_TOLERANCE)
+    }
+    expect(codes(compiled)).toEqual([])
+    const [a, b, c] = runs
+    if (!a || !b || !c) throw new Error('missing run')
+    expect(b.launch).not.toBeNull()
+    expect(c.launch).not.toBeNull()
+    expect(motionSpeed(b, b.start)).toBeCloseTo(motionSpeed(a, motionEnd(a) - 1e-9), 5)
+    expect(motionSpeed(c, c.start)).toBeCloseTo(motionSpeed(b, motionEnd(b) - 1e-9), 5)
+  })
+
+  it('reads a chain from its last run: the short run in the middle passes the bound on', () => {
+    // 20 m, 2 m straight on, then 15 m at 90°.
+    const compiled = compile(
+      play([
+        first,
+        next({ waypoints: [{ x: 62, y: 30 }] }),
+        run(uuid(33), A1, [{ x: 62, y: 45 }], { pace: 'sprint', start: 6, startGlue: glued(NEXT) }),
+      ]),
+    )
+    const middleCap = motionOf(compiled, NEXT).arrivalCap ?? NaN
+    const firstCap = motionOf(compiled, FIRST).arrivalCap ?? NaN
+    expect(middleCap).toBeLessThan(5.5)
+    expect(firstCap).toBeLessThan(5.5)
+    expect(firstCap).toBeCloseTo(Math.sqrt(middleCap ** 2 + 2 * motionSettings.decel * 2), 6)
+    expect(motionOf(compiled, uuid(33)).arrivalCap).toBeNull()
+  })
+
+  it('reads the whole next run, even when a breakdown cuts it', () => {
+    const free = compile(play([first, next()]))
+    const formation = motionEnd(motionOf(free, FIRST)) + 1
+    const cut = compile(play([first, next(), breakdown(uuid(50), A1, A2, A3, formation)]))
+    expect(motionOf(cut, NEXT).until).toBeCloseTo(formation, 12)
+    expect(motionOf(cut, NEXT).launch).not.toBeNull()
+    expect(motionOf(cut, FIRST).arrivalCap).toBe(motionOf(free, FIRST).arrivalCap)
+    expect(motionOf(cut, FIRST).profile).toEqual(motionOf(free, FIRST).profile)
+  })
+
+  it('takes the time of one run across a change of pace', () => {
+    const two = compile(
+      play([
+        first,
+        run(NEXT, A1, [{ x: 80, y: 30 }], { pace: 'walk', start: 3, startGlue: glued(FIRST) }),
+      ]),
+    )
+    const one = compile(
+      play([
+        run(
+          uuid(33),
+          A1,
+          [
+            { x: 60, y: 30, speed: 'sprint' },
+            { x: 80, y: 30 },
+          ],
+          { pace: 'walk' },
+        ),
+      ]),
+    )
+    const arrival = motionEnd(motionOf(two, NEXT))
+    expect(arrival).toBeCloseTo(15, 1)
+    expect(Math.abs(arrival - motionEnd(motionOf(one, uuid(33))))).toBeLessThan(0.03)
+    expect(motionOf(two, FIRST).arrivalCap).toBeCloseTo(settings.paces.walk, 9)
+    expect(codes(two)).toEqual([])
+  })
+
+  it('gives the run before the same profile, whatever the levers of the next one', () => {
+    const shape = (extra: Partial<RunAction>) =>
+      motionOf(compile(play([first, next(extra)])), FIRST).profile
+    expect(shape({ durationOverride: 1 })).toEqual(shape({}))
+    expect(shape({ durationOverride: 12 })).toEqual(shape({}))
+  })
+
+  it('holds an imposed duration on the next run, slow or fast, from its arrival speed', () => {
+    for (const duration of [1, 12]) {
+      const compiled = compile(play([first, next({ durationOverride: duration })]))
+      const b = motionOf(compiled, NEXT)
+      expect(b.duration, `${duration} s`).toBeCloseTo(duration, 9)
+      expect(motionSpeed(b, b.start), `${duration} s`).toBeCloseTo(
+        motionOf(compiled, FIRST).arrivalCap ?? NaN,
+        9,
+      )
+    }
+    // Slowed: it brakes from its start speed down to its target, at the constant braking.
+    const slow = compile(play([first, next({ durationOverride: 12 })]))
+    const b = motionOf(slow, NEXT)
+    expect(b.factor).toBeLessThan(1)
+    expect(peakBraking(b)).toBeLessThanOrEqual(motionSettings.decel + BRAKING_TOLERANCE)
+    expect(codes(slow)).toEqual([])
+  })
+
+  it('arrives at the smallest speed of its options: same trunk, the straight one speeds up', () => {
+    // 20 m, then 15 m at 90° in option A, or 20 m straight on in option B.
+    const p = play(
+      [
+        first,
+        next({ branchId: P.optA, waypoints: [{ x: 60, y: 45 }] }),
+        next({ id: uuid(33), branchId: P.optB, waypoints: [{ x: 80, y: 30 }] }),
+      ],
+      twoOptions(1),
+    )
+    const inA = compile(p, LINE_A)
+    const inB = compile(p, LINE_B)
+    const a = motionOf(inA, FIRST)
+    expect(motionOf(inB, FIRST)).toEqual(a)
+    expect(a.arrivalCap).toBeCloseTo(3.58, 2)
+    expect(motionOf(inA, NEXT).launch?.speed).toBeCloseTo(a.arrivalCap ?? NaN, 9)
+    // The straight option starts from the same speed, and speeds up again.
+    const straightOn = motionOf(inB, uuid(33))
+    expect(straightOn.launch?.speed).toBeCloseTo(a.arrivalCap ?? NaN, 9)
+    expect(Math.max(...straightOn.profile.v)).toBeCloseTo(5.5, 6)
+    for (let t = 0; t < 1 - 1e-9; t += 0.05) {
+      const at = (line: Id[]) => evaluate(p, line, t, settings, createCaches()).players
+      expect(at(LINE_A)).toEqual(at(LINE_B))
+    }
+  })
+
+  it('does not count a next run that does not really start at its end', () => {
+    // Option B1 starts at 8 s, long after the end of the run: its turn does not bound it.
+    const p = play(
+      [
+        first,
+        next({ id: uuid(33), branchId: P.optA, waypoints: [{ x: 80, y: 30 }] }),
+        next({ branchId: P.optB1, waypoints: [{ x: 60, y: 45 }] }),
+      ],
+      {
+        branches: [
+          branch(P.root, null, { branchAt: 1 }),
+          branch(P.optA, P.root, { isDefault: true }),
+          branch(P.optB, P.root, { branchAt: 8 }),
+          branch(P.optB1, P.optB, { isDefault: true }),
+          branch(P.optB2, P.optB),
+        ],
+      },
+    )
+    const a = motionOf(compile(p, LINE_A), FIRST)
+    expect(a.endsAtSpeed).toBe(true)
+    expect(a.arrivalCap).toBeCloseTo(5.5, 9)
+    expect(motionOf(compile(p, [P.root, P.optB, P.optB1]), NEXT).launch).toBeNull()
+  })
+})
+
 describe('run of the trunk and its options (SPEC 5.2, D-139 Q1)', () => {
   const inOption = (branchId: Id, extra: Partial<RunAction> = {}): RunAction =>
     next({ branchId, ...extra })
@@ -205,7 +379,7 @@ describe('run of the trunk and its options (SPEC 5.2, D-139 Q1)', () => {
     )
     const prolonged = compile(p, LINE_A)
     const stopped = compile(p, LINE_B)
-    expect(codes(prolonged)).toEqual(['runBrakeTooHigh'])
+    expect(codes(prolonged)).toEqual([])
     expect(stopped.issues).toEqual([
       {
         code: 'runNotContinued',
@@ -257,7 +431,7 @@ describe('run of the trunk and its options (SPEC 5.2, D-139 Q1)', () => {
     const p = play([first, inOption(P.optA)], twoOptions(1))
     const c = compile(p, LINE_A)
     expect(motionOf(c, NEXT).launch).not.toBeNull()
-    expect(codes(c)).toEqual(['runBrakeTooHigh'])
+    expect(codes(c)).toEqual([])
   })
 
   it('follows the branch point glued to its end: the option prolongs it', () => {
