@@ -16,7 +16,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
 | [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-138 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
-| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-175 (frise-1), puis les décisions de frise-2 à frise-4 |
+| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-176 (frise-1), puis les décisions de frise-2 à frise-4 |
 
 ## Lecture
 
@@ -164,9 +164,9 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-134 | réglages v4 | précisée par D-138 | 4.4, 6.5 |
 | D-135 | modèle de mouvement et calibration | en vigueur | 4.4, 5.3, 5.9 |
 | D-136 | départ différé en retard d'une course à durée imposée | précisée par D-139 | 5.3, 5.8 |
-| D-137 | placement et dessin des pastilles d'accélération et de freinage | en vigueur | 5.9 |
+| D-137 | placement et dessin des pastilles d'accélération et de freinage | précisée par D-176 | 5.9 |
 | D-138 | précisions de l'interface du lot 3bis-1 | en vigueur | 6.5, 6.7, 7 |
-| D-139 | frise chronologique à la place des temps | précisée par D-151 et D-152 | 2, 3.3, 3.5, 4, 5, 6.1 à 6.5, 6.7, 7, 8.7, 9.2, 9.3, 10, 11.7, 12 |
+| D-139 | frise chronologique à la place des temps | précisée par D-151, D-152 et D-176 | 2, 3.3, 3.5, 4, 5, 6.1 à 6.5, 6.7, 7, 8.7, 9.2, 9.3, 10, 11.7, 12 |
 | D-140 | v5 écrite à côté de la v4, bascule en C4 | en vigueur | — |
 | D-141 | SPEC 6.3 appliquée dès frise-1 | en vigueur | 6.3 |
 | D-142 | liste « Ligne », sans création de branche ni de séquence en frise-1 | en vigueur | — |
@@ -188,10 +188,10 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-158 | embranchement qui n'est pas après le précédent | en vigueur | non intégrée (4.3) |
 | D-159 | lecture des intervalles dans le moteur | en vigueur | non intégrée (5.1) |
 | D-160 | course d'une participante à l'instant de la formation ou de la sortie | en vigueur | non intégrée (5.3) |
-| D-161 | seuils de l'écart au point de coupe, relatifs à la longueur | en vigueur | 5.8 |
+| D-161 | seuils de l'écart au point de coupe, relatifs à la longueur | précisée par D-176 | 5.8 |
 | D-162 | résolution des collages sur tout l'arbre, une fois par combinaison | précisée par D-169 | non intégrée (5.8) |
 | D-163 | passe reçue par une course collée à son arrivée | en vigueur | non intégrée (5.4) |
-| D-164 | seconde passe de la lancée | en vigueur | non intégrée (5.2) |
+| D-164 | seconde passe de la lancée | précisée par D-176 | 5.2 |
 | D-165 | bord gauche seul d'une séquence | en vigueur | non intégrée (5.8) |
 | D-166 | alerte d'un ballon plus lent que sa receveuse | en vigueur | non intégrée (5.4) |
 | D-167 | bords de bloc et embranchements dans le lecteur de frise-1 | en vigueur | — |
@@ -203,3 +203,4 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-173 | halo de survol : scène à `t` en lecture, toute la ligne à l'arrêt | en vigueur | non intégrée (6.4) |
 | D-174 | message propre pour les combinaisons refusées à l'import | en vigueur | non intégrée (4.4) |
 | D-175 | poignées réservées à l'outil Sélection, précisions de l'interface de frise-1 | en vigueur | non intégrée (6.2, 6.5) |
+| D-176 | raccord de deux courses collées : vitesse admise de la suite | en vigueur | 5.2, 5.3, 5.9 |

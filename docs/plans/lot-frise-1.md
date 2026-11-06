@@ -183,6 +183,40 @@ Reçu de l'étape C4 :
 - Noms à viser : `current-interval` (ex `current-phase`), région « Actions de la ligne » (ex « Actions du temps »), `src/ui/actions/` (ex `ui/phases`) ; inspecteur : champ « Départ » (ex « Délai », « Formation »), `block-start-computed`, `start-glue`, `end-glue`, `glue-factors`, `run-launch` (ex `launch-wait`), boutons « Décoller le départ » et « Décoller la fin ». « Finit lancée » n'est plus une case à cocher.
 - À couvrir de bout en bout en C5 : le câblage du halo dans `FieldCanvas`, à l'arrêt et en lecture (D-173), dans `actions-list` ; `drawRun` depuis la fin de la course précédente (D-175), couvert en unitaire seulement. Vérifiés à l'écran en C4 par une spec jetable : collage, halo à l'arrêt, « Décoller », lecture et pause.
 
+### Étape C4b
+
+Raccord de deux courses collées, D-176, ajoutée après C4 par `/changement-spec` (SPEC 1.10, déjà écrite). Une course lancée arrive au plus à la vitesse admise de sa suite ; sa passe arrière anticipe ce freinage ; aucune géométrie ne change.
+
+Lecture : SPEC 5.2, 5.3 (profil et solveur), 5.9 (troisième puce) ; D-176 ; `src/engine/` `profile`, `motion`, `launch`, `simulate` (`depart`), `glue` (`applyRunEnd`, `resolvePlay`), `timeline` ; PIEGES : Vitest et images de référence.
+
+`npm run bench` **avant toute modification**, puis :
+
+| Fichier | Changement |
+|---|---|
+| `profile.ts` | Extraire le calcul des plafonds de `buildProfile`. `ProfileInput.endSpeedCap` : si la course finit lancée, `v[last]` au plus cette borne, en m/s, non multipliée par k. Nouvelle `admissibleStartSpeed(input)` : passe arrière seule depuis la fin (0, ou la borne d'une course qui finit lancée), `k` jusqu'à 0, plafond du premier échantillon compris ; spline dégénérée : `Infinity`. Suite ralentie : avant la passe avant, si `startSpeed > 0`, relever les plafonds sur le préfixe : `r` part du départ, baisse à chaque intervalle par `sqrt(r² − 2·decel·ds)`, arrêt dès que `r <= plafond` ; sinon plafond = `min(r, plafond de virage)`, la cible étant ignorée. Commentaire de « The imposed start speed wins » à reprendre. |
+| `motion.ts` | `RunSpec.arrivalCap` et `RunMotion.arrivalCap` (`null` hors lancée, relayeur compris), dans `specKey` ; `arrivalCapOf(run, from, direction, followers, context)`, récursive : pour chaque suite, `runCurve` depuis le dernier point et `endDirection` de la spline, `admissibleStartSpeed` avec ses vitesses enregistrées, `endsAtSpeed` et sa propre borne si elle a des suites ; le plus petit. `shapeWithLevers` transmet la borne. Sans cache de plus tant que le bench ne bouge pas de plus de 1 ms. |
+| `launch.ts` | `followersOf(play, pairs)` : par course, les `RunAction` à lire, depuis `prolongedRuns`. En-tête à reprendre. |
+| `simulate.ts` | `SimulationInput.followers` ; `depart` calcule `arrivalCap` après `launch`, si `spec.endsAtSpeed`. |
+| `glue.ts` | `followers` dans `walkBranches` et `PlayResolution` ; `applyRunEnd` reprend `motion.arrivalCap` dans son `spec`. `resolvePlay` : seconde passe dès qu'une suite candidate de `prolongs` n'est pas dans `walk.prolongedBy`, avec `followers` réduit aux suites réelles ; toujours une seule. |
+| `timeline.ts` | Transmet `resolution.followers`. |
+
+Aucune migration : rien de cela n'est stocké, `schemaVersion` reste à 5. `spline.ts` et `runAlerts.ts` ne changent pas.
+
+Tests nouveaux :
+- `cut.test` : même tracé en une et deux courses, les 9 géométries, 38°, 45° et 90°, marche, trot et sprint : aucune alerte de freinage, freinage <= `motion.decel`, instants selon D-161 jusqu'à 45° ; à 90° selon les constantes de D-176, commentées `HYPOTHÈSE` (trot et sprint : coupe <= 0,3 s, arrivée <= 0,6 s ; marche : coupe <= 0,3 s, arrivée <= 1,2 s). Ligne droite : profil inchangé, durée au seuil de D-161. Trajectoire inchangée.
+- `profile.test` : `admissibleStartSpeed` en ligne droite, sur suite courte (`sqrt(2·d·L)`), en virage, indépendante du départ ; `endSpeedCap` anticipé au freinage, sans effet au-dessus du plafond, non multiplié par k ; suite ralentie : freinage constant, plafond de virage tenu, course naturelle et départ à l'arrêt inchangés.
+- `launch.test` : chaîne de trois ; plus petite vitesse sur deux options, tronc identique sur une grille d'instants, option tout droit qui réaccélère ; suite non réelle qui ne compte pas ; suite coupée par un regroupement ; changement d'allure (durée d'une seule course) ; profil de la précédente identique avec ou sans durée imposée sur la suite ; suite à durée imposée lente et rapide, durée tenue.
+- `glue.test` : réception collée puis course en virage (D-152) : collages « ok », arrivée exacte, vitesse bornée ; rendez-vous sur la précédente au solveur, tenu.
+
+À réécrire :
+- `launch.test` : les attentes `runBrakeTooHigh` et 5,5 m/s (lignes 72 à 77, 91, 165, 174, 208, 260) ; « does not depend on the next run » devient : indépendante tant que la suite ne la limite pas.
+- Attendus chiffrés selon `npm run check` (`editor/glues.test`, `render.test`). Images de référence : si elles bougent, `UPDATE_SNAPSHOTS=1` et comparaison à `HEAD` (PIEGES).
+- `profileCount.test` : plafonds inchangés, `admissibleStartSpeed` n'est pas un profil construit.
+
+Fin : suite complète ; `npm run bench` après, les deux chiffres dans ETAT ; au-delà de 33 ms (D-150), arrêt et question ; `/fin-etape`. Pas d'essai dans le navigateur : `cut.test` couvre le cas.
+
+Repères mesurés au prototype, à retrouver : freinage partout à 4 m/s² ; à 90°, coupe 0,27 s, arrivée 0,54 s au trot et au sprint, 1,17 s à la marche ; scènes de référence : restent 5,5, 6,2, 13,3, 42,7 et 44,8 m/s², tous au levier 2, durées inchangées à 0,01 s près, seconde passe non déclenchée ; option à 90° et option tout droit (20 m, puis 15 m ou 20 m) : 3,58 m/s dans les deux lignes.
+
 ### Étape C5
 
 Lecture : `e2e/a-porter/*`, `e2e/support/*` ; PIEGES : Playwright et OPFS.
@@ -207,6 +241,7 @@ Lecture : `e2e/a-porter/*`, `e2e/support/*` ; PIEGES : Playwright et OPFS.
 | Déterminisme : deux compilations, même JSON canonique | B2 | `evaluate.test` |
 | Temps de compilation : bench hors CI, nombre de profils plafonné en CI, sans horloge (D-150) | B2 | `compile.bench`, `profileCount.test` |
 | Écart au point de coupe, D-139 Q4 (D-161, qui remplace D-149) : virage jusqu'à 45°, trajectoire <= 5 % de la longueur, instant au point de coupe <= 0,25 s, à l'arrivée <= 0,4 s ; ligne droite, <= 0,01 m et 0,03 s | B2 | `cut.test` |
+| Raccord (D-176) : aucune alerte de freinage à 38°, 45° et 90° ; à 90°, trot et sprint, coupe <= 0,3 s et arrivée <= 0,6 s ; marche, coupe <= 0,3 s et arrivée <= 1,2 s ; ligne droite inchangée ; vitesse admise, chaîne, options, solveur, regroupement, seconde passe | C4b | `cut.test`, `profile.test`, `launch.test`, `glue.test` |
 
 **Refus de v1 à v4, sans écriture (contrainte 6) :**
 
@@ -251,6 +286,8 @@ Corrections de l'utilisateur à la validation, intégrées ci-dessus :
 
 Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune exclusion » : les specs de `e2e/a-porter/` restent compilées et lintées, imports ajustés au déplacement (section Stratégie).
 
+Étape C4b, `/changement-spec` du 06/11, questions propres à ce changement, toutes dans D-176 : Q1 seuils à 90° ; Q2 suite ralentie par le solveur ; Q3 changement d'allure ; Q4 options ; Q5 solveur et facteur k ; Q6 regroupement et écart positif ; Q7 seconde passe.
+
 ## Étapes
 
 - **Bloc 0**
@@ -269,6 +306,8 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
   - [x] **Étape C3 : io, refus v1 à v4 en unitaire, état** (`src/v5/io`, `state`). (commit « Étape C3 : stockage, refus des versions antérieures et état sur la frise », après `3395d65` ; retouche « Étape C3 : halo de survol sur la scène pendant la lecture (D-173) », après `d50bc46`)
 - **Bloc C4**
   - [x] **Étape C4 : bascule, suppressions, interface, e2e non portés mis de côté** (`testIgnore` provisoire). (commit « Étape C4 : bascule sur la frise, interface portée, e2e non portés mis de côté », après `8ce5af4`)
+- **Bloc C4b**
+  - [ ] **Étape C4b : raccord de deux courses collées, vitesse admise de la suite (D-176, SPEC 1.10 déjà écrite).**
 - **Bloc C5**
   - [ ] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.**
 - [ ] **`/fin-lot`**, lancé par l'utilisateur : SPEC, ARCHITECTURE, RECETTE, README, ETAT, PR vers `main`.
