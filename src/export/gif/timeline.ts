@@ -2,14 +2,15 @@
 // lines at each speed, and their delays in hundredths of a second. Pure.
 //
 // Chained GIF: title card; slow pass (trunk and option A, card « Option B : <condition> »,
-// resumed at the branch point where B leaves A, option B...); « Vitesse réelle » card; the same
-// pass at real speed; final hold. The last image of each line is held before the next card; a
+// resumed at the instant of the branch point where B leaves A, bounded by the duration of B, D-153,
+// option B...); « Vitesse réelle » card; the same pass at real speed; final hold. The prefix
+// « À 4,5 s, » of the cards comes with frise-4. The last image of each line is held before the next card; a
 // card or a held image is a single GIF image with a long delay.
 import { GIF_DURATIONS, GIF_SLOW_SPEED } from '../../config/defaults'
 import type { EvalCaches } from '../../engine/caches'
 import { compileLine } from '../../engine/timeline'
-import { optionTitle, optionTitlesNeedPhase } from '../../model/labels'
-import { allLines, isBranchPoint } from '../../model/phaseTree'
+import { lineOptionsText, optionTitle } from '../../model/labels'
+import { allLines } from '../../model/branches'
 import type { EngineSettings, GifLinesMode, GifSpeedMode } from '../../model/settings'
 import type { Id, Play } from '../../model/types'
 import { EXPORT_TEXT } from '../text'
@@ -59,24 +60,11 @@ export function segmentSteps(duration: number, fps: number, speed: number): numb
   return Math.max(0, Math.ceil((duration * fps) / speed - 1e-6))
 }
 
-/** Index of the first phase of `line` that is not in `previous` (where an option resumes). */
+/** Index of the first branch of `line` that is not in `previous` (where an option resumes). */
 function divergence(line: readonly Id[], previous: readonly Id[]): number {
   let k = 0
   while (k < line.length && line[k] === previous[k]) k++
   return Math.min(k, line.length - 1)
-}
-
-/** Options chosen along a line, for the subtitle of the title card of a « GIF par option ». */
-export function lineOptionsText(play: Play, line: readonly Id[]): string {
-  const withPhase = optionTitlesNeedPhase(play)
-  const parts: string[] = []
-  for (let i = 1; i < line.length; i++) {
-    const parent = line[i - 1]
-    const id = line[i]
-    if (parent === undefined || id === undefined || !isBranchPoint(play, parent)) continue
-    parts.push(optionTitle(play, id, withPhase))
-  }
-  return parts.join(' ; ')
 }
 
 export function gifTimeline(
@@ -99,7 +87,6 @@ export function gifTimeline(
     },
   ]
   const speeds = gifSpeeds(speedMode)
-  const withPhase = optionTitlesNeedPhase(play)
   speeds.forEach((speed, passIndex) => {
     if (passIndex > 0) {
       items.push({
@@ -121,12 +108,12 @@ export function gifTimeline(
           items.push({
             kind: 'card',
             card: 'option',
-            title: optionTitle(play, resumed, withPhase),
+            title: optionTitle(play, resumed),
             subtitle: '',
             delayCs: cs(GIF_DURATIONS.optionCard),
           })
         }
-        t0 = compiled.phases[k]?.start ?? 0
+        t0 = Math.min(compiled.branches[k]?.start ?? 0, compiled.duration)
       }
       const steps = segmentSteps(compiled.duration - t0, fps, speed)
       const delays = frameDelaysCs(steps, fps)
@@ -146,7 +133,7 @@ export function gifTimeline(
         last.delayCs = cs(isLastOfAll ? GIF_DURATIONS.finalHold : GIF_DURATIONS.optionEndHold)
     })
   })
-  // A play without phase: the title card alone, held before the loop.
+  // A play without branch: the title card alone, held before the loop.
   const only = items.length === 1 ? items[0] : undefined
   if (only) only.delayCs += cs(GIF_DURATIONS.finalHold)
   return items

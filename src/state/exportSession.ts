@@ -11,7 +11,7 @@ import { runExport, type ExistingDecision, type ExportTarget } from '../io/expor
 import type { WrittenExport } from '../io/exportsFolder'
 import type { PlaySummary } from '../io/LibraryStore'
 import { CATEGORY_LABELS } from '../model/labels'
-import { allLines } from '../model/phaseTree'
+import { allLines } from '../model/branches'
 import type { GifExportPrefs, PdfExportPrefs } from '../model/settings'
 import type { Id, Play, PlayCategory } from '../model/types'
 import { TEXT } from '../ui/strings'

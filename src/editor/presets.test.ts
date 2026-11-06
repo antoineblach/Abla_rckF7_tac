@@ -298,4 +298,13 @@ describe('saving and applying presets (SPEC 10.1, D-087, D-089)', () => {
     expect(preview.attackingTeam).toBe('A')
     expect(preview.setup.ballCarrierId).not.toBeNull()
   })
+
+  it('keeps the root branch alone, without action nor sequence (D-147)', () => {
+    const preview = presetPreviewPlay(lineoutPreset(), sevenVsSevenWithOptions(), sequentialIds())
+    expect(preview.branches).toEqual([
+      { id: P.root, parentId: null, label: '', condition: '', isDefault: false },
+    ])
+    expect(preview.actions).toEqual([])
+    expect(preview.sequences).toEqual([])
+  })
 })

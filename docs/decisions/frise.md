@@ -330,3 +330,13 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Raison : 4.4 demande « un message clair » ; « élément invalide ignoré » ne dirait pas pourquoi une combinaison valide en v4 est écartée.
 - Alternatives écartées : le seul message « invalide » de l'import.
 - Origine : étape C3, précise D-139 et D-151.
+
+### D-175 : poignées réservées à l'outil Sélection, précisions de l'interface de frise-1
+- Date : 2026-11-06
+- Décision :
+  - Les poignées (points de passage, point visé d'un jeu au pied) ne répondent au clic qu'avec l'outil Sélection, le seul qui les dessine. Un autre outil clique la joueuse dessous.
+  - Inspecteur : bord droit collé, écart nommé « Écart de la fin », y compris sur une passe et un jeu au pied ; choix « Quand la cible se déplace » (« Le bloc glisse », « Le bloc s'étire »), inactif quand le bord gauche est aussi collé.
+  - Barre de lecture : le libellé montre l'intervalle au curseur (vide dans un tronc hors séquence), sans « (édition) », puisqu'il n'y a plus de mode (D-172). « Revenir au point d'option » apparaît, en lecture comme à l'arrêt, dès qu'un embranchement est atteint, sauf pendant l'attente à cet embranchement.
+- Raison : à la fin d'une course, la dernière poignée est sous le jeton : tracer la course suivante ou la passe depuis cette joueuse, le geste de 6.2, était impossible. Défaut vu à l'écran à la bascule ; en v4, la joueuse d'un temps partait toujours du début du temps. 6.5 nomme un seul écart : il en faut deux quand les deux bords sont collés.
+- Alternatives écartées : donner la priorité au jeton sur les poignées pour tous les outils (le dernier point d'une course ne se déplacerait plus avec l'outil Sélection).
+- Origine : étape C4, précision à contredire au besoin.

@@ -8,7 +8,7 @@ import { evaluate } from '../engine/evaluate'
 import { compileLine } from '../engine/timeline'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
 import type { Play, Vec2 } from '../model/types'
-import { P, sevenVsSevenWithOptions } from '../test/builders'
+import { P, sequence, sevenVsSevenWithOptions, uuid } from '../test/builders'
 import { createRecordingContext, paintEvents, type PaintEvent } from '../test/recordingCtx'
 import { drawCard, drawDressing } from './captions'
 import { DEFAULT_LAYERS } from './layers'
@@ -19,10 +19,14 @@ import { mixColors, RENDER_THEME_IDS, THEMES, type RenderThemeId } from './theme
 import { createViewport, toPx, type Viewport } from './viewport'
 
 const settings = engineSettingsOf(defaultSettings())
-const LINE = [P.t1, P.t2, P.t3a]
+const LINE = [P.root, P.optA]
+const SECOND = uuid(301)
 const PIXEL_RATIO = 1.5
 
-/** The acceptance scenario, with a custom colour on A1 (the N&B theme must ignore it). */
+/**
+ * The acceptance scenario, with a custom colour on A1 (the N&B theme must ignore it) and two
+ * sequences in the trunk, so that the first actions are in an earlier interval.
+ */
 function scenario(): Play {
   const play = sevenVsSevenWithOptions()
   return {
@@ -30,6 +34,7 @@ function scenario(): Play {
     entities: play.entities.map((e) =>
       e.kind === 'player' && e.id === P.A(1) ? { ...e, color: '#cc79a7' } : e,
     ),
+    sequences: [sequence(uuid(300), 0, 3.686), sequence(SECOND, 3.686, 6.335), ...play.sequences],
   }
 }
 
@@ -50,19 +55,19 @@ function viewportFor(play: Play): Viewport {
   })
 }
 
-/** Scene in the middle of phase 2 (phase 1 traces faded) and schematic of phase 2. */
+/** Scene in the middle of the second sequence (earlier traces faded) and its schematic. */
 function drawAll(themeId: RenderThemeId) {
   const play = scenario()
   const caches = createCaches()
   const viewport = viewportFor(play)
   const compiled = compileLine(play, LINE, settings, caches)
-  const t2 = compiled.phases[1]
-  const t = ((t2?.start ?? 0) + (t2?.end ?? 0)) / 2
+  const second = compiled.blocks[SECOND]
+  const t = ((second?.start ?? 0) + (second?.end ?? 0)) / 2
   const scene = createRecordingContext()
   const state = evaluate(play, LINE, t, settings, caches)
   render(scene.ctx, state, viewport, THEMES[themeId], DEFAULT_LAYERS)
   const schematic = createRecordingContext()
-  renderSchematic(schematic.ctx, play, LINE, P.t2, viewport, THEMES[themeId], settings, caches)
+  renderSchematic(schematic.ctx, play, LINE, t, viewport, THEMES[themeId], settings, caches)
   return { play, viewport, state, scene, schematic }
 }
 
@@ -135,7 +140,7 @@ describe('« Impression N&B » theme (SPEC 9.3, D-062)', () => {
     }
   })
 
-  it('draws runs as solid black lines and passes as dotted lines; previous phases light grey', () => {
+  it('draws runs as solid black lines and passes as dotted lines; earlier intervals light grey', () => {
     const { scene, schematic } = drawAll('printBw')
     const theme = THEMES.printBw
     const lineWidth = theme.runWidth * PIXEL_RATIO
@@ -195,7 +200,15 @@ describe('flat colours for every theme (SPEC 3.3.3)', () => {
         'Croisée au centre',
         'Option B : Défense montée',
       )
-      drawDressing(captions.ctx, frame, THEMES[themeId], 'Temps 3, option B', 'Ralenti', 'Fixer', 2)
+      drawDressing(
+        captions.ctx,
+        frame,
+        THEMES[themeId],
+        'Séquence 3, option B',
+        'Ralenti',
+        'Fixer',
+        2,
+      )
       for (const recording of [scene, schematic, captions]) {
         for (const forbidden of ['shadowBlur', 'shadowColor', 'filter', 'globalAlpha']) {
           expect(recording.writtenProperties.has(forbidden)).toBe(false)

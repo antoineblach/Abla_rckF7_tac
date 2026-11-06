@@ -40,10 +40,10 @@ describe('moving and flipping a whole play (SPEC 10.2, D-090)', () => {
     const first = Object.keys(play.setup.positions)[0] ?? ''
     expect(flipped.setup.positions[first]).toEqual({ x: 40, y: 65 })
     const runOf = (p: Play): RunAction | undefined =>
-      p.phases[0]?.actions.find((a): a is RunAction => a.type === 'run')
+      p.actions.find((a): a is RunAction => a.type === 'run')
     expect(runOf(flipped)?.waypoints).toEqual([{ x: 46, y: 34 }])
     const kickOf = (p: Play): KickAction | undefined =>
-      p.phases.flatMap((ph) => ph.actions).find((a): a is KickAction => a.type === 'kick')
+      p.actions.find((a): a is KickAction => a.type === 'kick')
     expect(kickOf(flipped)?.target).toEqual({ point: { x: 75, y: 58 } })
     expect(flipped.field.view).toEqual({
       kind: 'frame',
@@ -51,11 +51,8 @@ describe('moving and flipping a whole play (SPEC 10.2, D-090)', () => {
       max: { x: 80, y: 66 },
     })
     // Breakdowns, passes and the receiver of a kick are not geometry.
-    expect(
-      flipped.phases.map((ph) => ph.actions.filter((a) => a.type !== 'run' && a.type !== 'kick')),
-    ).toEqual(
-      play.phases.map((ph) => ph.actions.filter((a) => a.type !== 'run' && a.type !== 'kick')),
-    )
+    const others = (p: Play) => p.actions.filter((a) => a.type !== 'run' && a.type !== 'kick')
+    expect(others(flipped)).toEqual(others(play))
   })
 
   it('moves every point of the play by the same vector', () => {

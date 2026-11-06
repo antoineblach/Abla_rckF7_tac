@@ -3,15 +3,15 @@
 // the layer of the player.
 import { describe, expect, it } from 'vitest'
 import { createCaches } from '../engine/caches'
-import { evaluate, phaseSchematic } from '../engine/evaluate'
+import { evaluate, windowSchematic } from '../engine/evaluate'
 import { compileLine } from '../engine/timeline'
-import { allLines } from '../model/phaseTree'
+import { allLines } from '../model/branches'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
 import type { Id } from '../model/types'
 import { DEFAULT_LAYERS } from '../render/layers'
 import { render } from '../render/render'
 import { THEMES } from '../render/themes'
-import { P, setPiecesScene } from '../test/builders'
+import { setPiecesScene } from '../test/builders'
 import { canvasFromPixels, loadPdfFonts, napiSurface } from '../test/exportFixtures'
 import { composeGif } from '../test/gifInspect'
 import { compareWithSnapshot } from '../test/imageSnapshot'
@@ -65,9 +65,12 @@ function pdfFile(options: PdfOptions): ExportFile {
 /** Instants of the line A: forward pass in flight, kick at its apex. */
 function instants() {
   const compiled = compileLine(play, LINE_A, settings, createCaches())
-  const t2 = compiled.phases[1]?.start ?? NaN
-  const t3 = compiled.phases[2]?.start ?? NaN
-  return { forward: t2 + 0.4, kickApex: t3 + 0.5 + 3.5 / 2 }
+  const pass = compiled.passes.at(-1)
+  const kick = compiled.kicks.at(-1)
+  return {
+    forward: (pass?.releaseT ?? NaN) + 0.2,
+    kickApex: ((kick?.releaseT ?? NaN) + (kick?.arrivalT ?? NaN)) / 2,
+  }
 }
 
 /** The scene image of option A closest to `t`, and its index in the GIF. */
@@ -152,9 +155,9 @@ describe(
       for (const d of kicks) expect(d[0] ?? 0).toBeGreaterThan(d[1] ?? 0)
     })
 
-    it('never writes the forward pass badge, though phase 2 has a forward pass (D-086)', async () => {
-      const schematic = phaseSchematic(play, P.t2, settings, createCaches())
-      expect(schematic?.passes.some((p) => p.forward)).toBe(true)
+    it('never writes the forward pass badge, though the trunk has a forward pass (D-086)', async () => {
+      const schematic = windowSchematic(play, LINE_A, 0, settings, createCaches())
+      expect(schematic.passes.some((p) => p.forward)).toBe(true)
       for (const options of [
         { layout: 'print', color: 'bw' },
         { layout: 'phone', color: 'color' },
@@ -177,7 +180,7 @@ describe(
       drawThumbnail(
         pdfContext(doc),
         play,
-        P.t3a,
+        LINE_A,
         { x: 0, y: 0, w, h },
         frame,
         theme,

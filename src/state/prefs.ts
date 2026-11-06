@@ -10,7 +10,6 @@ export interface Prefs {
   layers: Layers
   speed: PlaybackSpeed
   loop: boolean
-  pauseBetweenPhases: boolean
   stopAtOptions: boolean
   orientation: Orientation
   libraryCollapsed: boolean
@@ -22,7 +21,6 @@ export const DEFAULT_PREFS: Prefs = {
   layers: DEFAULT_LAYERS,
   speed: 1,
   loop: false,
-  pauseBetweenPhases: false,
   stopAtOptions: true,
   orientation: 'landscape',
   libraryCollapsed: false,

@@ -32,7 +32,6 @@ import {
   useEditorStore,
 } from './editorStore'
 import { pushDialog, useLibraryState } from './libraryState'
-import { usePlayerStore } from './playerStore'
 import {
   configurePresetSession,
   createPlayFromPreset,
@@ -104,7 +103,6 @@ beforeEach(async () => {
   useLibraryState.setState({ toasts: [], dialogs: [], presets: [], presetIssues: [] })
   openPlay(sevenVsSevenWithOptions(), null, false)
   setTool('select')
-  usePlayerStore.setState({ mode: 'edit' })
   useInteractionStore.setState({ metersPerPx: 0, cursor: null })
 })
 

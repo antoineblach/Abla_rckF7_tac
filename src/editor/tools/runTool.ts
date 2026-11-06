@@ -1,12 +1,12 @@
 // Run tool (SPEC 6.2): click on a player, then one click per waypoint; Enter or double click
-// finishes, Escape cancels. On a player who already runs in the phase, the run is extended
-// from its last point (D-015).
+// finishes, Escape cancels. The new run starts at the cursor: `addRun` glues it or leaves it to the
+// fallback of SPEC 4.3.
 import type { Id, Vec2 } from '../../model/types'
 import type { Hit } from '../hitTest'
 
 export interface RunDraft {
   entityId: Id
-  /** First point of the preview: start position, or last point of the existing run. */
+  /** First point of the preview: where the run will start (`runAnchor`). */
   anchor: Vec2
   points: Vec2[]
 }

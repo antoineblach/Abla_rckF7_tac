@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createCaches } from '../../engine/caches'
 import type { LibraryIssue, PlaySummary } from '../../io/LibraryStore'
-import { rootPhase } from '../../model/phaseTree'
+import { defaultLine } from '../../model/branches'
 import { engineSettingsOf } from '../../model/settings'
 import { PLAY_CATEGORIES, type Play, type PlayCategory } from '../../model/types'
 import { renderSchematic } from '../../render/renderSchematic'
@@ -34,7 +34,7 @@ const THUMB_W = 128
 const THUMB_H = 72
 const thumbCaches = createCaches()
 
-/** Thumbnail: schematic of the first phase (SPEC 8.7). */
+/** Thumbnail: schematic at t = 0 of the default line (SPEC 8.7). */
 function Thumbnail({ summary }: { summary: PlaySummary }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const settings = useSettingsStore((s) => s.settings)
@@ -45,8 +45,7 @@ function Thumbnail({ summary }: { summary: PlaySummary }) {
     void store.get(summary.id).then((play: Play) => {
       const canvas = ref.current
       const ctx = canvas?.getContext('2d')
-      const root = rootPhase(play)
-      if (cancelled || !ctx || !root) return
+      if (cancelled || !ctx) return
       const dpr = window.devicePixelRatio || 1
       const viewport = createViewport({
         widthPx: THUMB_W * dpr,
@@ -59,8 +58,8 @@ function Thumbnail({ summary }: { summary: PlaySummary }) {
       renderSchematic(
         ctx,
         play,
-        [root.id],
-        root.id,
+        defaultLine(play),
+        0,
         viewport,
         THEMES.screen,
         engineSettingsOf(settings),

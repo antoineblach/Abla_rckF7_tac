@@ -1,14 +1,29 @@
-// Editing commands: pure transformations of a play (SPEC 6, DECISIONS Q7 to Q15).
-// Each command returns a new play (never mutates its input); an impossible command returns
-// the play unchanged and the caller may tell the user why.
-import { BREAKDOWN_DURATION_DEFAULT, DUPLICATE_OFFSET, TEAM_COLORS } from '../config/defaults'
-import type { EvalCaches } from '../engine/caches'
-import { ballObtainedAt, compiledPhaseOf } from '../engine/evaluate'
-import { motionEnd, positionInPhase, type CompiledPhase } from '../engine/timeline'
+// Editing commands: pure transformations of a play (SPEC 6, 5.8, D-139). Each command returns a new
+// play (never mutates its input); an impossible command returns the play unchanged and the caller may
+// tell the user why. New actions are laid at the cursor, in the branch of the line there (SPEC 6.3);
+// the tools lay the glues of SPEC 6.2. No command creates a branch or a sequence before frise-2
+// (D-142), nor cuts a run (D-144).
+import {
+  BREAKDOWN_DURATION_DEFAULT,
+  CURSOR_ON_EDGE_TOLERANCE,
+  DUPLICATE_OFFSET,
+  TEAM_COLORS,
+} from '../config/defaults'
 import type { IdFactory } from '../model/ids'
-import { childrenOf, descendantsOf, findPhase } from '../model/phaseTree'
 import type { EngineSettings } from '../model/settings'
-import { createsCycle, syncProblem } from '../model/syncGraph'
+import type { EvalCaches } from '../engine/caches'
+import { resolvePlay, type PlayResolution } from '../engine/glue'
+import { motionEnd } from '../engine/motion'
+import { compileLine, positionAt, type CompiledLine } from '../engine/timeline'
+import { defaultLineThrough, pathToBranch } from '../model/branches'
+import {
+  createsCycle,
+  edgeKey,
+  glueEdges,
+  glueProblem,
+  type GlueEdge,
+  type GlueEdgeKind,
+} from '../model/syncGraph'
 import {
   isPlayer,
   isReceiverTarget,
@@ -17,20 +32,21 @@ import {
   type BreakdownContest,
   type BreakdownKind,
   type DefenseMode,
+  type EndGlue,
   type FieldView,
+  type GlueKeep,
+  type GlueRef,
   type Id,
   type KickKind,
   type KickTarget,
-  type Phase,
   type Play,
   type PlayCategory,
   type PlayerEntity,
-  type ReleaseMode,
   type RunAction,
-  type RunSync,
   type SegmentSpeed,
   type SpeedValue,
   type Team,
+  type Timed,
   type Vec2,
 } from '../model/types'
 
@@ -40,20 +56,24 @@ export interface CommandContext {
   caches: EvalCaches
 }
 
-const clone = (play: Play): Play => structuredClone(play)
-
-function mapPhases(play: Play, fn: (phase: Phase) => Phase): Play {
-  return { ...play, phases: play.phases.map(fn) }
+/** Where a new action is laid: the displayed line and the instant of the cursor (SPEC 6.3). */
+export interface Cursor {
+  line: readonly Id[]
+  t: number
 }
 
-function mapActions(play: Play, fn: (action: Action, phase: Phase) => Action | null): Play {
-  return mapPhases(play, (phase) => ({
-    ...phase,
-    actions: phase.actions.flatMap((action) => {
-      const result = fn(action, phase)
+const EPSILON = 1e-9
+
+const clone = (play: Play): Play => structuredClone(play)
+
+function mapActions(play: Play, fn: (action: Action) => Action | null): Play {
+  return {
+    ...play,
+    actions: play.actions.flatMap((action) => {
+      const result = fn(action)
       return result ? [result] : []
     }),
-  }))
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -72,7 +92,7 @@ export function nextFreeNumber(play: Play, team: Team): number {
   return n
 }
 
-/** Places a player: the click sets her starting placement, whatever the displayed phase (D-009). */
+/** Places a player: the click sets her starting placement, whatever the cursor (D-009). */
 export function addPlayer(
   play: Play,
   team: Team,
@@ -101,7 +121,7 @@ export function addPlayer(
   }
 }
 
-/** Moves starting placements (root phase only, D-009). */
+/** Moves starting placements (at t = 0 only, D-009, SPEC 6.3). */
 export function moveSetupPositions(play: Play, ids: readonly Id[], delta: Vec2): Play {
   const positions = { ...play.setup.positions }
   for (const id of ids) {
@@ -119,42 +139,51 @@ export function setSetupPosition(play: Play, id: Id, pos: Vec2): Play {
   }
 }
 
+function involves(action: Action, gone: ReadonlySet<Id>): boolean {
+  switch (action.type) {
+    case 'run':
+      return gone.has(action.entityId)
+    case 'pass':
+      return gone.has(action.fromId) || gone.has(action.toId)
+    case 'kick':
+      return (
+        gone.has(action.kickerId) ||
+        (isReceiverTarget(action.target) && gone.has(action.target.receiverId))
+      )
+    case 'breakdown':
+      return [action.tackledId, action.supportId, action.relayerId].some((id) => gone.has(id))
+    case 'groupRun':
+      return false
+  }
+}
+
 /**
  * Deletes players with their runs and the passes, kicks and breakdowns involving them, in every
- * phase (D-014, lot 3).
+ * branch (D-014, D-139). The edges glued to these actions are frozen (SPEC 5.8).
  */
-export function deletePlayers(play: Play, ids: readonly Id[]): Play {
+export function deletePlayers(
+  play: Play,
+  ids: readonly Id[],
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): { play: Play; frozen: number } {
   const gone = new Set(ids)
-  if (gone.size === 0) return play
+  if (gone.size === 0) return { play, frozen: 0 }
+  const actions = play.actions.filter((action) => involves(action, gone)).map((a) => a.id)
+  const removed = deleteActions(play, actions, ctx)
   const positions = Object.fromEntries(
-    Object.entries(play.setup.positions).filter(([id]) => !gone.has(id)),
+    Object.entries(removed.play.setup.positions).filter(([id]) => !gone.has(id)),
   )
-  const cleaned = mapActions(play, (action) => {
-    if (action.type === 'run' && gone.has(action.entityId)) return null
-    if (action.type === 'pass' && (gone.has(action.fromId) || gone.has(action.toId))) return null
-    if (
-      action.type === 'kick' &&
-      (gone.has(action.kickerId) ||
-        (isReceiverTarget(action.target) && gone.has(action.target.receiverId)))
-    )
-      return null
-    if (
-      action.type === 'breakdown' &&
-      [action.tackledId, action.supportId, action.relayerId].some((id) => gone.has(id))
-    )
-      return null
-    return action
-  })
+  const { ballCarrierId } = removed.play.setup
   return {
-    ...cleaned,
-    entities: play.entities.filter((e) => !gone.has(e.id)),
-    setup: {
-      ...play.setup,
-      positions,
-      ballCarrierId:
-        play.setup.ballCarrierId !== null && gone.has(play.setup.ballCarrierId)
-          ? null
-          : play.setup.ballCarrierId,
+    frozen: removed.frozen,
+    play: {
+      ...removed.play,
+      entities: removed.play.entities.filter((e) => !gone.has(e.id)),
+      setup: {
+        ...removed.play.setup,
+        positions,
+        ballCarrierId: ballCarrierId !== null && gone.has(ballCarrierId) ? null : ballCarrierId,
+      },
     },
   }
 }
@@ -227,54 +256,260 @@ export function setBallOnGround(play: Play, pos: Vec2, ctx: Pick<CommandContext,
   }
 }
 
-/** Moves the ball on the ground at the start (root phase only, like the placements, D-009). */
+/** Moves the ball on the ground at the start (at t = 0 only, like the placements, D-009). */
 export function moveBallPosition(play: Play, pos: Vec2): Play {
   if (!play.setup.ballPosition || play.setup.ballCarrierId !== null) return play
   return { ...play, setup: { ...play.setup, ballPosition: { x: pos.x, y: pos.y } } }
 }
 
 // ---------------------------------------------------------------------------
-// Runs and passes
+// Laying an action at the cursor (SPEC 6.2, 6.3)
 
-/** Adds a run, or extends the existing run of the player in this phase (D-015). */
-export function addRun(
+function compiledAt(play: Play, cursor: Cursor, ctx: CommandContext): CompiledLine {
+  return compileLine(play, cursor.line, ctx.settings, ctx.caches)
+}
+
+/**
+ * Branch of a new action: the one of the line at t; at the exact instant of a branch point, the
+ * displayed option (SPEC 6.3). Undefined when the line does not hold.
+ */
+export function branchAtCursor(
   play: Play,
-  phaseId: Id,
-  entityId: Id,
-  waypoints: readonly Vec2[],
-  ctx: Pick<CommandContext, 'ids'>,
-): { play: Play; actionId: Id | null } {
-  const phase = findPhase(play, phaseId)
-  if (!phase || waypoints.length === 0 || !isPlayer(play.entities.find((e) => e.id === entityId))) {
-    return { play, actionId: null }
+  cursor: Cursor,
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): Id | undefined {
+  const { branches } = compileLine(play, cursor.line, ctx.settings, ctx.caches)
+  return branches.filter((branch) => branch.start <= cursor.t + EPSILON).at(-1)?.id
+}
+
+/** Runs of a player in a line, drawn by the user. */
+const runsOf = (compiled: CompiledLine, entityId: Id) =>
+  compiled.motions.filter((m) => m.source === 'run' && m.entityId === entityId)
+
+/** What a player can do with the ball from the cursor on. */
+type BallOutlook =
+  /** She has it at the cursor. */
+  | { kind: 'holds' }
+  /** She first gets it there by a pass, a kick or a breakdown exit (SPEC 5.4). */
+  | { kind: 'reception'; actionId: Id; t: number }
+  /** She first gets it there from the ground: a pickup is not a reception (D-119). */
+  | { kind: 'pickup'; t: number }
+  /** Nothing is coming to her. */
+  | { kind: 'none' }
+
+/**
+ * Ball of a player from t on, in the compiled line. A reception out of `branchId` and its ancestors
+ * could not be a target (SPEC 4.3): it counts for nothing, nor what follows it.
+ */
+function ballOutlook(
+  play: Play,
+  compiled: CompiledLine,
+  playerId: Id,
+  branchId: Id,
+  t: number,
+): BallOutlook {
+  const { ball } = compiled
+  const current = ball.filter((segment) => segment.start <= t + EPSILON).at(-1)
+  if (current?.kind === 'carried' && current.carrierId === playerId) return { kind: 'holds' }
+  const next = ball.findIndex(
+    (s) => s.start > t + EPSILON && s.kind === 'carried' && s.carrierId === playerId,
+  )
+  const segment = ball[next]
+  if (!segment) return { kind: 'none' }
+  const before = ball[next - 1]
+  if (before?.kind !== 'flight' && before?.kind !== 'breakdown') {
+    return { kind: 'pickup', t: segment.start }
   }
-  const points = waypoints.map((p) => ({ x: p.x, y: p.y }))
-  const existing = phase.actions.find((a) => a.type === 'run' && a.entityId === entityId)
-  if (existing) {
-    return {
-      actionId: existing.id,
-      play: mapActions(play, (action) =>
-        action.id === existing.id && action.type === 'run'
-          ? { ...action, waypoints: [...action.waypoints, ...points] }
-          : action,
-      ),
+  return reachable(play, before.actionId, branchId)
+    ? { kind: 'reception', actionId: before.actionId, t: segment.start }
+    : { kind: 'none' }
+}
+
+function reachable(play: Play, actionId: Id, branchId: Id): boolean {
+  const action = play.actions.find((candidate) => candidate.id === actionId)
+  return action !== undefined && pathToBranch(play, branchId).includes(action.branchId)
+}
+
+/**
+ * The reception she has just made when the cursor is on it, or null: « Bord suivant » brings the
+ * cursor exactly there (D-167, D-171). A pickup is not a reception (D-119).
+ */
+function receptionAtCursor(
+  play: Play,
+  compiled: CompiledLine,
+  playerId: Id,
+  branchId: Id,
+  t: number,
+): { actionId: Id; t: number } | null {
+  const { ball } = compiled
+  const count = ball.filter((segment) => segment.start <= t + EPSILON).length
+  const current = ball[count - 1]
+  const before = ball[count - 2]
+  if (current?.kind !== 'carried' || current.carrierId !== playerId) return null
+  if (t - current.start > CURSOR_ON_EDGE_TOLERANCE) return null
+  if (before?.kind !== 'flight' && before?.kind !== 'breakdown') return null
+  return reachable(play, before.actionId, branchId)
+    ? { actionId: before.actionId, t: current.start }
+    : null
+}
+
+/**
+ * Next reception traced for a player that the engine ignores for now, her passer having no ball yet:
+ * it is what she waits for (SPEC 6.2).
+ */
+function ignoredReception(
+  play: Play,
+  compiled: CompiledLine,
+  playerId: Id,
+  branchId: Id,
+  t: number,
+): Id | null {
+  const receptions = [
+    ...compiled.passes.filter((pass) => pass.toId === playerId),
+    ...compiled.kicks.filter((kick) => kick.receiverId === playerId),
+  ]
+    .filter((thrown) => !thrown.applied && thrown.arrivalT >= t - CURSOR_ON_EDGE_TOLERANCE)
+    .filter((thrown) => reachable(play, thrown.actionId, branchId))
+    .sort((a, b) => a.arrivalT - b.arrivalT)
+  return receptions[0]?.actionId ?? null
+}
+
+/**
+ * Release laid by the pass and kick tools (SPEC 6.2, D-171): at the cursor when she has the ball,
+ * glued to her reception, gap 0, when the cursor is on it; else glued to her next reception, gap 0; at
+ * the instant of a pickup; at the cursor, ignored and signalled, when nothing is traced.
+ */
+function toolRelease(
+  play: Play,
+  compiled: CompiledLine,
+  cursor: Cursor,
+  playerId: Id,
+  branchId: Id,
+): Pick<Timed, 'start' | 'startGlue'> {
+  const outlook = ballOutlook(play, compiled, playerId, branchId, cursor.t)
+  switch (outlook.kind) {
+    case 'holds': {
+      const on = receptionAtCursor(play, compiled, playerId, branchId, cursor.t)
+      return on
+        ? { start: on.t, startGlue: { targetId: on.actionId, event: 'end' } }
+        : { start: cursor.t }
+    }
+    case 'pickup':
+      return { start: outlook.t }
+    case 'reception':
+      return { start: outlook.t, startGlue: { targetId: outlook.actionId, event: 'end' } }
+    case 'none': {
+      const waited = ignoredReception(play, compiled, playerId, branchId, cursor.t)
+      return waited === null
+        ? { start: cursor.t }
+        : { start: cursor.t, startGlue: { targetId: waited, event: 'end' } }
     }
   }
-  const actionId = ctx.ids()
-  return {
-    actionId,
-    play: mapPhases(play, (p) =>
-      p.id === phaseId
-        ? {
-            ...p,
-            actions: [
-              ...p.actions,
-              { id: actionId, type: 'run', entityId, waypoints: points, pace: 'jog', delay: 0 },
-            ],
-          }
-        : p,
+}
+
+/** Release of a player that waits for a reception: ignored for want of a ball, not glued. */
+interface WaitingRelease {
+  id: Id
+  plannedT: number
+}
+
+function waitingReleases(play: Play, compiled: CompiledLine, playerId: Id): WaitingRelease[] {
+  const noBall = new Set(
+    compiled.issues.flatMap((issue) =>
+      (issue.code === 'passerWithoutBall' || issue.code === 'kickerWithoutBall') &&
+      issue.target.kind === 'action'
+        ? [issue.target.id]
+        : [],
     ),
+  )
+  const notGlued = (id: Id): boolean =>
+    noBall.has(id) && !play.actions.find((action) => action.id === id)?.startGlue
+  return [
+    ...compiled.passes
+      .filter((pass) => pass.fromId === playerId && notGlued(pass.actionId))
+      .map((pass) => ({ id: pass.actionId, plannedT: pass.plannedT })),
+    ...compiled.kicks
+      .filter((kick) => kick.kickerId === playerId && notGlued(kick.actionId))
+      .map((kick) => ({ id: kick.actionId, plannedT: kick.plannedT })),
+  ].sort((a, b) => a.plannedT - b.plannedT)
+}
+
+/**
+ * A reception just traced: the first release of her receiver that waited for a ball and comes before
+ * its arrival is glued to it (SPEC 6.2).
+ */
+function glueWaitingRelease(
+  play: Play,
+  waiting: readonly WaitingRelease[],
+  reception: Id,
+  cursor: Cursor,
+  ctx: CommandContext,
+): Play {
+  const compiled = compiledAt(play, cursor, ctx)
+  const thrown = [...compiled.passes, ...compiled.kicks].find((t) => t.actionId === reception)
+  if (!thrown) return play
+  const first = waiting.find((release) => release.plannedT <= thrown.arrivalT + EPSILON)
+  if (!first) return play
+  const glue: GlueRef = { targetId: reception, event: 'end' }
+  return setGlue(play, { kind: 'start', ownerId: first.id, glue }).play
+}
+
+// ---------------------------------------------------------------------------
+// Runs and passes
+
+/**
+ * First point of a run laid at the cursor: the position of the player at t, or at the end of the run
+ * she is on: the new run waits for it (SPEC 4.3, D-144).
+ */
+export function runAnchor(
+  play: Play,
+  cursor: Cursor,
+  entityId: Id,
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): Vec2 | undefined {
+  const compiled = compileLine(play, cursor.line, ctx.settings, ctx.caches)
+  const running = runsOf(compiled, entityId).find(
+    (m) => m.start <= cursor.t && cursor.t < motionEnd(m),
+  )
+  return positionAt(compiled, entityId, running ? motionEnd(running) : cursor.t)
+}
+
+/**
+ * Adds a run at the cursor (SPEC 6.2): glued to the previous run of the player when the cursor is on
+ * its end. During a run of hers, the fallback of SPEC 4.3 delays it, with its alert (D-144).
+ */
+export function addRun(
+  play: Play,
+  cursor: Cursor,
+  entityId: Id,
+  waypoints: readonly Vec2[],
+  ctx: CommandContext,
+): { play: Play; actionId: Id | null } {
+  const branchId = branchAtCursor(play, cursor, ctx)
+  if (
+    branchId === undefined ||
+    waypoints.length === 0 ||
+    !isPlayer(play.entities.find((e) => e.id === entityId))
+  ) {
+    return { play, actionId: null }
   }
+  const actionId = ctx.ids()
+  const previous = runsOf(compiledAt(play, cursor, ctx), entityId).find(
+    (m) => Math.abs(motionEnd(m) - cursor.t) <= CURSOR_ON_EDGE_TOLERANCE,
+  )
+  const glue: GlueRef | null = previous ? { targetId: previous.actionId, event: 'end' } : null
+  const usable = glue !== null && glueProblem(play, actionId, branchId, glue) === null
+  const run: RunAction = {
+    id: actionId,
+    type: 'run',
+    branchId,
+    start: cursor.t,
+    entityId,
+    waypoints: waypoints.map((p) => ({ x: p.x, y: p.y })),
+    pace: 'jog',
+    ...(usable ? { startGlue: glue } : {}),
+  }
+  return { actionId, play: { ...play, actions: [...play.actions, run] } }
 }
 
 /** Drags a waypoint; its segment speed is kept (D-114). */
@@ -294,70 +529,64 @@ export function moveWaypoint(play: Play, actionId: Id, index: number, pos: Vec2)
   })
 }
 
-function withoutSync(run: RunAction): RunAction {
-  const next = { ...run }
-  delete next.sync
-  return next
+function findAction(play: Play, id: Id): Action | undefined {
+  return play.actions.find((action) => action.id === id)
 }
 
-/** Phase holding an action, and the action. */
-function locateAction(play: Play, actionId: Id): { phase: Phase; action: Action } | null {
-  for (const phase of play.phases) {
-    const action = phase.actions.find((a) => a.id === actionId)
-    if (action) return { phase, action }
+function findRun(play: Play, id: Id): RunAction | undefined {
+  const action = findAction(play, id)
+  return action?.type === 'run' ? action : undefined
+}
+
+/** The point indices aimed at a run, after the removal of its point `index`. */
+function shiftPointTargets(play: Play, runId: Id, index: number): Play {
+  const shift = <G extends GlueRef>(glue: G): G =>
+    glue.targetId !== runId || typeof glue.event === 'string' || glue.event.point <= index
+      ? glue
+      : { ...glue, event: { point: glue.event.point - 1 } }
+  const shifted = <T extends Timed>(block: T): T => {
+    const next = { ...block }
+    if (next.startGlue) next.startGlue = shift(next.startGlue)
+    if (next.endGlue) next.endGlue = shift(next.endGlue)
+    return next
   }
-  return null
-}
-
-function locateRun(play: Play, runId: Id): { phase: Phase; run: RunAction } | null {
-  const found = locateAction(play, runId)
-  return found?.action.type === 'run' ? { phase: found.phase, run: found.action } : null
+  return {
+    ...play,
+    branches: play.branches.map((branch) =>
+      branch.branchAtGlue ? { ...branch, branchAtGlue: shift(branch.branchAtGlue) } : branch,
+    ),
+    actions: play.actions.map(shifted),
+    sequences: play.sequences.map(shifted),
+  }
 }
 
 /**
- * Right click on a point: removes it; removing the last point removes the run (D-015). A link
- * carried by the point (rendez-vous of this run, or target of another run) is removed, and the
- * point indices of the other links of the run are shifted (D-108); `removedLinks` counts the
- * removed links for the message.
+ * Right click on a point: removes it; removing the last point removes the run (D-015). The edges
+ * glued to this point, or to the run it removes, are frozen (SPEC 5.8), `frozen` counts them for the
+ * message; the indices of the later points they aim at are shifted.
  */
 export function deleteWaypoint(
   play: Play,
   actionId: Id,
   index: number,
-): { play: Play; removedLinks: number } {
-  const found = locateRun(play, actionId)
-  if (!found || index < 0 || index >= found.run.waypoints.length) return { play, removedLinks: 0 }
-  let removedLinks = 0
-  const shift = (run: RunAction): RunAction => {
-    let next = run
-    const at = next.sync?.at
-    if (next.id === actionId && next.sync && at !== undefined) {
-      if (at === index) {
-        removedLinks++
-        next = withoutSync(next)
-      } else if (at > index) {
-        next = { ...next, sync: { ...next.sync, at: at - 1 } }
-      }
-    }
-    const target = next.sync?.target
-    if (next.sync && target?.event === 'runPoint' && target.actionId === actionId) {
-      if (target.index === index) {
-        removedLinks++
-        next = withoutSync(next)
-      } else if (target.index > index) {
-        next = { ...next, sync: { ...next.sync, target: { ...target, index: target.index - 1 } } }
-      }
-    }
-    return next
-  }
-  const result = mapActions(play, (action, phase) => {
-    if (phase.id !== found.phase.id || action.type !== 'run') return action
-    if (action.id !== actionId) return shift(action)
-    const waypoints = action.waypoints.filter((_, i) => i !== index)
-    // The run disappears with its own link; links aimed at it stay (« cible supprimée »).
-    return waypoints.length === 0 ? null : shift({ ...action, waypoints })
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): { play: Play; frozen: number } {
+  const run = findRun(play, actionId)
+  if (!run || index < 0 || index >= run.waypoints.length) return { play, frozen: 0 }
+  if (run.waypoints.length === 1) return deleteActions(play, [actionId], ctx)
+  const edges = glueEdges(play).filter(({ glue }) => {
+    const { event } = glue
+    return glue.targetId === actionId && typeof event !== 'string' && event.point === index
   })
-  return { play: result, removedLinks }
+  const frozen = shiftPointTargets(freezeEdges(play, edges, ctx), actionId, index)
+  return {
+    frozen: edges.length,
+    play: mapActions(frozen, (action) =>
+      action.id === actionId && action.type === 'run'
+        ? { ...action, waypoints: action.waypoints.filter((_, i) => i !== index) }
+        : action,
+    ),
+  }
 }
 
 /** Speed of segment `index` of a run (the segment arriving at point `index`); null: run pace. */
@@ -369,7 +598,7 @@ export function setSegmentSpeed(
 ): Play {
   if (typeof speed === 'number' && !(speed > 0 && Number.isFinite(speed))) return play
   // Nothing to change: the same play, so that no empty undo step is recorded.
-  const point = locateRun(play, actionId)?.run.waypoints[index]
+  const point = findRun(play, actionId)?.waypoints[index]
   if (!point || (speed === null ? point.speed === undefined : point.speed === speed)) return play
   return mapActions(play, (action) => {
     if (action.id !== actionId || action.type !== 'run') return action
@@ -384,282 +613,353 @@ export function setSegmentSpeed(
   })
 }
 
-/**
- * Release laid by the pass and kick tools (D-110, D-119): on receipt with no control time when the
- * player does not carry the ball at the start of the phase, unless she picks it up from the ground
- * (a pickup is not a reception): then at the instant she obtains it, as before (D-015).
- */
-function toolRelease(
-  play: Play,
-  phaseId: Id,
-  playerId: Id,
-  ctx: CommandContext,
-): { delay: number; release?: ReleaseMode } {
-  const obtained = ballObtainedAt(play, phaseId, playerId, ctx.settings, ctx.caches)
-  const phase = compiledPhaseOf(play, phaseId, ctx.settings, ctx.caches)
-  const fixed = { delay: Math.max(0, obtained ?? 0) }
-  if (!phase) return fixed
-  const start = phase.holderAtStart
-  if (start.kind === 'carried' && start.carrierId === playerId) return fixed
-  if (picksUpBall(phase, playerId)) return fixed
-  return { delay: 0, release: 'onReceipt' }
-}
-
-/** True when the player first obtains the ball in the phase from the ground (D-083). */
-function picksUpBall(phase: CompiledPhase, playerId: Id): boolean {
-  const index = phase.ball.findIndex((s) => s.kind === 'carried' && s.carrierId === playerId)
-  return index > 0 && phase.ball[index - 1]?.kind === 'loose'
-}
-
-/** Adds a pass; its release follows the ball of the passer in the phase (D-015, D-110). */
+/** Adds a pass; its release follows the ball of the passer (SPEC 6.2). */
 export function addPass(
   play: Play,
-  phaseId: Id,
+  cursor: Cursor,
   fromId: Id,
   toId: Id,
   ctx: CommandContext,
 ): { play: Play; actionId: Id | null } {
-  const phase = findPhase(play, phaseId)
+  const branchId = branchAtCursor(play, cursor, ctx)
   const from = play.entities.find((e) => e.id === fromId)
   const to = play.entities.find((e) => e.id === toId)
-  if (!phase || fromId === toId || !isPlayer(from) || !isPlayer(to)) return { play, actionId: null }
-  const release = toolRelease(play, phaseId, fromId, ctx)
-  const actionId = ctx.ids()
-  return {
-    actionId,
-    play: mapPhases(play, (p) =>
-      p.id === phaseId
-        ? {
-            ...p,
-            actions: [...p.actions, { id: actionId, type: 'pass', fromId, toId, ...release }],
-          }
-        : p,
-    ),
+  if (branchId === undefined || fromId === toId || !isPlayer(from) || !isPlayer(to)) {
+    return { play, actionId: null }
   }
+  const compiled = compiledAt(play, cursor, ctx)
+  const waiting = waitingReleases(play, compiled, toId)
+  const release = toolRelease(play, compiled, cursor, fromId, branchId)
+  const actionId = ctx.ids()
+  const added: Play = {
+    ...play,
+    actions: [...play.actions, { id: actionId, type: 'pass', branchId, fromId, toId, ...release }],
+  }
+  return { actionId, play: glueWaitingRelease(added, waiting, actionId, cursor, ctx) }
 }
 
 export interface RunPatch {
   /** A named pace, or a speed in m/s > 0 (D-133). */
   pace?: SpeedValue
-  /** null clears the imposed duration; a duration removes a link with an adjusted speed (D-107). */
+  /** null clears the imposed duration. */
   durationOverride?: number | null
-  delay?: number
-  /** « Finit lancée » (D-106). */
-  endsAtSpeed?: boolean
 }
 
 export interface PassPatch {
-  delay?: number
   /** null returns to the speed of the settings. */
   ballSpeed?: number | null
-  /** null: release at a fixed instant (D-110). */
-  release?: ReleaseMode | null
 }
 
 function isSpeedValue(value: SpeedValue): boolean {
   return typeof value === 'number' ? value > 0 && Number.isFinite(value) : PACES.includes(value)
 }
 
+/** The duration of a block adapts to its glued right edge (SPEC 5.8). */
+function durationAdapts(block: Timed): boolean {
+  return block.endGlue !== undefined && (block.endGlue.keep === 'start' || !!block.startGlue)
+}
+
+/**
+ * Pace and imposed duration: the last gesture wins (SPEC 5.3). Choosing a pace removes the imposed
+ * duration; a pace or an imposed duration removes a right edge whose duration adapts. An invalid
+ * value, or nothing to change: the same play, so that no empty undo step is recorded.
+ */
 export function updateRun(play: Play, actionId: Id, patch: RunPatch): Play {
-  const { pace } = patch
-  const paceOnly =
-    patch.durationOverride === undefined &&
-    patch.delay === undefined &&
-    patch.endsAtSpeed === undefined
-  if (pace !== undefined && paceOnly) {
-    // A pace alone, invalid or unchanged: the same play, so that no empty undo step is recorded.
-    const current = locateRun(play, actionId)?.run.pace
-    if (current === undefined || !isSpeedValue(pace) || current === pace) return play
+  const run = findRun(play, actionId)
+  if (!run) return play
+  const next = { ...run }
+  const { pace, durationOverride } = patch
+  if (pace !== undefined && isSpeedValue(pace)) {
+    next.pace = pace
+    delete next.durationOverride
+    if (durationAdapts(next)) delete next.endGlue
   }
-  return mapActions(play, (action) => {
-    if (action.id !== actionId || action.type !== 'run') return action
-    let next = { ...action }
-    if (pace !== undefined && isSpeedValue(pace)) next.pace = pace
-    if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
-    if (patch.durationOverride === null) delete next.durationOverride
-    else if (patch.durationOverride !== undefined && patch.durationOverride > 0) {
-      next.durationOverride = patch.durationOverride
-      if (next.sync?.adjust === 'speed') next = withoutSync(next)
-    }
-    if (patch.endsAtSpeed === true) next.endsAtSpeed = true
-    else if (patch.endsAtSpeed === false) delete next.endsAtSpeed
-    return next
-  })
+  if (durationOverride === null) delete next.durationOverride
+  else if (durationOverride !== undefined && durationOverride > 0) {
+    next.durationOverride = durationOverride
+    if (durationAdapts(next)) delete next.endGlue
+  }
+  const same =
+    next.pace === run.pace &&
+    next.durationOverride === run.durationOverride &&
+    next.endGlue === run.endGlue
+  return same ? play : mapActions(play, (action) => (action.id === actionId ? next : action))
 }
 
 export function updatePass(play: Play, actionId: Id, patch: PassPatch): Play {
   return mapActions(play, (action) => {
     if (action.id !== actionId || action.type !== 'pass') return action
     const next = { ...action }
-    if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
     if (patch.ballSpeed === null) delete next.ballSpeed
     else if (patch.ballSpeed !== undefined && patch.ballSpeed > 0) next.ballSpeed = patch.ballSpeed
-    if (patch.release === null) delete next.release
-    else if (patch.release !== undefined) next.release = patch.release
     return next
   })
 }
 
-// ---------------------------------------------------------------------------
-// Synchronisation links (SPEC 5.8, D-108, D-109)
+/** A glue sets the « Départ » of the block: its left edge, or a right edge that makes it slide. */
+export function startIsGlued(block: Timed): boolean {
+  return !!block.startGlue || block.endGlue?.keep === 'duration'
+}
 
-/** Why a link was refused: the run itself, a loop of links, or a target that cannot apply. */
-export type SyncRefusal = 'self' | 'cycle' | 'invalid'
+/** « Départ » of an action, >= 0. Computed, thus unchanged, when a glue sets it (SPEC 6.5). */
+export function setStart(play: Play, actionId: Id, start: number): Play {
+  const action = findAction(play, actionId)
+  if (!action || !Number.isFinite(start) || startIsGlued(action)) return play
+  const value = Math.max(0, start)
+  if (value === action.start) return play
+  return mapActions(play, (a) => (a.id === actionId ? { ...a, start: value } : a))
+}
+
+export function deleteActions(
+  play: Play,
+  ids: readonly Id[],
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): { play: Play; frozen: number } {
+  const gone = new Set(ids)
+  if (!play.actions.some((action) => gone.has(action.id))) return { play, frozen: 0 }
+  const edges = glueEdges(play).filter(
+    (edge) => gone.has(edge.glue.targetId) && !gone.has(edge.ownerId),
+  )
+  return {
+    frozen: edges.length,
+    play: mapActions(freezeEdges(play, edges, ctx), (action) =>
+      gone.has(action.id) ? null : action,
+    ),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Glues (SPEC 5.8, D-143)
+
+/** Why a glue was refused: its own block, a target out of the line, a cycle, an unusable target. */
+export type GlueRefusal = 'self' | 'line' | 'cycle' | 'invalid'
+
+export type GlueRequest =
+  { kind: 'start'; ownerId: Id; glue: GlueRef } | { kind: 'end'; ownerId: Id; glue: EndGlue }
 
 /**
- * Gives a link to a run (« Caler sur… »). Refused when it targets the run itself, when it closes
- * a loop of links, or when it cannot apply (target missing, incompatible, point out of range). A
- * link with an adjusted speed removes the imposed duration (D-107).
+ * Glues an edge of an action. Refused when it targets its own block, leaves the line, cannot apply or
+ * closes a cycle. A duration that now adapts removes the imposed duration (SPEC 5.3).
  */
-export function setRunSync(
+export function setGlue(
   play: Play,
-  runId: Id,
-  sync: RunSync,
-): { play: Play; refused: SyncRefusal | null } {
-  const found = locateRun(play, runId)
-  if (!found) return { play, refused: 'invalid' }
-  const problem = syncProblem(found.phase, found.run, sync)
-  if (problem === 'self') return { play, refused: 'self' }
+  request: GlueRequest,
+): { play: Play; refused: GlueRefusal | null } {
+  const owner = findAction(play, request.ownerId)
+  if (!owner) return { play, refused: 'invalid' }
+  const problem = glueProblem(play, owner.id, owner.branchId, request.glue)
+  if (problem === 'self' || problem === 'line') return { play, refused: problem }
   if (problem) return { play, refused: 'invalid' }
-  if (createsCycle(found.phase, runId, sync)) return { play, refused: 'cycle' }
-  const copy: RunSync = structuredClone(sync)
+  const keep = request.kind === 'end' ? request.glue.keep : null
+  const edge: GlueEdge = { ...request, branchId: owner.branchId, keep }
+  if (createsCycle(play, edge)) return { play, refused: 'cycle' }
   return {
     refused: null,
     play: mapActions(play, (action) => {
-      if (action.id !== runId || action.type !== 'run') return action
-      const next = { ...action, sync: copy }
-      if (copy.adjust === 'speed') delete next.durationOverride
+      if (action.id !== owner.id) return action
+      const next =
+        request.kind === 'start'
+          ? { ...action, startGlue: request.glue }
+          : { ...action, endGlue: request.glue }
+      if (next.type === 'run' && durationAdapts(next)) delete next.durationOverride
       return next
     }),
   }
 }
 
-export interface RunSyncPatch {
-  /** Rendez-vous point; null: the end of the run. */
-  at?: number | null
-  adjust?: RunSync['adjust']
+/** Duration of a run once its glues are resolved. */
+function resolvedDuration(
+  play: Play,
+  run: RunAction,
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): number | undefined {
+  const line = defaultLineThrough(play, run.branchId)
+  const { motions } = compileLine(play, line, ctx.settings, ctx.caches)
+  return motions.find((m) => m.source === 'run' && m.actionId === run.id)?.duration
 }
 
-/** « Point de rendez-vous » and « Réglage » of a link; an adjusted speed removes the imposed duration. */
-export function updateRunSync(play: Play, runId: Id, patch: RunSyncPatch): Play {
-  return mapActions(play, (action) => {
-    if (action.id !== runId || action.type !== 'run' || !action.sync) return action
-    const sync = { ...action.sync }
-    if (patch.at === null) delete sync.at
-    else if (patch.at !== undefined) {
-      if (patch.at < 0 || patch.at >= action.waypoints.length) return action
-      sync.at = patch.at
-    }
-    if (patch.adjust !== undefined) sync.adjust = patch.adjust
-    const next = { ...action, sync }
-    if (sync.adjust === 'speed') delete next.durationOverride
+/** The edge has moved its block: its status says that the values it computed apply. */
+function moved(resolution: PlayResolution, edge: GlueEdge): boolean {
+  const status = resolution.statuses.get(edgeKey(edge))
+  return status === 'ok' || status === 'late'
+}
+
+/** An action with this edge frozen at the values `play` resolves. */
+function frozenAction(
+  play: Play,
+  action: Action,
+  edge: GlueEdge,
+  resolution: PlayResolution,
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): Action {
+  const state = resolution.actions.get(action.id)
+  const next = { ...action }
+  const applies = state !== undefined && moved(resolution, edge)
+  if (edge.kind === 'start') {
+    delete next.startGlue
+    if (applies) next.start = state.start
+    // Both edges glued, the duration was adapting: it goes on, or the block would slide.
+    if (next.endGlue) next.endGlue = { ...next.endGlue, keep: 'start' }
     return next
-  })
-}
-
-/**
- * « Retirer le lien »: a « Départ différé » link that applies leaves its computed delay as the
- * stored delay; otherwise the stored delay and speeds are kept (D-108).
- */
-export function removeRunSync(play: Play, runId: Id, ctx: CommandContext): Play {
-  const found = locateRun(play, runId)
-  if (!found?.run.sync) return play
-  const compiled = compiledPhaseOf(play, found.phase.id, ctx.settings, ctx.caches)
-  const result = compiled?.motions.find((m) => m.actionId === runId)?.sync
-  const frozen =
-    found.run.sync.adjust === 'delay' && result && result.status !== 'unreached'
-      ? Math.max(0, result.delay)
-      : null
-  return mapActions(play, (action) => {
-    if (action.id !== runId || action.type !== 'run') return action
-    const next = withoutSync(action)
-    if (frozen !== null) next.delay = frozen
-    return next
-  })
-}
-
-/** First run of a player in a phase: the one the engine applies (D-013). */
-function firstRunOf(phase: Phase, entityId: Id): RunAction | undefined {
-  for (const action of phase.actions) {
-    if (action.type === 'run' && action.entityId === entityId) return action
   }
-  return undefined
+  delete next.endGlue
+  if (!state) return next
+  if (!applies) {
+    if (next.type === 'run' && state.ignoreImposed) delete next.durationOverride
+    return next
+  }
+  next.start = state.start
+  const adapted = state.action
+  if (next.type === 'run') {
+    const duration = state.levers ? resolvedDuration(play, next, ctx) : undefined
+    if (duration !== undefined) next.durationOverride = duration
+  } else if (next.type === 'pass' && adapted.type === 'pass') {
+    if (adapted.ballSpeed !== undefined) next.ballSpeed = adapted.ballSpeed
+  } else if (next.type === 'kick' && adapted.type === 'kick') {
+    if (adapted.flightTime !== undefined) next.flightTime = adapted.flightTime
+  } else if (next.type === 'breakdown' && adapted.type === 'breakdown') {
+    next.duration = adapted.duration
+  }
+  return next
 }
 
 /**
- * « Finit lancée » laid by the run tool (D-106): when every option of the phase now prolongs the
- * run of the player in the previous phase (her first run there, delay 0), that run ends at
- * speed. Never removes the flag.
+ * Freezes edges at their computed values: the blocks do not move (SPEC 5.8). Whatever the edge holds
+ * on: action, sequence or branch point. An edge that does not apply keeps its stored values.
  */
-export function markProlongedRun(play: Play, phaseId: Id, entityId: Id): Play {
-  const phase = findPhase(play, phaseId)
-  if (!phase?.parentId) return play
-  const parent = findPhase(play, phase.parentId)
-  const parentRun = parent ? firstRunOf(parent, entityId) : undefined
-  if (!parent || !parentRun || parentRun.endsAtSpeed) return play
-  const options = childrenOf(play, parent.id)
-  if (!options.every((option) => firstRunOf(option, entityId)?.delay === 0)) return play
-  return updateRun(play, parentRun.id, { endsAtSpeed: true })
+function freezeEdges(
+  play: Play,
+  edges: readonly GlueEdge[],
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): Play {
+  if (edges.length === 0) return play
+  const resolution = resolvePlay(play, ctx.settings, ctx.caches)
+  let result = play
+  for (const edge of edges) {
+    if (edge.kind === 'branchAt') {
+      const instant = resolution.branchAt.get(edge.ownerId)
+      result = {
+        ...result,
+        branches: result.branches.map((branch) => {
+          if (branch.id !== edge.ownerId) return branch
+          const next = { ...branch }
+          delete next.branchAtGlue
+          if (instant !== undefined) next.branchAt = instant
+          return next
+        }),
+      }
+      continue
+    }
+    const resolved = resolution.sequences.get(edge.ownerId)
+    result = {
+      ...result,
+      actions: result.actions.map((action) =>
+        action.id === edge.ownerId ? frozenAction(play, action, edge, resolution, ctx) : action,
+      ),
+      sequences: result.sequences.map((sequence) => {
+        if (sequence.id !== edge.ownerId) return sequence
+        const next = { ...sequence }
+        if (edge.kind === 'start') {
+          delete next.startGlue
+          if (next.endGlue) next.endGlue = { ...next.endGlue, keep: 'start' }
+        } else delete next.endGlue
+        return resolved && moved(resolution, edge) ? { ...next, ...resolved } : next
+      }),
+    }
+  }
+  return result
 }
 
-export function deleteActions(play: Play, ids: readonly Id[]): Play {
-  const gone = new Set(ids)
-  return mapActions(play, (action) => (gone.has(action.id) ? null : action))
+/** « Décoller »: the edge is frozen at its computed value (SPEC 5.8). */
+export function removeGlue(
+  play: Play,
+  ownerId: Id,
+  kind: GlueEdgeKind,
+  ctx: Pick<CommandContext, 'settings' | 'caches'>,
+): Play {
+  const edges = glueEdges(play).filter((edge) => edge.ownerId === ownerId && edge.kind === kind)
+  return freezeEdges(play, edges, ctx)
+}
+
+/** « Le bloc glisse » or « Le bloc s'étire »; a duration that now adapts removes the imposed one. */
+export function setKeep(play: Play, actionId: Id, keep: GlueKeep): Play {
+  const action = findAction(play, actionId)
+  if (!action?.endGlue || action.endGlue.keep === keep) return play
+  const endGlue = { ...action.endGlue, keep }
+  return mapActions(play, (a) => {
+    if (a.id !== actionId) return a
+    const next = { ...a, endGlue }
+    if (next.type === 'run' && durationAdapts(next)) delete next.durationOverride
+    return next
+  })
+}
+
+/** Gap of a glued edge, >= 0; 0 is the default and is not stored (SPEC 5.8). */
+export function setOffset(play: Play, actionId: Id, kind: 'start' | 'end', offset: number): Play {
+  const action = findAction(play, actionId)
+  const glue = kind === 'start' ? action?.startGlue : action?.endGlue
+  if (!glue || !Number.isFinite(offset)) return play
+  const value = Math.max(0, offset)
+  if (value === (glue.offset ?? 0)) return play
+  const set = <G extends GlueRef>(current: G): G => {
+    const next = { ...current }
+    if (value === 0) delete next.offset
+    else next.offset = value
+    return next
+  }
+  return mapActions(play, (a) => {
+    if (a.id !== actionId) return a
+    const next = { ...a }
+    if (kind === 'start' && next.startGlue) next.startGlue = set(next.startGlue)
+    if (kind === 'end' && next.endGlue) next.endGlue = set(next.endGlue)
+    return next
+  })
 }
 
 // ---------------------------------------------------------------------------
 // Kicks (SPEC 10.4)
 
-function appendAction(play: Play, phaseId: Id, action: Action): Play {
-  return mapPhases(play, (p) => (p.id === phaseId ? { ...p, actions: [...p.actions, action] } : p))
-}
-
 /**
- * Adds a kick to a receiver or to a point; its release follows the ball of the kicker in the
- * phase (D-015, D-110); a restart in a play of category restart, a long kick otherwise (D-093
- * tools, SPEC 10.4).
+ * Adds a kick to a receiver or to a point; its release is laid like a pass; a restart in a play of
+ * category restart, a long kick otherwise (D-093 tools, SPEC 10.4, 6.2).
  */
 export function addKick(
   play: Play,
-  phaseId: Id,
+  cursor: Cursor,
   kickerId: Id,
   target: KickTarget,
   ctx: CommandContext,
 ): { play: Play; actionId: Id | null } {
-  const phase = findPhase(play, phaseId)
+  const branchId = branchAtCursor(play, cursor, ctx)
   const kicker = play.entities.find((e) => e.id === kickerId)
-  if (!phase || !isPlayer(kicker)) return { play, actionId: null }
+  if (branchId === undefined || !isPlayer(kicker)) return { play, actionId: null }
   if (isReceiverTarget(target)) {
     const receiver = play.entities.find((e) => e.id === target.receiverId)
     if (!isPlayer(receiver) || receiver.id === kickerId) return { play, actionId: null }
   }
-  const release = toolRelease(play, phaseId, kickerId, ctx)
+  const compiled = compiledAt(play, cursor, ctx)
+  const waiting = isReceiverTarget(target) ? waitingReleases(play, compiled, target.receiverId) : []
+  const release = toolRelease(play, compiled, cursor, kickerId, branchId)
   const actionId = ctx.ids()
   const kind: KickKind = play.category === 'restart' ? 'restart' : 'long'
   const copy: KickTarget = isReceiverTarget(target)
     ? { receiverId: target.receiverId }
     : { point: { x: target.point.x, y: target.point.y } }
-  return {
-    actionId,
-    play: appendAction(play, phaseId, {
-      id: actionId,
-      type: 'kick',
-      kickerId,
-      kind,
-      target: copy,
-      ...release,
-    }),
+  const added: Play = {
+    ...play,
+    actions: [
+      ...play.actions,
+      { id: actionId, type: 'kick', branchId, kickerId, kind, target: copy, ...release },
+    ],
   }
+  return { actionId, play: glueWaitingRelease(added, waiting, actionId, cursor, ctx) }
 }
 
 export interface KickPatch {
   kind?: KickKind
-  delay?: number
   /** null returns to the default flight time of the kind. */
   flightTime?: number | null
   target?: KickTarget
-  /** null: release at a fixed instant (D-110). */
-  release?: ReleaseMode | null
 }
 
 export function updateKick(play: Play, actionId: Id, patch: KickPatch): Play {
@@ -667,7 +967,6 @@ export function updateKick(play: Play, actionId: Id, patch: KickPatch): Play {
     if (action.id !== actionId || action.type !== 'kick') return action
     const next = { ...action }
     if (patch.kind !== undefined) next.kind = patch.kind
-    if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
     if (patch.flightTime === null) delete next.flightTime
     else if (patch.flightTime !== undefined && patch.flightTime > 0)
       next.flightTime = patch.flightTime
@@ -679,8 +978,6 @@ export function updateKick(play: Play, actionId: Id, patch: KickPatch): Play {
         next.target = { point: { x: target.point.x, y: target.point.y } }
       }
     }
-    if (patch.release === null) delete next.release
-    else if (patch.release !== undefined) next.release = patch.release
     return next
   })
 }
@@ -698,66 +995,102 @@ export function moveKickTarget(play: Play, actionId: Id, pos: Vec2): Play {
 // Breakdowns (SPEC 10.3)
 
 export type BreakdownProposal =
-  | { ok: true; delay: number; supportId: Id; relayerId: Id }
+  | { ok: true; start: number; glue: GlueRef | null; supportId: Id; relayerId: Id }
   | { ok: false; reason: 'noBall' | 'teammates' }
 
+/** Has the player the ball at t in the line? */
+function holdsAt(compiled: CompiledLine, playerId: Id, t: number): boolean {
+  const segment = compiled.ball.filter((s) => s.start <= t + EPSILON).at(-1)
+  return segment?.kind === 'carried' && segment.carrierId === playerId
+}
+
 /**
- * Proposal when a breakdown is laid on a player (D-081): formation at the end of her run in the
- * phase, or when she receives the ball if later; support = the closest teammate at that instant,
- * relayer = the second closest. Refused when she has no ball in the phase or fewer than two
- * teammates.
+ * Proposal when a breakdown is laid on a player (SPEC 6.2, D-081, D-171): formation glued to the end
+ * of her run in progress at the cursor or starting there, or to her next reception, or the one the
+ * cursor is on, if later; at the cursor without either. Support = the closest teammate at that
+ * instant, relayer = the second closest. Refused when she has no ball at the formation or fewer than
+ * two teammates.
  */
 export function proposeBreakdown(
   play: Play,
-  phaseId: Id,
+  cursor: Cursor,
   tackledId: Id,
   ctx: CommandContext,
 ): BreakdownProposal {
   const tackled = play.entities.find((e) => e.id === tackledId)
-  const phase = compiledPhaseOf(play, phaseId, ctx.settings, ctx.caches)
-  if (!isPlayer(tackled) || !phase) return { ok: false, reason: 'noBall' }
-  const obtained = ballObtainedAt(play, phaseId, tackledId, ctx.settings, ctx.caches)
-  if (obtained === null) return { ok: false, reason: 'noBall' }
-  const run = phase.motions.find((m) => m.entityId === tackledId && m.source === 'run')
-  const delay = Math.max(obtained, run ? motionEnd(run) - phase.start : 0)
-  const t = phase.start + delay
-  const at = positionInPhase(phase, tackledId, t)
+  const branchId = branchAtCursor(play, cursor, ctx)
+  if (!isPlayer(tackled) || branchId === undefined) return { ok: false, reason: 'noBall' }
+  const compiled = compiledAt(play, cursor, ctx)
+  const { t } = cursor
+  const running = runsOf(compiled, tackledId)
+    .filter((m) => m.start <= t + EPSILON && t <= motionEnd(m) + CURSOR_ON_EDGE_TOLERANCE)
+    .at(-1)
+  const outlook = ballOutlook(play, compiled, tackledId, branchId, t)
+  const reception =
+    outlook.kind === 'reception'
+      ? outlook
+      : outlook.kind === 'holds'
+        ? receptionAtCursor(play, compiled, tackledId, branchId, t)
+        : null
+  const runEnd = running ? motionEnd(running) : null
+  let start = t
+  let glue: GlueRef | null = null
+  if (reception && (runEnd === null || reception.t > runEnd + EPSILON)) {
+    start = reception.t
+    glue = { targetId: reception.actionId, event: 'end' }
+  } else if (running && runEnd !== null) {
+    start = runEnd
+    glue = { targetId: running.actionId, event: 'end' }
+  }
+  if (!holdsAt(compiled, tackledId, start)) return { ok: false, reason: 'noBall' }
+  const at = positionAt(compiled, tackledId, start)
   if (!at) return { ok: false, reason: 'noBall' }
   const mates = play.entities
     .filter((e): e is PlayerEntity => isPlayer(e) && e.team === tackled.team && e.id !== tackledId)
     .flatMap((e) => {
-      const pos = positionInPhase(phase, e.id, t)
+      const pos = positionAt(compiled, e.id, start)
       return pos ? [{ id: e.id, d: Math.hypot(pos.x - at.x, pos.y - at.y) }] : []
     })
     .sort((a, b) => a.d - b.d)
   const [support, relayer] = mates
   if (!support || !relayer) return { ok: false, reason: 'teammates' }
-  return { ok: true, delay, supportId: support.id, relayerId: relayer.id }
+  return { ok: true, start, glue, supportId: support.id, relayerId: relayer.id }
 }
 
-/** Lays a ruck on a player with the proposed support and relayer (D-081). */
+/** Lays a ruck on a player with the proposed formation, support and relayer (SPEC 6.2, D-081). */
 export function addBreakdown(
   play: Play,
-  phaseId: Id,
+  cursor: Cursor,
   tackledId: Id,
   ctx: CommandContext,
 ): { play: Play; actionId: Id | null; refused: 'noBall' | 'teammates' | null } {
-  const proposal = proposeBreakdown(play, phaseId, tackledId, ctx)
+  const proposal = proposeBreakdown(play, cursor, tackledId, ctx)
+  const branchId = branchAtCursor(play, cursor, ctx)
   if (!proposal.ok) return { play, actionId: null, refused: proposal.reason }
+  if (branchId === undefined) return { play, actionId: null, refused: 'noBall' }
   const actionId = ctx.ids()
+  const { start, glue, supportId, relayerId } = proposal
   return {
     actionId,
     refused: null,
-    play: appendAction(play, phaseId, {
-      id: actionId,
-      type: 'breakdown',
-      kind: 'ruck',
-      tackledId,
-      supportId: proposal.supportId,
-      relayerId: proposal.relayerId,
-      delay: proposal.delay,
-      duration: BREAKDOWN_DURATION_DEFAULT,
-    }),
+    play: {
+      ...play,
+      actions: [
+        ...play.actions,
+        {
+          id: actionId,
+          type: 'breakdown',
+          branchId,
+          start,
+          ...(glue ? { startGlue: glue } : {}),
+          kind: 'ruck',
+          tackledId,
+          supportId,
+          relayerId,
+          duration: BREAKDOWN_DURATION_DEFAULT,
+        },
+      ],
+    },
   }
 }
 
@@ -765,7 +1098,6 @@ export interface BreakdownPatch {
   kind?: BreakdownKind
   supportId?: Id
   relayerId?: Id
-  delay?: number
   duration?: number
   /** null returns to the defence setting (« Par défaut », D-078). */
   contest?: BreakdownContest | null
@@ -778,146 +1110,11 @@ export function updateBreakdown(play: Play, actionId: Id, patch: BreakdownPatch)
     if (patch.kind !== undefined) next.kind = patch.kind
     if (patch.supportId !== undefined) next.supportId = patch.supportId
     if (patch.relayerId !== undefined) next.relayerId = patch.relayerId
-    if (patch.delay !== undefined) next.delay = Math.max(0, patch.delay)
     if (patch.duration !== undefined && patch.duration > 0) next.duration = patch.duration
     if (patch.contest === null) delete next.contest
     else if (patch.contest !== undefined) next.contest = patch.contest
     return next
   })
-}
-
-// ---------------------------------------------------------------------------
-// Phases (SPEC 6.4, D-012)
-
-function emptyPhase(id: Id, parentId: Id | null, isDefault: boolean): Phase {
-  return { id, parentId, label: '', condition: '', instruction: '', isDefault, actions: [] }
-}
-
-/** « Ajouter un temps »: a child of a leaf. Unavailable when the phase already has children. */
-export function canAddPhaseAfter(play: Play, phaseId: Id): boolean {
-  return findPhase(play, phaseId) !== undefined && childrenOf(play, phaseId).length === 0
-}
-
-export function addPhaseAfter(
-  play: Play,
-  phaseId: Id,
-  ctx: Pick<CommandContext, 'ids'>,
-): { play: Play; phaseId: Id | null } {
-  if (!canAddPhaseAfter(play, phaseId)) return { play, phaseId: null }
-  const id = ctx.ids()
-  return {
-    phaseId: id,
-    play: { ...play, phases: [...play.phases, emptyPhase(id, phaseId, false)] },
-  }
-}
-
-/** « Insérer un temps après »: an empty phase between the phase and its children, which move under it. */
-export function insertPhaseAfter(
-  play: Play,
-  phaseId: Id,
-  ctx: Pick<CommandContext, 'ids'>,
-): { play: Play; phaseId: Id | null } {
-  if (!findPhase(play, phaseId)) return { play, phaseId: null }
-  const id = ctx.ids()
-  const phases = play.phases.map((p) => (p.parentId === phaseId ? { ...p, parentId: id } : p))
-  const index = phases.findIndex((p) => p.id === phaseId)
-  phases.splice(index + 1, 0, emptyPhase(id, phaseId, false))
-  return { phaseId: id, play: { ...play, phases } }
-}
-
-/** Options exist below a parent: unavailable on the root. */
-export function canCreateOption(play: Play, phaseId: Id): boolean {
-  const phase = findPhase(play, phaseId)
-  return phase !== undefined && phase.parentId !== null
-}
-
-function addSibling(play: Play, phaseId: Id, sibling: Phase): Play {
-  const phase = findPhase(play, phaseId)
-  if (!phase) return play
-  const siblings = childrenOf(play, phase.parentId)
-  // A phase alone becomes option A, by default (D-012).
-  const phases = play.phases.map((p) =>
-    siblings.length === 1 && p.id === phase.id ? { ...p, isDefault: true } : p,
-  )
-  return { ...play, phases: [...phases, sibling] }
-}
-
-/** « Créer une option à partir d'ici »: an empty sibling. */
-export function createOption(
-  play: Play,
-  phaseId: Id,
-  ctx: Pick<CommandContext, 'ids'>,
-): { play: Play; phaseId: Id | null } {
-  const phase = findPhase(play, phaseId)
-  if (!phase || !canCreateOption(play, phaseId)) return { play, phaseId: null }
-  const id = ctx.ids()
-  return { phaseId: id, play: addSibling(play, phaseId, emptyPhase(id, phase.parentId, false)) }
-}
-
-/**
- * « Dupliquer »: a sibling with a copy of the actions (new ids), without descendants; the links
- * between actions of the phase follow the copies (D-108).
- */
-export function duplicatePhase(
-  play: Play,
-  phaseId: Id,
-  ctx: Pick<CommandContext, 'ids'>,
-): { play: Play; phaseId: Id | null } {
-  const phase = findPhase(play, phaseId)
-  if (!phase || !canCreateOption(play, phaseId)) return { play, phaseId: null }
-  const id = ctx.ids()
-  const newIds = new Map(phase.actions.map((a) => [a.id, ctx.ids()]))
-  const copyOf = (action: Action): Action => {
-    const copied = { ...structuredClone(action), id: newIds.get(action.id) ?? ctx.ids() }
-    if (copied.type !== 'run' || !copied.sync) return copied
-    const targetId = newIds.get(copied.sync.target.actionId)
-    // A link aimed at an action missing from the phase stays as it is (« cible supprimée »).
-    if (targetId === undefined) return copied
-    return {
-      ...copied,
-      sync: { ...copied.sync, target: { ...copied.sync.target, actionId: targetId } },
-    }
-  }
-  const copy: Phase = {
-    ...structuredClone(phase),
-    id,
-    isDefault: false,
-    label: '',
-    actions: phase.actions.map(copyOf),
-  }
-  return { phaseId: id, play: addSibling(play, phaseId, copy) }
-}
-
-/** Deletes a phase and its descendants (after confirmation in the interface). Not the root. */
-export function deletePhase(play: Play, phaseId: Id): Play {
-  const phase = findPhase(play, phaseId)
-  if (!phase || phase.parentId === null) return play
-  const gone = new Set([phaseId, ...descendantsOf(play, phaseId)])
-  let phases = play.phases.filter((p) => !gone.has(p.id))
-  const siblings = phases.filter((p) => p.parentId === phase.parentId)
-  if (phase.isDefault && siblings.length >= 1 && !siblings.some((s) => s.isDefault)) {
-    const first = siblings[0]
-    phases = phases.map((p) => (p.id === first?.id ? { ...p, isDefault: true } : p))
-  }
-  return { ...play, phases }
-}
-
-export function setDefaultOption(play: Play, phaseId: Id): Play {
-  const phase = findPhase(play, phaseId)
-  if (!phase || phase.parentId === null) return play
-  return mapPhases(play, (p) =>
-    p.parentId === phase.parentId ? { ...p, isDefault: p.id === phaseId } : p,
-  )
-}
-
-export interface PhasePatch {
-  label?: string
-  condition?: string
-  instruction?: string
-}
-
-export function updatePhase(play: Play, phaseId: Id, patch: PhasePatch): Play {
-  return mapPhases(play, (p) => (p.id === phaseId ? { ...p, ...patch } : p))
 }
 
 // ---------------------------------------------------------------------------

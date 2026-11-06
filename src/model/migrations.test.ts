@@ -1,169 +1,128 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import {
-  basePlay,
-  kick,
-  P,
-  phase,
-  run,
-  realisticRunsPlay,
-  setPiecesPlay,
-  sevenVsSevenWithOptions,
-  uuid,
-} from '../test/builders'
+import { basePlay, friseFixturePlay, uuid } from '../test/builders'
 import { CURRENT_SCHEMA_VERSION, readSchemaVersion, upgradePlay } from './migrations'
 
-const fixture = (name: string): Record<string, unknown> =>
-  JSON.parse(readFileSync(new URL(`../test/fixtures/${name}`, import.meta.url), 'utf8')) as Record<
-    string,
-    unknown
-  >
+const fixture = (name: string): unknown =>
+  JSON.parse(readFileSync(new URL(`../test/fixtures/${name}`, import.meta.url), 'utf8'))
 
-const v0 = (): Record<string, unknown> => fixture('play-v0.json')
+/** Files of the earlier versions, written here: their fixtures disappear with the switch to v5. */
+const OBSOLETE_FILES: Record<number, () => Record<string, unknown>> = {
+  0: () => ({
+    schemaVersion: 0,
+    id: uuid(1),
+    name: 'Version 0',
+    attacking: 'A',
+    phases: [],
+  }),
+  1: () => ({ ...v4File(), schemaVersion: 1 }),
+  2: () => ({ ...v4File(), schemaVersion: 2 }),
+  3: () => ({ ...v4File(), schemaVersion: 3 }),
+  4: v4File,
+}
 
-describe('migrations', () => {
-  it('migrates the files of lots 1 and 2 (version 1) to version 4 without changing them', () => {
-    const input = fixture('play-v1-7v7-options.json')
-    const result = upgradePlay(input)
-    expect(result).toEqual({ ok: true, play: sevenVsSevenWithOptions(), fromVersion: 1 })
-    expect(CURRENT_SCHEMA_VERSION).toBe(4)
-    expect(input.schemaVersion).toBe(1)
+function v4File(): Record<string, unknown> {
+  const { branches: _branches, actions: _actions, sequences: _sequences, ...common } = basePlay()
+  return {
+    ...common,
+    schemaVersion: 4,
+    phases: [
+      {
+        id: uuid(100),
+        parentId: null,
+        label: '',
+        condition: '',
+        instruction: '',
+        isDefault: false,
+        actions: [],
+      },
+    ],
+  }
+}
+
+describe('reading a play (SPEC 4.4, 4.5)', () => {
+  it('is at version 5', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(5)
   })
 
-  it('migrates the frozen lot 3 fixture (version 2) to version 4 without changing it', () => {
-    const input = fixture('play-v2-lot3.json')
-    expect(input.schemaVersion).toBe(2)
-    expect(upgradePlay(input)).toEqual({ ok: true, play: setPiecesPlay(), fromVersion: 2 })
-  })
-
-  it('migrates the frozen lot 3 bis fixture (version 3) to version 4 without changing it', () => {
-    const input = fixture('play-v3-lot3bis.json')
-    expect(input.schemaVersion).toBe(3)
-    expect(upgradePlay(input)).toEqual({ ok: true, play: realisticRunsPlay(), fromVersion: 3 })
-  })
-
-  it('a page of version 3 refuses the frozen v4 fixture: « recharger la page » (SPEC 4.5)', () => {
-    expect(readSchemaVersion(fixture('play-v4-lot3bis1.json'), 3)).toEqual({
-      ok: false,
-      error: { code: 'futureVersion', version: 4 },
+  it('reads the frozen v5 fixture without changing it', () => {
+    expect(upgradePlay(fixture('play-v5-frise.json'))).toEqual({
+      ok: true,
+      play: friseFixturePlay(),
+      fromVersion: 5,
     })
-  })
-
-  it('marks « Finit lancée » the runs that every option of the next phase prolongs (D-104)', () => {
-    const v2 = {
-      ...basePlay(),
-      schemaVersion: 2,
-      phases: [
-        phase(uuid(1), null, [
-          run(uuid(10), P.A(1), [{ x: 1, y: 1 }]),
-          run(uuid(11), P.A(2), [{ x: 2, y: 2 }]),
-          run(uuid(12), P.A(3), [{ x: 3, y: 3 }]),
-          // A second run of A1 is not applied (D-013): never marked.
-          run(uuid(13), P.A(1), [{ x: 4, y: 4 }]),
-        ]),
-        phase(uuid(2), uuid(1), [
-          run(uuid(20), P.A(1), [{ x: 5, y: 5 }]),
-          run(uuid(21), P.A(2), [{ x: 5, y: 5 }]),
-          run(uuid(22), P.A(3), [{ x: 5, y: 5 }], { delay: 0.5 }),
-          run(uuid(23), P.A(4), [{ x: 5, y: 5 }]),
-        ]),
-        phase(
-          uuid(3),
-          uuid(1),
-          [
-            // The first run of A1 starts at once: A1 is prolonged in both options.
-            run(uuid(30), P.A(1), [{ x: 6, y: 6 }]),
-            run(uuid(31), P.A(1), [{ x: 7, y: 7 }], { delay: 1 }),
-            // A2 waits in this option: not prolonged.
-            run(uuid(32), P.A(2), [{ x: 6, y: 6 }], { delay: 0.1 }),
-          ],
-          { isDefault: true },
-        ),
-      ],
-    }
-    const result = upgradePlay(v2)
-    if (!result.ok) throw new Error('migration refused')
-    const marked = result.play.phases
-      .flatMap((p) => p.actions)
-      .filter((a) => a.type === 'run' && a.endsAtSpeed === true)
-      .map((a) => a.id)
-    // Leaves (phases 2 and 3) are never marked.
-    expect(marked).toEqual([uuid(10)])
-    expect(result.play.schemaVersion).toBe(4)
-  })
-
-  it('reports a version 1 file holding a kick against the version 1 schema', () => {
-    const play = sevenVsSevenWithOptions()
-    const first = play.phases[0]
-    if (!first) throw new Error('no phase')
-    const input = {
-      ...play,
-      schemaVersion: 1,
-      phases: [{ ...first, actions: [kick(uuid(1), P.A(4), { point: { x: 60, y: 30 } }, 0)] }],
-    }
-    const result = upgradePlay(input)
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.error).toMatchObject({ code: 'invalid', version: 1 })
-  })
-
-  it('migrates the fictitious version 0 fixture up to the current version', () => {
-    const result = upgradePlay(v0())
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    const play = result.play
-    expect(result.fromVersion).toBe(0)
-    expect(play.schemaVersion).toBe(4)
-    expect(play.attackingTeam).toBe('B')
-    expect(play.notes).toBe('')
-    expect(play.field.view).toEqual({ kind: 'full' })
-    expect(play.phases[0]?.instruction).toBe('')
-    expect(play.entities[0]).toMatchObject({ kind: 'player', defenseMode: 'manual' })
-    expect(play.phases[0]?.actions[0]).toEqual({
-      id: '00000000-0000-4000-8000-000000000200',
-      type: 'run',
-      entityId: '00000000-0000-4000-8000-000000000011',
-      waypoints: [{ x: 40, y: 30 }],
-      pace: 'sprint',
-      delay: 0.5,
-    })
-    expect(play.updatedAt).toBe('2025-01-02T10:00:00.000Z')
-  })
-
-  it('does not modify its input', () => {
-    const input = v0()
-    const copy = JSON.stringify(input)
-    upgradePlay(input)
-    expect(JSON.stringify(input)).toBe(copy)
   })
 
   it('leaves a current play unchanged', () => {
     const play = basePlay()
-    const result = upgradePlay(play)
-    expect(result).toEqual({ ok: true, play, fromVersion: CURRENT_SCHEMA_VERSION })
+    expect(upgradePlay(play)).toEqual({ ok: true, play, fromVersion: 5 })
   })
 
-  it('reports an invalid version 0 file against the version 0 schema', () => {
-    const input = { ...v0(), attacking: 'C' }
-    const result = upgradePlay(input)
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.error).toMatchObject({ code: 'invalid', version: 0 })
-  })
-
-  it('refuses a file from a newer version (DECISIONS Q24)', () => {
-    expect(upgradePlay({ ...basePlay(), schemaVersion: 5 })).toEqual({
+  it('refuses every version below 5, never migrated (D-139)', () => {
+    for (const [version, file] of Object.entries(OBSOLETE_FILES)) {
+      expect(upgradePlay(file())).toEqual({
+        ok: false,
+        error: { code: 'obsoleteVersion', version: Number(version) },
+      })
+    }
+    expect(upgradePlay({ schemaVersion: -1 })).toEqual({
       ok: false,
-      error: { code: 'futureVersion', version: 5 },
+      error: { code: 'obsoleteVersion', version: -1 },
     })
   })
 
-  it('refuses data without version or of an unknown version', () => {
-    expect(upgradePlay({ name: 'x' })).toEqual({ ok: false, error: { code: 'missingVersion' } })
-    expect(upgradePlay([])).toEqual({ ok: false, error: { code: 'notAnObject' } })
-    expect(upgradePlay({ schemaVersion: -1 })).toEqual({
+  it('refuses an old version whatever its content, even an otherwise valid v5 body', () => {
+    expect(upgradePlay({ ...basePlay(), schemaVersion: 4 })).toEqual({
       ok: false,
-      error: { code: 'unknownVersion', version: -1 },
+      error: { code: 'obsoleteVersion', version: 4 },
+    })
+  })
+
+  it('does not modify its input', () => {
+    for (const file of [...Object.values(OBSOLETE_FILES).map((make) => make()), basePlay()]) {
+      const copy = JSON.stringify(file)
+      upgradePlay(file)
+      expect(JSON.stringify(file)).toBe(copy)
+    }
+  })
+
+  it('refuses a file from a newer version (DECISIONS Q24)', () => {
+    expect(upgradePlay({ ...basePlay(), schemaVersion: 6 })).toEqual({
+      ok: false,
+      error: { code: 'futureVersion', version: 6 },
+    })
+  })
+
+  it('refuses data without version', () => {
+    expect(upgradePlay({ name: 'x' })).toEqual({ ok: false, error: { code: 'missingVersion' } })
+    expect(upgradePlay({ schemaVersion: '5' })).toEqual({
+      ok: false,
+      error: { code: 'missingVersion' },
+    })
+    expect(upgradePlay({ schemaVersion: 4.5 })).toEqual({
+      ok: false,
+      error: { code: 'missingVersion' },
+    })
+    expect(upgradePlay([])).toEqual({ ok: false, error: { code: 'notAnObject' } })
+    expect(upgradePlay(null)).toEqual({ ok: false, error: { code: 'notAnObject' } })
+  })
+
+  it('reports an invalid v5 file with the path of the error', () => {
+    const result = upgradePlay({ ...basePlay(), branches: 'aucune' })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error).toMatchObject({
+      code: 'invalid',
+      version: 5,
+      issues: [{ path: 'branches' }],
+    })
+  })
+
+  it('keeps readSchemaVersion neutral: presets and settings keep their own versions', () => {
+    expect(readSchemaVersion({ schemaVersion: 1 }, 4)).toEqual({ ok: true, version: 1 })
+    expect(readSchemaVersion({ schemaVersion: 5 }, 4)).toEqual({
+      ok: false,
+      error: { code: 'futureVersion', version: 5 },
     })
   })
 })

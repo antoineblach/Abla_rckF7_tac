@@ -1,43 +1,38 @@
-// Editor state (Zustand): the open play, its history, selection, tool and drafts.
-// Logic lives in editor/ and model/; this store only holds state and applies commands.
+// Editor state (Zustand): the open play, its history, selection, tool and drafts. The displayed line
+// and the cursor are in the transport (playerStore). Logic lives in editor/ and model/; this store
+// only holds state and applies commands.
 import { create } from 'zustand'
 import { EMPTY_HISTORY, record, redo, undo, type History } from '../editor/history'
 import type { PlacementMode } from '../editor/placementMode'
 import type { OpenSideChoice } from '../editor/presets'
-import type { SyncPick } from '../editor/syncPick'
 import { EMPTY_SELECTION, pruneSelection, type Selection } from '../editor/selection'
 import type { RunDraft } from '../editor/tools/runTool'
 import type { ToolId } from '../editor/tools/types'
 import type { VersionToken, PutResult } from '../io/LibraryStore'
-import { findPhase, rootPhase } from '../model/phaseTree'
 import type { Id, Play } from '../model/types'
 import { resetView } from './viewStore'
 
 export type EditorNotice =
-  | 'inheritedPosition'
+  // A starting position or the ball on the ground moves only at t = 0 (SPEC 6.3, D-141).
+  | 'placementAtStart'
   | 'readOnly'
-  | 'rootOption'
-  | 'notLeaf'
-  // Breakdown tool (D-081): no ball in the phase, fewer than two teammates.
+  // Breakdown tool (D-081): no ball at the formation, fewer than two teammates.
   | 'breakdownNoBall'
   | 'breakdownTeammates'
-  // Links (D-108, D-109): the run itself, a loop, a target that cannot apply, a link removed with
-  // its point.
-  | 'syncSelf'
-  | 'syncCycle'
-  | 'syncInvalid'
-  | 'syncLinkRemoved'
+  // An edge glued to what was removed stays at its value (SPEC 5.8).
+  | 'edgeFrozen'
   | null
 
 export interface EditorState {
   play: Play | null
+  /** Plays opened and closed so far: each one puts the transport back at the start of a line. */
+  openCount: number
   /** Stored version the play started from (optimistic concurrency); null if never saved. */
   version: VersionToken | null
   dirty: boolean
   readOnly: boolean
   history: History
   gestureStart: Play | null
-  selectedPhaseId: Id | null
   selection: Selection
   tool: ToolId
   runDraft: RunDraft | null
@@ -46,8 +41,6 @@ export interface EditorState {
   kickFromId: Id | null
   /** Placement in progress: preset applied or saved, play moved (lot 3, D-096). */
   placement: PlacementMode | null
-  /** « Caler sur… » waiting for the click on the target (D-109). */
-  syncPick: SyncPick | null
   /**
    * New play from a preset, never written until its placement is validated (D-101), with the play
    * open before it; null otherwise.
@@ -59,19 +52,18 @@ export interface EditorState {
 
 const initial: EditorState = {
   play: null,
+  openCount: 0,
   version: null,
   dirty: false,
   readOnly: false,
   history: EMPTY_HISTORY,
   gestureStart: null,
-  selectedPhaseId: null,
   selection: EMPTY_SELECTION,
   tool: 'select',
   runDraft: null,
   passFromId: null,
   kickFromId: null,
   placement: null,
-  syncPick: null,
   pendingCreation: null,
   snap: false,
   notice: null,
@@ -103,20 +95,10 @@ export function setEditorChangeListener(listener: () => void): void {
   changeListener = listener
 }
 
-function idsOf(play: Play): { entities: Set<Id>; actions: Set<Id> } {
-  return {
-    entities: new Set(play.entities.map((e) => e.id)),
-    actions: new Set(play.phases.flatMap((p) => p.actions.map((a) => a.id))),
-  }
-}
-
 function withPlay(state: EditorState, play: Play): Partial<EditorState> {
-  const { entities, actions } = idsOf(play)
-  const selectedPhaseId =
-    state.selectedPhaseId && findPhase(play, state.selectedPhaseId)
-      ? state.selectedPhaseId
-      : (rootPhase(play)?.id ?? null)
-  return { play, selection: pruneSelection(state.selection, entities, actions), selectedPhaseId }
+  const entities = new Set(play.entities.map((e) => e.id))
+  const actions = new Set(play.actions.map((a) => a.id))
+  return { play, selection: pruneSelection(state.selection, entities, actions) }
 }
 
 export function openPlay(
@@ -127,20 +109,25 @@ export function openPlay(
 ): void {
   useEditorStore.setState((state) => ({
     ...initial,
+    openCount: state.openCount + 1,
     tool: state.tool,
     snap: state.snap,
     play,
     version,
     readOnly,
     dirty,
-    selectedPhaseId: rootPhase(play)?.id ?? null,
   }))
   // Opening a play is one of the actions that set the view (D-048).
   resetView()
 }
 
 export function closePlay(): void {
-  useEditorStore.setState((state) => ({ ...initial, tool: state.tool, snap: state.snap }))
+  useEditorStore.setState((state) => ({
+    ...initial,
+    openCount: state.openCount + 1,
+    tool: state.tool,
+    snap: state.snap,
+  }))
   resetView()
 }
 
@@ -276,16 +263,15 @@ export function reloadPlay(play: Play, version: VersionToken | null): void {
   })
 }
 
-export function selectPhase(phaseId: Id): void {
-  // A notice about the previous phase no longer applies.
-  useEditorStore.setState({
-    selectedPhaseId: phaseId,
-    runDraft: null,
-    passFromId: null,
-    kickFromId: null,
-    syncPick: null,
-    notice: null,
-  })
+/**
+ * The cursor moved, or playback started: the tool drafts in progress and a notice about the previous
+ * instant no longer apply.
+ */
+export function dropToolDrafts(): void {
+  const state = useEditorStore.getState()
+  if (state.runDraft || state.passFromId || state.kickFromId || state.notice) {
+    useEditorStore.setState({ runDraft: null, passFromId: null, kickFromId: null, notice: null })
+  }
 }
 
 export function setTool(tool: ToolId): void {
@@ -297,7 +283,6 @@ export function setTool(tool: ToolId): void {
     passFromId: null,
     kickFromId: null,
     placement: null,
-    syncPick: null,
     notice: null,
   })
 }
@@ -316,7 +301,6 @@ export function setPlacement(placement: PlacementMode | null): void {
     runDraft: null,
     passFromId: null,
     kickFromId: null,
-    syncPick: null,
     notice: null,
   })
 }
@@ -327,17 +311,6 @@ export function setPlacementOpenSide(openSide: OpenSideChoice): void {
   if (placement && placement.kind !== 'movePlay') {
     useEditorStore.setState({ placement: { ...placement, openSide } })
   }
-}
-
-/** Starts or ends « Caler sur… » (D-109); the tool drafts in progress are dropped. */
-export function setSyncPick(syncPick: SyncPick | null): void {
-  useEditorStore.setState({
-    syncPick,
-    runDraft: null,
-    passFromId: null,
-    kickFromId: null,
-    notice: null,
-  })
 }
 
 export function setSelection(selection: Selection): void {

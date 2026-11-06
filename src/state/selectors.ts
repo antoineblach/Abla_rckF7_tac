@@ -1,18 +1,16 @@
 // Derived data for display, computed by the engine and the model (never in React components).
-import { phaseReport, type ActionReport, type PhaseReport } from '../engine/actionReport'
-import { phaseSchematic } from '../engine/evaluate'
-import { compileLine } from '../engine/timeline'
-import type { SyncPick } from '../editor/syncPick'
+import { lineReport, type ActionReport, type LineReport } from '../engine/actionReport'
+import { compileLine, intervalIndexAt } from '../engine/timeline'
 import { engineIssues } from '../engine/validate'
+import { allLines } from '../model/branches'
 import { issueKey, type Issue } from '../model/issues'
-import { childrenOf, findPhase, phaseLabelParts, type PhaseLabelParts } from '../model/phaseTree'
+import { lineOptionsText, sceneHeaderLabel } from '../model/labels'
 import type { Settings } from '../model/settings'
 import { engineSettingsOf } from '../model/settings'
 import {
   isPlayer,
   type Action,
   type Id,
-  type Phase,
   type Play,
   type PlayerEntity,
   type Vec2,
@@ -37,48 +35,69 @@ export function playIssues(play: Play, settings: Settings): Issue[] {
   return result
 }
 
-export function findAction(play: Play, actionId: Id): { action: Action; phase: Phase } | null {
-  for (const phase of play.phases) {
-    const action = phase.actions.find((a) => a.id === actionId)
-    if (action) return { action, phase }
-  }
-  return null
+export function findAction(play: Play, actionId: Id): Action | null {
+  return play.actions.find((a) => a.id === actionId) ?? null
 }
 
-/** Computed duration of a run (length / pace, or the imposed duration). */
+/** The lines of a play and their options, for the list « Ligne » (D-142). */
+export function lineChoices(play: Play): { line: Id[]; label: string }[] {
+  return allLines(play).map((line) => ({ line, label: lineOptionsText(play, line) }))
+}
+
+/** « Sortie de mêlée, option B »: the interval at the cursor, empty in a trunk without sequence. */
+export function intervalLabelAt(
+  play: Play,
+  line: readonly Id[],
+  t: number,
+  settings: Settings,
+): string {
+  const compiled = compileLine(play, line, engineSettingsOf(settings), appCaches)
+  const interval = compiled.intervals[intervalIndexAt(compiled, t)]
+  return interval ? sceneHeaderLabel(play, interval.label, interval.branchId) : ''
+}
+
+/** Report of the actions of a line (D-113, D-145). */
+export function lineReportOf(play: Play, line: readonly Id[], settings: Settings): LineReport {
+  return lineReport(play, line, engineSettingsOf(settings), appCaches)
+}
+
+/** Report of one action of a line, or null. */
+export function actionReportOf(
+  play: Play,
+  line: readonly Id[],
+  actionId: Id,
+  settings: Settings,
+): ActionReport | null {
+  return lineReportOf(play, line, settings).rows.find((r) => r.actionId === actionId) ?? null
+}
+
+/** Actions in progress at the cursor, marked in the list (D-145). */
+export function actionsInProgress(report: LineReport, t: number): Id[] {
+  return report.rows
+    .filter((row) => row.applied && row.start <= t && t < row.end)
+    .map((row) => row.actionId)
+}
+
+/** Computed duration of a run on a line (its length and pace, or the imposed duration). */
 export function runDuration(
   play: Play,
-  phaseId: Id,
+  line: readonly Id[],
   actionId: Id,
   settings: Settings,
 ): number | null {
-  const schematic = phaseSchematic(play, phaseId, engineSettingsOf(settings), appCaches)
-  return schematic?.runs.find((r) => r.actionId === actionId)?.duration ?? null
-}
-
-export function labelParts(play: Play, phaseId: Id): PhaseLabelParts {
-  return phaseLabelParts(play, phaseId)
-}
-
-export function siblingsOf(play: Play, phaseId: Id): Phase[] {
-  const phase = findPhase(play, phaseId)
-  return phase ? childrenOf(play, phase.parentId) : []
-}
-
-export function phaseDurationAt(play: Play, phaseId: Id, settings: Settings): number {
-  const schematic = phaseSchematic(play, phaseId, engineSettingsOf(settings), appCaches)
-  return schematic ? schematic.phaseEnd - schematic.phaseStart : 0
+  const report = actionReportOf(play, line, actionId, settings)
+  return report?.kind === 'run' ? report.duration : null
 }
 
 /** Landing point of a kick (receiver position at arrival, or its target point), or null. */
 export function kickLanding(
   play: Play,
-  phaseId: Id,
+  line: readonly Id[],
   actionId: Id,
   settings: Settings,
 ): Vec2 | null {
-  const schematic = phaseSchematic(play, phaseId, engineSettingsOf(settings), appCaches)
-  return schematic?.kicks.find((k) => k.actionId === actionId)?.to ?? null
+  const compiled = compileLine(play, line, engineSettingsOf(settings), appCaches)
+  return compiled.kicks.find((k) => k.actionId === actionId)?.to ?? null
 }
 
 /** Players of the same team as `id`, without her, for the lists of the inspector (lot 3). */
@@ -88,48 +107,6 @@ export function teammatesOf(play: Play, id: Id): PlayerEntity[] {
   return play.entities.filter(
     (e): e is PlayerEntity => isPlayer(e) && e.team === player.team && e.id !== id,
   )
-}
-
-/**
- * Phase shown by the list of the actions (SPEC 6.7): the selected phase in edit mode, the phase
- * at t of the line during playback.
- */
-export function displayedPhaseId(
-  play: Play,
-  playing: boolean,
-  line: readonly Id[],
-  t: number,
-  selectedPhaseId: Id | null,
-  settings: Settings,
-): Id | null {
-  if (!playing) return selectedPhaseId
-  const compiled = compileLine(play, line, engineSettingsOf(settings), appCaches)
-  let phaseId: Id | null = compiled.phases[0]?.phaseId ?? selectedPhaseId
-  for (const phase of compiled.phases) if (phase.start <= t) phaseId = phase.phaseId
-  return phaseId
-}
-
-/** Report of the actions of a phase (D-113), or null. */
-export function phaseReportOf(play: Play, phaseId: Id, settings: Settings): PhaseReport | null {
-  return phaseReport(play, phaseId, engineSettingsOf(settings), appCaches)
-}
-
-/** Report of one action of a phase, or null. */
-export function actionReportOf(
-  play: Play,
-  phaseId: Id,
-  actionId: Id,
-  settings: Settings,
-): ActionReport | null {
-  return phaseReportOf(play, phaseId, settings)?.rows.find((r) => r.actionId === actionId) ?? null
-}
-
-/** « course de A 5 (fin) », « course de A 5 (point 2) »: the run of « Caler sur… » (D-109). */
-export function syncPickPrompt(play: Play, pick: SyncPick): string {
-  const found = findAction(play, pick.runId)
-  const who = found?.action.type === 'run' ? playerName(play, found.action.entityId) : '?'
-  const where = pick.at === undefined ? 'fin' : `point ${String(pick.at + 1)}`
-  return `course de ${who} (${where})`
 }
 
 /** « A 4 »: team and number of a player, or « ? ». */

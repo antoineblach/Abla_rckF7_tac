@@ -1,22 +1,19 @@
-// Report of the actions of a phase for the list of the editor (SPEC 6.7, D-113): one row per
-// action, sorted by start then array order, with its start and end relative to the phase and the
-// details of its type. Read on the compilation of the path to the phase, which is the same in
-// every line through it (SPEC 5.2). Pure.
-import { pathToPhase } from '../model/phaseTree'
+// Report of the actions of a line for the list of the editor (SPEC 6.7, D-113, D-145): one row per
+// action, sorted by start then array order, with its absolute start and end and the details of its
+// type. Pure.
+import { segmentPeak } from './profile'
+import { distance } from './vec'
 import type { EngineSettings } from '../model/settings'
 import type { BreakdownKind, Id, Pace, Play, RunAction, SpeedValue, Vec2 } from '../model/types'
 import type { EvalCaches } from './caches'
-import { segmentPeak } from './profile'
 import {
-  compileLine,
   motionDistance,
   motionEnd,
   type AccelAlert,
   type RunMotion,
-  type RunSyncResult,
   type SpeedLevel,
-} from './timeline'
-import { distance } from './vec'
+} from './motion'
+import { compileLine, type CompiledGlue } from './timeline'
 
 /** Speed of a segment: the pace of the run, a pace of its own, or a typed speed (D-114). */
 export type SegmentSpeedSource = 'run' | Pace | 'custom'
@@ -48,11 +45,14 @@ export interface RunReport {
   kind: 'run'
   actionId: Id
   entityId: Id
-  /** Start and end, relative to the start of the phase. */
+  branchId: Id
+  /** Absolute start and end. */
   start: number
   end: number
-  /** False for a second run of the player in the phase, or a run ignored after a breakdown. */
+  /** False for a run that cannot be played (missing player). */
   applied: boolean
+  /** « Départ retardé » : the start is later than the instant asked for by this delay, else 0. */
+  delay: number
   /** Pace of the run: a named pace or a typed speed in m/s (D-133). */
   pace: SpeedValue
   /** Length of the drawn curve. */
@@ -61,78 +61,88 @@ export interface RunReport {
   meanSpeed: number
   peakSpeed: number
   segments: SegmentReport[]
-  /**
-   * Factors of the levers on the target speeds and the accelerations (imposed duration, link,
-   * D-130), 1 otherwise.
-   */
+  /** Factors of the levers on the target speeds and the accelerations (D-130), 1 otherwise. */
   factor: number
   accelFactor: number
-  sync: RunSyncResult | null
-  /** « Finit lancée » set, and in effect (ends at speed with the phase). */
-  endsAtSpeed: boolean
-  atSpeed: boolean
-  /** « Finit lancée » without effect: wait before the next phase, in seconds. */
-  launchWait: number | null
-  /** Starts at speed, prolonging a run of the previous phase (D-106). */
-  prolongs: boolean
-  /** Frozen by a breakdown at this instant (relative), null otherwise. */
+  /** Frozen by a breakdown at this instant, null otherwise. */
   cutAt: number | null
+  /** Ends at speed: the next run of the player is glued to its end, without gap (SPEC 5.2). */
+  endsAtSpeed: boolean
+  /** Ends at speed and is not stopped by a breakdown. */
+  atSpeed: boolean
+  /** Starts at speed, prolonging the run before it (SPEC 5.2). */
+  prolongs: boolean
+  startGlue: CompiledGlue | null
+  endGlue: CompiledGlue | null
 }
 
-export interface ReleaseReport {
-  releaseMode: 'fixed' | 'onReceipt'
-  /** Planned instant of a fixed release (relative), null on receipt. */
-  plannedT: number | null
-}
-
-export interface PassReport extends ReleaseReport {
+export interface PassReport {
   kind: 'pass'
   actionId: Id
+  branchId: Id
   fromId: Id
   toId: Id
-  /** Release and arrival, relative to the start of the phase. */
+  /** Instant asked for; `start` waits for a reception within the tolerance (D-110). */
+  plannedT: number
+  /** Absolute release and arrival. */
   start: number
   end: number
   applied: boolean
   distance: number
   flight: number
   forward: boolean
+  startGlue: CompiledGlue | null
+  endGlue: CompiledGlue | null
 }
 
-export interface KickReport extends ReleaseReport {
+export interface KickReport {
   kind: 'kick'
   actionId: Id
+  branchId: Id
   kickerId: Id
   receiverId: Id | null
   /** Target point of a kick to a point, else null. */
   point: Vec2 | null
+  plannedT: number
   start: number
   end: number
   applied: boolean
   distance: number
   flight: number
+  startGlue: CompiledGlue | null
+  endGlue: CompiledGlue | null
 }
 
 export interface BreakdownReport {
   kind: 'breakdown'
   actionId: Id
+  branchId: Id
   breakdownKind: BreakdownKind
   tackledId: Id
   relayerId: Id
-  /** Formation and ball out, relative to the start of the phase. */
+  /** Absolute formation and ball out. */
   start: number
   end: number
   applied: boolean
+  startGlue: CompiledGlue | null
+  endGlue: CompiledGlue | null
 }
 
 export type ActionReport = RunReport | PassReport | KickReport | BreakdownReport
 
-export interface PhaseReport {
-  phaseId: Id
-  /** Absolute start of the phase on its path. */
-  start: number
+export interface LineReport {
+  line: Id[]
   duration: number
   rows: ActionReport[]
+}
+
+function accelReport(
+  motion: RunMotion,
+  segment: number,
+  kind: AccelAlert['kind'],
+): AccelReport | null {
+  const alert = motion.accelAlerts.find((a) => a.segment === segment && a.kind === kind)
+  return alert ? { peak: alert.peak, level: alert.level } : null
 }
 
 function segmentsOf(run: RunAction, motion: RunMotion): SegmentReport[] {
@@ -174,21 +184,9 @@ function segmentsOf(run: RunAction, motion: RunMotion): SegmentReport[] {
   })
 }
 
-function accelReport(
-  motion: RunMotion,
-  segment: number,
-  kind: AccelAlert['kind'],
-): AccelReport | null {
-  const alert = motion.accelAlerts.find((a) => a.segment === segment && a.kind === kind)
-  return alert ? { peak: alert.peak, level: alert.level } : null
-}
+type EdgeReports = Pick<RunReport, 'startGlue' | 'endGlue'>
 
-function runReport(
-  run: RunAction,
-  motion: RunMotion,
-  phaseStart: number,
-  applied: boolean,
-): RunReport {
+function runReport(run: RunAction, motion: RunMotion, edges: EdgeReports): RunReport {
   const end = motionEnd(motion)
   const covered = motionDistance(motion, Infinity)
   const duration = Math.max(0, end - motion.start)
@@ -201,9 +199,11 @@ function runReport(
     kind: 'run',
     actionId: run.id,
     entityId: run.entityId,
-    start: motion.start - phaseStart,
-    end: end - phaseStart,
-    applied,
+    branchId: run.branchId,
+    start: motion.start,
+    end,
+    applied: true,
+    delay: motion.start - motion.planned,
     pace: run.pace,
     length: motion.spline.length,
     duration,
@@ -212,113 +212,116 @@ function runReport(
     segments: segmentsOf(run, motion),
     factor: motion.factor,
     accelFactor: motion.accelFactor,
-    sync: motion.sync,
-    endsAtSpeed: run.endsAtSpeed === true,
+    cutAt: motion.until === null || motion.until >= end ? null : motion.until,
+    endsAtSpeed: motion.endsAtSpeed,
     atSpeed: motion.endsAtSpeed && motion.until === null,
-    launchWait: motion.launchWait,
-    prolongs: motion.prolongs,
-    cutAt: motion.until === null || motion.until >= end ? null : motion.until - phaseStart,
+    prolongs: motion.launch !== null,
+    ...edges,
   }
 }
 
-/** The report of the actions of a phase, or null for an unknown phase. */
-export function phaseReport(
+/** A run without motion stays listed, to be selected and removed. */
+function unplayedRun(run: RunAction, edges: EdgeReports): RunReport {
+  return {
+    kind: 'run',
+    actionId: run.id,
+    entityId: run.entityId,
+    branchId: run.branchId,
+    start: run.start,
+    end: run.start,
+    applied: false,
+    delay: 0,
+    pace: run.pace,
+    length: 0,
+    duration: 0,
+    meanSpeed: 0,
+    peakSpeed: 0,
+    segments: [],
+    factor: 1,
+    accelFactor: 1,
+    cutAt: null,
+    endsAtSpeed: false,
+    atSpeed: false,
+    prolongs: false,
+    ...edges,
+  }
+}
+
+/** The report of the actions of a line. */
+export function lineReport(
   play: Play,
-  phaseId: Id,
+  line: readonly Id[],
   settings: EngineSettings,
   caches: EvalCaches,
-): PhaseReport | null {
-  const source = play.phases.find((p) => p.id === phaseId)
-  const compiled = compileLine(play, pathToPhase(play, phaseId), settings, caches)
-  const phase = compiled.phases[compiled.phases.length - 1]
-  if (!source || !phase || phase.phaseId !== phaseId) return null
-  const start = phase.start
+): LineReport {
+  const compiled = compileLine(play, line, settings, caches)
   const rows: { row: ActionReport; index: number }[] = []
-  source.actions.forEach((a, index) => {
+  play.actions.forEach((a, index) => {
+    if (!compiled.line.includes(a.branchId)) return
     const push = (row: ActionReport) => rows.push({ row, index })
+    const glueOf = (kind: 'start' | 'end'): CompiledGlue | null =>
+      compiled.glues.find((g) => g.ownerId === a.id && g.kind === kind) ?? null
+    const edges: EdgeReports = { startGlue: glueOf('start'), endGlue: glueOf('end') }
     switch (a.type) {
       case 'run': {
-        const motion = phase.motions.find((m) => m.source === 'run' && m.actionId === a.id)
-        const ignored = phase.ignoredRuns.find((m) => m.actionId === a.id)
-        if (motion) push(runReport(a, motion, start, true))
-        else if (ignored) push(runReport(a, ignored, start, false))
-        else {
-          // A second run of the player in the phase (D-013): never played.
-          push({
-            kind: 'run',
-            actionId: a.id,
-            entityId: a.entityId,
-            start: a.delay,
-            end: a.delay,
-            applied: false,
-            pace: a.pace,
-            length: 0,
-            duration: 0,
-            meanSpeed: 0,
-            peakSpeed: 0,
-            segments: [],
-            factor: 1,
-            accelFactor: 1,
-            sync: null,
-            endsAtSpeed: a.endsAtSpeed === true,
-            atSpeed: false,
-            launchWait: null,
-            prolongs: false,
-            cutAt: null,
-          })
-        }
+        const motion = compiled.motions.find((m) => m.source === 'run' && m.actionId === a.id)
+        push(motion ? runReport(a, motion, edges) : unplayedRun(a, edges))
         return
       }
       case 'pass': {
-        const p = phase.passes.find((x) => x.actionId === a.id)
+        const p = compiled.passes.find((x) => x.actionId === a.id)
         if (!p) return
         push({
           kind: 'pass',
           actionId: a.id,
+          branchId: a.branchId,
           fromId: p.fromId,
           toId: p.toId,
-          start: p.releaseT - start,
-          end: p.arrivalT - start,
+          plannedT: p.plannedT,
+          start: p.releaseT,
+          end: p.arrivalT,
           applied: p.applied,
           distance: distance(p.from, p.to),
           flight: p.arrivalT - p.releaseT,
           forward: p.forward,
-          releaseMode: p.releaseMode,
-          plannedT: p.plannedT === null ? null : p.plannedT - start,
+          ...edges,
         })
         return
       }
       case 'kick': {
-        const k = phase.kicks.find((x) => x.actionId === a.id)
+        const k = compiled.kicks.find((x) => x.actionId === a.id)
         if (!k) return
         push({
           kind: 'kick',
           actionId: a.id,
+          branchId: a.branchId,
           kickerId: k.kickerId,
           receiverId: k.receiverId,
           point: k.receiverId === null ? { x: k.to.x, y: k.to.y } : null,
-          start: k.releaseT - start,
-          end: k.arrivalT - start,
+          plannedT: k.plannedT,
+          start: k.releaseT,
+          end: k.arrivalT,
           applied: k.applied,
           distance: distance(k.from, k.to),
           flight: k.arrivalT - k.releaseT,
-          releaseMode: k.releaseMode,
-          plannedT: k.plannedT === null ? null : k.plannedT - start,
+          ...edges,
         })
         return
       }
       case 'breakdown': {
-        const b = phase.breakdowns.find((x) => x.actionId === a.id)
+        const b = compiled.breakdowns.find((x) => x.actionId === a.id)
         if (!b) return
         push({
           kind: 'breakdown',
           actionId: a.id,
+          branchId: a.branchId,
           breakdownKind: b.kind,
           tackledId: b.tackledId,
           relayerId: b.relayerId,
-          start: b.start - start,
-          end: b.end - start,
+          start: b.start,
+          end: b.end,
           applied: b.applied,
+          ...edges,
         })
         return
       }
@@ -328,5 +331,5 @@ export function phaseReport(
     }
   })
   rows.sort((a, b) => a.row.start - b.row.start || a.index - b.index)
-  return { phaseId, start, duration: phase.end - start, rows: rows.map((r) => r.row) }
+  return { line: [...compiled.line], duration: compiled.duration, rows: rows.map((r) => r.row) }
 }

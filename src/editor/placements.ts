@@ -46,7 +46,7 @@ export function createPlayForPreset(withBall: boolean, ids: IdFactory, now: Date
 function playWith(entities: Entity[], setup: Play['setup'], ids: IdFactory, now: Date): Play {
   const stamp = now.toISOString()
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     id: ids(),
     createdAt: stamp,
     updatedAt: stamp,
@@ -57,16 +57,8 @@ function playWith(entities: Entity[], setup: Play['setup'], ids: IdFactory, now:
     field: { ...FIELD_DEFAULTS, view: { kind: 'full' } },
     entities,
     setup,
-    phases: [
-      {
-        id: ids(),
-        parentId: null,
-        label: '',
-        condition: '',
-        instruction: '',
-        isDefault: false,
-        actions: [],
-      },
-    ],
+    branches: [{ id: ids(), parentId: null, label: '', condition: '', isDefault: false }],
+    actions: [],
+    sequences: [],
   }
 }

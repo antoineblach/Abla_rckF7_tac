@@ -1,6 +1,6 @@
 // Layers that can be switched on and off separately (SPEC 7).
 export interface Layers {
-  /** Traces: current phase emphasised, previous phases faded. */
+  /** Traces: current interval emphasised, earlier ones faded. */
   traces: boolean
   /** Instruction in a banner. */
   instruction: boolean

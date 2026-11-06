@@ -1,5 +1,5 @@
-// Reading a play file: JSON, then zod validation and successive migrations, then business
-// validation (SPEC 4.4). Never modifies anything.
+// Reading a play file: JSON, then zod validation, then business validation (SPEC 4.4). A version
+// below 5 is refused (D-139). Never modifies anything.
 import type { Issue } from '../model/issues'
 import { upgradePlay, type UpgradeError } from '../model/migrations'
 import type { Play } from '../model/types'

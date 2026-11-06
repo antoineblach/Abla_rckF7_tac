@@ -487,7 +487,7 @@ export const THEME_VALUES = {
     speedDangerText: '#ffffff',
   },
   // « Impression N&B » (SPEC 9.3, D-062): greys only; team A filled black, team B hollow
-  // whatever the player colour; black solid runs, dotted passes, previous phases light grey;
+  // whatever the player colour; black solid runs, dotted passes, earlier actions light grey;
   // white field with mid grey lines, very light grey in-goals, thin black dashed gain line.
   printBw: {
     background: '#ffffff',

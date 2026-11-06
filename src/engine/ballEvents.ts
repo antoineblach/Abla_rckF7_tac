@@ -1,14 +1,14 @@
-// Ball events of lot 3 (SPEC 5.7, 10.3, 10.4, D-083, D-085, D-094): pickup of a loose ball,
-// forward pass check, kick flight. Pure helpers working on position functions, so that the
-// compilation of a phase can use them while it builds its motions.
+// Ball events (SPEC 5.4, 5.7, 10.3, 10.4, D-083, D-085, D-094): pickup of a loose ball, forward
+// pass check, kick flight. Pure helpers working on position functions, so that the simulation of a
+// line can use them while it builds its motions.
 import {
   FORWARD_PASS_THRESHOLD,
   KICK_FLIGHT_TIME,
   LOOSE_BALL_PICKUP_DISTANCE,
   PICKUP_SEARCH,
 } from '../config/defaults'
-import { attackDirection, type Id, type KickAction, type Team, type Vec2 } from '../model/types'
 import { distance } from './vec'
+import { attackDirection, type Id, type KickAction, type Team, type Vec2 } from '../model/types'
 
 /** Position of an entity at an absolute instant, undefined when it has no position. */
 export type PositionAt = (entityId: Id, t: number) => Vec2 | undefined

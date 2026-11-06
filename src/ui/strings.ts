@@ -8,7 +8,7 @@ import { LEGACY_MOTION, MOTION_DEFAULTS } from '../config/defaults'
 import type { LegacyMotionKey } from '../model/settings'
 import { decimal, formatAccel, formatKmh, formatSeconds } from './format'
 
-export { CATEGORY_LABELS, phaseLabel } from '../model/labels'
+export { CATEGORY_LABELS } from '../model/labels'
 
 const MOTION_RESET_LABELS: Record<LegacyMotionKey, string> = {
   accel: 'accélération',
@@ -34,19 +34,13 @@ export const TOOL_LABELS: Record<ToolId, { label: string; key: string }> = {
 }
 
 export const NOTICES: Record<Exclude<EditorNotice, null>, string> = {
-  inheritedPosition:
-    'Position héritée du temps précédent : sélectionnez le temps 1 pour modifier le placement, ou déplacez les points de passage.',
+  placementAtStart:
+    'Le placement de départ se modifie au début : ramenez le curseur à 0 s, ou déplacez les points de passage.',
   readOnly: 'Combinaison en lecture seule : résolvez d’abord la copie de conflit.',
-  rootOption: 'Le premier temps ne peut pas avoir d’option.',
-  notLeaf:
-    'Ce temps a déjà une suite : utilisez « Insérer un temps après » ou « Créer une option ».',
   breakdownNoBall:
-    'Regroupement : cliquez une joueuse qui a le ballon dans ce temps (la porteuse plaquée).',
+    'Regroupement : cliquez une joueuse qui a le ballon à cet instant (la porteuse plaquée).',
   breakdownTeammates: 'Regroupement : il faut deux coéquipières pour le soutien et le relayeur.',
-  syncSelf: 'Une course ne peut pas être calée sur elle-même : cliquez une autre action.',
-  syncCycle: 'Lien refusé : il créerait une boucle de liens. Cliquez une autre action.',
-  syncInvalid: 'Cette action ne peut pas servir de cible : cliquez une autre action.',
-  syncLinkRemoved: 'Le point portait un lien de synchronisation : le lien a été retiré.',
+  edgeFrozen: 'Un bord était collé à ce qui vient d’être supprimé : il reste figé à sa valeur.',
 }
 
 /** « 1,2 s » from a number of seconds carried by an issue. */
@@ -72,13 +66,13 @@ export function issueMessage(issue: Issue): string {
     case 'multipleBalls':
       return 'Plusieurs ballons dans la combinaison.'
     case 'noRoot':
-      return 'Aucun temps de départ.'
+      return 'Aucune branche de départ.'
     case 'multipleRoots':
-      return 'Plusieurs temps de départ.'
+      return 'Plusieurs branches de départ.'
     case 'missingParent':
-      return 'Temps rattaché à un temps inexistant.'
+      return 'Option rattachée à une branche inexistante.'
     case 'cycle':
-      return 'Boucle dans l’arbre des temps.'
+      return 'Boucle dans l’arbre des options.'
     case 'defaultCount':
       return 'Il faut exactement une option par défaut.'
     case 'missingEntity':
@@ -101,8 +95,26 @@ export function issueMessage(issue: Issue): string {
       return `Dimension hors de la Règle 1 (${p.min ?? ''} à ${p.max ?? ''} m).`
     case 'instructionTooLong':
       return `Consigne longue (${p.length ?? ''} caractères, ${p.max ?? ''} conseillés) : peu lisible sur un téléphone.`
-    case 'twoRunsSamePhase':
-      return 'Deux courses de la même joueuse dans ce temps : seule la première est jouée.'
+    case 'tooFewOptions':
+      return 'Un embranchement a au moins deux options.'
+    case 'branchAtMissing':
+      return 'Embranchement sans instant.'
+    case 'branchAtUnexpected':
+      return 'Instant d’embranchement sur une branche sans option.'
+    case 'branchAtNotIncreasing':
+      return 'Embranchement placé avant celui dont il dépend.'
+    case 'missingBranch':
+      return 'Élément rattaché à une branche inexistante.'
+    case 'startsBeforeBranch':
+      return 'Option qui démarre avant l’embranchement : elle part à l’embranchement.'
+    case 'startsAfterBranch':
+      return 'Action du tronc à l’embranchement ou après : elle reste commune aux options.'
+    case 'sequenceCrossesBranch':
+      return 'Séquence qui traverse un embranchement : coupée à l’embranchement.'
+    case 'sequenceOverlap':
+      return 'Séquences qui se chevauchent : la seconde part à la fin de la première.'
+    case 'sequenceEndBeforeStart':
+      return 'Séquence qui finit avant son début : ignorée.'
     case 'passToOpponent':
       return 'Passe vers l’autre équipe.'
     case 'passerWithoutBall':
@@ -111,6 +123,8 @@ export function issueMessage(issue: Issue): string {
       return 'Deux passes ou jeux au pied au même instant : seul le premier est joué.'
     case 'unsupportedAction':
       return 'Action d’un lot ultérieur, ignorée.'
+    case 'runStartDelayed':
+      return `Départ retardé de ${seconds(p.delay)}.`
     case 'actorNotPlayer':
       return 'Un jeu au pied ou un regroupement ne concerne que des joueuses.'
     case 'kickSelfTarget':
@@ -124,29 +138,31 @@ export function issueMessage(issue: Issue): string {
     case 'tackledWithoutBall':
       return 'La plaquée n’a pas le ballon à la formation : regroupement ignoré.'
     case 'runCutByBreakdown':
-      return 'Course arrêtée par le regroupement : la suite se dessine dans le temps suivant.'
+      return 'Course arrêtée par le regroupement : la fin du tracé n’est pas courue.'
     case 'relayerLate':
       return `Relayeur trop loin : il n’arrive au ballon qu’à la sortie, en pointe à ${kmh(p.speed)}${typeof p.accel === 'number' && p.accel > 1 ? `, accélérations × ${decimal(p.accel, 2)}` : ''}.`
     case 'forwardPass':
       return 'En-avant probable : la passe part vers l’avant depuis les mains.'
-    case 'syncTargetMissing':
-      return 'Lien de synchronisation : cible supprimée, lien ignoré.'
-    case 'syncTargetInvalid':
-      return p.reason === 'unreached'
-        ? 'Lien de synchronisation : la cible n’a jamais lieu (action ignorée ou point non atteint), lien ignoré.'
-        : 'Lien de synchronisation invalide (cible ou point inexistant) : lien ignoré.'
-    case 'syncCycle':
-      return 'Liens de synchronisation en boucle : liens ignorés.'
-    case 'syncLate':
+    case 'glueTargetMissing':
+      return 'Collage : cible supprimée, collage ignoré.'
+    case 'glueTargetInvalid':
+      return 'Collage invalide (cible hors de la ligne ou de type incompatible, point inexistant) : collage ignoré.'
+    case 'glueCycle':
+      return 'Collages en boucle : collages ignorés.'
+    case 'glueTargetUnreached':
+      return 'Collage : la cible n’a jamais lieu, collage ignoré.'
+    case 'glueStartedLate':
       return `Il aurait fallu partir ${seconds(p.late)} plus tôt : départ immédiat, course accélérée.`
-    case 'syncTargetBeforeStart':
-      return `Synchronisation impossible : la cible a lieu avant le départ de la course ; délai et vitesses enregistrés, arrivée en retard de ${seconds(p.late)}.`
+    case 'glueArrivesLate':
+      return `Collage : arrivée en retard de ${seconds(p.late)}.`
+    case 'ballSlowerThanReceiver':
+      return 'Le ballon va moins vite que la receveuse : il peut ne pas la rejoindre.'
     case 'runSpeedHigh':
       return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil orange.`
     case 'runSpeedTooHigh':
       return `Segment ${p.segment ?? ''} : ${kmh(p.speed)}, au-delà du seuil rouge : irréaliste.`
     case 'runNotContinued':
-      return `Course lancée non prolongée dans ${p.phase ?? 'le temps suivant'} : arrêt net à la fin du temps.`
+      return `Course lancée non prolongée dans ${p.option || 'l’option'} : arrêt net à sa fin.`
     case 'runAccelHigh':
       return `Segment ${p.segment ?? ''} : accélération de ${accel(p.value)}, au-delà du seuil orange.`
     case 'runAccelTooHigh':
@@ -170,6 +186,8 @@ export function readErrorMessage(error: ReadError): string {
       return 'Fichier créé par une version plus récente de l’outil : recharger la page.'
     case 'unknownVersion':
       return `Version du format inconnue (${error.version}).`
+    case 'obsoleteVersion':
+      return `Combinaison d’une version antérieure de l’outil (format ${error.version}) : refusée, elle n’est ni modifiée ni déplacée.`
     case 'invalid':
       return `Contenu invalide : ${error.issues
         .slice(0, 3)
@@ -197,10 +215,16 @@ export const TEXT = {
   exportFailed: (message: string) => `Export impossible. ${message}`,
   futureSettings:
     'reglages.json a été créé par une version plus récente de l’outil : recharger la page. Il ne sera pas modifié.',
+  // Draft of an earlier version (D-151).
+  draftObsolete:
+    'Le brouillon de ce navigateur vient d’une version antérieure de l’outil : il n’est pas restauré, et sera remplacé à la prochaine modification.',
   newPlay: 'Nouvelle combinaison',
   imported: (n: number) => (n > 1 ? `${n} combinaisons importées.` : 'Combinaison importée.'),
   importFailed: (n: number) =>
     `${n} élément${n > 1 ? 's' : ''} invalide${n > 1 ? 's' : ''} ignoré${n > 1 ? 's' : ''}.`,
+  // Plays of an earlier version in an import (SPEC 4.4, D-139).
+  importObsolete: (n: number) =>
+    `${n} combinaison${n > 1 ? 's' : ''} d’une version antérieure de l’outil refusée${n > 1 ? 's' : ''} : non importée${n > 1 ? 's' : ''}.`,
   browserContent: (plays: number, presets: number) => {
     const p = (n: number) => (n > 1 ? 's' : '')
     const what =
@@ -233,8 +257,7 @@ export const TEXT = {
   placementMoveEnd: 'Déplacer la combinaison : cliquez le point d’arrivée.',
   placementRefused: 'Marque de touche à moins de 5 m d’une ligne de but : refusée.',
   placementEscape: 'Échap pour annuler.',
-  // Lot 3 bis (D-109, D-111).
-  syncPick: (what: string) => `Caler la ${what} : cliquez la cible.`,
+  // Lot 3 bis (D-111).
   sprintReset:
     'Allure sprint ramenée de 7 à 5,5 m/s (19,8 km/h), nouvelle valeur par défaut. Modifiable dans les réglages.',
   // Lot 3bis-1 (D-134).

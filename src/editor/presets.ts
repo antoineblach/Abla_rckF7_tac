@@ -302,7 +302,7 @@ function previewAnchor(type: PresetType): Vec2 {
   }
 }
 
-/** A play holding only the preset, A attacking, for its thumbnail (SPEC 10.1). */
+/** A play holding only the preset, on its root branch alone, A attacking, for its thumbnail (D-147). */
 export function presetPreviewPlay(preset: PlacementPreset, base: Play, ids: IdFactory): Play {
   const empty: Play = {
     ...base,
@@ -310,7 +310,17 @@ export function presetPreviewPlay(preset: PlacementPreset, base: Play, ids: IdFa
     field: { ...FIELD_DEFAULTS, view: { kind: 'full' } },
     entities: [],
     setup: { positions: {}, ballCarrierId: null, ballPosition: null },
-    phases: base.phases.filter((p) => p.parentId === null).map((p) => ({ ...p, actions: [] })),
+    branches: base.branches
+      .filter((branch) => branch.parentId === null)
+      .map(({ id, parentId, label, condition, isDefault }) => ({
+        id,
+        parentId,
+        label,
+        condition,
+        isDefault,
+      })),
+    actions: [],
+    sequences: [],
   }
   const frame = presetFrame(preset.type, previewAnchor(preset.type), FIELD_DEFAULTS, 'A', 'auto')
   return applyPreset(empty, preset, frame, ids).play

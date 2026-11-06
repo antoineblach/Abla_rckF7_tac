@@ -3,8 +3,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { PlaySummary } from '../io/LibraryStore'
 import { defaultSettings } from '../model/settings'
-import { basePlay, uuid } from '../test/builders'
-import { loadOptionsFixture } from '../test/exportFixtures'
+import { basePlay, sevenVsSevenWithOptions, uuid } from '../test/builders'
 import { createInlineEngine } from '../test/inlineEngine'
 import { createMemoryFs, type MemoryFs } from '../test/memoryFs'
 import { openPlay } from './editorStore'
@@ -28,7 +27,7 @@ import { useLibraryState } from './libraryState'
 const ENCODING_TIMEOUT_MS = 60_000
 
 const NOW = new Date(2026, 9, 15, 22, 0, 0)
-const fixture = loadOptionsFixture()
+const fixture = sevenVsSevenWithOptions()
 const PREFS = { ...defaultSettings().export.gif, speed: 'real' as const }
 const NAME = 'croisee-au-centre--portrait-enchaine-reel.gif'
 

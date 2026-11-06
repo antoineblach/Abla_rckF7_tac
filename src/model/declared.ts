@@ -1,17 +1,15 @@
 // Types of later lots, declared only (CLAUDE.md rule 4). Nothing here is implemented: the file
 // schema rejects them and the engine ignores them with an issue (DECISIONS Q4). Kicks,
 // breakdowns and placement presets are implemented since lot 3 (types.ts, preset.ts).
-import type { Id, Vec2, Waypoint } from './types'
+import type { Id, Timed, Vec2, Waypoint } from './types'
 
-/** Lot 5 (SPEC 12); waypoints with segment speeds since lot 3 bis (D-104). */
-export interface GroupRunAction {
-  id: Id
+/** Lot 5 (SPEC 12); waypoints with segment speeds since lot 3 bis (D-104), Timed since D-139. */
+export interface GroupRunAction extends Timed {
   type: 'groupRun'
   entityIds: Id[]
   waypoints: Waypoint[]
   pace: 'walk' | 'jog' | 'sprint'
   durationOverride?: number
-  delay: number
 }
 
 /** Lot 5 (SPEC 12). */

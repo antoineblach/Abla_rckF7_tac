@@ -18,7 +18,7 @@ const theme = THEMES.highContrast
 const fontSize = (font: unknown): number => Number(/(\d+(?:\.\d+)?)px/.exec(String(font))?.[1])
 
 describe('export dressing (SPEC 9.2, D-060)', () => {
-  it('draws the phase label on the left and the badge on the right of the header', () => {
+  it('draws the label on the left and the badge on the right of the header', () => {
     const { ctx, calls } = createRecordingContext()
     drawHeader(ctx, frame, theme, 'Temps 3, option B', 'Vitesse réelle')
     const events = paintEvents(calls)

@@ -2,21 +2,17 @@
 // measuring function (the embedded font, through jsPDF), so that every page is computed before
 // anything is written.
 //
-// « Impression » (A4 landscape): header (title, category, notes); a row for the trunk up to the
-// first branch point included; then a row per option, titled by its condition, in tree order,
-// full width; label and instruction under each thumbnail; a long row wraps; thumbnails from
-// 90 mm down to 60 mm so that the play fits on one page, else continued on the next pages with
-// the title reminded; a row is never split between two pages.
-// « Téléphone »: pages 100 mm wide, as high as their content, one thumbnail per line.
+// « Impression » (A4 landscape): header (title, category, notes); one thumbnail per line of the
+// play, in tree order, the options of the line under it; a long row wraps; thumbnails from 90 mm
+// down to 60 mm so that the play fits on one page, else continued on the next pages with the title
+// reminded; a row splits between two pages only when it is higher than a whole page.
+// « Téléphone »: pages 100 mm wide, as high as their content, the thumbnails in one column.
+// The tree of thumbnails of SPEC 9.3 (a thumbnail per interval, a row per option) comes with
+// frise-4: its rows, titles and instructions keep their place here.
 import { PDF_LAYOUT, PDF_TEXT } from '../../config/defaults'
 import type { Bounds } from '../../engine/bounds'
-import {
-  CATEGORY_LABELS,
-  optionTitle,
-  optionTitlesNeedPhase,
-  phaseLabelOf,
-} from '../../model/labels'
-import { childrenOf, findPhase, rootPhase } from '../../model/phaseTree'
+import { allLines } from '../../model/branches'
+import { CATEGORY_LABELS, lineOptionsText } from '../../model/labels'
 import type { Id, Play } from '../../model/types'
 import { EXPORT_TEXT, exportText } from '../text'
 
@@ -48,7 +44,7 @@ export type PageItem =
       color: string
       align: 'left' | 'center' | 'right'
     }
-  | { kind: 'thumb'; play: number; phaseId: Id; x: number; y: number; w: number; h: number }
+  | { kind: 'thumb'; play: number; line: Id[]; x: number; y: number; w: number; h: number }
   /** Internal link to a page (1-based), playbook contents (D-064). */
   | { kind: 'link'; x: number; y: number; w: number; h: number; page: number }
 
@@ -108,48 +104,27 @@ export function wrapLines(
 // Rows of thumbnails.
 
 export interface ThumbSpec {
-  phaseId: Id
+  line: Id[]
+  /** The options of the line, empty for a play with a single line. */
   label: string
+  /** Empty until frise-4. */
   instruction: string
 }
 
 export interface RowSpec {
-  /** null for the trunk; « Option A : <condition> » for an option. */
+  /** Null until frise-4, where a row of an option is titled « Option A : <condition> ». */
   title: string | null
   thumbs: ThumbSpec[]
 }
 
-/** The trunk up to the first branch point included, then a row per option, in tree order. */
+/** A single row, one thumbnail per line of the play, in tree order. */
 export function playRows(play: Play): RowSpec[] {
-  const root = rootPhase(play)
-  if (!root) return []
-  const withPhase = optionTitlesNeedPhase(play)
-  const seen = new Set<Id>()
-  const rows: RowSpec[] = []
-  const thumb = (id: Id): ThumbSpec => ({
-    phaseId: id,
-    label: exportText(phaseLabelOf(play, id)),
-    instruction: exportText(findPhase(play, id)?.instruction ?? ''),
-  })
-  const walk = (startId: Id, title: string | null): void => {
-    const thumbs: ThumbSpec[] = []
-    let current: Id | undefined = startId
-    let children: ReturnType<typeof childrenOf> = []
-    while (current !== undefined && !seen.has(current)) {
-      seen.add(current)
-      thumbs.push(thumb(current))
-      children = childrenOf(play, current)
-      current = children.length === 1 ? children[0]?.id : undefined
-    }
-    rows.push({ title, thumbs })
-    if (children.length >= 2) {
-      for (const child of children) {
-        if (!seen.has(child.id)) walk(child.id, exportText(optionTitle(play, child.id, withPhase)))
-      }
-    }
-  }
-  walk(root.id, null)
-  return rows
+  const thumbs = allLines(play).map((line) => ({
+    line,
+    label: exportText(lineOptionsText(play, line)),
+    instruction: '',
+  }))
+  return thumbs.length === 0 ? [] : [{ title: null, thumbs }]
 }
 
 /** Height / width of the thumbnails of a play: attack upwards, x along the height (D-063). */
@@ -255,7 +230,7 @@ function continuationHeader(
   ])
 }
 
-/** A line of thumbnails with their label and instruction underneath. */
+/** A line of thumbnails with their label and instruction underneath; a long label wraps. */
 function thumbLine(
   playIndex: number,
   thumbs: readonly ThumbSpec[],
@@ -269,25 +244,30 @@ function thumbLine(
   const captions = thumbs.map((t) =>
     wrapLines(t.instruction, w, sizes.body, false, measure, PDF_LAYOUT.instructionMaxLines),
   )
+  const labels = thumbs.map((t) =>
+    wrapLines(t.label, w, sizes.body, true, measure, PDF_LAYOUT.instructionMaxLines),
+  )
+  const labelLines = Math.max(0, ...labels.map((l) => l.length))
   const captionLines = Math.max(0, ...captions.map((c) => c.length))
   const step = lineHeight(sizes.body)
   const captionGap = 1.5
   return {
-    height: h + captionGap + step * (1 + captionLines),
+    height: h + captionGap + step * (labelLines + captionLines),
     place: (y) =>
       thumbs.flatMap((t, i) => {
         const left = x + i * (w + gap)
-        const label = ellipsize(t.label, w, sizes.body, true, measure)
         return [
-          { kind: 'thumb' as const, play: playIndex, phaseId: t.phaseId, x: left, y, w, h },
-          ...textBlock([label], left, { size: sizes.body, bold: true, color: TEXT_COLOR }).place(
-            y + h + captionGap,
-          ),
+          { kind: 'thumb' as const, play: playIndex, line: t.line, x: left, y, w, h },
+          ...textBlock(labels[i] ?? [], left, {
+            size: sizes.body,
+            bold: true,
+            color: TEXT_COLOR,
+          }).place(y + h + captionGap),
           ...textBlock(captions[i] ?? [], left, {
             size: sizes.body,
             bold: false,
             color: TEXT_COLOR,
-          }).place(y + h + captionGap + step),
+          }).place(y + h + captionGap + step * labelLines),
         ]
       }),
   }

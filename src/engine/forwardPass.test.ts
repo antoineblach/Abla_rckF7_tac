@@ -1,39 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../model/settings'
 import type { Action, Play, Team, Vec2 } from '../model/types'
-import { basePlay, ball, pass, phase, player, run, uuid } from '../test/builders'
+import { P, basePlay, ball, pass, player, run, uuid } from '../test/builders'
 import { createCaches } from './caches'
-import { evaluate, phaseSchematic } from './evaluate'
+import { evaluate, windowSchematic } from './evaluate'
 import { compileLine } from './timeline'
 
 const settings: EngineSettings = engineSettingsOf(defaultSettings())
 const P1 = uuid(1)
 const P2 = uuid(2)
-const T1 = uuid(10)
-const T2 = uuid(11)
 const PASS = uuid(50)
+const LINE = [P.root]
 
-function passPlay(
-  from: Vec2,
-  to: Vec2,
-  t1: Action[],
-  t2: Action[] | null = null,
-  team: Team = 'A',
-): Play {
+function passPlay(from: Vec2, to: Vec2, actions: Action[], team: Team = 'A'): Play {
   return basePlay({
     attackingTeam: team,
     entities: [player(P1, team, 1), player(P2, team, 2), ball(uuid(20))],
     setup: { positions: { [P1]: from, [P2]: to }, ballCarrierId: P1, ballPosition: null },
-    phases: t2 === null ? [phase(T1, null, t1)] : [phase(T1, null, t1), phase(T2, T1, t2)],
+    actions,
   })
 }
 
-function forward(play: Play, line: string[] = [T1]): boolean {
-  const compiled = compileLine(play, line, settings, createCaches())
-  const passes = compiled.phases.flatMap((p) => p.passes)
+function forward(play: Play): boolean {
+  const compiled = compileLine(play, LINE, settings, createCaches())
   const flagged = compiled.issues.filter((i) => i.code === 'forwardPass')
-  expect(flagged.length).toBe(passes.filter((p) => p.forward).length)
-  return passes[0]?.forward ?? false
+  expect(flagged.length).toBe(compiled.passes.filter((p) => p.forward).length)
+  return compiled.passes[0]?.forward ?? false
 }
 
 const sprint = (id: string, to: Vec2, extra = {}) =>
@@ -65,9 +57,9 @@ describe('forward pass check (SPEC 5.7)', () => {
       pass(PASS, P1, P2, 3),
     ])
     expect(forward(play)).toBe(true)
-    const state = evaluate(play, [T1], 3.2, settings, createCaches())
+    const state = evaluate(play, LINE, 3.2, settings, createCaches())
     expect(state.passTraces[0]?.forward).toBe(true)
-    expect(phaseSchematic(play, T1, settings, createCaches())?.passes[0]?.forward).toBe(true)
+    expect(windowSchematic(play, LINE, 3, settings, createCaches()).passes[0]?.forward).toBe(true)
   })
 
   it('applies the threshold of 0.5 m/s', () => {
@@ -79,25 +71,31 @@ describe('forward pass check (SPEC 5.7)', () => {
   })
 
   it('uses the attack direction of the passer team (B towards -x)', () => {
-    const ahead = passPlay({ x: 60, y: 30 }, { x: 57, y: 25 }, [pass(PASS, P1, P2, 0)], null, 'B')
+    const ahead = passPlay({ x: 60, y: 30 }, { x: 57, y: 25 }, [pass(PASS, P1, P2, 0)], 'B')
     expect(forward(ahead)).toBe(true)
-    const behind = passPlay({ x: 60, y: 30 }, { x: 63, y: 25 }, [pass(PASS, P1, P2, 0)], null, 'B')
+    const behind = passPlay({ x: 60, y: 30 }, { x: 63, y: 25 }, [pass(PASS, P1, P2, 0)], 'B')
     expect(forward(behind)).toBe(false)
   })
 
-  it('reads the passer speed at the end of the parent phase for a release at a phase start', () => {
-    // Phase 1: both sprint 15 m and end at speed (D-106). Phase 2: the passer stops and passes at
-    // once, the receiver keeps running: the ball keeps the speed the passer had when she let go.
-    const play = passPlay(
-      { x: 40, y: 30 },
-      { x: 40, y: 25 },
-      [
-        sprint(P1, { x: 55, y: 30 }, { endsAtSpeed: true }),
-        sprint(P2, { x: 55, y: 25 }, { endsAtSpeed: true }),
-      ],
-      [sprint(P2, { x: 90, y: 25 }), pass(PASS, P1, P2, 0)],
-    )
-    expect(forward(play, [T1, T2])).toBe(false)
+  it('reads the passer speed on her run before, for a release at the start of the next (D-085)', () => {
+    // Both sprint 15 m and go on at speed. The passer lets go as her run starts: the ball keeps the
+    // speed she had, read on her first run.
+    const P1_NEXT = uuid(42)
+    const P2_NEXT = uuid(43)
+    const play = passPlay({ x: 40, y: 30 }, { x: 40, y: 25 }, [
+      sprint(P1, { x: 55, y: 30 }),
+      sprint(P2, { x: 55, y: 25 }),
+      run(P1_NEXT, P1, [{ x: 90, y: 30 }], {
+        pace: 'sprint',
+        startGlue: { targetId: uuid(40), event: 'end' },
+      }),
+      run(P2_NEXT, P2, [{ x: 90, y: 25 }], {
+        pace: 'sprint',
+        startGlue: { targetId: uuid(41), event: 'end' },
+      }),
+      pass(PASS, P1, P2, 0, { startGlue: { targetId: P1_NEXT, event: 'start' } }),
+    ])
+    expect(forward(play)).toBe(false)
   })
 
   it('flags the same pass when the passer had already stopped', () => {
@@ -112,7 +110,7 @@ describe('forward pass check (SPEC 5.7)', () => {
 
   it('never blocks the pass: it is executed as drawn', () => {
     const play = passPlay({ x: 40, y: 30 }, { x: 45, y: 25 }, [pass(PASS, P1, P2, 0)])
-    const end = evaluate(play, [T1], 10, settings, createCaches()).ball
+    const end = evaluate(play, LINE, 10, settings, createCaches()).ball
     expect(end?.kind === 'carried' && end.carrierId).toBe(P2)
   })
 })

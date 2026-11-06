@@ -1,6 +1,6 @@
 // Editor overlay drawn on top of the schematic: selection, waypoint handles, selection box,
-// previews of the tools, ghost tokens and anchor of a placement (lot 3), synchronisation links
-// and halo of the action hovered in the list (lot 3 bis). Pure drawing, flat colours only; never
+// previews of the tools, ghost tokens and anchor of a placement (lot 3), glue lines (SPEC 5.8) and
+// halo of the action hovered in the list (lot 3 bis). Pure drawing, flat colours only; never
 // exported.
 import type { Bounds } from '../engine/bounds'
 import type { Team, Vec2 } from '../model/types'
@@ -31,24 +31,24 @@ export interface AnchorMark {
   axes: { forward: Vec2; openSide: Vec2 } | null
 }
 
-/** Synchronisation link: from the meeting point of the run to the point of its target (D-108). */
+/** Glue line (SPEC 5.8): from the point of the edge to the point of its target. */
 export interface OverlayLink {
   from: Vec2
   to: Vec2
 }
 
-/** Action hovered in the list of the phase (D-113): its curves and its points, haloed in dashes. */
+/** Action hovered in the list (D-113): its curves and its points, haloed in dashes. */
 export interface OverlayHover {
   paths: Vec2[][]
   points: Vec2[]
 }
 
 export interface EditorOverlay {
-  /** Positions (metres) of the selected players, at the start of the displayed phase. */
+  /** Positions (metres) of the selected players, at the instant of the cursor. */
   selectedPlayers: Vec2[]
   /** Curves (metres) of the selected runs and passes. */
   selectedPaths: Vec2[][]
-  /** Waypoint handles (metres) of the runs of the displayed phase. */
+  /** Waypoint handles (metres) of the runs of the window. */
   handles: Vec2[]
   /** Rubber-band selection box, in metres. */
   selectionBox: Bounds | null
@@ -56,8 +56,8 @@ export interface EditorOverlay {
   preview: Vec2[] | null
   ghosts: GhostToken[]
   anchor: AnchorMark | null
-  /** Links of the selected runs and of the runs synchronised with a selected action. */
-  syncLinks: OverlayLink[]
+  /** Glue lines of the selected blocks and of the blocks glued to a selected one (SPEC 5.8). */
+  glueLinks: OverlayLink[]
   hover: OverlayHover | null
 }
 
@@ -69,16 +69,16 @@ export const EMPTY_OVERLAY: EditorOverlay = {
   preview: null,
   ghosts: [],
   anchor: null,
-  syncLinks: [],
+  glueLinks: [],
   hover: null,
 }
 
-/** Dash pattern of the links and of the hover halo, in CSS pixels at scale 1. */
+/** Dash pattern of the glue lines and of the hover halo, in CSS pixels at scale 1. */
 const LINK_DASH = [5, 4]
 const HOVER_DASH = [6, 5]
 
-function drawSyncLink(ctx: Ctx2D, viewport: Viewport, theme: Theme, link: OverlayLink): void {
-  // Thin: a link reads as an annotation, never as a run or a pass.
+function drawGlueLink(ctx: Ctx2D, viewport: Viewport, theme: Theme, link: OverlayLink): void {
+  // Thin: a glue line reads as an annotation, never as a run or a pass.
   strokePolyline(ctx, viewport, [link.from, link.to], {
     color: theme.selection,
     width: Math.max(1, theme.selectionWidth - 1),
@@ -190,7 +190,7 @@ export function renderOverlay(
       sizePx(viewport, theme.selectionWidth),
     )
   }
-  for (const link of overlay.syncLinks) drawSyncLink(ctx, viewport, theme, link)
+  for (const link of overlay.glueLinks) drawGlueLink(ctx, viewport, theme, link)
   const handleRadius = sizePx(viewport, theme.handleRadius)
   for (const handle of overlay.handles) {
     const center = toPx(viewport, handle)

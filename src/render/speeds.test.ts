@@ -1,18 +1,17 @@
-// Rendering of lot 3 bis (D-108, D-112, D-113, D-115): segments at the sprint pace or faster drawn
-// thicker in the 4 themes, orange and red speed badges on their layer (editor always, exports
-// never), synchronisation link and hover halo in the editor overlay. Lot 3bis-1 (D-132): diamond
-// badges of the accelerations and brakings, on the same layer.
+// Rendering of lot 3 bis (D-112, D-113, D-115): segments at the sprint pace or faster drawn thicker
+// in the 4 themes, orange and red speed badges on their layer (editor always, exports never), glue
+// line and hover halo in the editor overlay. Lot 3bis-1 (D-132): diamond badges of the accelerations
+// and brakings, on the same layer.
 import { describe, expect, it } from 'vitest'
 import { createCaches } from '../engine/caches'
-import { evaluate, phaseSchematic, type PhaseSchematic } from '../engine/evaluate'
+import { evaluate, windowSchematic, type WindowSchematic } from '../engine/evaluate'
 import { timeAtDistance } from '../engine/profile'
 import type { SceneState } from '../engine/sceneState'
 import { compileLine } from '../engine/timeline'
-import { EMPTY_SELECTION, type Selection } from '../editor/selection'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
-import type { Id } from '../model/types'
+import { EMPTY_SELECTION } from '../editor/selection'
 import { buildOverlay } from '../state/overlay'
-import { ACCELS, accelPlay, SPEEDS, speedsPlay, uuid } from '../test/builders'
+import { ACCELS, accelPlay, ROOT_BRANCH, SPEEDS, speedsPlay } from '../test/builders'
 import { compareWithSnapshot, createTestCanvas } from '../test/imageSnapshot'
 import { createRecordingContext, paintEvents, type PaintEvent } from '../test/recordingCtx'
 import type { Ctx2D } from './ctx2d'
@@ -24,7 +23,8 @@ import { RENDER_THEME_IDS, THEMES, type Theme } from './themes'
 import { createViewport, sizePx, type Viewport } from './viewport'
 
 const settings = engineSettingsOf(defaultSettings())
-const { T1, RUN_FAST, RUN_WARNING, RUN_LINKED, PASS } = SPEEDS
+const { RUN_FAST, RUN_WARNING, RUN_LINKED, PASS } = SPEEDS
+const LINE = [ROOT_BRANCH]
 
 const play = speedsPlay()
 
@@ -39,15 +39,13 @@ function viewport(widthPx = 480, heightPx = 270): Viewport {
   })
 }
 
-function schematic(): PhaseSchematic {
-  const s = phaseSchematic(play, T1, settings, createCaches())
-  if (!s) throw new Error('no schematic')
-  return s
+function schematic(): WindowSchematic {
+  return windowSchematic(play, LINE, 0, settings, createCaches())
 }
 
 function endScene(): SceneState {
-  const end = compileLine(play, [T1], settings, createCaches()).duration
-  return evaluate(play, [T1], end, settings, createCaches())
+  const end = compileLine(play, LINE, settings, createCaches()).duration
+  return evaluate(play, LINE, end, settings, createCaches())
 }
 
 const strokeWidths = (events: PaintEvent[]): number[] =>
@@ -66,24 +64,6 @@ function record(draw: (ctx: Ctx2D) => void): PaintEvent[] {
   const recording = createRecordingContext()
   draw(recording.ctx)
   return paintEvents(recording.calls)
-}
-
-const selecting = (actions: Id[]): Selection => ({ ...EMPTY_SELECTION, actions })
-
-function overlayFor(selection: Selection, hoveredActionId: Id | null = null) {
-  return buildOverlay({
-    play,
-    schematic: schematic(),
-    selection,
-    tool: 'select',
-    runDraft: null,
-    passFromId: null,
-    kickFromId: null,
-    placement: null,
-    cursor: null,
-    selectionBox: null,
-    hoveredActionId,
-  })
 }
 
 describe('fast segments (D-115)', () => {
@@ -111,7 +91,7 @@ describe('fast segments (D-115)', () => {
     const v = viewport()
     const theme = THEMES.screen
     // 1 s after the start, A1 is still walking: nothing of her run is fast yet.
-    const early = evaluate(play, [T1], 1, settings, createCaches())
+    const early = evaluate(play, LINE, 1, settings, createCaches())
     const trace = early.traces.find((tr) => tr.actionId === RUN_FAST)
     expect(trace?.parts.map((p) => p.fast)).toEqual([false])
     const widths = strokeWidths(
@@ -166,7 +146,7 @@ describe('speed badges (D-112)', () => {
     expect(badgeFills(editor, theme)).toEqual({ warning: 1, danger: 1 })
     // Library thumbnails and the PDF call renderSchematic without options.
     const thumbnail = record((ctx) => {
-      renderSchematic(ctx, play, [T1], T1, v, theme, settings, createCaches())
+      renderSchematic(ctx, play, LINE, 0, v, theme, settings, createCaches())
     })
     expect(badgeFills(thumbnail, theme)).toEqual({ warning: 0, danger: 0 })
   })
@@ -188,10 +168,8 @@ describe('acceleration and braking badges (D-132)', () => {
     })
   }
 
-  function accelSchematic(): PhaseSchematic {
-    const s = phaseSchematic(accel, ACCELS.T1, settings, createCaches())
-    if (!s) throw new Error('no schematic')
-    return s
+  function accelSchematic(): WindowSchematic {
+    return windowSchematic(accel, LINE, 0, settings, createCaches())
   }
 
   /**
@@ -201,7 +179,8 @@ describe('acceleration and braking badges (D-132)', () => {
   function diamonds(events: PaintEvent[], v: Viewport, theme: Theme) {
     const fills = [theme.speedWarningFill, theme.speedDangerFill]
     const texts = [theme.speedWarningText, theme.speedDangerText]
-    const isIn = (colors: string[], color: unknown) => typeof color === 'string' && colors.includes(color)
+    const isIn = (colors: string[], color: unknown) =>
+      typeof color === 'string' && colors.includes(color)
     const isDiamond = (path: PaintEvent['path']) =>
       path.length === 5 &&
       path[0]?.args[0] === path[2]?.args[0] &&
@@ -222,8 +201,8 @@ describe('acceleration and braking badges (D-132)', () => {
 
   it('draws orange and red diamonds « + » and « − » on the layer of the player, none when off', () => {
     const v = accelViewport()
-    const end = compileLine(accel, [ACCELS.T1], settings, createCaches()).duration
-    const scene = evaluate(accel, [ACCELS.T1], end, settings, createCaches())
+    const end = compileLine(accel, LINE, settings, createCaches()).duration
+    const scene = evaluate(accel, LINE, end, settings, createCaches())
     expect(scene.speedBadges.map((b) => [b.actionId, b.kind, b.level])).toEqual([
       [RUN_RED, 'speed', 'danger'],
       [RUN_RED, 'accel', 'danger'],
@@ -247,10 +226,12 @@ describe('acceleration and braking badges (D-132)', () => {
   })
 
   it('shows a badge in the player once the player reaches its point', () => {
-    const motion = compileLine(accel, [ACCELS.T1], settings, createCaches()).phases[0]?.motions[0]
+    const motion = compileLine(accel, LINE, settings, createCaches()).motions.find(
+      (m) => m.actionId === RUN_RED,
+    )
     if (!motion) throw new Error('no motion')
     const kinds = (t: number) =>
-      evaluate(accel, [ACCELS.T1], t, settings, createCaches())
+      evaluate(accel, LINE, t, settings, createCaches())
         .speedBadges.filter((b) => b.actionId === RUN_RED)
         .map((b) => b.kind)
     const reached = (kind: 'accel' | 'brake') => {
@@ -272,7 +253,7 @@ describe('acceleration and braking badges (D-132)', () => {
     })
     expect(diamonds(editor, v, theme)).toEqual({ diamonds: 4, bars: 6, upright: 2 })
     const thumbnail = record((ctx) => {
-      renderSchematic(ctx, accel, [ACCELS.T1], ACCELS.T1, v, theme, settings, createCaches())
+      renderSchematic(ctx, accel, LINE, 0, v, theme, settings, createCaches())
     })
     expect(diamonds(thumbnail, v, theme)).toEqual({ diamonds: 0, bars: 0, upright: 0 })
   })
@@ -290,37 +271,15 @@ describe('acceleration and braking badges (D-132)', () => {
   })
 })
 
-describe('editor overlay: links and hover (D-108, D-113)', () => {
-  it('draws a link when the linked run or its target is selected, and only then', () => {
-    const link = schematic().syncLinks[0]
-    if (!link?.to) throw new Error('no link')
-    expect(overlayFor(selecting([RUN_LINKED])).syncLinks).toEqual([
-      { from: link.from, to: link.to },
-    ])
-    expect(overlayFor(selecting([RUN_WARNING])).syncLinks).toHaveLength(1)
-    expect(overlayFor(selecting([RUN_FAST])).syncLinks).toEqual([])
-    expect(overlayFor(EMPTY_SELECTION).syncLinks).toEqual([])
-  })
-
-  it('halos the hovered action: the curve of a run, the segment of a pass', () => {
-    expect(overlayFor(EMPTY_SELECTION).hover).toBeNull()
-    const run = overlayFor(EMPTY_SELECTION, RUN_FAST).hover
-    expect(run?.paths).toHaveLength(1)
-    expect(run?.paths[0]?.at(-1)).toEqual({ x: 95, y: 30 })
-    const passHover = overlayFor(EMPTY_SELECTION, PASS).hover
-    const passPath = schematic().passes[0]
-    expect(passHover?.paths).toEqual([[passPath?.from, passPath?.to]])
-    expect(overlayFor(EMPTY_SELECTION, uuid(4242)).hover).toBeNull()
-  })
-
-  it('draws the link thin and dashed, the halo dashed, in the selection colour', () => {
+describe('editor overlay: glue lines and hover (SPEC 5.8, D-113)', () => {
+  it('draws the glue line thin and dashed, the halo dashed, in the selection colour', () => {
     const v = viewport()
     for (const themeId of ['screen', 'highContrast'] as const) {
       const theme = THEMES[themeId]
       const events = record((ctx) => {
         renderOverlay(ctx, v, theme, {
           ...EMPTY_OVERLAY,
-          syncLinks: [{ from: { x: 40, y: 20 }, to: { x: 60, y: 20 } }],
+          glueLinks: [{ from: { x: 40, y: 20 }, to: { x: 60, y: 20 } }],
           hover: {
             paths: [
               [
@@ -359,11 +318,28 @@ describe('editor overlay: links and hover (D-108, D-113)', () => {
 })
 
 describe('lot 3 bis: reference images', () => {
-  it('editor: fast segments, badges, link of the selected run and halo of a hovered pass', async () => {
+  it('editor: fast segments, badges, glue line of the selected run and halo of a hovered pass', async () => {
     const { canvas, ctx } = createTestCanvas(480, 270)
     const v = viewport()
     drawSchematic(ctx, schematic(), v, THEMES.screen, { forwardPass: true, speedBadges: true })
-    renderOverlay(ctx, v, THEMES.screen, overlayFor(selecting([RUN_LINKED]), PASS))
+    const s = schematic()
+    const overlay = buildOverlay({
+      play,
+      schematic: s,
+      hoverSchematic: s,
+      selection: { ...EMPTY_SELECTION, actions: [RUN_LINKED] },
+      tool: 'select',
+      runDraft: null,
+      passFromId: null,
+      kickFromId: null,
+      placement: null,
+      cursor: null,
+      selectionBox: null,
+      hoveredActionId: PASS,
+    })
+    expect(overlay.glueLinks).toHaveLength(1)
+    expect(overlay.hover?.paths).toHaveLength(1)
+    renderOverlay(ctx, v, THEMES.screen, overlay)
     const result = await compareWithSnapshot(canvas, 'editor-speeds-screen-landscape')
     expect(result.pass, result.message).toBe(true)
   })

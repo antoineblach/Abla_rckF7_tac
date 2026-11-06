@@ -2,17 +2,17 @@
 // written by jsPDF and read back by pdf.js.
 import { describe, expect, it } from 'vitest'
 import { createCaches } from '../../engine/caches'
-import { allLines } from '../../model/phaseTree'
+import { allLines } from '../../model/branches'
 import { defaultSettings, engineSettingsOf } from '../../model/settings'
-import type { Id, Play } from '../../model/types'
+import type { Play } from '../../model/types'
 import { THEMES } from '../../render/themes'
-import { basePlay, phase, uuid } from '../../test/builders'
+import { basePlay, branch, ROOT_BRANCH, sevenVsSevenWithOptions, uuid } from '../../test/builders'
 import {
   bookPlays,
-  loadOptionsFixture,
   loadPdfFonts,
   threeOptionsPlay,
   twoBranchPointsPlay,
+  TWO_POINTS,
 } from '../../test/exportFixtures'
 import { compareWithSnapshot } from '../../test/imageSnapshot'
 import {
@@ -46,7 +46,7 @@ const ENCODING_TIMEOUT_MS = 60_000
 const settings = engineSettingsOf(defaultSettings())
 const fonts = loadPdfFonts()
 const measure = pdfMeasure(fonts)
-const fixture = loadOptionsFixture()
+const fixture = sevenVsSevenWithOptions()
 const PRINT: PdfOptions = { layout: 'print', color: 'color' }
 
 const frameOf = (play: Play) => linesFrame(play, allLines(play), settings, createCaches())
@@ -75,47 +75,41 @@ const firstPage = (pages: PageSpec[]): PageSpec => {
   return page
 }
 
-/** A chain of `count` phases after the root, each with an instruction. */
-function chainPlay(count: number, id = uuid(8000)): Play {
-  const phases = [phase(uuid(500), null, [], { instruction: 'Départ' })]
-  for (let i = 1; i < count; i++) {
-    phases.push(phase(uuid(500 + i), uuid(499 + i), [], { instruction: `Consigne ${i}` }))
-  }
-  return basePlay({ id, name: 'Longue combinaison', phases })
+/** A play of `count` lines: as many options at one branch point. */
+function linesPlay(count: number, name: string, id = uuid(8000)): Play {
+  const options = Array.from({ length: count }, (_, i) =>
+    branch(uuid(700 + i), ROOT_BRANCH, { condition: `Cas ${i + 1}`, isDefault: i === 0 }),
+  )
+  return basePlay({
+    id,
+    name,
+    branches: [branch(ROOT_BRANCH, null, { branchAt: 1 }), ...options],
+  })
 }
 
-/** A trunk of two phases then six options of three phases each. */
-function manyOptionsPlay(): Play {
-  const phases = [phase(uuid(600), null, []), phase(uuid(601), uuid(600), [])]
-  for (let o = 0; o < 6; o++) {
-    const base = 700 + o * 10
-    phases.push(phase(uuid(base), uuid(601), [], { condition: `Cas ${o + 1}`, isDefault: o === 0 }))
-    phases.push(phase(uuid(base + 1), uuid(base), []))
-    phases.push(phase(uuid(base + 2), uuid(base + 1), []))
-  }
-  return basePlay({ id: uuid(8100), name: 'Six options', phases })
-}
+describe('PDF rows (frise-1, SPEC 9.3, D-063)', () => {
+  it('makes a single row, one thumbnail per line, the options of the line as its legend', () => {
+    expect(playRows(fixture)).toEqual([
+      {
+        title: null,
+        thumbs: allLines(fixture).map((line, i) => ({
+          line,
+          label: ['Option A : Défense en retrait', 'Option B : Défense montée'][i],
+          instruction: '',
+        })),
+      },
+    ])
+    const { root, large, tight, deep, rising } = TWO_POINTS
+    const [row] = playRows(twoBranchPointsPlay())
+    expect(row?.thumbs.map((t) => [t.line, t.label])).toEqual([
+      [[root, large, deep], 'Option A : Large ; Option A'],
+      [[root, large, rising], 'Option A : Large ; Option B : Montée'],
+      [[root, tight], 'Option B : Serré'],
+    ])
+  })
 
-describe('PDF rows (SPEC 9.3, D-063)', () => {
-  it('starts with the trunk up to the first branch point, then a titled row per option', () => {
-    const [t1, t2, t3a, t3b] = fixture.phases.map((p) => p.id)
-    expect(playRows(fixture).map((r) => [r.title, r.thumbs.map((t) => t.phaseId)])).toEqual([
-      [null, [t1, t2]],
-      ['Option A : Défense en retrait', [t3a]],
-      ['Option B : Défense montée', [t3b]],
-    ])
-    expect(playRows(fixture)[2]?.thumbs[0]).toMatchObject({
-      label: 'Temps 3, option B',
-      instruction: 'Retour intérieur',
-    })
-    const two = twoBranchPointsPlay()
-    expect(playRows(two).map((r) => [r.title, r.thumbs.map((t) => t.phaseId)])).toEqual([
-      [null, [uuid(100)]],
-      ['Temps 2, option A : Large', [uuid(101)]],
-      ['Temps 3, option A', [uuid(103)]],
-      ['Temps 3, option B : Montée', [uuid(104)]],
-      ['Temps 2, option B : Serré', [uuid(102)]],
-    ])
+  it('gives no legend to the only line of a play', () => {
+    expect(playRows(basePlay())[0]?.thumbs[0]?.label).toBe('')
   })
 
   it('bounds the height / width ratio of the thumbnails between 0.45 and 1', () => {
@@ -126,7 +120,7 @@ describe('PDF rows (SPEC 9.3, D-063)', () => {
 })
 
 describe('PDF print layout (SPEC 9.3, D-063)', () => {
-  it('holds the fixture on one A4 landscape page, label and instruction under each thumbnail', () => {
+  it('holds the fixture on one A4 landscape page, the options of the line under each thumbnail', () => {
     const frame = frameOf(fixture)
     const { pages, thumbWidth } = layoutPlayPrint(fixture, 0, frame, measure)
     expect(pages).toHaveLength(1)
@@ -134,7 +128,7 @@ describe('PDF print layout (SPEC 9.3, D-063)', () => {
     const page = firstPage(pages)
     expect([page.width, page.height]).toEqual([297, 210])
     const thumbs = thumbsOf(page)
-    expect(thumbs).toHaveLength(4)
+    expect(thumbs).toHaveLength(2)
     for (const thumb of thumbs) {
       expect(thumb.w).toBe(90)
       expect(thumb.h).toBeCloseTo(90 * thumbRatio(frame), 9)
@@ -152,18 +146,41 @@ describe('PDF print layout (SPEC 9.3, D-063)', () => {
       'Ruck / jeu courant',
       'Option A : Défense en retrait',
       'Option B : Défense montée',
-      'Temps 3, option B',
-      'Retour intérieur',
     ]) {
       expect(texts).toContain(expected)
     }
-    // Rows in tree order, full width, without indent.
-    const xs = new Set(thumbs.filter((t) => t.x === 10).map((t) => t.phaseId))
-    expect(xs.size).toBe(3)
+    expect(thumbs[0]?.x).toBe(10)
+  })
+
+  it('wraps a long legend under its thumbnail, never over the next line of thumbnails', () => {
+    const play: Play = {
+      ...linesPlay(7, 'Longues conditions'),
+      branches: [
+        branch(ROOT_BRANCH, null, { branchAt: 1 }),
+        ...Array.from({ length: 7 }, (_, i) =>
+          branch(uuid(700 + i), ROOT_BRANCH, {
+            condition: 'Une condition assez longue pour tenir sur plusieurs lignes',
+            isDefault: i === 0,
+          }),
+        ),
+      ],
+    }
+    const { pages } = layoutPlayPrint(play, 0, frameOf(play), measure)
+    const page = firstPage(pages)
+    const thumbs = thumbsOf(page)
+    const rowsY = [...new Set(thumbs.map((t) => t.y))]
+    expect(rowsY.length).toBeGreaterThan(1)
+    const first = thumbs[0]
+    if (!first) throw new Error('no thumbnail')
+    const legend = textsOf(page).filter(
+      (t) => t.x === first.x && t.y > first.y && t.y < (rowsY[1] ?? 0),
+    )
+    expect(legend.length).toBeGreaterThan(1)
+    for (const text of legend) expect(text.bold).toBe(true)
   })
 
   it('wraps a long row and reduces the thumbnails to keep the play on one page', () => {
-    const play = chainPlay(7)
+    const play = linesPlay(7, 'Longue combinaison')
     const { pages, thumbWidth } = layoutPlayPrint(play, 0, frameOf(play), measure)
     expect(pages).toHaveLength(1)
     expect(thumbWidth).toBeLessThan(90)
@@ -173,22 +190,18 @@ describe('PDF print layout (SPEC 9.3, D-063)', () => {
     expect(new Set(thumbs.map((t) => t.y)).size).toBeGreaterThan(1)
   })
 
-  it('continues on new pages at 60 mm, with the title, never splitting a row', () => {
-    const play = manyOptionsPlay()
+  it('continues on new pages at 60 mm, with the title, between two lines of thumbnails', () => {
+    const play = linesPlay(20, 'Vingt options')
     const { pages, thumbWidth } = layoutPlayPrint(play, 0, frameOf(play), measure)
     expect(thumbWidth).toBe(60)
     expect(pages.length).toBeGreaterThan(1)
     for (const page of pages.slice(1)) {
-      expect(textsOf(page)[0]?.text).toBe('Six options (suite)')
+      expect(textsOf(page)[0]?.text).toBe('Vingt options (suite)')
     }
-    const pageOf = new Map<Id, number>()
-    pages.forEach((page, i) => {
-      for (const thumb of thumbsOf(page)) pageOf.set(thumb.phaseId, i)
-    })
-    for (const row of playRows(play)) {
-      expect(new Set(row.thumbs.map((t) => pageOf.get(t.phaseId))).size).toBe(1)
+    expect(pages.flatMap(thumbsOf)).toHaveLength(allLines(play).length)
+    for (const page of pages) {
+      for (const thumb of thumbsOf(page)) expect(thumb.y + thumb.h).toBeLessThanOrEqual(200)
     }
-    expect(pageOf.size).toBe(play.phases.length)
   })
 })
 
@@ -199,7 +212,7 @@ describe('PDF phone layout (SPEC 9.3, D-061, D-063)', () => {
     const page = firstPage(pages)
     expect(page.width).toBe(100)
     const thumbs = thumbsOf(page)
-    expect(thumbs.map((t) => t.phaseId)).toEqual(fixture.phases.map((p) => p.id))
+    expect(thumbs.map((t) => t.line)).toEqual(allLines(fixture))
     for (const thumb of thumbs) {
       expect([thumb.x, thumb.w]).toEqual([5, 90])
     }
@@ -243,8 +256,7 @@ describe('PDF files (SPEC 9.3, D-064, D-071)', { timeout: ENCODING_TIMEOUT_MS },
     for (const expected of [
       'Croisée au centre',
       'Option B : Défense montée',
-      'Temps 3, option A',
-      'On fixe et on donne',
+      'Option A : Défense en retrait',
     ]) {
       expect(text).toContain(expected)
     }
@@ -253,9 +265,8 @@ describe('PDF files (SPEC 9.3, D-064, D-071)', { timeout: ENCODING_TIMEOUT_MS },
   it('keeps accents, the typographic apostrophe and guillemets in the text (SPEC 9.3)', async () => {
     const { file } = runPdf([threeOptionsPlay()], PRINT)
     const doc = await openPdf(file.bytes)
-    expect(doc.numPages).toBe(2)
-    const text = `${await pageText(doc, 1)} ${await pageText(doc, 2)}`
-    expect(await pageText(doc, 2)).toContain('Trois options « au large » (suite)')
+    expect(doc.numPages).toBe(1)
+    const text = await pageText(doc, 1)
     for (const expected of [
       'Trois options « au large »',
       'l’option dépend de la « défense »',
@@ -338,6 +349,7 @@ describe('PDF thumbnail reference images (D-062, D-071)', { timeout: ENCODING_TI
   for (const themeId of ['highContrast', 'printColor', 'printBw'] as const) {
     it(`rasterises a vector thumbnail of option B in theme ${themeId}`, async () => {
       const frame = frameOf(fixture)
+      const line = allLines(fixture)[1] ?? []
       const w = 90
       const h = w * thumbRatio(frame)
       const doc = createPdfDoc(fonts, w, h)
@@ -345,7 +357,7 @@ describe('PDF thumbnail reference images (D-062, D-071)', { timeout: ENCODING_TI
       drawThumbnail(
         pdfContext(doc),
         fixture,
-        fixture.phases[3]?.id ?? '',
+        line,
         { x: 0, y: 0, w, h },
         frame,
         theme,

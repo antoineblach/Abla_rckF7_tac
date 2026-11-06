@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { ORIENTATION_ASPECT } from '../../config/defaults'
-import { evaluate, phaseSchematic } from '../../engine/evaluate'
+import { evaluate, windowSchematic } from '../../engine/evaluate'
 import { hitTest, type Hit } from '../../editor/hitTest'
 import { engineSettingsOf } from '../../model/settings'
 import type { Vec2 } from '../../model/types'
@@ -24,6 +24,7 @@ import {
   type Viewport,
 } from '../../render/viewport'
 import {
+  currentHoverSchematic,
   editorContextMenu,
   editorDoubleClick,
   editorPointerDown,
@@ -50,7 +51,7 @@ import { useFieldFont } from '../hooks/useFieldFont'
 
 const ZOOM_STEP = 1.15
 
-/** The field: schematic of the selected phase in edit mode, scene at t during playback (D-010).
+/** The field: schematic at the cursor at rest, scene at t during playback (SPEC 6.3, D-172).
  * The displayed area is the view of viewStore: the canvas size never changes it (D-048). */
 export function FieldCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -59,15 +60,13 @@ export function FieldCanvas() {
   const fontReady = useFieldFont()
 
   const play = useEditorStore((s) => s.play)
-  const selectedPhaseId = useEditorStore((s) => s.selectedPhaseId)
   const selection = useEditorStore((s) => s.selection)
   const tool = useEditorStore((s) => s.tool)
   const runDraft = useEditorStore((s) => s.runDraft)
   const passFromId = useEditorStore((s) => s.passFromId)
   const kickFromId = useEditorStore((s) => s.kickFromId)
   const placement = useEditorStore((s) => s.placement)
-  const mode = usePlayerStore((s) => s.mode)
-  const transport = usePlayerStore((s) => s.transport)
+  const { line, t, playing } = usePlayerStore((s) => s.transport)
   const layers = usePlayerStore((s) => s.layers)
   const orientation = usePlayerStore((s) => s.orientation)
   const settings = useSettingsStore((s) => s.settings)
@@ -124,9 +123,9 @@ export function FieldCanvas() {
   }, [viewport])
 
   const schematic = useMemo(() => {
-    if (!play || !selectedPhaseId) return null
-    return phaseSchematic(play, selectedPhaseId, engineSettingsOf(settings), appCaches)
-  }, [play, selectedPhaseId, settings])
+    if (!play || playing) return null
+    return windowSchematic(play, line, t, engineSettingsOf(settings), appCaches)
+  }, [play, playing, line, t, settings])
 
   // On-demand drawing (requestAnimationFrame only while playing, see useAnimationLoop).
   useEffect(() => {
@@ -134,23 +133,14 @@ export function FieldCanvas() {
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx || !viewport || !play) return
     const theme = THEMES[settings.theme]
-    if (mode === 'play') {
-      const state = evaluate(
-        play,
-        transport.line,
-        transport.t,
-        engineSettingsOf(settings),
-        appCaches,
-      )
+    // Only when an action is hovered: the choice of what it is haloed from is in state (D-173).
+    const hoverSchematic = hoveredActionId ? currentHoverSchematic() : null
+    if (playing) {
+      const state = evaluate(play, line, t, engineSettingsOf(settings), appCaches)
       render(ctx, state, viewport, theme, layers)
-      // The action hovered in the list is haloed over the scene too (D-113).
-      const hoveredPhaseId = hoveredActionId
-        ? play.phases.find((p) => p.actions.some((a) => a.id === hoveredActionId))?.id
-        : undefined
-      const hovered = hoveredPhaseId
-        ? phaseSchematic(play, hoveredPhaseId, engineSettingsOf(settings), appCaches)
-        : null
-      if (hovered) renderOverlay(ctx, viewport, theme, hoverOverlay(hovered, hoveredActionId))
+      if (hoverSchematic) {
+        renderOverlay(ctx, viewport, theme, hoverOverlay(hoverSchematic, hoveredActionId))
+      }
     } else if (schematic) {
       // The editor always shows the forward pass and speed badges (D-085, D-112).
       drawSchematic(ctx, schematic, viewport, theme, { forwardPass: true, speedBadges: true })
@@ -161,6 +151,7 @@ export function FieldCanvas() {
         buildOverlay({
           play,
           schematic,
+          hoverSchematic: hoverSchematic ?? schematic,
           selection,
           tool,
           runDraft,
@@ -176,9 +167,9 @@ export function FieldCanvas() {
   }, [
     viewport,
     play,
-    mode,
-    transport.line,
-    transport.t,
+    playing,
+    line,
+    t,
     layers,
     settings,
     schematic,
@@ -208,14 +199,19 @@ export function FieldCanvas() {
   }
 
   const hitAt = (pos: Vec2): Hit => {
-    if (!schematic || !viewport || mode !== 'edit') return null
+    if (!schematic || !viewport || playing) return null
     const theme = THEMES[settings.theme]
     const perPx = dpr / viewport.scale
-    return hitTest(schematic, pos, {
-      token: theme.tokenRadius * perPx,
-      handle: (theme.handleRadius + 3) * perPx,
-      line: 6 * perPx,
-    })
+    return hitTest(
+      schematic,
+      pos,
+      {
+        token: theme.tokenRadius * perPx,
+        handle: (theme.handleRadius + 3) * perPx,
+        line: 6 * perPx,
+      },
+      tool === 'select',
+    )
   }
 
   // Wheel zoom around the cursor, in edit mode and during playback (non passive listener to
@@ -292,7 +288,7 @@ export function FieldCanvas() {
           className={`field__canvas field__canvas--${placement ? 'placement' : tool}`}
           data-testid="field-canvas"
           data-viewport={viewportData}
-          data-mode={mode}
+          data-mode={playing ? 'play' : 'edit'}
           width={Math.round(cssWidth * dpr)}
           height={Math.round(cssHeight * dpr)}
           style={{ width: `${cssWidth}px`, height: `${cssHeight}px` }}

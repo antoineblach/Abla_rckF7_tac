@@ -1,8 +1,6 @@
-// zod schemas of the file format, schemaVersion 4 (SPEC 4.1, 4.4; lot 3: kicks and breakdowns,
-// D-094; lot 3 bis: segment speeds, runs ending at speed, synchronisation links, release on
-// receipt, D-104; lot 3bis-1: typed run pace, D-133). Objects are strict: an unknown key makes the
-// file invalid, so that it is never rewritten without that key (DECISIONS Q24). Types of lots 4
-// and 5 are rejected (DECISIONS Q4). The frozen versions 1 to 3 are in schemaV1.ts to schemaV3.ts.
+// zod schemas of the file format, schemaVersion 5 (SPEC 4.1, 4.4, D-139). Objects are strict: an
+// unknown key makes the file invalid, so that it is never rewritten without that key (DECISIONS
+// Q24). Types of lots 4 and 5 are rejected (DECISIONS Q4). Earlier versions are refused (4.4).
 import { z } from 'zod'
 import type { Play } from './types'
 
@@ -52,48 +50,52 @@ export const waypointSchema = z.strictObject({
   speed: segmentSpeedSchema.optional(),
 })
 
-const indexSchema = z.number().int().nonnegative()
+const instantSchema = z.number().nonnegative()
 
-export const syncTargetSchema = z.discriminatedUnion('event', [
-  z.strictObject({ actionId: idSchema, event: z.literal('runEnd') }),
-  z.strictObject({ actionId: idSchema, event: z.literal('runPoint'), index: indexSchema }),
-  z.strictObject({ actionId: idSchema, event: z.literal('release') }),
-  z.strictObject({ actionId: idSchema, event: z.literal('arrival') }),
-  z.strictObject({ actionId: idSchema, event: z.literal('formation') }),
-])
+const glueShape = {
+  targetId: idSchema,
+  event: z.union([
+    z.enum(['start', 'end']),
+    z.strictObject({ point: z.number().int().nonnegative() }),
+  ]),
+  offset: z.number().nonnegative().optional(),
+}
 
-export const runSyncSchema = z.strictObject({
-  target: syncTargetSchema,
-  at: indexSchema.optional(),
-  adjust: z.enum(['delay', 'speed']),
+export const glueRefSchema = z.strictObject(glueShape)
+
+export const endGlueSchema = z.strictObject({
+  ...glueShape,
+  keep: z.enum(['start', 'duration']),
 })
 
-export const runSchema = z.strictObject({
+/** Fields common to all actions and to the sequences. */
+const timedShape = {
   id: idSchema,
+  branchId: idSchema,
+  start: instantSchema,
+  startGlue: glueRefSchema.optional(),
+  endGlue: endGlueSchema.optional(),
+}
+
+export const runSchema = z.strictObject({
+  ...timedShape,
   type: z.literal('run'),
   entityId: idSchema,
   waypoints: z.array(waypointSchema).min(1),
   pace: speedValueSchema,
   durationOverride: z.number().positive().optional(),
-  delay: z.number().nonnegative(),
-  endsAtSpeed: z.literal(true).optional(),
-  sync: runSyncSchema.optional(),
 })
 
-const releaseSchema = z.literal('onReceipt').optional()
-
 export const passSchema = z.strictObject({
-  id: idSchema,
+  ...timedShape,
   type: z.literal('pass'),
   fromId: idSchema,
   toId: idSchema,
-  delay: z.number().nonnegative(),
   ballSpeed: z.number().positive().optional(),
-  release: releaseSchema,
 })
 
 export const kickSchema = z.strictObject({
-  id: idSchema,
+  ...timedShape,
   type: z.literal('kick'),
   kickerId: idSchema,
   kind: z.enum(['restart', 'long']),
@@ -101,19 +103,16 @@ export const kickSchema = z.strictObject({
     z.strictObject({ receiverId: idSchema }),
     z.strictObject({ point: vec2Schema }),
   ]),
-  delay: z.number().nonnegative(),
   flightTime: z.number().positive().optional(),
-  release: releaseSchema,
 })
 
 export const breakdownSchema = z.strictObject({
-  id: idSchema,
+  ...timedShape,
   type: z.literal('breakdown'),
   kind: z.enum(['ruck', 'maul']),
   tackledId: idSchema,
   supportId: idSchema,
   relayerId: idSchema,
-  delay: z.number().nonnegative(),
   duration: z.number().positive(),
   contest: z.enum(['guard', 'jackal']).optional(),
 })
@@ -125,14 +124,21 @@ export const actionSchema = z.discriminatedUnion('type', [
   breakdownSchema,
 ])
 
-export const phaseSchema = z.strictObject({
+export const sequenceSchema = z.strictObject({
+  ...timedShape,
+  end: instantSchema,
+  label: z.string(),
+  instruction: z.string(),
+})
+
+export const branchSchema = z.strictObject({
   id: idSchema,
   parentId: idSchema.nullable(),
+  branchAt: instantSchema.optional(),
+  branchAtGlue: glueRefSchema.optional(),
   label: z.string(),
   condition: z.string(),
-  instruction: z.string(),
   isDefault: z.boolean(),
-  actions: z.array(actionSchema),
 })
 
 export const setupSchema = z.strictObject({
@@ -141,8 +147,8 @@ export const setupSchema = z.strictObject({
   ballPosition: vec2Schema.nullable(),
 })
 
-export const playSchemaV4 = z.strictObject({
-  schemaVersion: z.literal(4),
+export const playSchemaV5 = z.strictObject({
+  schemaVersion: z.literal(5),
   id: idSchema,
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
@@ -153,10 +159,12 @@ export const playSchemaV4 = z.strictObject({
   field: fieldSchema,
   entities: z.array(entitySchema),
   setup: setupSchema,
-  phases: z.array(phaseSchema),
+  branches: z.array(branchSchema),
+  actions: z.array(actionSchema),
+  sequences: z.array(sequenceSchema),
 })
 
-export type PlayFileV4 = z.infer<typeof playSchemaV4>
+export type PlayFileV5 = z.infer<typeof playSchemaV5>
 
-// Compile-time check: every valid v4 file is a Play.
-export const asPlay = (file: PlayFileV4): Play => file
+// Compile-time check: every valid v5 file is a Play.
+export const asPlay = (file: PlayFileV5): Play => file

@@ -1,7 +1,8 @@
-// Playback transport (SPEC 7, DECISIONS Q11 / D-011): a pure state machine driven by the time
-// elapsed between two frames, never by the clock itself.
-import { extendWithDefaults, isBranchPoint, pathToPhase } from '../model/phaseTree'
+// Playback transport (SPEC 7, D-011, D-146): a pure state machine driven by the time elapsed between
+// two frames, never by the clock itself. The instants come from the compiled line.
+import { extendWithDefaults, pathToBranch } from '../model/branches'
 import type { Id, Play } from '../model/types'
+import type { CompiledLine } from '../engine/timeline'
 
 export type PlaybackSpeed = 0.5 | 1 | 2
 
@@ -14,19 +15,40 @@ export interface TransportState {
   playing: boolean
   speed: PlaybackSpeed
   loop: boolean
-  pauseBetweenPhases: boolean
   /** « S'arrêter aux options », on by default (D-011). */
   stopAtOptions: boolean
-  /** Branch point where playback waits for a choice, null otherwise. */
+  /** Branch that divides, where playback waits for a choice; null otherwise. */
   waitingAt: Id | null
 }
 
-/** Timing of the line (from the compiled line). */
+/** Instants of a line, read from its compilation. */
 export interface LineTiming {
-  phaseIds: readonly Id[]
-  starts: readonly number[]
-  ends: readonly number[]
+  /** Branch points of the line that its playback reaches, in time order. */
+  branchPoints: readonly { branchId: Id; t: number }[]
+  /** Edges of the blocks of the line, 0 and the duration included, sorted, distinct (D-146). */
+  edges: readonly number[]
   duration: number
+}
+
+/** Two instants closer than this are one edge. */
+const EDGE_EPSILON = 1e-9
+
+export function lineTiming(compiled: CompiledLine): LineTiming {
+  const { duration } = compiled
+  const branchPoints = compiled.branches.flatMap((branch) =>
+    branch.branchAt !== null && branch.branchAt <= duration
+      ? [{ branchId: branch.id, t: branch.branchAt }]
+      : [],
+  )
+  const instants = Object.values(compiled.blocks).flatMap((span) => [span.start, span.end])
+  const sorted = [0, duration, ...instants.filter((t) => t > 0 && t < duration)].sort(
+    (a, b) => a - b,
+  )
+  return {
+    branchPoints,
+    edges: sorted.filter((t, i) => i === 0 || t - (sorted[i - 1] ?? 0) > EDGE_EPSILON),
+    duration,
+  }
 }
 
 export function initialTransport(line: Id[]): TransportState {
@@ -36,40 +58,19 @@ export function initialTransport(line: Id[]): TransportState {
     playing: false,
     speed: 1,
     loop: false,
-    pauseBetweenPhases: false,
     stopAtOptions: true,
     waitingAt: null,
   }
 }
 
-/** Index of the phase shown at t (same rule as the engine: last phase starting at or before t). */
-export function phaseIndexAtTime(timing: LineTiming, t: number): number {
-  let index = timing.phaseIds.length > 0 ? 0 : -1
-  timing.starts.forEach((start, i) => {
-    if (start <= t) index = i
-  })
-  return index
-}
-
 /** Advances the playback by `dt` seconds of real time. */
-export function tick(
-  state: TransportState,
-  dt: number,
-  timing: LineTiming,
-  play: Play,
-): TransportState {
+export function tick(state: TransportState, dt: number, timing: LineTiming): TransportState {
   if (!state.playing || dt <= 0) return state
   const target = state.t + dt * state.speed
-  for (let i = 0; i < timing.phaseIds.length; i++) {
-    const end = timing.ends[i] ?? 0
-    if (end <= state.t || end > target) continue
-    const isLast = i === timing.phaseIds.length - 1
-    if (isLast) break
-    const phaseId = timing.phaseIds[i] as Id
-    if (state.stopAtOptions && isBranchPoint(play, phaseId)) {
-      return { ...state, t: end, playing: false, waitingAt: phaseId }
-    }
-    if (state.pauseBetweenPhases) return { ...state, t: end, playing: false }
+  if (state.stopAtOptions) {
+    const reach = Math.min(target, timing.duration)
+    const stop = timing.branchPoints.find((point) => point.t > state.t && point.t <= reach)
+    if (stop) return { ...state, t: stop.t, playing: false, waitingAt: stop.branchId }
   }
   if (target >= timing.duration) {
     if (state.loop) return { ...state, t: 0, waitingAt: null }
@@ -91,52 +92,44 @@ export function seek(state: TransportState, t: number, timing: LineTiming): Tran
   return { ...state, t: Math.min(Math.max(0, t), timing.duration), waitingAt: null }
 }
 
-export function nextPhase(state: TransportState, timing: LineTiming): TransportState {
-  const index = phaseIndexAtTime(timing, state.t)
-  const next = timing.starts[index + 1]
+/** « Bord suivant » (D-146): the next edge of a block on the line. */
+export function nextEdge(state: TransportState, timing: LineTiming): TransportState {
+  const next = timing.edges.find((t) => t > state.t + EDGE_EPSILON)
   return { ...state, t: next ?? timing.duration, waitingAt: null }
 }
 
-export function previousPhase(state: TransportState, timing: LineTiming): TransportState {
-  const index = phaseIndexAtTime(timing, state.t)
-  const start = timing.starts[index] ?? 0
-  const t = state.t - start > 0.05 || index <= 0 ? start : (timing.starts[index - 1] ?? 0)
-  return { ...state, t, waitingAt: null }
+/** « Bord précédent » (D-146): the previous edge of a block on the line. */
+export function previousEdge(state: TransportState, timing: LineTiming): TransportState {
+  const previous = timing.edges.findLast((t) => t < state.t - EDGE_EPSILON)
+  return { ...state, t: previous ?? 0, waitingAt: null }
 }
 
 /** Chooses an option at the branch point and resumes playback. */
 export function chooseOption(state: TransportState, play: Play, optionId: Id): TransportState {
-  const path = pathToPhase(play, optionId)
+  const path = pathToBranch(play, optionId)
   if (path.length === 0) return state
   return { ...state, line: extendWithDefaults(play, path), playing: true, waitingAt: null }
 }
 
-/** Back to the last branch point passed, to play another option (SPEC 7). */
-export function backToBranchPoint(
-  state: TransportState,
-  timing: LineTiming,
-  play: Play,
-): TransportState {
-  const index = phaseIndexAtTime(timing, state.t)
-  for (let i = Math.min(index, timing.phaseIds.length - 2); i >= 0; i--) {
-    const phaseId = timing.phaseIds[i] as Id
-    const end = timing.ends[i] ?? 0
-    if (isBranchPoint(play, phaseId) && end <= state.t) {
-      return { ...state, t: end, playing: false, waitingAt: phaseId }
-    }
-  }
-  return state
+/** Has the cursor reached a branch point of the line? */
+export function hasPassedBranchPoint(timing: LineTiming, t: number): boolean {
+  return timing.branchPoints.some((point) => point.t <= t)
 }
 
-/** Selecting a phase in the tree: its default line, positioned at its start (D-010). */
-export function showPhase(
-  state: TransportState,
-  play: Play,
-  phaseId: Id,
-  startOf: (line: Id[]) => number,
-): TransportState {
-  const path = pathToPhase(play, phaseId)
-  if (path.length === 0) return state
-  const line = extendWithDefaults(play, path)
-  return { ...state, line, t: startOf(line), playing: false, waitingAt: null }
+/** Back to the last branch point passed, to play another option (SPEC 7). */
+export function backToBranchPoint(state: TransportState, timing: LineTiming): TransportState {
+  const point = timing.branchPoints.findLast((candidate) => candidate.t <= state.t)
+  if (!point) return state
+  return { ...state, t: point.t, playing: false, waitingAt: point.branchId }
+}
+
+/** Liste « Ligne » (D-142): the line shown, the cursor kept within its duration. */
+export function showLine(state: TransportState, line: Id[], timing: LineTiming): TransportState {
+  return {
+    ...state,
+    line,
+    t: Math.min(state.t, timing.duration),
+    playing: false,
+    waitingAt: null,
+  }
 }

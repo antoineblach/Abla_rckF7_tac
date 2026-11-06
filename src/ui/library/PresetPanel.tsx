@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { createCaches } from '../../engine/caches'
 import { presetThumbnail } from '../../editor/presets'
 import type { LibraryIssue, PresetEntry } from '../../io/LibraryStore'
+import { defaultLine } from '../../model/branches'
 import { PRESET_TYPE_LABELS } from '../../model/labels'
-import { rootPhase } from '../../model/phaseTree'
 import type { PlacementPreset } from '../../model/preset'
 import { engineSettingsOf } from '../../model/settings'
 import { renderSchematic } from '../../render/renderSchematic'
@@ -32,8 +32,7 @@ function PresetThumbnail({ preset }: { preset: PlacementPreset }) {
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
   useEffect(() => {
     const ctx = ref.current?.getContext('2d')
-    const root = rootPhase(thumbnail.play)
-    if (!ctx || !root) return
+    if (!ctx) return
     const viewport = createViewport({
       widthPx: THUMB_W * dpr,
       heightPx: THUMB_H * dpr,
@@ -45,8 +44,8 @@ function PresetThumbnail({ preset }: { preset: PlacementPreset }) {
     renderSchematic(
       ctx,
       thumbnail.play,
-      [root.id],
-      root.id,
+      defaultLine(thumbnail.play),
+      0,
       viewport,
       THEMES.screen,
       engineSettingsOf(settings),

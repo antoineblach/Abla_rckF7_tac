@@ -5,13 +5,13 @@ import { describe, expect, it } from 'vitest'
 import { KICK_APEX_SCALE } from '../config/defaults'
 import { lineBounds } from '../engine/bounds'
 import { createCaches } from '../engine/caches'
-import { evaluate, phaseSchematic } from '../engine/evaluate'
+import { evaluate, windowSchematic } from '../engine/evaluate'
 import type { SceneState } from '../engine/sceneState'
 import { compileLine } from '../engine/timeline'
-import { allLines } from '../model/phaseTree'
+import { allLines } from '../model/branches'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
-import type { Id } from '../model/types'
-import { P, setPiecesScene, uuid } from '../test/builders'
+import type { Id, Play } from '../model/types'
+import { sequence, setPiecesScene, uuid } from '../test/builders'
 import { compareWithSnapshot, createTestCanvas } from '../test/imageSnapshot'
 import { createRecordingContext, paintEvents, type RecordingContext } from '../test/recordingCtx'
 import type { Ctx2D } from './ctx2d'
@@ -22,9 +22,19 @@ import { RENDER_THEME_IDS, THEMES, type RenderThemeId } from './themes'
 import { createViewport, sizePx, toPx, type Orientation, type Viewport } from './viewport'
 
 const settings = engineSettingsOf(defaultSettings())
-const play = setPiecesScene()
+/** The set pieces, the trunk cut in two sequences: the ruck, then the forward pass. */
+const play: Play = {
+  ...setPiecesScene(),
+  sequences: [
+    sequence(uuid(600), 0, 4.5),
+    sequence(uuid(601), 4.5, 7.9),
+    ...setPiecesScene().sequences,
+  ],
+}
 const [LINE_A, LINE_B] = allLines(play) as [Id[], Id[]]
-const T4 = uuid(104)
+
+/** Windows at rest: the ruck, the forward pass, the long kick, the maul, the restart. */
+const AT = { ruck: 0, forward: 4.5, kick: 7.9, maul: 7.9, restart: 11.1 }
 
 function viewportFor(
   widthPx: number,
@@ -50,9 +60,13 @@ function viewportFor(
 /** Instants of the line A: ruck in progress, kick at its apex, forward pass in flight. */
 function instants() {
   const compiled = compileLine(play, LINE_A, settings, createCaches())
-  const t2 = compiled.phases[1]?.start ?? NaN
-  const t3 = compiled.phases[2]?.start ?? NaN
-  return { ruck: 3, forward: t2 + 0.4, kickApex: t3 + 0.5 + 3.5 / 2 }
+  const pass = compiled.passes.at(-1)
+  const kick = compiled.kicks.at(-1)
+  return {
+    ruck: 3,
+    forward: (pass?.releaseT ?? NaN) + 0.2,
+    kickApex: ((kick?.releaseT ?? NaN) + (kick?.arrivalT ?? NaN)) / 2,
+  }
 }
 
 function sceneAt(t: number, line: Id[] = LINE_A): SceneState {
@@ -71,15 +85,15 @@ function drawScene(
   return state
 }
 
-function drawPhase(
+function drawWindow(
   ctx: Ctx2D,
-  phaseId: Id,
+  t: number,
+  line: Id[],
   themeId: RenderThemeId,
   viewport: Viewport,
   forwardPass = false,
 ): void {
-  const schematic = phaseSchematic(play, phaseId, settings, createCaches())
-  if (!schematic) throw new Error('no schematic')
+  const schematic = windowSchematic(play, line, t, settings, createCaches())
   drawSchematic(ctx, schematic, viewport, THEMES[themeId], { forwardPass, speedBadges: false })
 }
 
@@ -110,7 +124,7 @@ describe('set pieces: reference images (SPEC 10, 13.3, D-084)', () => {
       480,
       'portrait',
       (ctx, v) => {
-        drawPhase(ctx, P.t1, 'printBw', v)
+        drawWindow(ctx, AT.ruck, LINE_A, 'printBw', v)
       },
     ],
     [
@@ -119,7 +133,7 @@ describe('set pieces: reference images (SPEC 10, 13.3, D-084)', () => {
       270,
       'landscape',
       (ctx, v) => {
-        drawPhase(ctx, P.t3a, 'screen', v)
+        drawWindow(ctx, AT.kick, LINE_A, 'screen', v)
       },
     ],
     [
@@ -128,7 +142,7 @@ describe('set pieces: reference images (SPEC 10, 13.3, D-084)', () => {
       270,
       'landscape',
       (ctx, v) => {
-        drawPhase(ctx, P.t2, 'screen', v, true)
+        drawWindow(ctx, AT.forward, LINE_A, 'screen', v, true)
       },
     ],
   ]
@@ -152,7 +166,7 @@ describe('set pieces: drawing conventions', () => {
       const scene = createRecordingContext()
       drawScene(scene.ctx, instants().kickApex, themeId, viewport)
       const schematic = createRecordingContext()
-      drawPhase(schematic.ctx, P.t3a, themeId, viewport)
+      drawWindow(schematic.ctx, AT.kick, LINE_A, themeId, viewport)
       for (const recording of [scene, schematic]) {
         const kicks = paintEvents(recording.calls).filter(
           (e) =>
@@ -228,9 +242,9 @@ describe('set pieces: drawing conventions', () => {
     expect(texts(after)).not.toContain('Ruck')
   })
 
-  it('marks the breakdowns of a phase at rest, a maul by its label, ancestors as ghosts', () => {
+  it('marks the breakdowns of a window at rest, a maul by its label, earlier ones as ghosts', () => {
     const maul = createRecordingContext()
-    drawPhase(maul.ctx, P.t3b, 'screen', viewport)
+    drawWindow(maul.ctx, AT.maul, LINE_B, 'screen', viewport)
     expect(texts(maul)).toContain('Maul')
     const ghosts = paintEvents(maul.calls).filter(
       (e) =>
@@ -244,7 +258,7 @@ describe('set pieces: drawing conventions', () => {
   it('draws the ignored part of a run cut by a breakdown in the error colour', () => {
     const theme = THEMES.screen
     const recording = createRecordingContext()
-    drawPhase(recording.ctx, P.t3b, 'screen', viewport)
+    drawWindow(recording.ctx, AT.maul, LINE_B, 'screen', viewport)
     const ignored = paintEvents(recording.calls).filter(
       (e) => e.kind === 'stroke' && e.color === theme.error && e.dash.length === 0,
     )
@@ -266,14 +280,14 @@ describe('set pieces: drawing conventions', () => {
     expect(texts(noTraces)).toContain('!')
     // Schematic: shown by the editor, not by default (PDF and thumbnails, D-086).
     const editor = createRecordingContext()
-    drawPhase(editor.ctx, P.t2, 'screen', viewport, true)
+    drawWindow(editor.ctx, AT.forward, LINE_A, 'screen', viewport, true)
     expect(texts(editor)).toContain('!')
     const pdf = createRecordingContext()
     renderSchematic(
       pdf.ctx,
       play,
       LINE_A,
-      P.t2,
+      AT.forward,
       viewport,
       THEMES.printColor,
       settings,
@@ -290,13 +304,13 @@ describe('set pieces: drawing conventions', () => {
       (ctx, id) => drawScene(ctx, t.forward, id, viewport),
       (ctx, id) => drawScene(ctx, 1e9, id, viewport),
       (ctx, id) => {
-        drawPhase(ctx, P.t1, id, viewport, true)
+        drawWindow(ctx, AT.ruck, LINE_A, id, viewport, true)
       },
       (ctx, id) => {
-        drawPhase(ctx, P.t3b, id, viewport, true)
+        drawWindow(ctx, AT.maul, LINE_B, id, viewport, true)
       },
       (ctx, id) => {
-        drawPhase(ctx, T4, id, viewport, true)
+        drawWindow(ctx, AT.restart, LINE_B, id, viewport, true)
       },
     ]
     for (const themeId of RENDER_THEME_IDS) {

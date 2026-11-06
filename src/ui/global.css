@@ -517,7 +517,7 @@ kbd {
   min-width: 110px;
 }
 
-.transport__phase {
+.transport__interval {
   font-weight: 700;
 }
 
@@ -771,11 +771,11 @@ kbd {
   background: var(--warning-bg);
 }
 
-/* Bottom band (D-113): fixed height, the phase tree on 2/5 and the actions of the phase on 3/5;
-   both scroll inside, nothing around the field changes size. */
+/* Bottom band (D-113, D-145): fixed height, the actions of the line scroll inside, nothing around
+   the field changes size. */
 .bottom-band {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  grid-template-columns: minmax(0, 1fr);
   height: var(--tree-h);
   min-height: 0;
   overflow: hidden;
@@ -783,20 +783,7 @@ kbd {
   border-top: 1px solid var(--border);
 }
 
-/* Phase tree: fixed height; the action row stays, the drawing of the phases scrolls. */
-.phase-tree {
-  height: var(--tree-h);
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 6px;
-  padding: 6px 10px;
-  overflow: hidden;
-  background: var(--panel);
-  border-right: 1px solid var(--border);
-}
-
-/* Actions of the phase (SPEC 6.7): title, time scale, rows scrolling inside. The columns of the
+/* Actions of the line (SPEC 6.7): title, time scale, rows scrolling inside. The columns of the
    scale and of the rows are the same: title, bar, summary, badges. */
 .action-list {
   height: var(--tree-h);
@@ -971,74 +958,9 @@ kbd {
   color: #000000;
 }
 
-.phase-tree__actions {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 4px;
-  white-space: nowrap;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.phase-tree__actions > * {
-  flex: none;
-}
-
-.phase-tree__scroll {
-  min-height: 0;
-  overflow: auto;
-}
-
-.phase-tree__canvas {
-  position: relative;
-  min-height: 44px;
-}
-
-.phase-tree__links {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.phase-tree__links polyline {
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 1.5;
-}
-
-.phase-node {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  overflow: hidden;
-  text-align: left;
-  padding: 2px 8px;
-  background: var(--panel-alt);
-}
-
-.phase-node--selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
-}
-
-.phase-node--default {
-  border-width: 2px;
-}
-
-.phase-node__label {
+/* The action in progress at the cursor (D-145). */
+.action-row--current .action-row__title {
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.phase-node__condition {
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Dialogs and notifications */

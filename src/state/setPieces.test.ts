@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Hit } from '../editor/hitTest'
 import type { BreakdownAction, KickAction, Play } from '../model/types'
-import { P, phase, run, setPiecesPlay, sevenVsSevenWithOptions, uuid } from '../test/builders'
+import { branch, P, run, setPiecesPlay, sevenVsSevenWithOptions, uuid } from '../test/builders'
 import {
   editorPointerDown,
   editorPointerMove,
@@ -11,8 +11,8 @@ import {
   handleKey,
   useInteractionStore,
 } from './editorActions'
-import { openPlay, selectPhase, setTool, useEditorStore } from './editorStore'
-import { setLayer, usePlayerStore } from './playerStore'
+import { openPlay, setTool, useEditorStore } from './editorStore'
+import { seekPlayer, setLayer, showLineInPlayer, usePlayerStore } from './playerStore'
 
 const down = (pos: { x: number; y: number }, hit: Hit = null) => {
   editorPointerDown({ pos, hit, shift: false })
@@ -22,22 +22,21 @@ const current = (): Play => {
   if (!play) throw new Error('no play')
   return play
 }
-const actions = () => current().phases.flatMap((p) => p.actions)
+const actions = () => current().actions
 
 function contactPlay(): Play {
   const play = sevenVsSevenWithOptions()
   return {
     ...play,
-    phases: [
-      phase(P.t1, null, [run(uuid(400), P.A(4), [{ x: 46, y: 36 }], { durationOverride: 3 })]),
-    ],
+    branches: [branch(P.root, null)],
+    actions: [run(uuid(400), P.A(4), [{ x: 46, y: 36 }], { durationOverride: 3 })],
+    sequences: [],
   }
 }
 
 beforeEach(() => {
   openPlay(contactPlay(), null, false)
   setTool('select')
-  usePlayerStore.setState({ mode: 'edit' })
   useInteractionStore.setState({ metersPerPx: 0 })
 })
 
@@ -76,7 +75,8 @@ describe('breakdown tool (G)', () => {
       tackledId: P.A(4),
       supportId: P.A(5),
       relayerId: P.A(3),
-      delay: 3,
+      start: 3,
+      startGlue: { targetId: uuid(400), event: 'end' },
     })
     expect(useEditorStore.getState().selection.actions).toEqual([ruck?.id])
     expect(useEditorStore.getState().history.past).toHaveLength(1)
@@ -94,7 +94,8 @@ describe('breakdown tool (G)', () => {
 describe('dragging lot 3 handles', () => {
   it('drags the target point of a kick as one undo step', () => {
     openPlay(setPiecesPlay(), null, false)
-    selectPhase(P.t3a)
+    showLineInPlayer([P.root, P.optA])
+    seekPlayer(8.4)
     setTool('select')
     down({ x: 75, y: 12 }, { kind: 'kickTarget', actionId: uuid(420) })
     editorPointerMove({ x: 76, y: 13 })
@@ -105,21 +106,19 @@ describe('dragging lot 3 handles', () => {
     expect(useEditorStore.getState().history.past).toHaveLength(1)
   })
 
-  it('drags the ball on the ground at the start in the first phase only', () => {
+  it('drags the ball on the ground at t = 0 only (D-141)', () => {
     openPlay(setPiecesPlay(), null, false)
-    selectPhase(P.t1)
     down({ x: 40.5, y: 35 }, { kind: 'ball' })
     editorPointerMove({ x: 43, y: 33 })
     editorPointerUp()
     expect(current().setup.ballPosition).toEqual({ x: 43, y: 33 })
-    selectPhase(P.t2)
+    seekPlayer(0.1)
     down({ x: 43, y: 33 }, { kind: 'ball' })
-    expect(useEditorStore.getState().notice).toBe('inheritedPosition')
+    expect(useEditorStore.getState().notice).toBe('placementAtStart')
   })
 
   it('selects kicks and breakdowns with the selection tool', () => {
     openPlay(setPiecesPlay(), null, false)
-    selectPhase(P.t1)
     down({ x: 46, y: 38 }, { kind: 'breakdown', actionId: uuid(402) })
     expect(useEditorStore.getState().selection.actions).toEqual([uuid(402)])
   })

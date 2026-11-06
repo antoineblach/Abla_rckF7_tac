@@ -49,7 +49,6 @@ import {
   useLibraryState,
   type LibraryDialog,
 } from './libraryState'
-import { showPhaseInPlayer, syncLineWithPlay } from './playerStore'
 import { takeMotionResetNotice, takeSprintResetNotice } from './prefs'
 import { useSettingsStore } from './settingsStore'
 import { onGestureEnd, openPlayForSync } from './syncBridge'
@@ -197,13 +196,6 @@ function attachListeners(): void {
   setSaveRequest(() => void sync?.saveNow())
   // The automatic save held back by a gesture leaves at its end (D-099).
   onGestureEnd(() => void sync?.gestureEnded())
-  useEditorStore.subscribe((state, previous) => {
-    if (state.selectedPhaseId !== previous.selectedPhaseId && state.selectedPhaseId) {
-      showPhaseInPlayer(state.selectedPhaseId)
-    } else if (state.play !== previous.play && state.play) {
-      syncLineWithPlay()
-    }
-  })
 }
 
 async function openFolder(handle: FileSystemDirectoryHandle): Promise<void> {
@@ -226,6 +218,11 @@ async function openBrowser(): Promise<void> {
 
 async function offerDraft(): Promise<void> {
   const draft = await loadDraft(getKv()).catch(() => null)
+  if (draft === 'obsolete') {
+    // Neither restored nor erased: the next change rewrites its key, and the message says so (D-151).
+    notify(TEXT.draftObsolete)
+    return
+  }
   if (!draft || !store) return
   const stored = await store.get(draft.id).catch(() => null)
   if (draftDiffers(draft, stored)) pushDialog({ kind: 'draft', draft })
@@ -377,9 +374,13 @@ export async function importFiles(files: readonly File[]): Promise<void> {
   const existing = new Map((await store.list()).map((s) => [s.id, s.updatedAt]))
   let imported = 0
   let failures = 0
+  let obsolete = 0
   for (const file of files) {
     const parsed = parseImportText(await file.text())
-    failures += parsed.failures.length
+    // A play of an earlier version is refused with its own message, nothing written (SPEC 4.4).
+    const refused = parsed.failures.filter((f) => f.error.code === 'obsoleteVersion').length
+    obsolete += refused
+    failures += parsed.failures.length - refused
     for (const candidate of planImport(parsed.plays, new Set(existing.keys()))) {
       if (candidate.existingId === null) {
         await applyImport(store, candidate, null, randomIds, now)
@@ -395,6 +396,7 @@ export async function importFiles(files: readonly File[]): Promise<void> {
   }
   await refreshLibrary()
   if (imported > 0) notify(TEXT.imported(imported))
+  if (obsolete > 0) notify(TEXT.importObsolete(obsolete), 'error')
   if (failures > 0) notify(TEXT.importFailed(failures), 'error')
 }
 

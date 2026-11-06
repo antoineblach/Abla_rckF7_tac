@@ -178,6 +178,11 @@ Bascule (section Stratégie), puis interface portée en place.
 - Barre de lecture : liste « Ligne » (D-142), « Bord précédent » et « Bord suivant » (D-146). « Pause entre les temps » retirée, `pauseBetweenPhases` retiré des préférences du poste. Arbre retiré. Liste des actions (D-145). Textes « temps » réécrits. Vignette de bibliothèque : `t = 0`, ligne par défaut.
 - e2e : helpers portés ; `bundle`, `external-changes`, `sync-own-writes`, `presets`, `placement` verts ; les autres specs dans `e2e/a-porter/`, avec le `testIgnore` provisoire, listées dans « Écarts connus » d'ETAT.
 
+Reçu de l'étape C4 :
+- Helpers de `e2e/support/editorActions.ts` pas encore portés : `phaseButton`, `selectPhase`, `buildScenario`, `imageAtEndOf` (ils restent tant que `e2e/a-porter/` les importe).
+- Noms à viser : `current-interval` (ex `current-phase`), région « Actions de la ligne » (ex « Actions du temps »), `src/ui/actions/` (ex `ui/phases`) ; inspecteur : champ « Départ » (ex « Délai », « Formation »), `block-start-computed`, `start-glue`, `end-glue`, `glue-factors`, `run-launch` (ex `launch-wait`), boutons « Décoller le départ » et « Décoller la fin ». « Finit lancée » n'est plus une case à cocher.
+- À couvrir de bout en bout en C5 : le câblage du halo dans `FieldCanvas`, à l'arrêt et en lecture (D-173), dans `actions-list` ; `drawRun` depuis la fin de la course précédente (D-175), couvert en unitaire seulement. Vérifiés à l'écran en C4 par une spec jetable : collage, halo à l'arrêt, « Décoller », lecture et pause.
+
 ### Étape C5
 
 Lecture : `e2e/a-porter/*`, `e2e/support/*` ; PIEGES : Playwright et OPFS.
@@ -263,7 +268,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C3**
   - [x] **Étape C3 : io, refus v1 à v4 en unitaire, état** (`src/v5/io`, `state`). (commit « Étape C3 : stockage, refus des versions antérieures et état sur la frise », après `3395d65` ; retouche « Étape C3 : halo de survol sur la scène pendant la lecture (D-173) », après `d50bc46`)
 - **Bloc C4**
-  - [ ] **Étape C4 : bascule, suppressions, interface, e2e non portés mis de côté** (`testIgnore` provisoire).
+  - [x] **Étape C4 : bascule, suppressions, interface, e2e non portés mis de côté** (`testIgnore` provisoire). (commit « Étape C4 : bascule sur la frise, interface portée, e2e non portés mis de côté », après `8ce5af4`)
 - **Bloc C5**
   - [ ] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.**
 - [ ] **`/fin-lot`**, lancé par l'utilisateur : SPEC, ARCHITECTURE, RECETTE, README, ETAT, PR vers `main`.

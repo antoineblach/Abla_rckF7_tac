@@ -1,165 +1,268 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { canonicalJson } from './canonical'
 import {
+  accelPlay,
   basePlay,
+  branch,
   breakdown,
   fourVsTwoNoBall,
+  friseFixturePlay,
   kick,
   P,
   pass,
-  phase,
   realisticRunsPlay,
+  ROOT_BRANCH,
   run,
+  sequence,
   setPiecesPlay,
+  setPiecesScene,
   sevenVsSevenWithOptions,
-  typedPacesPlay,
+  speedsPlay,
   uuid,
 } from '../test/builders'
-import { canonicalJson } from './canonical'
-import { playSchemaV4 } from './schema'
-import { playSchemaV1 } from './schemaV1'
-import { playSchemaV2 } from './schemaV2'
-import { playSchemaV3 } from './schemaV3'
-import type { Action, Play } from './types'
+import { playSchemaV5 } from './schema'
+import type { GlueRef, Timed } from './types'
 
 const fixture = (name: string): unknown =>
   JSON.parse(readFileSync(new URL(`../test/fixtures/${name}`, import.meta.url), 'utf8'))
 
-function withActions(actions: unknown[]): unknown {
-  const play = basePlay()
-  return { ...play, phases: [{ ...play.phases[0], actions }] }
-}
+const withActions = (actions: unknown[]): unknown => ({ ...basePlay(), actions })
+const withSequences = (sequences: unknown[]): unknown => ({ ...basePlay(), sequences })
+const withBranches = (branches: unknown[]): unknown => ({ ...basePlay(), branches })
 
-describe('schema v4', () => {
-  it('accepts valid plays, kicks, breakdowns, lot 3 bis runs and typed paces included', () => {
+const accepted = (play: unknown): boolean => playSchemaV5.safeParse(play).success
+
+describe('schema v5', () => {
+  it('accepts valid plays, kicks, breakdowns, glues, branches and sequences included', () => {
     for (const play of [
       basePlay(),
       sevenVsSevenWithOptions(),
       fourVsTwoNoBall(),
       setPiecesPlay(),
+      setPiecesScene(),
       realisticRunsPlay(),
-      typedPacesPlay(),
+      friseFixturePlay(),
+      speedsPlay(),
+      accelPlay(),
     ]) {
-      expect(playSchemaV4.safeParse(play).success).toBe(true)
+      expect(accepted(play)).toBe(true)
     }
   })
 
-  it('accepts the frozen v4 fixture, identical to the builder', () => {
-    const data = fixture('play-v4-lot3bis1.json')
-    expect(playSchemaV4.safeParse(data).success).toBe(true)
-    expect(canonicalJson(data)).toBe(canonicalJson(typedPacesPlay()))
+  it('accepts the frozen v5 fixture, identical to the builder', () => {
+    const data = fixture('play-v5-frise.json')
+    expect(accepted(data)).toBe(true)
+    expect(canonicalJson(data)).toBe(canonicalJson(friseFixturePlay()))
+  })
+
+  it('covers in the fixture every event, every edge and both `keep`', () => {
+    const play = friseFixturePlay()
+    const kindOf = (id: string): string => {
+      if (play.branches.some((b) => b.id === id)) return 'branch'
+      if (play.sequences.some((s) => s.id === id)) return 'sequence'
+      return play.actions.find((a) => a.id === id)?.type ?? 'missing'
+    }
+    const events = new Set<string>()
+    const edges = new Set<string>()
+    const keeps = new Set<string>()
+    const visit = (edge: string, glue: GlueRef | undefined): void => {
+      if (!glue) return
+      edges.add(edge)
+      const event = typeof glue.event === 'string' ? glue.event : 'point'
+      events.add(`${kindOf(glue.targetId)}:${event}`)
+    }
+    const visitBlock = (kind: string, block: Timed): void => {
+      visit(`${kind}:start`, block.startGlue)
+      visit(`${kind}:end`, block.endGlue)
+      if (block.endGlue) keeps.add(block.endGlue.keep)
+    }
+    for (const action of play.actions) visitBlock(action.type, action)
+    for (const block of play.sequences) visitBlock('sequence', block)
+    for (const b of play.branches) visit('branch:branchAt', b.branchAtGlue)
+    expect([...events].sort()).toEqual(
+      [
+        'branch:end',
+        'breakdown:end',
+        'breakdown:start',
+        'kick:end',
+        'kick:start',
+        'pass:end',
+        'pass:start',
+        'run:end',
+        'run:point',
+        'run:start',
+        'sequence:end',
+        'sequence:start',
+      ].sort(),
+    )
+    expect([...edges].sort()).toEqual(
+      [
+        'branch:branchAt',
+        'breakdown:end',
+        'breakdown:start',
+        'kick:end',
+        'kick:start',
+        'pass:end',
+        'pass:start',
+        'run:end',
+        'run:start',
+        'sequence:end',
+        'sequence:start',
+      ].sort(),
+    )
+    expect([...keeps].sort()).toEqual(['duration', 'start'])
+  })
+
+  it('keeps the realistic runs at 18 actions: the 16 of v4, plus two cut rendez-vous', () => {
+    expect(realisticRunsPlay().actions).toHaveLength(18)
   })
 
   it('accepts a typed run pace in m/s and rejects a null, negative or unknown one (D-133)', () => {
     const plain = run(uuid(1), P.A(1), [{ x: 1, y: 1 }])
-    expect(playSchemaV4.safeParse(withActions([{ ...plain, pace: 4.5 }])).success).toBe(true)
+    expect(accepted(withActions([{ ...plain, pace: 4.5 }]))).toBe(true)
     for (const pace of [0, -2, Infinity, 'gallop', '4.5']) {
-      expect(playSchemaV4.safeParse(withActions([{ ...plain, pace }])).success).toBe(false)
+      expect(accepted(withActions([{ ...plain, pace }]))).toBe(false)
     }
   })
 
-  it('accepts segment speeds, links of every kind and releases on receipt (D-104)', () => {
-    const target = uuid(1)
-    const actions: unknown[] = [
-      run(target, P.A(1), [
-        { x: 1, y: 1, speed: 'walk' },
-        { x: 2, y: 2, speed: 6.5 },
-      ]),
-      ...(['runEnd', 'release', 'arrival', 'formation'] as const).map((event, i) =>
-        run(uuid(10 + i), P.A(2), [{ x: 3, y: 3 }], {
-          sync: { target: { actionId: target, event }, adjust: 'speed' },
-        }),
-      ),
-      run(
-        uuid(20),
-        P.A(3),
-        [
-          { x: 3, y: 3 },
-          { x: 4, y: 4 },
-        ],
-        {
-          endsAtSpeed: true,
-          sync: {
-            target: { actionId: target, event: 'runPoint', index: 1 },
-            at: 1,
-            adjust: 'delay',
-          },
-        },
-      ),
-      pass(uuid(21), P.A(1), P.A(2), 0, { release: 'onReceipt' }),
-      kick(uuid(22), P.A(1), { point: { x: 1, y: 1 } }, 0.4, { release: 'onReceipt' }),
-    ]
-    expect(playSchemaV4.safeParse(withActions(actions)).success).toBe(true)
+  it('accepts segment speeds and rejects malformed ones (D-114)', () => {
+    const plain = run(uuid(1), P.A(1), [
+      { x: 1, y: 1, speed: 'walk' },
+      { x: 2, y: 2, speed: 6.5 },
+    ])
+    expect(accepted(withActions([plain]))).toBe(true)
+    for (const waypoints of [
+      [{ x: 1, y: 1, speed: 0 }],
+      [{ x: 1, y: 1, speed: 'gallop' }],
+      [{ x: 1, y: 1, pace: 'walk' }],
+      [],
+    ]) {
+      expect(accepted(withActions([{ ...plain, waypoints }]))).toBe(false)
+    }
   })
 
-  it('rejects malformed lot 3 bis fields', () => {
+  it('accepts a glue on every event, with an offset, on both edges (SPEC 4.1)', () => {
     const plain = run(uuid(1), P.A(1), [{ x: 1, y: 1 }])
-    const link = { target: { actionId: uuid(2), event: 'runEnd' }, adjust: 'delay' }
-    const invalid: unknown[] = [
-      { ...plain, waypoints: [{ x: 1, y: 1, speed: 0 }] },
-      { ...plain, waypoints: [{ x: 1, y: 1, speed: 'gallop' }] },
-      { ...plain, waypoints: [{ x: 1, y: 1, pace: 'walk' }] },
-      { ...plain, endsAtSpeed: false },
-      { ...plain, sync: { ...link, adjust: 'both' } },
-      { ...plain, sync: { ...link, at: -1 } },
-      { ...plain, sync: { ...link, at: 0.5 } },
-      { ...plain, sync: { ...link, target: { actionId: uuid(2), event: 'runPoint' } } },
-      { ...plain, sync: { ...link, target: { actionId: uuid(2), event: 'runEnd', index: 0 } } },
-      { ...plain, sync: { ...link, target: { actionId: uuid(2), event: 'tackle' } } },
-      { ...pass(uuid(3), P.A(1), P.A(2), 0), release: 'fixed' },
-      { ...kick(uuid(4), P.A(1), { point: { x: 1, y: 1 } }, 0), release: true },
-    ]
-    for (const action of invalid) {
-      expect(playSchemaV4.safeParse(withActions([action])).success).toBe(false)
+    for (const event of ['start', 'end', { point: 0 }, { point: 3 }]) {
+      const glue = { targetId: uuid(2), event, offset: 0.4 }
+      expect(accepted(withActions([{ ...plain, startGlue: glue }]))).toBe(true)
+      for (const keep of ['start', 'duration']) {
+        expect(accepted(withActions([{ ...plain, endGlue: { ...glue, keep } }]))).toBe(true)
+      }
     }
+  })
+
+  it('rejects malformed glues', () => {
+    const plain = run(uuid(1), P.A(1), [{ x: 1, y: 1 }])
+    const glue = { targetId: uuid(2), event: 'end' }
+    const startGlues: unknown[] = [
+      { targetId: uuid(2) },
+      { event: 'end' },
+      { ...glue, targetId: 'cible' },
+      { ...glue, event: 'middle' },
+      { ...glue, event: { point: -1 } },
+      { ...glue, event: { point: 0.5 } },
+      { ...glue, event: { point: 0, extra: 1 } },
+      { ...glue, event: {} },
+      { ...glue, offset: -0.1 },
+      { ...glue, keep: 'start' },
+    ]
+    for (const startGlue of startGlues) {
+      expect(accepted(withActions([{ ...plain, startGlue }]))).toBe(false)
+    }
+    for (const endGlue of [glue, { ...glue, keep: 'both' }, { ...glue, keep: 'start', extra: 1 }]) {
+      expect(accepted(withActions([{ ...plain, endGlue }]))).toBe(false)
+    }
+  })
+
+  it('rejects a negative instant on an action, a sequence and a branch point', () => {
+    expect(accepted(withActions([run(uuid(1), P.A(1), [{ x: 1, y: 1 }], { start: -1 })]))).toBe(
+      false,
+    )
+    expect(accepted(withActions([pass(uuid(1), P.A(1), P.A(2), -0.5)]))).toBe(false)
+    expect(accepted(withSequences([sequence(uuid(1), -1, 2)]))).toBe(false)
+    expect(accepted(withSequences([sequence(uuid(1), 0, -2)]))).toBe(false)
+    expect(accepted(withBranches([branch(ROOT_BRANCH, null, { branchAt: -1 })]))).toBe(false)
+  })
+
+  it('requires a branch and an instant on every action and sequence', () => {
+    const { branchId: _branch, ...withoutBranch } = run(uuid(1), P.A(1), [{ x: 1, y: 1 }])
+    const { start: _start, ...withoutStart } = pass(uuid(2), P.A(1), P.A(2), 0)
+    expect(accepted(withActions([withoutBranch]))).toBe(false)
+    expect(accepted(withActions([withoutStart]))).toBe(false)
+    const { end: _end, ...withoutEnd } = sequence(uuid(3), 0, 1)
+    expect(accepted(withSequences([withoutEnd]))).toBe(false)
+  })
+
+  it('rejects a glue of the wrong kind on a branch point', () => {
+    const root = branch(ROOT_BRANCH, null, { branchAt: 1 })
+    const glue = { targetId: uuid(2), event: 'end' }
+    expect(accepted(withBranches([{ ...root, branchAtGlue: glue }]))).toBe(true)
+    expect(accepted(withBranches([{ ...root, branchAtGlue: { ...glue, keep: 'start' } }]))).toBe(
+      false,
+    )
+  })
+
+  it('rejects the fields of version 4 (D-139)', () => {
+    const plain = run(uuid(1), P.A(1), [{ x: 1, y: 1 }])
+    const invalid: unknown[] = [
+      { ...plain, delay: 0 },
+      { ...plain, endsAtSpeed: true },
+      { ...plain, sync: { target: { actionId: uuid(2), event: 'runEnd' }, adjust: 'delay' } },
+      { ...pass(uuid(3), P.A(1), P.A(2), 0), release: 'onReceipt' },
+      { ...kick(uuid(4), P.A(1), { point: { x: 1, y: 1 } }, 0), delay: 0 },
+    ]
+    for (const action of invalid) expect(accepted(withActions([action]))).toBe(false)
+    expect(accepted({ ...basePlay(), phases: [] })).toBe(false)
+    expect(accepted(withBranches([{ ...branch(ROOT_BRANCH, null), instruction: '' }]))).toBe(false)
+    expect(accepted(withBranches([{ ...branch(ROOT_BRANCH, null), actions: [] }]))).toBe(false)
   })
 
   it('reports the path of an error', () => {
-    const play = sevenVsSevenWithOptions() as unknown as {
-      phases: { actions: { pace?: string }[] }[]
-    }
-    const action = play.phases[0]?.actions[0]
-    if (action) action.pace = 'gallop'
-    const result = playSchemaV4.safeParse(play)
+    const play = sevenVsSevenWithOptions()
+    const result = playSchemaV5.safeParse({
+      ...play,
+      actions: [{ ...play.actions[0], pace: 'gallop' }],
+    })
     expect(result.success).toBe(false)
-    expect(result.error?.issues[0]?.path.join('.')).toBe('phases.0.actions.0.pace')
+    expect(result.error?.issues[0]?.path.join('.')).toBe('actions.0.pace')
   })
 
   it('rejects unknown keys (DECISIONS Q24)', () => {
-    expect(playSchemaV4.safeParse({ ...basePlay(), extra: true }).success).toBe(false)
+    expect(accepted({ ...basePlay(), extra: true })).toBe(false)
     const ruck = { ...breakdown(uuid(1), P.A(1), P.A(2), P.A(3), 0), tacklerId: P.B(1) }
-    expect(playSchemaV4.safeParse(withActions([ruck])).success).toBe(false)
+    expect(accepted(withActions([ruck]))).toBe(false)
+    expect(accepted(withSequences([{ ...sequence(uuid(2), 0, 1), color: '#ffffff' }]))).toBe(false)
   })
 
   it('rejects malformed kicks and breakdowns', () => {
-    const bothTargets = kick(uuid(1), P.A(1), { receiverId: P.A(2) }, 0)
+    const toReceiver = kick(uuid(1), P.A(1), { receiverId: P.A(2) }, 0)
+    const ruck = breakdown(uuid(2), P.A(1), P.A(2), P.A(3), 0)
     const invalid: unknown[] = [
-      { ...bothTargets, target: { receiverId: P.A(2), point: { x: 1, y: 1 } } },
-      { ...bothTargets, target: {} },
-      { ...bothTargets, flightTime: 0 },
-      { ...bothTargets, kind: 'grubber' },
-      { ...breakdown(uuid(2), P.A(1), P.A(2), P.A(3), 0), duration: 0 },
-      { ...breakdown(uuid(2), P.A(1), P.A(2), P.A(3), 0), contest: 'tackler' },
-      { ...breakdown(uuid(2), P.A(1), P.A(2), P.A(3), -1) },
+      { ...toReceiver, target: { receiverId: P.A(2), point: { x: 1, y: 1 } } },
+      { ...toReceiver, target: {} },
+      { ...toReceiver, flightTime: 0 },
+      { ...toReceiver, kind: 'grubber' },
+      { ...ruck, duration: 0 },
+      { ...ruck, contest: 'tackler' },
     ]
-    for (const action of invalid) {
-      expect(playSchemaV4.safeParse(withActions([action])).success).toBe(false)
-    }
+    for (const action of invalid) expect(accepted(withActions([action]))).toBe(false)
   })
 
   it('rejects types of lots 4 and 5 (DECISIONS Q4)', () => {
     const groupRun = {
       id: uuid(1),
+      branchId: ROOT_BRANCH,
+      start: 0,
       type: 'groupRun',
       entityIds: [uuid(2)],
       waypoints: [{ x: 1, y: 1 }],
       pace: 'jog',
-      delay: 0,
     }
-    expect(playSchemaV4.safeParse(withActions([groupRun])).success).toBe(false)
+    expect(accepted(withActions([groupRun]))).toBe(false)
     const play = basePlay()
-    const withDefense = { ...play, defenseSettings: { system: '7' } }
-    expect(playSchemaV4.safeParse(withDefense).success).toBe(false)
+    expect(accepted({ ...play, defenseSettings: { system: '7' } })).toBe(false)
     const cone = {
       id: uuid(3),
       kind: 'equipment',
@@ -167,83 +270,13 @@ describe('schema v4', () => {
       color: '#ffffff',
       position: { x: 0, y: 0 },
     }
-    expect(playSchemaV4.safeParse({ ...play, entities: [cone] }).success).toBe(false)
+    expect(accepted({ ...play, entities: [cone] })).toBe(false)
   })
 
   it('rejects non-UUID identifiers and infinite numbers', () => {
-    expect(playSchemaV4.safeParse({ ...basePlay(), id: 'a/b' }).success).toBe(false)
-    const play = basePlay({
-      field: { length: Infinity, width: 70, inGoal: 10, view: { kind: 'full' } },
-    })
-    expect(playSchemaV4.safeParse(play).success).toBe(false)
-  })
-})
-
-describe('frozen schema v3', () => {
-  it('accepts the frozen v3 fixture, equal to the builder apart from its version', () => {
-    const data = fixture('play-v3-lot3bis.json')
-    expect(playSchemaV3.safeParse(data).success).toBe(true)
-    expect(canonicalJson(data)).toBe(canonicalJson({ ...realisticRunsPlay(), schemaVersion: 3 }))
-  })
-
-  it('rejects a typed run pace, which arrives with version 4', () => {
-    const v3 = { ...basePlay(), schemaVersion: 3 }
-    expect(playSchemaV3.safeParse(v3).success).toBe(true)
-    const typed = run(uuid(1), P.A(1), [{ x: 1, y: 1 }], { pace: 4.5 })
-    const data = { ...v3, phases: [phase(uuid(9000), null, [typed])] }
-    expect(playSchemaV3.safeParse(data).success).toBe(false)
-    expect(playSchemaV4.safeParse(v3).success).toBe(false)
-  })
-})
-
-describe('frozen schema v2', () => {
-  it('accepts the frozen v2 fixture, equal to the builder apart from its version', () => {
-    const data = fixture('play-v2-lot3.json')
-    expect(playSchemaV2.safeParse(data).success).toBe(true)
-    expect(canonicalJson(data)).toBe(canonicalJson({ ...setPiecesPlay(), schemaVersion: 2 }))
-  })
-
-  it('rejects the fields of version 3', () => {
-    const v2 = { ...basePlay(), schemaVersion: 2 }
-    expect(playSchemaV2.safeParse(v2).success).toBe(true)
-    const actions: Action[] = [
-      run(uuid(1), P.A(1), [{ x: 1, y: 1, speed: 'walk' }]),
-      run(uuid(1), P.A(1), [{ x: 1, y: 1 }], { endsAtSpeed: true }),
-      run(uuid(1), P.A(1), [{ x: 1, y: 1 }], {
-        sync: { target: { actionId: uuid(2), event: 'runEnd' }, adjust: 'delay' },
-      }),
-      pass(uuid(3), P.A(1), P.A(2), 0, { release: 'onReceipt' }),
-      kick(uuid(4), P.A(1), { point: { x: 1, y: 1 } }, 0, { release: 'onReceipt' }),
-    ]
-    for (const action of actions) {
-      const data = { ...v2, phases: [phase(uuid(9000), null, [action])] }
-      expect(playSchemaV2.safeParse(data).success).toBe(false)
-    }
-    expect(playSchemaV4.safeParse(v2).success).toBe(false)
-  })
-})
-
-describe('frozen schema v1', () => {
-  it('accepts the frozen v1 fixture, equal to the builder apart from its version', () => {
-    const data = fixture('play-v1-7v7-options.json')
-    expect(playSchemaV1.safeParse(data).success).toBe(true)
-    const expected: Omit<Play, 'schemaVersion'> & { schemaVersion: number } = {
-      ...sevenVsSevenWithOptions(),
-      schemaVersion: 1,
-    }
-    expect(canonicalJson(data)).toBe(canonicalJson(expected))
-  })
-
-  it('rejects kicks and breakdowns, which arrive with version 2', () => {
-    const v1 = { ...basePlay(), schemaVersion: 1 }
-    const actions: Action[] = [
-      kick(uuid(1), P.A(1), { point: { x: 1, y: 1 } }, 0),
-      breakdown(uuid(2), P.A(1), P.A(2), P.A(3), 0),
-    ]
-    for (const action of actions) {
-      const data = { ...v1, phases: [phase(uuid(9000), null, [action])] }
-      expect(playSchemaV1.safeParse(data).success).toBe(false)
-    }
-    expect(playSchemaV1.safeParse(v1).success).toBe(true)
+    expect(accepted({ ...basePlay(), id: 'a/b' })).toBe(false)
+    const field = { length: Infinity, width: 70, inGoal: 10, view: { kind: 'full' } }
+    expect(accepted({ ...basePlay(), field })).toBe(false)
+    expect(accepted(withSequences([sequence(uuid(1), 0, Infinity)]))).toBe(false)
   })
 })
