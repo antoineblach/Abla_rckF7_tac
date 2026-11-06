@@ -314,12 +314,15 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Alternatives écartées : garder `mode` dans le store (deux états à tenir d'accord, et un état « arrêté non éditable » que 6.3 exclut) ; ne pas ramener le curseur à l'ouverture de la même combinaison (l'ouverture remet déjà tout le reste).
 - Origine : étape C3, lecture de 6.3, précision à contredire au besoin.
 
-### D-173 : halo de survol sur toute la ligne
-- Date : 2026-11-05
-- Décision : le halo de la liste des actions (D-113, D-145) se calcule sur la ligne entière (`lineSchematic`), en édition comme en lecture : une action de la ligne qui n'est pas encore dessinée à l'instant du curseur reçoit son halo.
-- Raison : D-145 garde le survol inchangé, et en v4 le halo montrait toute action de la liste, dont celles au-delà de `t`. Le schéma à `t` n'a pas les actions ultérieures (6.3).
-- Alternatives écartées : halo sur le seul schéma à `t` (survoler une ligne de la liste ne montrerait rien pour les actions à venir).
-- Origine : étape C3, précision à contredire au besoin.
+### D-173 : halo de survol, scène à `t` en lecture, toute la ligne à l'arrêt
+- Date : 2026-11-05, retouchée le 2026-11-06
+- Décision : le halo de la liste des actions (D-113, D-145), et demain du survol des blocs de la frise (6.4), dépend de la lecture.
+  - Pendant la lecture, la lettre de 6.4 et de D-121 : halo seulement sur la scène à `t`. Une action pas encore dessinée n'a pas de halo, même si elle démarre dans l'intervalle à `t` ; une action en cours l'a jusqu'où elle est dessinée ; une action antérieure en grisé l'a.
+  - À l'arrêt, sur la ligne entière (`lineSchematic`) : une action de la ligne qui n'est pas dessinée à l'instant du curseur reçoit son halo.
+  - La règle vit dans `src/v5/state`, pas dans l'interface : `currentHoverSchematic` choisit selon `transport.playing`.
+- Raison : en v4, pendant la lecture, le halo portait déjà sur la scène à `t` (D-121) ; l'extension à toute la ligne ne vaut qu'à l'arrêt, où D-145 garde le survol et où le schéma à `t` n'a pas les actions ultérieures (6.3).
+- Alternatives écartées : à l'arrêt, halo sur le seul schéma à `t` (survoler une ligne de la liste ne montrerait rien pour les actions à venir) ; en lecture, toute la ligne (première version de cette entrée, 05/11) ; en lecture, `windowSchematic` (ce n'est pas la scène à `t` : il garde les actions à venir de l'intervalle et n'a pas les actions en grisé).
+- Origine : étape C3, précision ; choix d'Antoine du 06/11 pour la lecture.
 
 ### D-174 : message propre pour les combinaisons refusées à l'import
 - Date : 2026-11-05

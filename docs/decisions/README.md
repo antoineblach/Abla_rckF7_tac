@@ -200,5 +200,5 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-170 | gel d'un bord collé | en vigueur | non intégrée (5.8) |
 | D-171 | pose au curseur par les outils | en vigueur | non intégrée (6.2) |
 | D-172 | à l'arrêt, le terrain édite : plus de mode de lecture | en vigueur | non intégrée (6.3) |
-| D-173 | halo de survol sur toute la ligne | en vigueur | — |
+| D-173 | halo de survol : scène à `t` en lecture, toute la ligne à l'arrêt | en vigueur | non intégrée (6.4) |
 | D-174 | message propre pour les combinaisons refusées à l'import | en vigueur | non intégrée (4.4) |

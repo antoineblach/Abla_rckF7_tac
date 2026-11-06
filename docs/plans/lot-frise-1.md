@@ -168,7 +168,7 @@ Reçu de l'étape C3 :
 - `src/v5/ui/describe.test.ts` n'a plus les tests « rows of the list » : à reprendre avec `actionRows`. Les tests de surcouche de `render/speeds.test.ts` sont dans `state/cursor.test.ts`.
 - Plus de `mode` (D-172) : `s.mode === 'play'` devient `s.transport.playing` dans `FieldCanvas`, `ActionList`, `TransportBar` ; le bouton de retour à l'embranchement ne dépend plus du mode (à l'arrêt après une option). `data-mode` du canevas : à calculer depuis `playing`, des e2e le lisent.
 - Plus de `selectedPhaseId`, `selectPhase`, `showPhaseInPlayer`, `syncLineWithPlay`, `enterEditMode` (`pausePlayer`), `nextPhaseInPlayer` (`nextEdgeInPlayer`), `previousPhaseInPlayer` (`previousEdgeInPlayer`), `startSyncPick`, `cancelSyncPick`, dialogue `confirmDeletePhase`. Nouveaux : `showLineInPlayer`, `showActionInPlayer`, `currentCursor` ; le transport suit le store d'édition par abonnement, rien à brancher dans la session.
-- `buildOverlay` prend `hoverSchematic` et `hoverOverlay` son schéma : `lineSchematic(play, line, ...)`, seulement si une action est survolée (D-173). `schematic` : `currentSchematic()` ou `windowSchematic` à `t`.
+- `buildOverlay` prend `hoverSchematic` et `hoverOverlay` son schéma : `currentHoverSchematic()`, seulement si une action est survolée ; la scène à `t` en lecture, toute la ligne à l'arrêt (D-173), le choix n'est pas à refaire dans `FieldCanvas`. `schematic` : `currentSchematic()` ou `windowSchematic` à `t`.
 - `selectors` : `lineReportOf` (ex `phaseReportOf`), `actionReportOf(play, line, id, settings)`, `actionsInProgress` (D-145), `lineChoices` (D-142), `runDuration` et `kickLanding` prennent la ligne ; `displayedPhaseId`, `labelParts`, `siblingsOf`, `phaseDurationAt`, `syncPickPrompt` retirés.
 - `describe` : `glueTargetText`, `glueText`, `glueStatusText`, `glueFactorsText` à la place de `syncTargetText`, `rendezVousText`, `syncResultText` ; `actionDetails(play, row)` sans `link` ni `delay` ; `releaseModeText(play, report)`. `strings` : plus de `phaseLabel` ni `TEXT.syncPick` ; `NOTICES` : `placementAtStart`, `edgeFrozen`.
 - Inspecteur : supprimer passe par `deleteSelection` (message de gel) ; `removeGlue` et les suppressions prennent `commandContext()`. `setGlue` n'a aucun appelant avant frise-2, donc pas de message de refus.
@@ -261,7 +261,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C2**
   - [x] **Étape C2 : commandes et outils de l'éditeur** (`src/v5/editor`). (commit « Étape C2 : commandes et outils de l'éditeur sur la frise », après `97c3d60` ; retouches « Étape C2 : lâcher collé à la réception sous le curseur (D-171) », après `e33e1c5`, et « Étape C2 : formation collée à la réception sous le curseur (D-171) », après `ed1d372`)
 - **Bloc C3**
-  - [x] **Étape C3 : io, refus v1 à v4 en unitaire, état** (`src/v5/io`, `state`). (commit « Étape C3 : stockage, refus des versions antérieures et état sur la frise », après `3395d65`)
+  - [x] **Étape C3 : io, refus v1 à v4 en unitaire, état** (`src/v5/io`, `state`). (commit « Étape C3 : stockage, refus des versions antérieures et état sur la frise », après `3395d65` ; retouche « Étape C3 : halo de survol sur la scène pendant la lecture (D-173) », après `d50bc46`)
 - **Bloc C4**
   - [ ] **Étape C4 : bascule, suppressions, interface, e2e non portés mis de côté** (`testIgnore` provisoire).
 - **Bloc C5**

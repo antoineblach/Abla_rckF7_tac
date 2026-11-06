@@ -4,7 +4,7 @@
 import { create } from 'zustand'
 import { DRAG_THRESHOLD_PX, NUDGE_STEP, NUDGE_STEP_LARGE } from '../../config/defaults'
 import type { Bounds } from '../engine/bounds'
-import { windowSchematic, type WindowSchematic } from '../engine/evaluate'
+import { evaluate, lineSchematic, windowSchematic, type WindowSchematic } from '../engine/evaluate'
 import {
   addBreakdown,
   addKick,
@@ -78,6 +78,7 @@ import {
   showActionInPlayer,
   usePlayerStore,
 } from './playerStore'
+import { drawnInScene } from './overlay'
 import { appCaches, currentEngineSettings } from './settingsStore'
 import { adjustView, type FitTarget } from './viewStore'
 
@@ -156,6 +157,19 @@ export function currentSchematic(): WindowSchematic | null {
   if (!play) return null
   const { line, t } = currentCursor()
   return windowSchematic(play, line, t, currentEngineSettings(), appCaches)
+}
+
+/**
+ * Where the hovered action is haloed from (D-173): during playback, what the scene at t has drawn
+ * (SPEC 6.4, D-121); at rest, the whole line, the field showing only the interval at the cursor.
+ */
+export function currentHoverSchematic(): WindowSchematic | null {
+  const { play } = useEditorStore.getState()
+  if (!play) return null
+  const { line, t, playing } = usePlayerStore.getState().transport
+  const settings = currentEngineSettings()
+  const whole = lineSchematic(play, line, settings, appCaches)
+  return playing ? drawnInScene(whole, evaluate(play, line, t, settings, appCaches)) : whole
 }
 
 /** Placements and the ball on the ground move only at t = 0 (SPEC 6.3, D-141). */

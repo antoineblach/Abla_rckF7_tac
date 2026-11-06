@@ -3,12 +3,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Hit } from '../editor/hitTest'
 import { EMPTY_SELECTION, type Selection } from '../../editor/selection'
-import { lineSchematic, windowSchematic } from '../engine/evaluate'
+import { evaluate, lineSchematic, windowSchematic } from '../engine/evaluate'
+import { compileLine } from '../engine/timeline'
 import { defaultSettings } from '../../model/settings'
 import type { Id, Play } from '../model/types'
 import {
   basePlay,
   branch,
+  breakdown,
+  kick,
   P,
   player,
   realisticRunsPlay,
@@ -20,6 +23,7 @@ import {
   uuid,
 } from '../test/builders'
 import {
+  currentHoverSchematic,
   currentSchematic,
   editorPointerDown,
   editorPointerMove,
@@ -431,13 +435,110 @@ describe('overlay at the cursor (SPEC 5.8, D-113)', () => {
     expect(overlayFor(play, EMPTY_SELECTION, uuid(4242)).hover).toBeNull()
   })
 
-  it('halos an action of the line out of the window, during playback too', () => {
-    const play = current()
-    const whole = lineSchematic(play, OPT_A, settings(), appCaches)
-    expect(hoverOverlay(whole, RUN_A6_A).hover?.paths).toHaveLength(1)
-    expect(windowSchematic(play, OPT_A, 0, settings(), appCaches).runs).not.toContainEqual(
-      expect.objectContaining({ actionId: RUN_A6_A }),
-    )
+  describe('schematic of the hover (SPEC 6.4, D-121, D-173)', () => {
+    const RUN_A6 = uuid(210)
+    const PASS_A5_A6 = uuid(211)
+    const hoverAt = (t: number, actionId: Id, playing: boolean) => {
+      showLineInPlayer(OPT_A)
+      seekPlayer(t)
+      if (playing) playPause()
+      const schematic = currentHoverSchematic()
+      if (!schematic) throw new Error('no schematic')
+      return hoverOverlay(schematic, actionId).hover
+    }
+    const wholeRun = (actionId: Id) =>
+      lineSchematic(current(), OPT_A, settings(), appCaches).runs.find(
+        (r) => r.actionId === actionId,
+      )
+
+    it('at rest, halos a later action of the line, in full', () => {
+      expect(hoverAt(1, RUN_A6_A, false)?.paths).toEqual([wholeRun(RUN_A6_A)?.points])
+      expect(usePlayerStore.getState().transport.playing).toBe(false)
+    })
+
+    it('during playback, no halo for an action not drawn yet, even in the interval at t', () => {
+      expect(hoverAt(1, RUN_A6_A, true)).toBeNull()
+      const window = windowSchematic(current(), OPT_A, 1, settings(), appCaches)
+      expect(window.runs.map((r) => r.actionId)).toContain(RUN_A6)
+      playPause()
+      expect(hoverAt(1, RUN_A6, true)).toBeNull()
+    })
+
+    it('during playback, halos an action of the scene, as far as it is drawn', () => {
+      const hover = hoverAt(1, RUN_A4, true)
+      const drawn = evaluate(current(), OPT_A, 1, settings(), appCaches).traces.find(
+        (tr) => tr.actionId === RUN_A4,
+      )
+      expect(hover?.paths).toEqual([drawn?.points])
+      expect(drawn?.points.length).toBeLessThan(wholeRun(RUN_A4)?.points.length ?? 0)
+    })
+
+    it('during playback, halos an earlier action drawn in grey, out of the window', () => {
+      const window = windowSchematic(current(), OPT_A, BRANCH_AT + 1, settings(), appCaches)
+      expect(window.runs.map((r) => r.actionId)).not.toContain(RUN_A4)
+      expect(hoverAt(BRANCH_AT + 1, RUN_A4, true)?.paths).toHaveLength(1)
+    })
+
+    it('during playback, halos a pass from its release, up to the ball', () => {
+      expect(hoverAt(3, PASS_A5_A6, true)).toBeNull()
+      playPause()
+      const scene = evaluate(current(), OPT_A, 4.05, settings(), appCaches)
+      const trace = scene.passTraces.find((p) => p.actionId === PASS_A5_A6)
+      expect(trace?.completed).toBe(false)
+      expect(hoverAt(4.05, PASS_A5_A6, true)?.paths).toEqual([[trace?.from, trace?.to]])
+    })
+
+    it('during playback, halos a kick from its release', () => {
+      const ID = uuid(902)
+      const play = current()
+      openPlay(
+        {
+          ...play,
+          actions: [...play.actions, kick(ID, P.A(6), { point: { x: 90, y: 40 } }, 5)],
+        },
+        null,
+        false,
+      )
+      expect(hoverAt(4.5, ID, true)).toBeNull()
+      playPause()
+      const scene = evaluate(current(), OPT_A, 5.2, settings(), appCaches)
+      const trace = scene.kickTraces.find((k) => k.actionId === ID)
+      expect(trace?.completed).toBe(false)
+      expect(hoverAt(5.2, ID, true)?.paths).toEqual([[trace?.from, trace?.to]])
+    })
+
+    it('during playback, halos a breakdown only while it is on the field', () => {
+      const ID = uuid(901)
+      const play = current()
+      openPlay(
+        {
+          ...play,
+          actions: [
+            ...play.actions.filter((a) => a.id !== uuid(202) && a.id !== PASS_A5_A6),
+            breakdown(ID, P.A(4), P.A(5), P.A(3), 1),
+          ],
+        },
+        null,
+        false,
+      )
+      expect(hoverAt(0.5, ID, true)).toBeNull()
+      playPause()
+      const { end } = compileLine(current(), OPT_A, settings(), appCaches).breakdowns[0] ?? {}
+      if (end === undefined) throw new Error('no breakdown')
+      expect(hoverAt(1.1, ID, true)?.points).toHaveLength(1)
+      playPause()
+      expect(hoverAt(end + 0.1, ID, true)?.points ?? []).toEqual([])
+      playPause()
+      expect(hoverAt(0.5, ID, false)?.points).toHaveLength(1)
+    })
+
+    it('comes back to the whole line when the playback stops', () => {
+      expect(hoverAt(1, RUN_A6, true)).toBeNull()
+      playPause()
+      const schematic = currentHoverSchematic()
+      if (!schematic) throw new Error('no schematic')
+      expect(hoverOverlay(schematic, RUN_A6).hover?.paths).toHaveLength(1)
+    })
   })
 
   it('outlines a selected action of an earlier interval, without its handles', () => {

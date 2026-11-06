@@ -1,6 +1,6 @@
 # État du projet
 
-- Mise à jour : 2026-11-05
+- Mise à jour : 2026-11-06
 - Branche : `lot-frise-1` (depuis `main` à `00bd163`), poussée ; PR à la fin du lot, par `/fin-lot`
 - `main` : lots 1, 2, 3, 3 bis, 3bis-1, chantiers `docs-outils` et `frise-spec` fusionnés (PR #1 à #10, `00bd163`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` selon D-055, vérifiée le 23/10 (D-102)
@@ -28,7 +28,8 @@
 ## Questions ouvertes
 
 - Embranchement après la dernière action (D-153) : lettre de 5.1 en frise-1 ; à reposer au `/nouveau-lot frise-2`, où l'option vide devient courante.
-- D-172 à D-174 : précisions de l'étape C3, à contredire au besoin ; D-172 retire le mode de lecture du store (à l'arrêt, le terrain édite).
+- D-172 et D-174 : précisions de l'étape C3, à contredire au besoin ; D-172 retire le mode de lecture du store (à l'arrêt, le terrain édite).
+- D-173, retouchée le 06/11 : en lecture, halo d'une action en cours limité à ce qui est dessiné et halo des actions en grisé, à contredire au besoin.
 
 ## Écarts connus
 

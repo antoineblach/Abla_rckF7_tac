@@ -1,6 +1,7 @@
 // Builds the editor overlay (selection, handles, previews, glue lines, hover) from the editor state.
 import type { Bounds } from '../engine/bounds'
-import type { WindowSchematic } from '../engine/evaluate'
+import type { SchematicRun, WindowSchematic } from '../engine/evaluate'
+import type { SceneState } from '../engine/sceneState'
 import { placementPreview, type PlacementMode } from '../editor/placementMode'
 import type { Selection } from '../../editor/selection'
 import { runToolPreview, type RunDraft } from '../editor/tools/runTool'
@@ -17,7 +18,7 @@ export interface OverlayInput {
   play: Play
   /** The field at the cursor. */
   schematic: WindowSchematic
-  /** The whole line (`lineSchematic`): the action hovered in the list may be out of the window. */
+  /** Where the hovered action is haloed from: `currentHoverSchematic` (D-173). */
   hoverSchematic: WindowSchematic
   selection: Selection
   tool: ToolId
@@ -52,6 +53,35 @@ function glueLinksOf(schematic: WindowSchematic, selection: Selection): OverlayL
       ? [{ from, to }]
       : [],
   )
+}
+
+/**
+ * A whole line reduced to what the scene at t has drawn (SPEC 6.4, D-121, D-173): the actions still
+ * to come are absent, those under way stop where they are, the earlier ones drawn in grey remain.
+ */
+export function drawnInScene(whole: WindowSchematic, scene: SceneState): WindowSchematic {
+  const drawnRun = (run: SchematicRun): SchematicRun[] => {
+    const trace = scene.traces.find(
+      (tr) => tr.actionId === run.actionId && tr.entityId === run.entityId,
+    )
+    return trace ? [{ ...run, points: trace.points, ignoredPoints: [] }] : []
+  }
+  return {
+    ...whole,
+    runs: whole.runs.flatMap(drawnRun),
+    relays: whole.relays.flatMap(drawnRun),
+    passes: whole.passes.flatMap((pass) => {
+      const trace = scene.passTraces.find((tr) => tr.actionId === pass.actionId)
+      return trace ? [{ ...pass, to: trace.to }] : []
+    }),
+    kicks: whole.kicks.flatMap((kick) => {
+      const trace = scene.kickTraces.find((tr) => tr.actionId === kick.actionId)
+      return trace ? [{ ...kick, to: trace.to }] : []
+    }),
+    breakdowns: whole.breakdowns.filter((b) =>
+      scene.breakdowns.some((drawn) => drawn.actionId === b.actionId),
+    ),
+  }
 }
 
 /** Only the halo of the action hovered in the list, over the scene during playback (D-113). */
