@@ -217,6 +217,44 @@ Fin : suite complète ; `npm run bench` après, les deux chiffres dans ETAT ; au
 
 Repères mesurés au prototype, à retrouver : freinage partout à 4 m/s² ; à 90°, coupe 0,27 s, arrivée 0,54 s au trot et au sprint, 1,17 s à la marche ; scènes de référence : restent 5,5, 6,2, 13,3, 42,7 et 44,8 m/s², tous au levier 2, durées inchangées à 0,01 s près, seconde passe non déclenchée ; option à 90° et option tout droit (20 m, puis 15 m ou 20 m) : 3,58 m/s dans les deux lignes.
 
+### Étape C4c
+
+Correction ajoutée après C4b par `/correction-recette` du 07/11. Constat de la sonde de C4b, présent avant et après C4b : dans une chaîne de trois courses collées d'une joueuse (R1, R2 collée à la fin de R1, R3 collée à la fin de R2), si R1 s'allonge au-delà du `start` enregistré de R3, R3 part à 23,9 s au lieu de 14,3 s, sans lancée, collages « ok », aucune alerte. Contraire à 5.8 (instant du bord = instant de l'événement + `offset`) et à 5.2. Règle : D-177.
+
+Cause, par lecture du code, à confirmer par la sonde. `unresolved` (`walkBranches`) retire des simulations les regroupements, passes et jeux au pied dont l'instant reste à résoudre, pas les courses. Pendant la résolution du bord de R3, R3 est encore à son `start` enregistré (s3), R2 déjà à la fin de R1 (e1 > s3) : `byReadiness` range R3 avant R2, `depart` bâtit R3 à la fin de R1, R2 attend la fin de R3 (repli de 4.3), et cette fin tardive est appliquée au bord de R3. À la compilation finale, plus de chevauchement : ni `runStartDelayed`, ni lancée (la seconde passe retire même celle de R2), statut « ok ».
+
+Portée, une seule cause : un départ calculé par un collage lu à son `start` enregistré, jamais rafraîchi (D-169).
+1. File de la joueuse (le constat) : une course en attente passe devant une course de la même joueuse et la décale, y compris celle qui porte sa propre cible ; dès deux courses (R1 collée à une réception déplacée plus tard, R2 collée à sa fin), ou pour une course qui glisse.
+2. Course qui glisse : `applyRunEnd` lit sa durée, son point de départ et sa borne sur la course bâtie à son `start` périmé.
+3. Passe qui glisse : le point fixe part du `start` enregistré.
+4. Hors correction : l'ordre des bords où le graphe laisse le choix (D-162, `softOrder` et ordre des nœuds de `syncGraph.ts`) trie par `start` enregistré ; avec D-177, le ramassage d'un ballon au sol en dépend aussi. Mesuré ici, inscrit dans la question ouverte d'ETAT.
+
+Lecture : SPEC 5.8, 4.3 (puce « Repli du moteur ») ; D-152, D-162, D-169, D-177 ; `src/engine/` `glue` (`unresolved`, `simulate`, `applyEdge`, `applyRunEnd`, `applyPassEnd`, `readTarget`), `simulate` (`byReadiness`, `waiting`, `depart`, `advanceOne`) ; `src/model/syncGraph.ts` (`softOrder`, pour la trace d'ordre) ; PIEGES : Vitest et images de référence.
+
+`npm run bench` **avant toute modification**, puis la sonde, avant la correction :
+- tests (c), (d) et cas 1 ci-dessous : rouges, aux valeurs du constat ; trace temporaire de l'ordre de `depart` dans la simulation du bord de R3 (scratchpad, non commitée). Mécanisme différent : arrêt et question ;
+- cas de Q3, mesuré avant et après : R1 libre, R2 collée à la fin de R1 au `start` périmé au-delà de 10, R3 libre à 10 ; course d'une autre joueuse collée à la fin de R3 ;
+- cas du ramassage, mesuré avant et après : course de poursuite collée à l'arrivée d'un jeu au pied, qui ramasse ; passe libre de la ramasseuse ; course d'une autre joueuse collée à l'arrivée de cette passe ; `start` de la poursuite à sa valeur de pose, puis à 0, puis au-delà de la ligne. S'il passe avant et casse après avec le `start` de pose : arrêt et question ; sinon, mesures dans la question ouverte d'ETAT ;
+- résidu du bord droit d'une passe (qui glisse ou s'étire) sur `play-v5-frise.json` et le cas 5 : au-delà de 0,01 s, arrêt et question (le nombre d'itérations relève de D-037).
+
+| Fichier | Changement |
+|---|---|
+| `glue.ts` | `unresolved` : toute action dont un collage calcule le départ (bord gauche, ou bord droit qui la fait glisser), `groupRun` excepté, donc les courses ; commentaire D-162, D-169, D-177. `applyEdge` inchangé (`comesBack`). `applyRunEnd`, branche qui glisse (ni `keep: 'start'` ni bord gauche collé), selon D-177 : course précédente, borne et point de départ lus sur `read`, où la course est absente ; course bâtie par `runMotion`, spec `{ levers: null, ignoreImposed: false, endsAtSpeed: launched.has(id), launch: null, arrivalCap }` (`arrivalCapOf` de `motion.ts`) ; puis `ok`, `late` (solveur, `ignoreImposed: true`) et `beforeStart` (course bâtie à son `start` enregistré) comme avant. Branche qui s'étire inchangée. `applyPassEnd`, branche qui glisse : `release` part de `wanted`. En-tête à reprendre. |
+
+`simulate.ts` et `syncGraph.ts` ne changent pas. Aucune migration : `schemaVersion` reste à 5.
+
+Tests nouveaux :
+- `src/test/glueChecks.ts` : `expectGluesOnTarget(compiled)` (a), tout collage « ok » à son `targetT` à 1e-6 s près, instant du bord lu sur `blocks` (bord gauche ou droit) ou `branches` (embranchement), sauf bloc portant une alerte de repli (`runStartDelayed`, `startsBeforeBranch`, `sequenceOverlap`, `sequenceCrossesBranch`) ; bord droit d'une passe, qui glisse ou s'étire : 0,01 s, constante commentée `HYPOTHÈSE` (points fixes à 5 itérations de 5.4, D-037). `withComputedStarts(play, t)` (b) : `start` à `t` pour tout bloc dont un collage appliqué calcule le départ ; une séquence qui glisse décale aussi sa fin ; `branchAt` d'un embranchement collé à `t`.
+- `glue.test`, describe « un départ calculé ne lit jamais son start enregistré (D-177) » : (a) sur toutes les lignes de `realisticRunsPlay()` et de `play-v5-frise.json` (lue comme dans `schema.test`) ; (b) exact, sur les mêmes lignes, `t = 0` puis durée de la plus longue ligne + 10 s, `toEqual` sur `motions`, `issues`, `passes`, `kicks`, `breakdowns` et statuts des collages. Cas nouveaux, chacun sous (a) et (b) : 1. chaîne de trois du constat, R3 à `start: 0` ; 2. deux courses, R1 collée à une réception déplacée plus tard, R2 collée à sa fin ; 3. course qui glisse jusqu'au départ d'une course de la même joueuse, elle-même collée ; 4. course qui glisse, pas la première de sa joueuse ; 5. passe qui glisse, passeuse en course. Attendus : départ à la fin de la précédente, `launch` non nul collée sans écart, aucune alerte.
+- `launch.test` (d) : « goes through a chain of three » avec `start: 0` sur la troisième, attentes inchangées.
+- `editor/glues.test` (c), dans « a glued edge follows its target » : trois courses d'une joueuse collées par `setGlue` (`start` enregistrés à la pose), puis `moveWaypoint` sur R1 au-delà du `start` enregistré de R3 ; R3 à la fin de R2, R2 et R3 lancées, aucune alerte, (a).
+
+À réécrire : l'entrée de C4b de PIEGES (Vitest), selon D-177 : le `start` enregistré d'un départ calculé n'entre plus dans la résolution ; un test de chaîne exige quand même `launch` non nul et (a), une chaîne rompue passant sans alerte.
+
+À surveiller : `profileCount.test`, plafonds tenus, sinon arrêt et question ; attendus chiffrés et images de référence : si elles bougent, `UPDATE_SNAPSHOTS=1`, comparaison à `HEAD`, chaque écart expliqué par D-177. Si (a) ou (b) échoue sur une fixture pour une autre cause (ordre des bords, autre défaut) : arrêt et question, avec la trace de l'ordre des bords.
+
+Fin : suite complète ; `npm run bench` après, les deux chiffres dans ETAT ; au-delà de 16 ms, arrêt et question ; `/fin-etape` : question de la chaîne retirée d'ETAT, question de l'ordre des bords gardée avec ses mesures, « Bloc suivant : C5 ». Pas d'essai dans le navigateur : (c) reproduit le chemin de l'éditeur.
+
 ### Étape C5
 
 Lecture : `e2e/a-porter/*`, `e2e/support/*` ; PIEGES : Playwright et OPFS.
@@ -288,6 +326,11 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 
 Étape C4b, `/changement-spec` du 06/11, questions propres à ce changement, toutes dans D-176 : Q1 seuils à 90° ; Q2 suite ralentie par le solveur ; Q3 changement d'allure ; Q4 options ; Q5 solveur et facteur k ; Q6 regroupement et écart positif ; Q7 seconde passe.
 
+Étape C4c, `/correction-recette` du 07/11, réponses d'Antoine du 07/11, recommandation retenue partout, toutes dans D-177 :
+- Q1. Course dont le départ reste à résoudre : **D-169 étendue aux courses**. Précision : le ramassage ajouté aux conséquences et mesuré par la sonde.
+- Q2. Course qui glisse : **précédente = dernière course de la joueuse présente dans la simulation qui finit au plus tard à `wanted` (instant de la cible du bord droit) ; borne = plus grand de 0, de l'embranchement et de sa fin ; départ depuis la position à la borne**. Point fixe d'une passe qui glisse : part de `wanted`. Précision : (a) tolère 0,01 s (`HYPOTHÈSE`) pour le bord droit d'une passe seulement, (b) reste exact ; au-delà, arrêt et question (D-037).
+- Q3. Ordre des bords où le graphe laisse le choix (D-162) : **inchangé en C4c** ; cas de Q3 et du ramassage mesurés, inscrits dans la question ouverte d'ETAT, à trancher par `/changement-spec` (5.8, Résolution).
+
 ## Étapes
 
 - **Bloc 0**
@@ -308,6 +351,8 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
   - [x] **Étape C4 : bascule, suppressions, interface, e2e non portés mis de côté** (`testIgnore` provisoire). (commit « Étape C4 : bascule sur la frise, interface portée, e2e non portés mis de côté », après `8ce5af4`)
 - **Bloc C4b**
   - [x] **Étape C4b : raccord de deux courses collées, vitesse admise de la suite (D-176, SPEC 1.10 déjà écrite).** (commit « Étape C4b : raccord de deux courses collées, vitesse admise de la suite (D-176) », après `0691291`)
+- **Bloc C4c**
+  - [ ] **Étape C4c : départ calculé par un collage absent des simulations tant qu'il n'est pas résolu (D-177), invariant et indépendance des `start` enregistrés.**
 - **Bloc C5**
   - [ ] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.**
 - [ ] **`/fin-lot`**, lancé par l'utilisateur : SPEC, ARCHITECTURE, RECETTE, README, ETAT, PR vers `main`.

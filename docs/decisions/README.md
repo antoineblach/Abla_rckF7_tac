@@ -16,7 +16,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
 | [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-138 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
-| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-176 (frise-1), puis les décisions de frise-2 à frise-4 |
+| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-177 (frise-1), puis les décisions de frise-2 à frise-4 |
 
 ## Lecture
 
@@ -196,7 +196,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-166 | alerte d'un ballon plus lent que sa receveuse | en vigueur | non intégrée (5.4) |
 | D-167 | bords de bloc et embranchements dans le lecteur de frise-1 | en vigueur | — |
 | D-168 | vignette du PDF et en-tête du GIF en frise-1 | en vigueur | non intégrée (9.2) |
-| D-169 | lâcher collé absent des simulations tant qu'il n'est pas résolu | en vigueur | non intégrée (5.8) |
+| D-169 | lâcher collé absent des simulations tant qu'il n'est pas résolu | précisée par D-177 | non intégrée (5.8) |
 | D-170 | gel d'un bord collé | en vigueur | non intégrée (5.8) |
 | D-171 | pose au curseur par les outils | en vigueur | non intégrée (6.2) |
 | D-172 | à l'arrêt, le terrain édite : plus de mode de lecture | en vigueur | non intégrée (6.3) |
@@ -204,3 +204,4 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-174 | message propre pour les combinaisons refusées à l'import | en vigueur | non intégrée (4.4) |
 | D-175 | poignées réservées à l'outil Sélection, précisions de l'interface de frise-1 | en vigueur | non intégrée (6.2, 6.5) |
 | D-176 | raccord de deux courses collées : vitesse admise de la suite | en vigueur | 5.2, 5.3, 5.9 |
+| D-177 | départ calculé par un collage, absent des simulations tant qu'il n'est pas résolu | en vigueur | non intégrée (5.8) |

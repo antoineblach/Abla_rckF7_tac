@@ -1,19 +1,19 @@
 # État du projet
 
-- Mise à jour : 2026-11-06
+- Mise à jour : 2026-11-07
 - Branche : `lot-frise-1` (depuis `main` à `00bd163`), poussée ; PR à la fin du lot, par `/fin-lot`
 - `main` : lots 1, 2, 3, 3 bis, 3bis-1, chantiers `docs-outils` et `frise-spec` fusionnés (PR #1 à #10, `00bd163`), CI verte, déployés sur Pages
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` selon D-055, vérifiée le 23/10 (D-102)
 
 ## En cours
 
-- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-176 (`docs/decisions/frise.md`). Étapes 0, A, B1, B2, C1 à C4b faites : l'application tourne sur la v5, `src/v5/` a disparu, la v4 est supprimée ; liste « Ligne », « Bord précédent » et « Bord suivant », liste des actions de la ligne, inspecteur des collages ; raccord de deux courses collées selon D-176 (code au niveau de la SPEC 1.10).
-- Bloc suivant : C5 (e2e réécrits ou reportés, refus v1 à v4 en e2e, `cahier.combipack.json` en v5 ; relais dans la section C4 du plan).
+- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-177 (`docs/decisions/frise.md`). Étapes 0, A, B1, B2, C1 à C4b faites : l'application tourne sur la v5, `src/v5/` a disparu, la v4 est supprimée ; liste « Ligne », « Bord précédent » et « Bord suivant », liste des actions de la ligne, inspecteur des collages ; raccord de deux courses collées selon D-176 (code au niveau de la SPEC 1.10).
+- Bloc suivant : C4c, correction du 07/11 (D-177 ; sonde d'abord, relais dans la section C4c du plan), puis C5 (e2e réécrits ou reportés, refus v1 à v4 en e2e, `cahier.combipack.json` en v5 ; relais dans la section C4 du plan).
 - Compilation (`npm run bench`, D-150), après C4b : une ligne 10,3 ms, glisser, toutes lignes, 10,2 ms (avant C4b : 11,0 et 10,8), sous la cible de 16 ms. Scénario de référence : 18 actions (D-157).
 
 ## Reste à faire
 
-- Bloc C5, puis `/fin-lot`.
+- Blocs C4c et C5, puis `/fin-lot`.
 - Puis frise-2 à frise-4 par `/nouveau-lot` : section 7 de `docs/archive/plans/frise-spec.md`.
 - Puis 3bis-2 réduit (menu du clic droit, même course pour plusieurs joueuses) et 3bis-3 (positions préréglées), par `/nouveau-lot` (D-128).
 - Puis lot 4 (défense simulée ; plan archivé de 3bis-1, section G) et lot 5 (ateliers).
@@ -30,7 +30,8 @@
 - Embranchement après la dernière action (D-153) : lettre de 5.1 en frise-1 ; à reposer au `/nouveau-lot frise-2`, où l'option vide devient courante.
 - D-172, D-174 et D-175 : précisions des étapes C3 et C4, à contredire au besoin ; D-172 retire le mode de lecture du store (à l'arrêt, le terrain édite).
 - D-173, retouchée le 06/11 : en lecture, halo d'une action en cours limité à ce qui est dessiné et halo des actions en grisé, à contredire au besoin.
-- Chaîne de courses collées et `start` enregistré périmé (vu en C4b, déjà présent avant, hors D-176) : si la première course s'allonge au-delà du `start` enregistré de la troisième, celle-ci est résolue avant la deuxième (`moveWaypoint` ne rafraîchit pas ces `start`). Mesuré : départ à 23,9 s au lieu de 14,3 s, sans lancée, collages « ok », aucune alerte. Non corrigé : à décider, par `/correction-recette` ou `/changement-spec` (SPEC 5.8, Résolution).
+- Chaîne de courses collées et `start` enregistré périmé (vu en C4b) : correction validée, D-177, faite en C4c.
+- Ordre des bords où le graphe laisse le choix (D-162, par `start` enregistré) : un bord peut être résolu avant une course absente (D-177) dont dépend ce qu'il lit, position d'une course suivante ou ramassage ; collage « ok » mais faux. Mesures de la sonde de C4c à venir. À trancher par `/changement-spec` (5.8, Résolution).
 
 ## Écarts connus
 
