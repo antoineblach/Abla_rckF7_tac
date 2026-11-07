@@ -1,14 +1,15 @@
 # État du projet
 
 - Mise à jour : 2026-11-07
-- Branche : `lot-frise-1` (depuis `main` à `00bd163`), poussée, PR vers `main` ouverte par `/fin-lot`, non fusionnée
-- `main` : lots 1 à 3bis-1, chantiers `docs-outils` et `frise-spec` (PR #1 à #10, `00bd163`), CI verte, déployés sur Pages
+- Branche : `lot-frise-1-corrections` (depuis `main` à `b963894`), PR vers `main`, non fusionnée
+- `main` : lots 1 à 3bis-1, frise-1, chantiers `docs-outils` et `frise-spec` (PR #1 à #11, `b963894`) ; CI rouge après la fusion de #11 (délai dépassé, `cut.test.ts`)
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` selon D-055 (D-102)
 
 ## En cours
 
 - Lot frise-1 (`docs/plans/lot-frise-1.md`, D-140 à D-179) : étapes faites ; `/fin-lot` du 07/11 : SPEC 1.11 (D-168 pour sa partie GIF ; D-178 hors SPEC), fixtures v0 à v3 supprimées (D-179), documents, PR.
-- Suite : CI de la PR verte, fusion par l'utilisateur, puis les 3 vérifications manuelles et la séance d'usage libre de `docs/RECETTE.md` (« Lot frise-1 ») ; retour par `/correction-recette`.
+- Correctif de CI (`lot-frise-1-corrections`) : délai explicite et écarts mis en cache dans `src/engine/cut.test.ts`, test lourd au bord des 5 s sur le runner ; aucune attente changée.
+- Suite : fusion du correctif par l'utilisateur, puis les 3 vérifications manuelles et la séance d'usage libre de `docs/RECETTE.md` (« Lot frise-1 ») ; retour par `/correction-recette`.
 
 ## Reste à faire
 

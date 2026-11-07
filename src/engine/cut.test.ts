@@ -52,6 +52,11 @@ const RIGHT_ANGLE_ARRIVAL_INSTANT = 0.6
 const RIGHT_ANGLE_WALK_ARRIVAL_INSTANT = 1.2
 /** Rounding of the speeds at a junction. */
 const BRAKING_TOLERANCE = 1e-6
+/**
+ * Sweeps over every geometry and pace: 1.4 s alone and 2.9 s in the whole suite on a desktop
+ * computer, above the default 5 s on the CI runner, slower.
+ */
+const SWEEP_TIMEOUT_MS = 30_000
 
 interface Geometry {
   start: Vec2
@@ -121,7 +126,7 @@ function trajectoryGap(a: readonly Vec2[], b: readonly Vec2[]): number {
   return Math.max(oneWay(a, b), oneWay(b, a))
 }
 
-function gaps(g: Geometry, pace: Pace) {
+function computeGaps(g: Geometry, pace: Pace) {
   const single = compile(scene(g, [run(SINGLE, A, [g.cut, g.end], { pace })]))
   const cut = compile(
     scene(g, [
@@ -142,51 +147,69 @@ function gaps(g: Geometry, pace: Pace) {
   }
 }
 
+type Gaps = ReturnType<typeof computeGaps>
+
+/** Gaps already computed, by geometry and pace: several tests read the same ones. */
+const computed = new Map<string, Gaps>()
+
+function gaps(g: Geometry, pace: Pace): Gaps {
+  const key = `${g.start.x},${g.start.y};${g.cut.x},${g.cut.y};${g.end.x},${g.end.y};${pace}`
+  const known = computed.get(key)
+  if (known) return known
+  const found = computeGaps(g, pace)
+  computed.set(key, found)
+  return found
+}
+
 /** Hardest braking of a motion, its junction included. */
 const peakBraking = ({ profile }: RunMotion): number =>
   Math.max(0, ...profile.v.slice(1).map((_, k) => brakingOf(profile, k)))
 
-describe('gap at a cut point against one whole run (D-139 Q4, D-161)', () => {
-  it('stays within the thresholds in a straight line', () => {
-    for (const [a, b] of LEGS) {
-      for (const pace of PACES) {
-        const found = gaps(geometry(a, b, 0), pace)
-        expect(found.trajectory, `${a}/${b} ${pace}`).toBeLessThanOrEqual(STRAIGHT_TRAJECTORY)
-        expect(found.atCut, `${a}/${b} ${pace}`).toBeLessThanOrEqual(STRAIGHT_INSTANT)
-        expect(found.atArrival, `${a}/${b} ${pace}`).toBeLessThanOrEqual(STRAIGHT_INSTANT)
-      }
-    }
-  })
-
-  it('stays within the thresholds in a turn up to 45°', () => {
-    for (const [a, b] of LEGS) {
-      for (const degrees of [15, 30, 38, 45]) {
+describe(
+  'gap at a cut point against one whole run (D-139 Q4, D-161)',
+  { timeout: SWEEP_TIMEOUT_MS },
+  () => {
+    it('stays within the thresholds in a straight line', () => {
+      for (const [a, b] of LEGS) {
         for (const pace of PACES) {
-          const label = `${a}/${b} ${degrees}° ${pace}`
-          const found = gaps(geometry(a, b, degrees), pace)
-          expect(found.trajectory, label).toBeLessThanOrEqual(TURN_TRAJECTORY_SHARE * (a + b))
-          expect(found.atCut, label).toBeLessThanOrEqual(TURN_CUT_INSTANT)
-          expect(found.atArrival, label).toBeLessThanOrEqual(TURN_ARRIVAL_INSTANT)
+          const found = gaps(geometry(a, b, 0), pace)
+          expect(found.trajectory, `${a}/${b} ${pace}`).toBeLessThanOrEqual(STRAIGHT_TRAJECTORY)
+          expect(found.atCut, `${a}/${b} ${pace}`).toBeLessThanOrEqual(STRAIGHT_INSTANT)
+          expect(found.atArrival, `${a}/${b} ${pace}`).toBeLessThanOrEqual(STRAIGHT_INSTANT)
         }
       }
-    }
-  })
+    })
 
-  it('stays within the thresholds at a right angle (D-176)', () => {
-    for (const [a, b] of LEGS) {
-      for (const pace of PACES) {
-        const label = `${a}/${b} ${pace}`
-        const found = gaps(geometry(a, b, 90), pace)
-        expect(found.atCut, label).toBeLessThanOrEqual(RIGHT_ANGLE_CUT_INSTANT)
-        expect(found.atArrival, label).toBeLessThanOrEqual(
-          pace === 'walk' ? RIGHT_ANGLE_WALK_ARRIVAL_INSTANT : RIGHT_ANGLE_ARRIVAL_INSTANT,
-        )
+    it('stays within the thresholds in a turn up to 45°', () => {
+      for (const [a, b] of LEGS) {
+        for (const degrees of [15, 30, 38, 45]) {
+          for (const pace of PACES) {
+            const label = `${a}/${b} ${degrees}° ${pace}`
+            const found = gaps(geometry(a, b, degrees), pace)
+            expect(found.trajectory, label).toBeLessThanOrEqual(TURN_TRAJECTORY_SHARE * (a + b))
+            expect(found.atCut, label).toBeLessThanOrEqual(TURN_CUT_INSTANT)
+            expect(found.atArrival, label).toBeLessThanOrEqual(TURN_ARRIVAL_INSTANT)
+          }
+        }
       }
-    }
-  })
-})
+    })
 
-describe('junction of two runs glued (D-176)', () => {
+    it('stays within the thresholds at a right angle (D-176)', () => {
+      for (const [a, b] of LEGS) {
+        for (const pace of PACES) {
+          const label = `${a}/${b} ${pace}`
+          const found = gaps(geometry(a, b, 90), pace)
+          expect(found.atCut, label).toBeLessThanOrEqual(RIGHT_ANGLE_CUT_INSTANT)
+          expect(found.atArrival, label).toBeLessThanOrEqual(
+            pace === 'walk' ? RIGHT_ANGLE_WALK_ARRIVAL_INSTANT : RIGHT_ANGLE_ARRIVAL_INSTANT,
+          )
+        }
+      }
+    })
+  },
+)
+
+describe('junction of two runs glued (D-176)', { timeout: SWEEP_TIMEOUT_MS }, () => {
   it('never brakes harder than the braking of the settings, up to a right angle', () => {
     for (const [a, b] of LEGS) {
       for (const degrees of [38, 45, 90]) {
