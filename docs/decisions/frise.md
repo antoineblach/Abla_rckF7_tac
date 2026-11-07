@@ -376,3 +376,10 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Raison : (1) au-delà de la ligne, l'ordre des bords de D-162 (par `start` enregistré) résout le jeu au pied de l'option B1 (bord droit qui s'étire) avant la passe qui donne le ballon à son botteur, absente selon D-169 : arrivée à 24,86 s au lieu de 24,37. Écart présent avant C4c, limite connue de D-177, gardée dans la question ouverte d'ETAT. (2) Dans la simulation qui résout son bord, une course absente (D-177) déplace le regroupement où entre sa joueuse ; le relayeur coûte une résolution de plus (54 profils). Bench après C4c : 12,1 et 12,2 ms, sous 16 ms.
 - Alternatives écartées : test `it.fails` reproduisant l'écart ; traiter l'ordre des bords avant de finir C4c ; ne pas former un regroupement inutile dans la simulation d'un bord (changement du moteur hors plan).
 - Origine : arrêts prévus de la section C4c du plan ; réponses d'Antoine du 07/11.
+
+### D-179 : fixtures des versions antérieures, seule la v4 gardée pour les e2e
+- Date : 2026-11-07
+- Décision : `play-v0.json`, `play-v1-7v7-options.json`, `play-v2-lot3.json` et `play-v3-lot3bis.json` sont supprimées : plus aucun test ne les lit, les refus unitaires écrivent leurs fichiers dans le test (`model/migrations.test.ts`). `play-v4-lot3bis1.json` reste, seulement comme fichier refusé des e2e (`e2e/support/refusal.ts`), jamais lue par l'application. Précise D-139 (point 9) et la SPEC 4.5.
+- Raison : D-139 et le plan (C4) les disaient supprimées, elles étaient restées ; les e2e de refus de C5 ont besoin d'un vrai fichier v4.
+- Alternatives écartées : tout garder comme archives figées ; tout supprimer et écrire le fichier v4 dans le support des e2e.
+- Origine : écart constaté par `/fin-lot` frise-1, choix d'Antoine du 07/11. Intégrée à la SPEC 1.11 (4.5).

@@ -27,19 +27,25 @@ Outil web personnel de préparation de combinaisons de rugby à 7 : éditeur sur
 
 - **Profil de vitesse** : une joueuse accélère, freine et ralentit dans les virages ; l'allure d'une course est une vitesse de pointe. Accélération, freinage et accélération latérale se règlent dans les réglages de l'inspecteur (m/s²). Allures par défaut : marche 2 m/s, trot 4 m/s, sprint 5,5 m/s (19,8 km/h) ; un ancien `reglages.json` au sprint de 7 m/s passe à 5,5 m/s, avec un message.
 - **Vitesse d'un segment** : clic sur le trait d'une course (le segment sous le pointeur est sélectionné) ou sur un point (le segment qui y arrive), puis touches 1 (marche), 2 (trot), 3 (sprint), 0 (allure de la course), ou bloc « Segment n » de l'inspecteur, avec une vitesse saisie en km/h. Un segment au sprint ou plus vite est tracé plus épais, exports compris.
-- **Finit lancée** (inspecteur de la course) : la course finit sans freiner et la joueuse repart lancée au temps suivant, dans la même direction. Posée automatiquement quand toutes les options du temps suivant prolongent la course.
-- **Caler sur…** (inspecteur de la course) : puis cliquer la cible sur le terrain (point ou trait d'une autre course, passe ou jeu au pied près de son départ ou de son arrivée, regroupement). Réglage « Départ différé » (délai calculé) ou « Vitesse ajustée ». Échap annule. Un lien qui créerait une boucle est refusé.
-- **Lâcher d'une passe ou d'un jeu au pied** : « à un instant fixe » (délai) ou « à la réception » (temps de contrôle) ; les outils choisissent « à la réception » quand la joueuse n'a pas le ballon au début du temps.
-- **Actions du temps** (bande du bas, à droite de l'arbre) : une ligne par action avec sa barre de temps et ses alertes ; clic pour sélectionner, survol pour la repérer sur le terrain, Suppr pour la supprimer.
 - **Vitesses irréalistes** : au-delà de 20 km/h (orange) et 25 km/h (rouge), seuils réglables ; pastille dans l'éditeur, calque « Vitesses » dans le lecteur, jamais dans les exports.
 - **Barre d'espace** : un appui bref lance ou met en pause la lecture ; maintenue avec un glisser, elle déplace le terrain.
 
 ### Le mouvement (lot 3bis-1)
 
 - **Mouvement calibré** : une joueuse amatrice part vite et approche progressivement sa pointe (24 km/h par défaut, « Pointe de la joueuse » dans les réglages). Un ancien `reglages.json` resté aux accélérations par défaut du lot 3 bis passe aux valeurs calibrées, avec un message qui les liste.
-- **Intentions tenues** : une durée imposée, un lien (« Départ différé » ou « Vitesse ajustée ») et le relayeur au ballon à la sortie sont toujours tenus exactement ; au besoin, la course va plus vite et accélère plus fort. Rien n'est plafonné : les seuils signalent seulement. L'inspecteur affiche les facteurs (« Durée imposée : vitesses × 1,25, accélérations × 1,60. »).
+- **Intentions tenues** : une durée imposée, un bord collé (« Le bloc glisse » ou « Le bloc s'étire ») et le relayeur au ballon à la sortie sont toujours tenus exactement ; au besoin, la course va plus vite et accélère plus fort. Rien n'est plafonné : les seuils signalent seulement. L'inspecteur affiche les facteurs (« Durée imposée : vitesses × 1,25, accélérations × 1,60. »).
 - **Accélérations et freinages irréalistes** : seuils orange et rouge en m/s², réglables ; losange « + » (accélération) ou « − » (freinage) dans l'éditeur et sous le calque « Vitesses » du lecteur, jamais dans les exports.
 - **Curseur de vitesse** (inspecteur, course et segment) : glisser en km/h, aimanté aux repères Marche, Trot et Sprint ; relâché sur un repère, l'allure nommée est gardée (elle suit les réglages), ailleurs la vitesse est saisie. Flèches du clavier : 0,1 km/h.
+
+### La frise, première partie (frise-1)
+
+- **Combinaisons en version 5** : chaque action a son instant de départ absolu, les temps disparaissent. Une combinaison créée avant frise-1 est refusée avec un message, jamais modifiée ni déplacée : elle est à refaire. Un ancien brouillon est signalé au démarrage et remplacé à la première modification.
+- **Curseur et terrain** : à l'arrêt, le terrain montre et édite l'instant du curseur : actions de l'intervalle en cours en plein, antérieures en grisé, ultérieures absentes ; une nouvelle action part au curseur. Pendant la lecture, le terrain n'est pas éditable : un clic met en pause.
+- **Enchaîner** : outil Course, curseur sur la fin de la course précédente de la joueuse (« Bord suivant » l'y amène) : la nouvelle course lui est collée et la joueuse repart lancée. Outil Passe : lâcher au curseur si la passeuse a le ballon, collé à cette réception si le curseur est sur une réception, sinon collé à sa prochaine réception. Outil Regroupement : formation collée à la fin de la course en cours ou à la réception.
+- **Inspecteur** : « Départ » de chaque bloc, calculé et non modifiable quand un collage le fixe ; pour un bord collé, sa cible, « Décoller » (le bloc ne bouge pas), l'écart et « Quand la cible se déplace » (« Le bloc glisse » ou « Le bloc s'étire »).
+- **Lecture** : liste « Ligne » quand la combinaison a des options, « Bord précédent » et « Bord suivant », « Revenir au point d'option ».
+- **Actions de la ligne** (bande du bas) : une ligne par action de toute la ligne, triée par départ, avec sa barre et ses alertes ; clic pour sélectionner, survol pour la repérer sur le terrain, Suppr pour la supprimer.
+- **Pas encore** (frise-2) : la frise elle-même, créer une option ou une séquence, coller deux bords à la main, « Couper la course ici ». Les options et séquences d'une combinaison importée sont lues et jouées.
 
 ### Exports GIF et PDF
 
@@ -94,6 +100,7 @@ npm run preview            # prévisualisation du build : http://localhost:4173/
 | `npm run test:short -- <fichiers>`                    | Vitest en sortie concise, limité aux fichiers ou dossiers donnés                                                         |
 | `npm run test:e2e:short -- <spec> --project=chromium` | Playwright en sortie concise, limité aux tests et au navigateur donnés                                                   |
 | `npm run format`                                      | Prettier                                                                                                                 |
+| `npm run bench`                                       | Temps de compilation d'une ligne et d'un glisser sur toutes les lignes, hors CI (D-150)                                  |
 
 - Images de référence du rendu : `src/test/image-snapshots/`. Après un changement volontaire du rendu : `UPDATE_SNAPSHOTS=1 npm test`, puis vérifier les images avant de les committer. En cas d'écart, l'image obtenue et la différence sont écrites dans `src/test/image-snapshots/__diff__/`.
 - Le sélecteur de dossier natif ne s'automatise pas : les tests de bout en bout le remplacent par un dossier du système de fichiers privé du navigateur (OPFS), sans code de test dans l'application.
@@ -123,4 +130,4 @@ Les procédures de travail sont des skills, dans `.claude/skills/`, lancés en t
 - Le dépôt doit rester public : sans abonnement payant, passer en privé désactive GitHub Pages et supprime la protection de `main` (incident du 23/10/2026, D-102).
 - Travail par lot : une branche `lot-N`, une PR vers `main`, fusion après la recette du lot (`docs/RECETTE.md` : tests automatisés, au plus 5 vérifications manuelles, séance d'usage libre).
 - La base de Vite est `/Abla_rckF7_tac/` (casse exacte) : la changer seulement si le dépôt est renommé.
-- Après un déploiement qui change le format des fichiers (lot 3 : combinaisons en version 2 ; lot 3 bis : combinaisons et `reglages.json` en version 3 ; lot 3bis-1 : en version 4), recharger la page (Ctrl+F5) sur les deux PC : une page restée ouverte sur l'ancienne version signale les nouveaux fichiers comme « créés par une version plus récente » et ne les modifie pas. Les anciens fichiers sont réécrits dans la nouvelle version au premier enregistrement.
+- Après un déploiement qui change le format des fichiers (lot 3 : combinaisons en version 2 ; lot 3 bis : combinaisons et `reglages.json` en version 3 ; lot 3bis-1 : en version 4 ; frise-1 : combinaisons en version 5, les anciennes refusées), recharger la page (Ctrl+F5) sur les deux PC : une page restée ouverte sur l'ancienne version signale les nouveaux fichiers comme « créés par une version plus récente » et ne les modifie pas. Jusqu'à frise-1, les anciens fichiers étaient réécrits dans la nouvelle version au premier enregistrement ; depuis, une combinaison antérieure à la version 5 est refusée, jamais réécrite.

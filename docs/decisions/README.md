@@ -16,7 +16,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
 | [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-138 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
-| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-178 (frise-1), puis les décisions de frise-2 à frise-4 |
+| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-179 (frise-1), puis les décisions de frise-2 à frise-4 |
 
 ## Lecture
 
@@ -166,7 +166,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-136 | départ différé en retard d'une course à durée imposée | précisée par D-139 | 5.3, 5.8 |
 | D-137 | placement et dessin des pastilles d'accélération et de freinage | précisée par D-176 | 5.9 |
 | D-138 | précisions de l'interface du lot 3bis-1 | en vigueur | 6.5, 6.7, 7 |
-| D-139 | frise chronologique à la place des temps | précisée par D-151, D-152 et D-176 | 2, 3.3, 3.5, 4, 5, 6.1 à 6.5, 6.7, 7, 8.7, 9.2, 9.3, 10, 11.7, 12 |
+| D-139 | frise chronologique à la place des temps | précisée par D-151, D-152, D-176 et D-179 | 2, 3.3, 3.5, 4, 5, 6.1 à 6.5, 6.7, 7, 8.7, 9.2, 9.3, 10, 11.7, 12 |
 | D-140 | v5 écrite à côté de la v4, bascule en C4 | en vigueur | — |
 | D-141 | SPEC 6.3 appliquée dès frise-1 | en vigueur | 6.3 |
 | D-142 | liste « Ligne », sans création de branche ni de séquence en frise-1 | en vigueur | — |
@@ -178,31 +178,32 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-148 | e2e sans temps, reports limités à frise-2 | en vigueur | — |
 | D-149 | tolérance du test d'écart au point de coupe | remplacée par D-161 | 5.8 |
 | D-150 | mesure du temps de compilation | en vigueur | — |
-| D-151 | combinaison v4 dans le stockage du navigateur | en vigueur | non intégrée (4.4) |
-| D-152 | dépendances de l'arrivée d'une passe | en vigueur | non intégrée (4.3) |
+| D-151 | combinaison v4 dans le stockage du navigateur | en vigueur | 4.4 |
+| D-152 | dépendances de l'arrivée d'une passe | en vigueur | 4.3 |
 | D-153 | embranchement après la dernière action | en vigueur | 5.1 |
-| D-154 | numéro de « Séquence n » | en vigueur | non intégrée (4.1) |
-| D-155 | séquence dont la fin n'est pas après le début | en vigueur | non intégrée (4.3) |
+| D-154 | numéro de « Séquence n » | en vigueur | 4.1 |
+| D-155 | séquence dont la fin n'est pas après le début | en vigueur | 4.3 |
 | D-156 | validation sur les instants enregistrés, le moteur sur les instants résolus | en vigueur | — |
 | D-157 | `realisticRunsPlay` en v5 | en vigueur | — |
-| D-158 | embranchement qui n'est pas après le précédent | en vigueur | non intégrée (4.3) |
-| D-159 | lecture des intervalles dans le moteur | en vigueur | non intégrée (5.1) |
-| D-160 | course d'une participante à l'instant de la formation ou de la sortie | en vigueur | non intégrée (5.3) |
+| D-158 | embranchement qui n'est pas après le précédent | en vigueur | 4.3 |
+| D-159 | lecture des intervalles dans le moteur | en vigueur | 5.1 |
+| D-160 | course d'une participante à l'instant de la formation ou de la sortie | en vigueur | 5.3 |
 | D-161 | seuils de l'écart au point de coupe, relatifs à la longueur | précisée par D-176 | 5.8 |
-| D-162 | résolution des collages sur tout l'arbre, une fois par combinaison | précisée par D-169 | non intégrée (5.8) |
-| D-163 | passe reçue par une course collée à son arrivée | en vigueur | non intégrée (5.4) |
+| D-162 | résolution des collages sur tout l'arbre, une fois par combinaison | précisée par D-169 | 5.8 |
+| D-163 | passe reçue par une course collée à son arrivée | en vigueur | 5.4 |
 | D-164 | seconde passe de la lancée | précisée par D-176 | 5.2 |
-| D-165 | bord gauche seul d'une séquence | en vigueur | non intégrée (5.8) |
-| D-166 | alerte d'un ballon plus lent que sa receveuse | en vigueur | non intégrée (5.4) |
+| D-165 | bord gauche seul d'une séquence | en vigueur | 5.8 |
+| D-166 | alerte d'un ballon plus lent que sa receveuse | en vigueur | 5.4, 5.8 |
 | D-167 | bords de bloc et embranchements dans le lecteur de frise-1 | en vigueur | — |
-| D-168 | vignette du PDF et en-tête du GIF en frise-1 | en vigueur | non intégrée (9.2) |
-| D-169 | lâcher collé absent des simulations tant qu'il n'est pas résolu | précisée par D-177 | non intégrée (5.8) |
-| D-170 | gel d'un bord collé | en vigueur | non intégrée (5.8) |
-| D-171 | pose au curseur par les outils | en vigueur | non intégrée (6.2) |
-| D-172 | à l'arrêt, le terrain édite : plus de mode de lecture | en vigueur | non intégrée (6.3) |
-| D-173 | halo de survol : scène à `t` en lecture, toute la ligne à l'arrêt | en vigueur | non intégrée (6.4) |
-| D-174 | message propre pour les combinaisons refusées à l'import | en vigueur | non intégrée (4.4) |
-| D-175 | poignées réservées à l'outil Sélection, précisions de l'interface de frise-1 | en vigueur | non intégrée (6.2, 6.5) |
+| D-168 | vignette du PDF et en-tête du GIF en frise-1 | en vigueur | 9.2 ; partie PDF provisoire jusqu'à frise-4, hors SPEC |
+| D-169 | lâcher collé absent des simulations tant qu'il n'est pas résolu | précisée par D-177 | 5.8 |
+| D-170 | gel d'un bord collé | en vigueur | 5.8 |
+| D-171 | pose au curseur par les outils | en vigueur | 6.2 |
+| D-172 | à l'arrêt, le terrain édite : plus de mode de lecture | en vigueur | 6.3 |
+| D-173 | halo de survol : scène à `t` en lecture, toute la ligne à l'arrêt | en vigueur | 6.4 |
+| D-174 | message propre pour les combinaisons refusées à l'import | en vigueur | 4.4 |
+| D-175 | poignées réservées à l'outil Sélection, précisions de l'interface de frise-1 | en vigueur | 6.2, 6.5 |
 | D-176 | raccord de deux courses collées : vitesse admise de la suite | en vigueur | 5.2, 5.3, 5.9 |
-| D-177 | départ calculé par un collage, absent des simulations tant qu'il n'est pas résolu | en vigueur | non intégrée (5.8) |
+| D-177 | départ calculé par un collage, absent des simulations tant qu'il n'est pas résolu | en vigueur | 5.8 |
 | D-178 | C4c : (b) de la fixture à 0 seulement, plafonds de profils relevés à 490 et 610 | en vigueur | — |
+| D-179 | fixtures des versions antérieures, seule la v4 gardée pour les e2e | en vigueur | 4.5 |
