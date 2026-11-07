@@ -601,6 +601,74 @@ export function fourVsTwoNoBall(): Play {
   })
 }
 
+/** Source of `e2e/fixtures/options.combi.json`: the scenario with options of the e2e tests. */
+export function optionsScenarioPlay(): Play {
+  return { ...sevenVsSevenWithOptions(), id: uuid(9100), name: 'Croisée test' }
+}
+
+/**
+ * One player, options inside an option: the trunk « Fixer », then « Large » (default, itself with
+ * an unnamed default option and « Montée ») or « Serré ». Times from rest at a jog: 4 m in 2.159 s.
+ */
+function doubleOptionPlay(): Play {
+  const A1 = P.A(1)
+  const large = uuid(120)
+  const tight = uuid(121)
+  const wide = uuid(122)
+  const up = uuid(123)
+  return basePlay({
+    id: uuid(9002),
+    name: 'Double option',
+    entities: [player(A1, 'A', 1)],
+    setup: { positions: { [A1]: { x: 40, y: 35 } }, ballCarrierId: null, ballPosition: null },
+    branches: [
+      branch(P.root, null, { branchAt: 2.2 }),
+      branch(large, P.root, { isDefault: true, condition: 'Large', branchAt: 4.4 }),
+      branch(tight, P.root, { condition: 'Serré' }),
+      branch(wide, large, { isDefault: true }),
+      branch(up, large, { condition: 'Montée' }),
+    ],
+    actions: [
+      run(uuid(400), A1, [{ x: 44, y: 35 }]),
+      run(uuid(401), A1, [{ x: 48, y: 35 }], { branchId: large, start: 2.2 }),
+      run(uuid(402), A1, [{ x: 44, y: 39 }], { branchId: tight, start: 2.2 }),
+      run(uuid(403), A1, [{ x: 52, y: 35 }], { branchId: wide, start: 4.4 }),
+      run(uuid(404), A1, [{ x: 48, y: 39 }], { branchId: up, start: 4.4 }),
+    ],
+    sequences: [sequence(uuid(410), 0, 2.2, { instruction: 'Fixer' })],
+  })
+}
+
+/**
+ * Source of `e2e/fixtures/cahier.combipack.json`: five plays for the playbook, one with three
+ * options, one with options inside an option, one without ball.
+ */
+export function playbookPlays(): Play[] {
+  const centre = sevenVsSevenWithOptions()
+  const optC = uuid(104)
+  const threeOptions: Play = {
+    ...centre,
+    id: uuid(9001),
+    name: 'Trois options « au large »',
+    branches: [...centre.branches, branch(optC, P.root, { condition: 'Défense glissée' })],
+    actions: [
+      ...centre.actions,
+      run(uuid(232), P.A(7), [{ x: 52, y: 68 }], { branchId: optC, pace: 'sprint', start: 6.335 }),
+    ],
+    sequences: [
+      ...centre.sequences,
+      sequence(uuid(242), 6.335, 10.091, { branchId: optC, instruction: 'Jeu au large' }),
+    ],
+  }
+  return [
+    centre,
+    threeOptions,
+    doubleOptionPlay(),
+    { ...fourVsTwoNoBall(), id: uuid(9003) },
+    { ...centre, id: uuid(9004), name: 'Croisée côté fermé', category: 'scrum' },
+  ]
+}
+
 /** Ids of the lot 3 bis speeds scene (speedsPlay). */
 export const SPEEDS = {
   A1: uuid(1),

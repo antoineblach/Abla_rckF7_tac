@@ -1,9 +1,9 @@
 // PDF exports in folder mode, through the real export worker (SPEC 9.3, D-062 to D-064).
 import { expect, test } from '@playwright/test'
-import { buildScenario, save } from '../support/editorActions'
-import { closeResult, exportFromToolbar, exportResult, readPdf } from '../support/exports'
-import { stubFolderPicker } from '../support/folderStub'
-import { readFolderBytes } from '../support/opfs'
+import { importOptionsScenario } from './support/editorActions'
+import { closeResult, exportFromToolbar, exportResult, readPdf } from './support/exports'
+import { stubFolderPicker } from './support/folderStub'
+import { readFolderBytes } from './support/opfs'
 
 test.beforeEach(async ({ page }) => {
   test.setTimeout(120_000)
@@ -19,8 +19,7 @@ test.beforeEach(async ({ page }) => {
 test('exports the PDF of a play, in black and white for print and in colour for the phone', async ({
   page,
 }) => {
-  await buildScenario(page, 'Croisée test')
-  await save(page)
+  await importOptionsScenario(page)
   await exportFromToolbar(page, 'Exporter PDF', async (dialog) => {
     await dialog.getByLabel('Couleurs').selectOption('bw')
   })
@@ -33,11 +32,11 @@ test('exports the PDF of a play, in black and white for print and in colour for 
   expect(printPdf.pages).toBe(1)
   expect(printPdf.firstPageMm[0]).toBeCloseTo(297, 0)
   expect(printPdf.firstPageMm[1]).toBeCloseTo(210, 0)
+  // One thumbnail per line until frise-4, titled by its options.
   for (const text of [
     'Croisée test',
+    'Option A : Défense en retrait',
     'Option B : Défense montée',
-    'Temps 3, option A',
-    'Retour intérieur',
   ]) {
     expect(printPdf.texts[0]).toContain(text)
   }

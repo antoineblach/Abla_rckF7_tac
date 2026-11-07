@@ -261,6 +261,7 @@ Lecture : `e2e/a-porter/*`, `e2e/support/*` ; PIEGES : Playwright et OPFS.
 
 - e2e selon D-148. Scénario à options : import de `options.combi.json` ; `buildScenario` trace une ligne sans option.
 - Réécrits : `folder`, `degraded`, `export-gif`, `export-pdf`, `export.firefox`, `breakdown-kick` (« Bord suivant » à la place de « Ajouter un temps »), `actions-list`, `interface` et `field-stability` (liste « Ligne » à la place de l'arbre), `space` (`.phase-node` remplacé), `run-speeds`.
+- Renvoyés par C4, dans `actions-list` : halo de survol câblé dans `FieldCanvas`, sur toute la ligne à l'arrêt et sur la scène à `t` en lecture (D-173) ; tracé d'une course depuis la fin de la course précédente de la joueuse (D-175).
 - Reportés à frise-2, inscrits dans ETAT : « Caler sur… » de `run-speeds`, partie arbre et création d'option de `interface` et `field-stability`.
 - Refus v4 en e2e, Chromium et Firefox (tableau de la section Tests).
 - `e2e/a-porter/` vidé et supprimé, `testIgnore` retiré, ligne d'« Écarts connus » retirée. Suite complète sur Chromium et Firefox. Le lot s'arrête là ; `/fin-lot` est lancé par l'utilisateur.
@@ -354,5 +355,5 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C4c**
   - [x] **Étape C4c : départ calculé par un collage absent des simulations tant qu'il n'est pas résolu (D-177), invariant et indépendance des `start` enregistrés.** (commit « Étape C4c : départ calculé absent des simulations tant qu'il n'est pas résolu (D-177) », après `9e78b18`)
 - **Bloc C5**
-  - [ ] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.**
+  - [x] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.** (commit « Étape C5 : e2e portés sur la frise, refus v4 en e2e, a-porter retiré », après `9fcbc28`)
 - [ ] **`/fin-lot`**, lancé par l'utilisateur : SPEC, ARCHITECTURE, RECETTE, README, ETAT, PR vers `main`.

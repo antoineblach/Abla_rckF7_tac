@@ -56,19 +56,6 @@ export async function drawPass(
   await page.keyboard.press('v')
 }
 
-export const phaseButton = (page: Page, label: string): Locator =>
-  page
-    .getByRole('region', { name: 'Arbre des temps' })
-    .getByRole('button', { name: label, exact: false })
-
-export async function selectPhase(page: Page, label: string): Promise<void> {
-  await page
-    .getByRole('region', { name: 'Arbre des temps' })
-    .locator('.phase-node', { hasText: label })
-    .first()
-    .click()
-}
-
 export async function fillCommit(page: Page, label: string, value: string): Promise<void> {
   const field = page
     .getByRole('complementary', { name: 'Inspecteur' })
@@ -84,13 +71,49 @@ export async function createSevenVsSeven(page: Page, name: string): Promise<void
   await fillCommit(page, 'Nom', name)
 }
 
+/** Time slider of the transport bar. */
+export const timeSlider = (page: Page): Locator =>
+  page.getByRole('slider', { name: 'Curseur temporel' })
+
+/** Cursor at the end of the line read, playback stopped; the slider gives the keys back. */
+export async function seekEnd(page: Page): Promise<void> {
+  const slider = timeSlider(page)
+  await slider.focus()
+  await slider.press('End')
+  await expect(page.getByTestId('transport-time')).toHaveText(/^(\S+ s) \/ \1$/)
+  await slider.blur()
+}
+
+/** Cursor at t = 0; the slider gives the keys back. */
+export async function seekStart(page: Page): Promise<void> {
+  const slider = timeSlider(page)
+  await slider.focus()
+  await slider.press('Home')
+  await expect(page.getByTestId('transport-time')).toHaveText(/^0,0 s \//)
+  await slider.blur()
+}
+
+/** Duration of the line read, in seconds, as the transport bar shows it (to 0,1 s). */
+export async function lineDuration(page: Page): Promise<number> {
+  const text = (await page.getByTestId('transport-time').textContent()) ?? ''
+  const match = /\/ (\d+),(\d) s$/.exec(text)
+  if (!match) throw new Error(`no duration in « ${text} »`)
+  return Number(`${match[1] ?? ''}.${match[2] ?? ''}`)
+}
+
+/** Liste « Ligne » (D-142): the line labelled by its options, « Option B : Défense montée ». */
+export async function chooseLine(page: Page, label: string): Promise<void> {
+  await page.getByRole('combobox', { name: 'Ligne', exact: true }).selectOption({ label })
+}
+
 /**
- * Acceptance scenario: 7 v 7, trunk of 2 phases, 2 options at phase 3, runs and a pass.
- * Starting placement (D-008): A n at (40, 5 + 10 (n - 1)), ball to A4 at (40, 35).
+ * Acceptance scenario of a line without option (D-148): 7 v 7; A4 and A5 run, A4 passes to A5 at
+ * once; at the end of the line, A6 runs and A5 passes to her; at the end again, A6 runs on from the
+ * end of her run, glued to it (SPEC 6.2). Starting placement (D-008): A n at (40, 5 + 10 (n - 1)),
+ * ball to A4 at (40, 35).
  */
 export async function buildScenario(page: Page, name: string): Promise<void> {
   await createSevenVsSeven(page, name)
-  // Phase 1: A4 runs then passes to A5, A5 runs.
   await drawRun(
     page,
     [40, 35],
@@ -108,13 +131,10 @@ export async function buildScenario(page: Page, name: string): Promise<void> {
     ],
   )
   await drawPass(page, [40, 35], [40, 45])
-  // Phase 2.
-  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
-  await expect(page.getByTestId('current-phase')).toContainText('Temps 2')
+  await seekEnd(page)
   await drawRun(page, [40, 55], [[46, 57]])
   await drawPass(page, [47, 49], [40, 55])
-  // Phase 3, then a second option at phase 3.
-  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
+  await seekEnd(page)
   await drawRun(
     page,
     [46, 57],
@@ -123,24 +143,54 @@ export async function buildScenario(page: Page, name: string): Promise<void> {
       [58, 61],
     ],
   )
-  await page.getByRole('button', { name: 'Créer une option à partir d’ici' }).click()
-  await expect(page.getByTestId('current-phase')).toContainText('Temps 3, option B')
-  await fillCommit(page, 'Condition de l’option', 'Défense montée')
-  await fillCommit(page, 'Consigne', 'Retour intérieur')
-  await drawPass(page, [46, 57], [47, 49])
-  await selectPhase(page, 'Temps 3, option A')
-  await fillCommit(page, 'Condition de l’option', 'Défense en retrait')
-  await fillCommit(page, 'Consigne', 'On fixe et on donne')
 }
 
-/** Image of the canvas at the end of an option (direct jump to t). */
-export async function imageAtEndOf(page: Page, optionLabel: string): Promise<string> {
-  await selectPhase(page, optionLabel)
-  const slider = page.getByRole('slider', { name: 'Curseur temporel' })
-  await slider.focus()
-  await slider.press('End')
-  await expect(canvas(page)).toHaveAttribute('data-mode', 'play')
+/** The scenario with options of the e2e tests, « Croisée test » (D-148), imported then opened. */
+export const OPTIONS_SCENARIO = 'e2e/fixtures/options.combi.json'
+
+export async function importOptionsScenario(page: Page): Promise<void> {
+  await page.getByTestId('import-input').setInputFiles(OPTIONS_SCENARIO)
+  await expect(page.getByText('Combinaison importée.')).toBeVisible()
+  await page.getByRole('button', { name: 'Ouvrir Croisée test' }).click()
+  await expect(canvas(page)).toBeVisible()
+}
+
+/** Image of the canvas at the end of a line, chosen by its label when there are several. */
+export async function imageAtEndOf(page: Page, lineLabel?: string): Promise<string> {
+  if (lineLabel !== undefined) await chooseLine(page, lineLabel)
+  await seekEnd(page)
+  await settle(page)
   return canvas(page).evaluate((element) => (element as HTMLCanvasElement).toDataURL())
+}
+
+/** Image of the field canvas, as a data URL. */
+export const canvasImage = (page: Page): Promise<string> =>
+  canvas(page).evaluate((element) => (element as HTMLCanvasElement).toDataURL())
+
+/** Image once the canvas no longer changes (no animation frame: the clock may be paused). */
+export async function stableImage(page: Page): Promise<string> {
+  let previous = ''
+  await expect
+    .poll(async () => {
+      const current = await canvasImage(page)
+      const same = current === previous
+      previous = current
+      return same
+    })
+    .toBe(true)
+  return previous
+}
+
+/**
+ * Playback frozen after `ms` of playing time, from the cursor. The clock of the page must have
+ * been installed before it loaded (`page.clock.install()`): playback then advances only when the
+ * test moves the clock, and images compare at a fixed t. `page.clock.resume()` lets time flow again.
+ */
+export async function playFrozen(page: Page, ms: number): Promise<void> {
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
+  await page.getByRole('button', { name: 'Lecture', exact: true }).click()
+  await page.clock.runFor(ms)
+  await expect(canvas(page)).toHaveAttribute('data-mode', 'play')
 }
 
 export async function save(page: Page): Promise<void> {

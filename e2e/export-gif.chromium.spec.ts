@@ -1,10 +1,10 @@
 // GIF exports in folder mode, through the real export worker (SPEC 9.1, 9.2, D-065).
 import { expect, test, type Page } from '@playwright/test'
-import { createCaches } from '../../src/engine/caches'
-import { gifTargets, gifTimeline } from '../../src/export/gif/timeline'
-import { engineSettingsOf, readSettings, type EngineSettings } from '../../src/model/settings'
-import type { Play } from '../../src/model/types'
-import { buildScenario, save } from '../support/editorActions'
+import { createCaches } from '../src/engine/caches'
+import { gifTargets, gifTimeline } from '../src/export/gif/timeline'
+import { engineSettingsOf, readSettings, type EngineSettings } from '../src/model/settings'
+import type { Play } from '../src/model/types'
+import { importOptionsScenario } from './support/editorActions'
 import {
   closeResult,
   exportFromToolbar,
@@ -12,9 +12,9 @@ import {
   longTasks,
   readGif,
   watchLongTasks,
-} from '../support/exports'
-import { stubFolderPicker } from '../support/folderStub'
-import { listFolder, readFolderBytes, readFolderFile } from '../support/opfs'
+} from './support/exports'
+import { stubFolderPicker } from './support/folderStub'
+import { listFolder, readFolderBytes, readFolderFile } from './support/opfs'
 
 const CHAINED = 'croisee-test--portrait-enchaine.gif'
 
@@ -27,8 +27,7 @@ test.beforeEach(async ({ page }) => {
     .getByRole('button', { name: 'Choisir un dossier' })
     .click()
   await expect(page.getByText('Dossier : Rugby7')).toBeVisible()
-  await buildScenario(page, 'Croisée test')
-  await save(page)
+  await importOptionsScenario(page)
 })
 
 async function savedPlay(page: Page): Promise<{ play: Play; settings: EngineSettings }> {

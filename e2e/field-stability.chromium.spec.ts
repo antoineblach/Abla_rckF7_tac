@@ -1,23 +1,25 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
   canvas,
+  chooseLine,
   clickField,
   clientToField,
   createSevenVsSeven,
-  drawPass,
-  drawRun,
   fieldState,
   fieldToClient,
+  importOptionsScenario,
   save,
-  selectPhase,
+  seekEnd,
+  seekStart,
   shakyClickField,
   type FieldState,
-} from '../support/editorActions'
-import { stubFolderPicker } from '../support/folderStub'
+} from './support/editorActions'
+import { stubFolderPicker } from './support/folderStub'
 
 // The field never changes scale or position because of the other panels (D-048): only the
 // wheel, panning, the saved view, the orientation, opening a play, « Ajuster » and « Zone utile »
-// change it. The comparison covers the transform and the canvas box on the page.
+// change it. The comparison covers the transform and the canvas box on the page. Creating an
+// option comes back with the tools of frise-2 (D-148).
 
 const inspector = (page: Page) => page.getByRole('complementary', { name: 'Inspecteur' })
 
@@ -27,22 +29,6 @@ async function chooseFolder(page: Page): Promise<void> {
     .getByRole('button', { name: 'Choisir un dossier' })
     .click()
   await expect(page.getByText('Dossier : Rugby7')).toBeVisible()
-}
-
-/**
- * Phase 1: A1 runs, A4 passes to A3 (both still); phase 2: A3 runs; phase 3 with two options.
- * Starting placement (D-008): A n at (40, 5 + 10 (n - 1)), ball to A4.
- */
-async function buildStabilityScenario(page: Page): Promise<void> {
-  await createSevenVsSeven(page, 'Stabilité')
-  await drawRun(page, [40, 5], [[45, 5]])
-  await drawPass(page, [40, 35], [40, 25])
-  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
-  await drawRun(page, [40, 25], [[44, 27]])
-  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
-  await page.getByRole('button', { name: 'Créer une option à partir d’ici' }).click()
-  await selectPhase(page, 'Temps 1')
-  await expect(page.getByTestId('current-phase')).toContainText('Temps 1')
 }
 
 async function expectUnchanged(page: Page, before: FieldState, gesture: string): Promise<void> {
@@ -65,7 +51,8 @@ for (const size of [
       page,
     }) => {
       await chooseFolder(page)
-      await buildStabilityScenario(page)
+      // The scenario with options (D-148): A n at (40, 5 + 10 (n - 1)), A4 runs then passes to A5.
+      await importOptionsScenario(page)
       const before = await fieldState(page)
 
       await shakyClickField(page, 40, 15)
@@ -76,50 +63,53 @@ for (const size of [
       await expect(inspector(page).getByRole('heading', { name: 'Joueuse A 2' })).toHaveCount(0)
       await expectUnchanged(page, before, 'désélection')
 
-      await clickField(page, 42.5, 5)
-      await expect(inspector(page).getByRole('heading', { name: 'Course' })).toBeVisible()
+      // The end handle of the run of A4: a click closer to her token would select her.
+      await clickField(page, 46, 40)
+      await expect(inspector(page).getByRole('heading', { name: 'Course de A 4' })).toBeVisible()
       await expectUnchanged(page, before, 'sélection d’une course')
 
-      await clickField(page, 40, 30)
-      await expect(inspector(page).getByRole('heading', { name: 'Passe' })).toBeVisible()
-      await expectUnchanged(page, before, 'sélection d’une passe')
-
-      // The list of the actions of the phase (D-113): hover and click move nothing.
+      // The list of the actions of the line (D-113, D-145): hover and click move nothing.
       const listed = page
-        .getByRole('region', { name: 'Actions du temps' })
+        .getByRole('region', { name: 'Actions de la ligne' })
         .getByTestId('action-row')
-        .filter({ hasText: 'Course A 1' })
+        .filter({ hasText: 'Passe A 4 → A 5' })
       await listed.hover()
       await expectUnchanged(page, before, 'survol d’une ligne de la liste des actions')
       await listed.click()
       await expect(listed).toHaveAttribute('aria-pressed', 'true')
+      await expect(inspector(page).getByRole('heading', { name: 'Passe' })).toBeVisible()
       await expectUnchanged(page, before, 'sélection depuis la liste des actions')
 
-      await selectPhase(page, 'Temps 2')
-      await expect(page.getByTestId('current-phase')).toContainText('Temps 2')
-      await expectUnchanged(page, before, 'sélection d’un temps')
+      await chooseLine(page, 'Option B : Défense montée')
+      await expectUnchanged(page, before, 'choix d’une ligne')
 
+      await seekEnd(page)
+      await expectUnchanged(page, before, 'curseur en fin de ligne')
+
+      // A2 never runs: at the end of the line, a click on her says where placements change.
+      const notice = page.getByRole('status').filter({ hasText: 'Le placement de départ' })
       await shakyClickField(page, 40, 15)
-      await expect(page.getByRole('status').filter({ hasText: 'Position héritée' })).toBeVisible()
+      await expect(notice).toBeVisible()
       await expectUnchanged(page, before, 'apparition d’un message')
 
-      await selectPhase(page, 'Temps 1')
-      await expect(page.getByRole('status').filter({ hasText: 'Position héritée' })).toHaveCount(0)
+      await seekStart(page)
+      await expect(notice).toHaveCount(0)
       await expectUnchanged(page, before, 'disparition du message')
 
       await page.getByRole('button', { name: 'Lecture', exact: true }).click()
       const chooser = page.getByRole('group', { name: 'Point d’option' })
       await expect(chooser).toBeVisible({ timeout: 15_000 })
-      await expect(canvas(page)).toHaveAttribute('data-mode', 'play')
       await expectUnchanged(page, before, 'lecture et apparition du choix d’option')
 
       await chooser.getByRole('button').nth(1).click()
-      await expect(page.getByTestId('current-phase')).toContainText('option B')
+      await expect(
+        page.getByRole('combobox', { name: 'Ligne' }).locator('option:checked'),
+      ).toHaveText('Option B : Défense montée')
       await expectUnchanged(page, before, 'choix d’option')
 
       await shakyClickField(page, 25, 60)
       await expect(canvas(page)).toHaveAttribute('data-mode', 'edit')
-      await expectUnchanged(page, before, 'retour à l’édition par un clic sur le terrain')
+      await expectUnchanged(page, before, 'clic sur le terrain pendant ou après la lecture')
     })
 
     test('the banner floats over the field: its disappearance moves nothing', async ({ page }) => {

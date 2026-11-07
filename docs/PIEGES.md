@@ -15,6 +15,9 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - Playwright : `fill` refusé sur un curseur hors pas (touche End) ; `selectOption` ne donne pas le focus ; coordonnées de souris arrondies au pixel ; un clic à moins d'un rayon de jeton sélectionne la joueuse (viser plutôt la poignée de fin d'une course courte).
 - `getByLabel` sans `exact` trouve aussi un libellé qui contient le texte (« Curseur de la vitesse du segment » pour « Vitesse du segment ») : libellés distincts, ou `exact: true`.
 - Une liste de `combinaisons/` pendant une écriture contient le `.crswap` de Chrome : filtrer sur `.combi.json`.
+- Calques du lecteur (traces, ligne d'avantage, en-avant, vitesses) : ils ne changent l'image qu'en lecture, l'éditeur dessine toujours en-avant et pastilles ; une pastille de vitesse n'apparaît qu'une fois son segment atteint. Pour comparer des images en lecture : `page.clock.install()` avant le chargement, puis `playFrozen` ; horloge en pause, plus de `requestAnimationFrame` : `stableImage`, jamais `settle`.
+- Inspecteur plus haut que la fenêtre : `scrollIntoViewIfNeeded` avant un glisser à la souris (`boundingBox` donne une position hors écran sans erreur).
+- `git mv -f` vers un fichier existant l'écrase : déplacer d'abord, réécrire ensuite.
 - **OPFS et tests de bout en bout :**
   - une lecture pendant une écriture de la page échoue (`NotReadableError`, puis `NotFoundError` pendant le remplacement) ; `expect.poll` ne réessaie pas sur une erreur : lire avec `.catch(() => null)` ;
   - après « Choisir un dossier », attendre « Dossier : Rugby7 » avant de créer une combinaison (sinon elle part dans IndexedDB) ;

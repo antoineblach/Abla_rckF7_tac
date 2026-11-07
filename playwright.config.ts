@@ -2,8 +2,6 @@ import { defineConfig, devices } from '@playwright/test'
 
 const port = 4173
 const isCi = Boolean(process.env.CI)
-// Temporary, from step C4 to step C5 of lot frise-1: specs set aside until they are rewritten.
-const NOT_PORTED_YET = /[\\/]a-porter[\\/]/
 
 // End-to-end tests run against the production build served by `vite preview`.
 // Files named *.chromium.spec.ts run in Chromium only (folder mode),
@@ -25,12 +23,12 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
-      testIgnore: [/\.firefox\.spec\.ts$/, NOT_PORTED_YET],
+      testIgnore: /\.firefox\.spec\.ts$/,
     },
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } },
-      testIgnore: [/\.chromium\.spec\.ts$/, NOT_PORTED_YET],
+      testIgnore: /\.chromium\.spec\.ts$/,
     },
   ],
   webServer: {

@@ -7,13 +7,14 @@
 
 ## En cours
 
-- Lot frise-1, modèle et moteur de la frise : plan `docs/plans/lot-frise-1.md`, validé le 04/11 ; décisions D-140 à D-178 (`docs/decisions/frise.md`). Étapes 0, A, B1, B2, C1 à C4c faites : l'application tourne sur la v5, `src/v5/` a disparu, la v4 est supprimée ; liste « Ligne », « Bord précédent » et « Bord suivant », liste des actions de la ligne, inspecteur des collages ; raccord de courses collées (D-176, SPEC 1.10) ; départ calculé absent des simulations tant qu'il n'est pas résolu (D-177, `src/test/glueChecks.ts`).
-- Bloc suivant : C5 (e2e réécrits ou reportés, refus v1 à v4 en e2e, `cahier.combipack.json` en v5 ; relais dans les sections C4 et C5 du plan).
-- Compilation (`npm run bench`, D-150), après C4c : une ligne 12,1 ms, glisser, toutes lignes, 12,2 ms (avant C4c : 10,9 et 10,5 ; un relayeur résolu une fois de plus, D-178), sous la cible de 16 ms. Scénario de référence : 18 actions (D-157).
+- Lot frise-1 : plan `docs/plans/lot-frise-1.md` (validé le 04/11), décisions D-140 à D-178 (`docs/decisions/frise.md`). Étapes 0 à C5 faites : application sur la v5, v4 supprimée ; e2e tous portés (55 verts), refus v4 en e2e ; fixtures e2e liées à leurs builders (`src/test/e2eFixtures.test.ts`).
+- Suite : `/fin-lot`, lancé par l'utilisateur.
+- Compilation (`npm run bench`, D-150), après C4c : une ligne 12,1 ms, glisser toutes lignes 12,2 ms, sous la cible de 16 ms (18 actions, D-157).
 
 ## Reste à faire
 
-- Bloc C5, puis `/fin-lot`.
+- `/fin-lot` (SPEC, ARCHITECTURE, RECETTE, README, PR vers `main`).
+- Reportés à frise-2 (D-148) : « Caler sur… » de `run-speeds` ; arbre, création d'option et consigne longue de `interface` ; création d'option de `field-stability`.
 - Puis frise-2 à frise-4 par `/nouveau-lot` : section 7 de `docs/archive/plans/frise-spec.md`.
 - Puis 3bis-2 réduit (menu du clic droit, même course pour plusieurs joueuses) et 3bis-3 (positions préréglées), par `/nouveau-lot` (D-128).
 - Puis lot 4 (défense simulée ; plan archivé de 3bis-1, section G) et lot 5 (ateliers).
@@ -34,7 +35,7 @@
 
 ## Écarts connus
 
-- E2e mis de côté jusqu'à C5, dans `e2e/a-porter/` (`testIgnore` provisoire de `playwright.config.ts`), compilés et lintés : `actions-list`, `breakdown-kick`, `degraded`, `export-gif`, `export-pdf`, `export.firefox`, `field-stability`, `folder`, `interface`, `run-speeds`, `space`.
+- Fichier refusé dans la bibliothèque : « ni modifiée ni déplacée » dit deux fois (D-174, puis `LibraryPanel`).
 - Le site ne crée ni option ni consigne avant frise-2 (D-142).
 - Bézier du raccord plus serrée que la course entière (D-176) : 3,7 contre 4,7 m/s (10/10 m, 45°, sprint), à reprendre en frise-2 si elle se voit.
 - Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `play-v5-frise.json`, `reglages-v3.json`.
