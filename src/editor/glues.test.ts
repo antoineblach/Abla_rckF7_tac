@@ -24,6 +24,7 @@ import {
   sevenVsSevenWithOptions,
   uuid,
 } from '../test/builders'
+import { expectGluesOnTarget } from '../test/glueChecks'
 import {
   deleteActions,
   deletePlayers,
@@ -690,5 +691,45 @@ describe('a glued edge follows its target (SPEC 5.8)', () => {
     }).play
     const [one, other] = spans(glued, c)
     expect(one?.[RUN_SHORT]?.start).toBeCloseTo(other?.[RUN_SHORT]?.start ?? NaN, 9)
+  })
+
+  it('keeps a chain of three runs when the first one gets longer (D-177)', () => {
+    const c = ctx()
+    const [R1, R2, R3] = [uuid(310), uuid(311), uuid(312)]
+    // Each run laid at the end of the one before, then glued to it: stored starts of the pose.
+    let play = basePlay({
+      entities: [player(A, 'A', 1)],
+      setup: { positions: { [A]: { x: 20, y: 20 } }, ballCarrierId: null, ballPosition: null },
+      actions: [run(R1, A, [{ x: 40, y: 20 }], { pace: 'sprint' })],
+    })
+    const endOf = (id: Id): number =>
+      compileLine(play, [P.root], c.settings, c.caches).blocks[id]?.end ?? NaN
+    play = {
+      ...play,
+      actions: [
+        ...play.actions,
+        run(R2, A, [{ x: 45, y: 22 }], { pace: 'sprint', start: endOf(R1) }),
+      ],
+    }
+    play = {
+      ...play,
+      actions: [
+        ...play.actions,
+        run(R3, A, [{ x: 55, y: 32 }], { pace: 'sprint', start: endOf(R2) }),
+      ],
+    }
+    play = setGlue(play, { kind: 'start', ownerId: R2, glue: toEnd(R1) }).play
+    play = setGlue(play, { kind: 'start', ownerId: R3, glue: toEnd(R2) }).play
+    const stored = runOf(play, R3).start
+    const moved = moveWaypoint(play, R1, 0, { x: 80, y: 20 })
+    const compiled = compileLine(moved, [P.root], c.settings, c.caches)
+    const motionOf = (id: Id) => compiled.motions.find((m) => m.actionId === id)
+    expect(compiled.blocks[R2]?.start ?? NaN).toBeGreaterThan(stored)
+    expect(compiled.blocks[R2]?.start).toBeCloseTo(compiled.blocks[R1]?.end ?? NaN, 9)
+    expect(compiled.blocks[R3]?.start).toBeCloseTo(compiled.blocks[R2]?.end ?? NaN, 9)
+    expect(motionOf(R2)?.launch).not.toBeNull()
+    expect(motionOf(R3)?.launch).not.toBeNull()
+    expect(compiled.issues).toEqual([])
+    expectGluesOnTarget(compiled)
   })
 })

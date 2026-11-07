@@ -218,7 +218,8 @@ describe('arrival at the admissible speed of the next run (SPEC 5.2, D-176)', ()
       play([
         first,
         next({ waypoints: [middle] }),
-        run(uuid(33), A1, [end], { pace: 'sprint', start: 6, startGlue: glued(NEXT) }),
+        // Stored at 0: a start computed by a glue never reads its stored value (D-177).
+        run(uuid(33), A1, [end], { pace: 'sprint', start: 0, startGlue: glued(NEXT) }),
       ]),
     )
     const runs = [FIRST, NEXT, uuid(33)].map((id) => motionOf(compiled, id))

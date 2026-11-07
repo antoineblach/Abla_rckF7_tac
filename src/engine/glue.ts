@@ -2,8 +2,10 @@
 // the leaves, an edge is resolved with the actions of its branch and of its ancestors only, in the
 // order of the dependency graph: the trunk is the same in every line by construction. For each edge,
 // the line is simulated with the current values and the instant of the target is read there; then
-// the block is adjusted. One compilation for the whole tree, shared by its lines; at most one more
-// when a next run does not really start at the end of the run it may prolong (SPEC 5.2). Pure.
+// the block is adjusted. An action whose start a glue computes is left out of the simulations until
+// its edge is resolved: its stored start is only a fallback (D-162, D-169, D-177). One compilation
+// for the whole tree, shared by its lines; at most one more when a next run does not really start at
+// the end of the run it may prolong (SPEC 5.2). Pure.
 import { PASS_FIXED_POINT_ITERATIONS } from '../config/defaults'
 import { copy, distance } from './vec'
 import { contentHash } from '../model/canonical'
@@ -23,6 +25,7 @@ import { kickFlightTime } from './ballEvents'
 import type { EvalCaches } from './caches'
 import { followersOf, prolongedRuns } from './launch'
 import {
+  arrivalCapOf,
   createMotionContext,
   motionAt,
   motionEnd,
@@ -357,15 +360,16 @@ function walkBranches(
     edge.keep === 'start' || analysis.gluedStarts.has(edge.ownerId)
 
   /**
-   * Breakdowns and releases whose instant is still to resolve: left out of the simulations. At its
-   * stored instant, a formation would stop the runs of its players, and a release would take the ball
-   * or be simultaneous with the very target it may be glued to (D-162, D-169).
+   * Actions whose start a glue computes, still to resolve: left out of the simulations. Their stored
+   * start is only a fallback, never refreshed (D-169): a formation there would stop the runs of its
+   * players, a release would take the ball or be simultaneous with the very target it may be glued
+   * to, a run would go before a run of its player and move it (D-162, D-169, D-177).
    */
   const unresolved = new Set<Id>()
   for (const edge of analysis.order) {
     if (edge.kind === 'branchAt' || (edge.kind === 'end' && stretches(edge))) continue
     const type = states.get(edge.ownerId)?.action.type
-    if (type === 'breakdown' || type === 'pass' || type === 'kick') unresolved.add(edge.ownerId)
+    if (type !== undefined && type !== 'groupRun') unresolved.add(edge.ownerId)
   }
 
   const simulate = (line: readonly Id[]): LineSimulation => {
@@ -472,7 +476,8 @@ function walkBranches(
       state.action = { ...action, ballSpeed: length / (wanted - release) }
       return true
     }
-    let release = state.start
+    // From the target, not from the stored release, which may be out of date (D-177).
+    let release = wanted
     for (let i = 0; i < PASS_FIXED_POINT_ITERATIONS; i++) {
       const length = flightFrom(Math.max(release, 0))
       if (length === null) return false
@@ -495,7 +500,8 @@ function walkBranches(
   /**
    * Right edge of a run (SPEC 5.8, D-131, D-136): the levers keep its start and it lasts until the
    * target, or it keeps its duration and its start follows; a start before its bound is at its bound,
-   * with the levers from its stored speeds.
+   * with the levers from its stored speeds. A run that slides is absent from `read` (D-177): it is
+   * built apart, from where its player is at its bound.
    */
   const applyRunEnd = (
     edge: GlueEdge,
@@ -504,18 +510,10 @@ function walkBranches(
     wanted: number,
     read: LineSimulation,
   ): boolean => {
-    const motion = runMotionOf(read, run.id)
-    const from = motion?.spline.points[0]
-    if (!motion || !from) return false
-    const spec: RunSpec = {
-      levers: null,
-      ignoreImposed: true,
-      endsAtSpeed: motion.endsAtSpeed,
-      launch: motion.launch,
-      arrivalCap: motion.arrivalCap,
-    }
-    const solved = (bound: number): RunLevers | null =>
-      wanted > bound + EPSILON ? solveRun(run, from, spec, wanted - bound, context) : null
+    const solved = (from: Vec2, spec: RunSpec, bound: number): RunLevers | null =>
+      wanted > bound + EPSILON
+        ? solveRun(run, from, { ...spec, ignoreImposed: true }, wanted - bound, context)
+        : null
     /** She reaches her point on time: the pass she receives arrives there then (SPEC 5.8). */
     const onTime = (): void => {
       const pass = states.get(edge.glue.targetId)
@@ -524,8 +522,18 @@ function walkBranches(
       }
     }
     if (stretches(edge)) {
+      const motion = runMotionOf(read, run.id)
+      const from = motion?.spline.points[0]
+      if (!motion || !from) return false
+      const spec: RunSpec = {
+        levers: null,
+        ignoreImposed: true,
+        endsAtSpeed: motion.endsAtSpeed,
+        launch: motion.launch,
+        arrivalCap: motion.arrivalCap,
+      }
       state.ignoreImposed = true
-      const levers = solved(motion.start)
+      const levers = solved(from, spec, motion.start)
       if (levers) {
         state.levers = levers
         onTime()
@@ -538,17 +546,30 @@ function walkBranches(
       }
       return true
     }
-    const candidate = wanted - motion.duration
-    const before = read.motions.filter((m) => m.entityId === run.entityId && m.start < motion.start)
+    // The run before: the last motion of her player that ends by the target (D-177).
+    const before = read.motions.filter(
+      (m) => m.entityId === run.entityId && motionEnd(m) <= wanted + EPSILON,
+    )
     const previous = before[before.length - 1]
     const bound = Math.max(previous ? motionEnd(previous) : 0, branchStartOf(run.branchId))
+    const from = positionIn(read, setup, run.entityId, bound)
+    if (!from) return false
+    const endsAtSpeed = launched.has(run.id)
+    const spec: RunSpec = {
+      levers: null,
+      ignoreImposed: false,
+      endsAtSpeed,
+      launch: null,
+      arrivalCap: endsAtSpeed ? arrivalCapOf(run, from, null, followers, context) : null,
+    }
+    const candidate = wanted - runMotion(run, from, bound, bound, spec, context).duration
     if (candidate >= bound - EPSILON) {
       state.start = Math.max(candidate, bound)
       onTime()
       report(edge, 'ok')
       return true
     }
-    const levers = solved(bound)
+    const levers = solved(from, spec, bound)
     if (levers) {
       state.start = bound
       state.levers = levers
@@ -557,8 +578,11 @@ function walkBranches(
       report(edge, 'late', 'glueStartedLate', { late: bound - candidate })
       return true
     }
+    // Built at its stored start, which it keeps.
+    const storedFrom = positionIn(read, setup, run.entityId, state.start) ?? from
+    const stored = runMotion(run, storedFrom, state.start, state.start, spec, context)
     report(edge, 'beforeStart', 'glueArrivesLate', {
-      late: Math.max(0, motionEnd(motion) - wanted),
+      late: Math.max(0, motionEnd(stored) - wanted),
     })
     return false
   }
@@ -629,16 +653,14 @@ function walkBranches(
     }
   }
 
-  /** Resolves an edge; true when what a simulation reads has changed. */
-  const applyEdge = (edge: GlueEdge, read: () => LineSimulation): boolean => {
+  /** Resolves an edge, its owner still out of the simulations; true when it has moved something. */
+  const applyOwnEdge = (edge: GlueEdge, read: () => LineSimulation): boolean => {
     const target = readTarget(edge, targets, read)
     const state = states.get(edge.ownerId)
-    // Resolved or not, it comes back in the simulations.
-    const comesBack = unresolved.delete(edge.ownerId)
     if (!target) {
       report(edge, 'unreached', 'glueTargetUnreached')
-      if (edge.kind !== 'start' || !state) return comesBack
-      if (state.action.type !== 'pass' && state.action.type !== 'kick') return comesBack
+      if (edge.kind !== 'start' || !state) return false
+      if (state.action.type !== 'pass' && state.action.type !== 'kick') return false
       state.glued = true
       state.unreached = true
       return true
@@ -651,7 +673,7 @@ function walkBranches(
     }
     const owner = state?.action ?? play.sequences.find((s) => s.id === edge.ownerId)
     if (!owner) return false
-    if (edge.kind === 'end') return applyEnd(edge, owner, wanted, read) || comesBack
+    if (edge.kind === 'end') return applyEnd(edge, owner, wanted, read)
     report(edge, 'ok')
     const sequence = sequences.get(edge.ownerId)
     if (sequence) {
@@ -662,6 +684,14 @@ function walkBranches(
     state.start = wanted
     state.glued = true
     return true
+  }
+
+  /** Resolves an edge; true when what a simulation reads has changed. */
+  const applyEdge = (edge: GlueEdge, read: () => LineSimulation): boolean => {
+    const changed = applyOwnEdge(edge, read)
+    // Resolved or not, it comes back in the simulations, once its edge has read them without it.
+    const comesBack = unresolved.delete(edge.ownerId)
+    return changed || comesBack
   }
 
   const candidatesIn = new Map<Id, Id[]>()

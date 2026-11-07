@@ -352,7 +352,7 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C4b**
   - [x] **Étape C4b : raccord de deux courses collées, vitesse admise de la suite (D-176, SPEC 1.10 déjà écrite).** (commit « Étape C4b : raccord de deux courses collées, vitesse admise de la suite (D-176) », après `0691291`)
 - **Bloc C4c**
-  - [ ] **Étape C4c : départ calculé par un collage absent des simulations tant qu'il n'est pas résolu (D-177), invariant et indépendance des `start` enregistrés.**
+  - [x] **Étape C4c : départ calculé par un collage absent des simulations tant qu'il n'est pas résolu (D-177), invariant et indépendance des `start` enregistrés.** (commit « Étape C4c : départ calculé absent des simulations tant qu'il n'est pas résolu (D-177) », après `9e78b18`)
 - **Bloc C5**
   - [ ] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.**
 - [ ] **`/fin-lot`**, lancé par l'utilisateur : SPEC, ARCHITECTURE, RECETTE, README, ETAT, PR vers `main`.

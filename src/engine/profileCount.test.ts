@@ -23,10 +23,14 @@ vi.mock('./profile', async (importOriginal) => {
 
 const settings = engineSettingsOf(defaultSettings())
 
-/** Measured 392: room for one more solution, which costs about 50 profiles (D-130). */
-const REALISTIC_CAP = 440
-/** Measured 509. */
-const FIXTURE_CAP = 560
+/**
+ * Measured 443: room for one more solution, which costs about 50 profiles (D-130). Was 392 before
+ * D-177: a run absent from the simulation of its own edge moves the breakdown that its player
+ * enters, and its relayer is solved once more (D-178).
+ */
+const REALISTIC_CAP = 490
+/** Measured 560 (509 before D-177). */
+const FIXTURE_CAP = 610
 
 function profilesOf(play: ReturnType<typeof realisticRunsPlay>): number {
   counter.built = 0

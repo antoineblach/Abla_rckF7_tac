@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { distance } from './vec'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../model/settings'
+import { allLines } from '../model/branches'
+import { playSchemaV5 } from '../model/schema'
 import type { Action, EndGlue, GlueRef, Id, Play, Sequence } from '../model/types'
 import { validatePlay } from '../model/validate'
 import {
@@ -12,10 +15,17 @@ import {
   kick,
   pass,
   player,
+  realisticRunsPlay,
   run,
   sequence,
   uuid,
 } from '../test/builders'
+import {
+  PASS_END_ON_TARGET,
+  expectGluesOnTarget,
+  resolvedParts,
+  withComputedStarts,
+} from '../test/glueChecks'
 import { createCaches } from './caches'
 import { motionEnd, motionPosition, motionSpeed, waypointTime, type RunMotion } from './motion'
 import { compileLine, type CompiledLine } from './timeline'
@@ -1025,5 +1035,130 @@ describe('real instants read by what follows (SPEC 5.1, 4.3)', () => {
     const c = compile(p, LINE_A)
     expect(codes(c)).toContain('startsAfterBranch')
     expect(validatePlay(p).map((i) => i.code)).not.toContain('startsAfterBranch')
+  })
+})
+
+describe('a computed start never reads its stored start (D-177)', () => {
+  const frise = (): Play =>
+    playSchemaV5.parse(
+      JSON.parse(
+        readFileSync(new URL('../test/fixtures/play-v5-frise.json', import.meta.url), 'utf8'),
+      ),
+    )
+
+  /** (a) on every line, then (b) at 0 and, unless left aside, well after the longest line. */
+  function expectIndependent(p: Play, { beyond = true } = {}): void {
+    const caches = createCaches()
+    const lines = allLines(p)
+    const compiled = lines.map((line) => compileLine(p, line, settings, caches))
+    for (const c of compiled) expectGluesOnTarget(c)
+    const after = Math.max(...compiled.map((c) => c.duration)) + 10
+    for (const t of beyond ? [0, after] : [0]) {
+      const moved = withComputedStarts(p, t)
+      lines.forEach((line, i) => {
+        const was = compiled[i]
+        if (!was) throw new Error('missing line')
+        const now = compileLine(moved, line, settings, createCaches())
+        expect(resolvedParts(now), `line ${i} at ${t}`).toEqual(resolvedParts(was))
+      })
+    }
+  }
+
+  /** Starts at the end of the run before, prolonging it without gap, no alert. */
+  function expectChained(c: CompiledLine, ids: readonly Id[]): void {
+    expect(codes(c)).toEqual([])
+    ids.forEach((id, i) => {
+      if (i === 0) return
+      const m = motion(c, id)
+      expect(m.start, `start of run ${i + 1}`).toBeCloseTo(
+        motionEnd(motion(c, ids[i - 1] ?? '')),
+        9,
+      )
+      expect(m.launch, `launch of run ${i + 1}`).not.toBeNull()
+    })
+  }
+
+  it('holds on every line of the realistic play', () => {
+    expectIndependent(realisticRunsPlay())
+  })
+
+  it('holds on every line of the v5 fixture, its computed starts at 0 (D-178)', () => {
+    // Beyond the line, the order of the edges by stored start (D-162) resolves the kick of option
+    // B1 before the pass that gives the ball to its kicker, absent (D-169): known limit of D-177.
+    expectIndependent(frise(), { beyond: false })
+  })
+
+  const R1 = uuid(40)
+  const R2 = uuid(41)
+  const R3 = uuid(42)
+
+  it('1. chains three runs of a player, the third stored at 0', () => {
+    const p = play([
+      run(R1, A(2), [{ x: 70, y: 25 }], { pace: 'sprint' }),
+      run(R2, A(2), [{ x: 75, y: 27 }], { pace: 'sprint', start: 4, startGlue: onEnd(R1) }),
+      run(R3, A(2), [{ x: 85, y: 37 }], { pace: 'sprint', start: 0, startGlue: onEnd(R2) }),
+    ])
+    expectChained(compile(p), [R1, R2, R3])
+    expectIndependent(p)
+  })
+
+  it('2. chains two runs after a reception moved later', () => {
+    const PASS = uuid(43)
+    const p = play([
+      pass(PASS, A(1), A(2), 3),
+      run(R1, A(2), [{ x: 60, y: 25 }], { pace: 'sprint', start: 1, startGlue: onEnd(PASS) }),
+      run(R2, A(2), [{ x: 70, y: 30 }], { pace: 'sprint', start: 2, startGlue: onEnd(R1) }),
+    ])
+    const c = compile(p)
+    expect(motion(c, R1).start).toBeCloseTo(c.blocks[PASS]?.end ?? NaN, 9)
+    expectChained(c, [R1, R2])
+    expectIndependent(p)
+  })
+
+  it('3. slides a run up to the start of a run of the same player, itself glued', () => {
+    const R0 = uuid(44)
+    const p = play([
+      run(R0, A(3), [{ x: 80, y: 20 }]),
+      run(R1, A(2), [{ x: 50, y: 25 }], { start: 10, endGlue: slides(R2, { event: 'start' }) }),
+      run(R2, A(2), [{ x: 60, y: 15 }], { start: 1, startGlue: onEnd(R0) }),
+    ])
+    const c = compile(p)
+    expect(codes(c)).toEqual([])
+    expect(c.blocks[R1]?.end).toBeCloseTo(motion(c, R2).start, 9)
+    expect(motion(c, R2).start).toBeCloseTo(motionEnd(motion(c, R0)), 9)
+    expectIndependent(p)
+  })
+
+  it('4. slides a run that is not the first one of its player', () => {
+    const R0 = uuid(44)
+    const p = play([
+      run(R0, A(3), [{ x: 80, y: 20 }]),
+      run(R1, A(2), [{ x: 50, y: 25 }], { start: 2 }),
+      run(R2, A(2), [{ x: 50, y: 35 }], { start: 0, endGlue: slides(R0) }),
+    ])
+    const c = compile(p)
+    expect(codes(c)).toEqual([])
+    expect(motion(c, R2).spline.points[0]).toEqual(motion(c, R1).spline.points.at(-1))
+    expect(c.blocks[R2]?.end).toBeCloseTo(motionEnd(motion(c, R0)), 9)
+    expectIndependent(p)
+  })
+
+  it('5. slides a pass of a running passer', () => {
+    const R0 = uuid(44)
+    const PASS = uuid(43)
+    // Released while the passer runs: the fixed point on the release does not end at once.
+    const p = play([
+      run(R0, A(3), [{ x: 60, y: 20 }]),
+      run(R1, A(1), [{ x: 80, y: 30 }]),
+      pass(PASS, A(1), A(2), 9, { endGlue: slides(R0) }),
+    ])
+    const c = compile(p)
+    expect(codes(c)).toEqual([])
+    expect(motion(c, R1).start).toBeLessThan(c.blocks[PASS]?.start ?? NaN)
+    expect(motionEnd(motion(c, R1))).toBeGreaterThan(c.blocks[PASS]?.start ?? NaN)
+    expect(Math.abs((c.blocks[PASS]?.end ?? NaN) - motionEnd(motion(c, R0)))).toBeLessThanOrEqual(
+      PASS_END_ON_TARGET,
+    )
+    expectIndependent(p)
   })
 })
