@@ -8,7 +8,7 @@ import { createMemoryKv } from '../test/memoryKv'
 import { playFileName } from './fileNames'
 import { kvKey } from './kv'
 import { serialize } from './serialize'
-import { readErrorMessage, TEXT } from '../ui/strings'
+import { invalidFileMessage, readErrorMessage, TEXT } from '../ui/strings'
 import { clearDraft, loadDraft, saveDraft } from './draft'
 import { FolderStore, InvalidStoredFileError } from './FolderStore'
 import { IdbStore } from './IdbStore'
@@ -57,6 +57,13 @@ describe('reading (SPEC 4.4)', () => {
     expect(message).toMatch(/version antérieure/)
     expect(message).toMatch(/ni modifiée ni déplacée/)
     expect(message).not.toContain('—')
+  })
+
+  it('says once, in the library, that the file is left as it is', () => {
+    const once = (text: string) => text.split('ni modifi').length - 1
+    expect(once(invalidFileMessage({ code: 'obsoleteVersion', version: 4 }))).toBe(1)
+    const other = invalidFileMessage({ code: 'json', message: 'Unexpected token' })
+    expect(other).toBe('Fichier illisible (JSON invalide). Le fichier n’est ni modifié ni déplacé.')
   })
 })
 

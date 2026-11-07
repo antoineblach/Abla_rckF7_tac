@@ -27,7 +27,7 @@ import {
   resolveDuplicate,
 } from '../../state/session'
 import { useSettingsStore } from '../../state/settingsStore'
-import { CATEGORY_LABELS, readErrorMessage } from '../strings'
+import { CATEGORY_LABELS, invalidFileMessage } from '../strings'
 import { PresetPanel } from './PresetPanel'
 
 const THUMB_W = 128
@@ -87,8 +87,7 @@ function IssueItem({ issue }: { issue: LibraryIssue }) {
   if (issue.kind === 'invalid') {
     return (
       <li className="library__issue">
-        <strong>{issue.fileName}</strong> : {readErrorMessage(issue.error)} Le fichier n’est ni
-        modifié ni déplacé.
+        <strong>{issue.fileName}</strong> : {invalidFileMessage(issue.error)}
       </li>
     )
   }

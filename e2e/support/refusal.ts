@@ -11,6 +11,20 @@ export const V4_PLAY_ID = (JSON.parse(V4_PLAY_TEXT) as { id: string }).id
 export const OBSOLETE_MESSAGE =
   'Combinaison d’une version antérieure de l’outil (format 4) : refusée, elle n’est ni modifiée ni déplacée.'
 
+/**
+ * Alert of the refused file in the library: its message, and that the file is left as it is,
+ * said once only (D-174).
+ */
+export async function expectRefusalAlert(page: Page, fileName: string): Promise<void> {
+  const alert = page
+    .getByRole('list', { name: 'Fichiers à vérifier' })
+    .getByRole('listitem')
+    .filter({ hasText: fileName })
+  await expect(alert).toContainText(OBSOLETE_MESSAGE)
+  const text = (await alert.textContent()) ?? ''
+  expect(text.split('ni modifi').length - 1).toBe(1)
+}
+
 /** Import of a pack mixing the version 4 play and the version 5 scenario: only the latter enters. */
 export async function importMixedPack(page: Page): Promise<void> {
   const pack: unknown[] = [

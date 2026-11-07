@@ -18,6 +18,7 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - Calques du lecteur (traces, ligne d'avantage, en-avant, vitesses) : ils ne changent l'image qu'en lecture, l'éditeur dessine toujours en-avant et pastilles ; une pastille de vitesse n'apparaît qu'une fois son segment atteint. Pour comparer des images en lecture : `page.clock.install()` avant le chargement, puis `playFrozen` ; horloge en pause, plus de `requestAnimationFrame` : `stableImage`, jamais `settle`.
 - Inspecteur plus haut que la fenêtre : `scrollIntoViewIfNeeded` avant un glisser à la souris (`boundingBox` donne une position hors écran sans erreur).
 - `git mv -f` vers un fichier existant l'écrase : déplacer d'abord, réécrire ensuite.
+- Sous Windows, arrêter la tâche de fond `npm run preview` laisse `vite preview` écouter sur 4173 : Playwright réutilise ce serveur (`reuseExistingServer`) et teste l'ancienne construction. Arrêter le processus du port 4173, ou reconstruire `dist/`.
 - **OPFS et tests de bout en bout :**
   - une lecture pendant une écriture de la page échoue (`NotReadableError`, puis `NotFoundError` pendant le remplacement) ; `expect.poll` ne réessaie pas sur une erreur : lire avec `.catch(() => null)` ;
   - après « Choisir un dossier », attendre « Dossier : Rugby7 » avant de créer une combinaison (sinon elle part dans IndexedDB) ;

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { createSevenVsSeven, save } from './support/editorActions'
 import { readKv, writeKv } from './support/idb'
-import { importMixedPack, OBSOLETE_MESSAGE, V4_PLAY_ID, V4_PLAY_TEXT } from './support/refusal'
+import { expectRefusalAlert, importMixedPack, V4_PLAY_ID, V4_PLAY_TEXT } from './support/refusal'
 
 // Plays of version 4 in degraded mode (D-139, D-174, SPEC 4.4): the browser library and the draft
 // keep their entry as it is, with a message; in a pack, only the version 5 plays are imported.
@@ -18,9 +18,7 @@ test('a version 4 play of the browser library: message, entry identical after a 
 }) => {
   await writeKv(page, PLAY_KEY, V4_PLAY_TEXT)
   await page.reload()
-  const issues = page.getByRole('list', { name: 'Fichiers à vérifier' })
-  await expect(issues).toContainText(V4_PLAY_ID)
-  await expect(issues).toContainText(OBSOLETE_MESSAGE)
+  await expectRefusalAlert(page, V4_PLAY_ID)
   await expect(page.getByRole('button', { name: /^Ouvrir / })).toHaveCount(0)
 
   await createSevenVsSeven(page, 'Autre')

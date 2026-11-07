@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { createSevenVsSeven, save } from './support/editorActions'
 import { stubFolderPicker } from './support/folderStub'
 import { listFolder, readFolderFile, writeFolderFile } from './support/opfs'
-import { importMixedPack, OBSOLETE_MESSAGE, V4_PLAY_ID, V4_PLAY_TEXT } from './support/refusal'
+import { expectRefusalAlert, importMixedPack, V4_PLAY_ID, V4_PLAY_TEXT } from './support/refusal'
 
 // Plays of version 4 in folder mode (D-139, D-174, SPEC 4.4): refused with their message, the file
 // never modified nor moved; in a pack, only the version 5 plays are imported.
@@ -26,9 +26,7 @@ test('a version 4 file of the folder: message, identical after a save, not in th
     .getByRole('button', { name: 'Choisir un dossier' })
     .click()
   await expect(page.getByText('Dossier : Rugby7')).toBeVisible()
-  const issues = page.getByRole('list', { name: 'Fichiers à vérifier' })
-  await expect(issues).toContainText(`allures-saisies--${V4_PLAY_ID}.combi.json`)
-  await expect(issues).toContainText(OBSOLETE_MESSAGE)
+  await expectRefusalAlert(page, `allures-saisies--${V4_PLAY_ID}.combi.json`)
   await expect(page.getByRole('button', { name: /^Ouvrir / })).toHaveCount(0)
 
   // Another play, saved with Ctrl+S: the version 4 file is still there, byte for byte.

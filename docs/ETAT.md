@@ -7,7 +7,7 @@
 
 ## En cours
 
-- Lot frise-1 : plan `docs/plans/lot-frise-1.md` (validé le 04/11), décisions D-140 à D-178 (`docs/decisions/frise.md`). Étapes 0 à C5 faites : application sur la v5, v4 supprimée ; e2e tous portés (55 verts), refus v4 en e2e ; fixtures e2e liées à leurs builders (`src/test/e2eFixtures.test.ts`).
+- Lot frise-1 : plan `docs/plans/lot-frise-1.md` (validé le 04/11), décisions D-140 à D-178 (`docs/decisions/frise.md`). Étapes 0 à C5 faites : application sur la v5, v4 supprimée ; e2e tous portés (55 verts), refus v4 en e2e, message d'un fichier refusé sans phrase en double (retouche de C5) ; fixtures e2e liées à leurs builders (`src/test/e2eFixtures.test.ts`).
 - Suite : `/fin-lot`, lancé par l'utilisateur.
 - Compilation (`npm run bench`, D-150), après C4c : une ligne 12,1 ms, glisser toutes lignes 12,2 ms, sous la cible de 16 ms (18 actions, D-157).
 
@@ -35,7 +35,6 @@
 
 ## Écarts connus
 
-- Fichier refusé dans la bibliothèque : « ni modifiée ni déplacée » dit deux fois (D-174, puis `LibraryPanel`).
 - Le site ne crée ni option ni consigne avant frise-2 (D-142).
 - Bézier du raccord plus serrée que la course entière (D-176) : 3,7 contre 4,7 m/s (10/10 m, 45°, sprint), à reprendre en frise-2 si elle se voit.
 - Fixtures figées : `play-v1-7v7-options.json`, `play-v2-lot3.json`, `play-v3-lot3bis.json`, `play-v4-lot3bis1.json`, `play-v5-frise.json`, `reglages-v3.json`.

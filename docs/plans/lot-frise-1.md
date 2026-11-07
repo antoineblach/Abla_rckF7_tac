@@ -355,5 +355,5 @@ Ajouté à l'étape 0, pour rester cohérent avec la correction 1 et « aucune e
 - **Bloc C4c**
   - [x] **Étape C4c : départ calculé par un collage absent des simulations tant qu'il n'est pas résolu (D-177), invariant et indépendance des `start` enregistrés.** (commit « Étape C4c : départ calculé absent des simulations tant qu'il n'est pas résolu (D-177) », après `9e78b18`)
 - **Bloc C5**
-  - [x] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.** (commit « Étape C5 : e2e portés sur la frise, refus v4 en e2e, a-porter retiré », après `9fcbc28`)
+  - [x] **Étape C5 : e2e réécrits ou reportés, refus v1 à v4 en e2e, `e2e/a-porter/` et `testIgnore` retirés.** (commit « Étape C5 : e2e portés sur la frise, refus v4 en e2e, a-porter retiré », après `9fcbc28` ; retouche « Étape C5 : message d'un fichier refusé dit une seule fois (D-174) », après `e5d0089`)
 - [ ] **`/fin-lot`**, lancé par l'utilisateur : SPEC, ARCHITECTURE, RECETTE, README, ETAT, PR vers `main`.

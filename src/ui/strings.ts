@@ -196,6 +196,17 @@ export function readErrorMessage(error: ReadError): string {
   }
 }
 
+/**
+ * Message of a file of the library that could not be read: what is wrong, and that the file is
+ * left as it is, said once (the message of an earlier version already says it, D-174).
+ */
+export function invalidFileMessage(error: ReadError): string {
+  const message = readErrorMessage(error)
+  return error.code === 'obsoleteVersion'
+    ? message
+    : `${message} Le fichier n’est ni modifié ni déplacé.`
+}
+
 export const TEXT = {
   appTitle: 'Combinaisons rugby à 7',
   degradedFirefox: 'Synchronisation par dossier disponible dans Chrome',

@@ -18,7 +18,7 @@ import {
   startApplyPreset,
 } from '../../state/presetSession'
 import { useSettingsStore } from '../../state/settingsStore'
-import { readErrorMessage } from '../strings'
+import { invalidFileMessage } from '../strings'
 
 const THUMB_W = 128
 const THUMB_H = 72
@@ -68,8 +68,7 @@ function PresetIssueItem({ issue }: { issue: LibraryIssue }) {
   if (issue.kind === 'invalid') {
     return (
       <li className="library__issue">
-        <strong>{issue.fileName}</strong> : {readErrorMessage(issue.error)} Le fichier n’est ni
-        modifié ni déplacé.
+        <strong>{issue.fileName}</strong> : {invalidFileMessage(issue.error)}
       </li>
     )
   }
