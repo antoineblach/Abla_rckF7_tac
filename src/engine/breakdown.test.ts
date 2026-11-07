@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { distance } from './vec'
 import { defaultSettings, engineSettingsOf, type EngineSettings } from '../model/settings'
 import type { Action, Play } from '../model/types'
-import { basePlay, ball, breakdown, pass, phase, player, run, uuid } from '../test/builders'
+import { P, basePlay, ball, breakdown, pass, player, run, sequence, uuid } from '../test/builders'
 import { createCaches } from './caches'
-import { evaluate, phaseSchematic } from './evaluate'
+import { evaluate, windowSchematic } from './evaluate'
 import { compileLine } from './timeline'
-import { distance } from './vec'
 
 // These tests check the rules of the breakdowns, not the speed profile (profile.test.ts): paces of
 // lots 1 to 3 (sprint 7 m/s) and near-instant accelerations keep their timings, ramps of a few
@@ -26,11 +26,10 @@ const A2 = uuid(2)
 const A3 = uuid(3)
 const A4 = uuid(4)
 const A7 = uuid(7)
-const T1 = uuid(10)
-const T2 = uuid(11)
 const RUCK = uuid(30)
+const LINE = [P.root]
 
-function ruckPlay(t1: Action[], t2: Action[] = [], attackingTeam: 'A' | 'B' = 'A'): Play {
+function ruckPlay(actions: Action[], attackingTeam: 'A' | 'B' = 'A'): Play {
   return basePlay({
     attackingTeam,
     entities: [
@@ -52,7 +51,7 @@ function ruckPlay(t1: Action[], t2: Action[] = [], attackingTeam: 'A' | 'B' = 'A
       ballCarrierId: A1,
       ballPosition: null,
     },
-    phases: [phase(T1, null, t1), phase(T2, T1, t2)],
+    actions,
   })
 }
 
@@ -61,13 +60,14 @@ const contact = (): Action[] => [
   run(uuid(41), A2, [{ x: 45.5, y: 31 }], { durationOverride: 2 }),
 ]
 
-const at = (play: Play, t: number, line = [T1, T2]) =>
-  evaluate(play, line, t, settings, createCaches())
+const compile = (play: Play) => compileLine(play, LINE, settings, createCaches())
+const at = (play: Play, t: number) => evaluate(play, LINE, t, settings, createCaches())
 const posOf = (play: Play, id: string, t: number) =>
   at(play, t).players.find((p) => p.id === id)?.pos ?? { x: NaN, y: NaN }
 
 describe('breakdowns (SPEC 10.3)', () => {
-  const play = ruckPlay([...contact(), breakdown(RUCK, A1, A2, A3, 2)], [pass(uuid(50), A3, A4, 0)])
+  const ruckOnly = ruckPlay([...contact(), breakdown(RUCK, A1, A2, A3, 2)])
+  const play = ruckPlay([...contact(), breakdown(RUCK, A1, A2, A3, 2), pass(uuid(50), A3, A4, 5)])
 
   it('holds the ball in the breakdown for its whole duration', () => {
     for (const t of [2, 2.5, 4, 4.999]) {
@@ -80,15 +80,12 @@ describe('breakdowns (SPEC 10.3)', () => {
   })
 
   it('makes the relayer the carrier at the end, at the relay position', () => {
-    // At t = 5 on the full line, the pass of phase 2 (delay 0) already flies: read phase 1 alone.
-    const end = at(play, 5, [T1]).ball
+    const end = at(ruckOnly, 5).ball
     expect(end?.kind === 'carried' && end.carrierId).toBe(A3)
     // 1 m behind the ball, on the side of the attacking team (towards -x for A).
     expect(distance(posOf(play, A3, 5), { x: 45, y: 30 })).toBeLessThan(1e-9)
     // The relayer sprints (7 m/s) then waits: 9.22 m in 1.32 s (ramps within one sample).
-    const relay = compileLine(play, [T1], settings, createCaches()).phases[0]?.motions.find(
-      (m) => m.source === 'relay',
-    )
+    const relay = compile(play).motions.find((m) => m.source === 'relay')
     const travel = relay?.duration ?? NaN
     expect(Math.abs(travel - Math.hypot(7, 6) / 7)).toBeLessThan(0.05)
     expect(distance(posOf(play, A3, 2 + travel), { x: 45, y: 30 })).toBeLessThan(1e-9)
@@ -104,12 +101,10 @@ describe('breakdowns (SPEC 10.3)', () => {
     }
   })
 
-  it('starts the next phase when the ball comes out', () => {
-    const compiled = compileLine(play, [T1, T2], settings, createCaches())
-    expect(compiled.phases[0]?.end).toBe(5)
-    expect(compiled.phases[1]?.start).toBe(5)
-    expect(compiled.phases[1]?.holderAtStart).toEqual({ kind: 'carried', carrierId: A3 })
-    expect(compiled.phases[1]?.passes[0]?.applied).toBe(true)
+  it('lets the relayer pass exactly when the ball comes out', () => {
+    const compiled = compile(play)
+    expect(compiled.passes[0]?.applied).toBe(true)
+    expect(compiled.passes[0]?.releaseT).toBe(5)
     expect(compiled.issues).toEqual([])
   })
 
@@ -118,18 +113,19 @@ describe('breakdowns (SPEC 10.3)', () => {
     expect(at(play, 1.999).gainLineX).toBe(40)
     expect(at(play, 2).gainLineX).toBe(46)
     expect(at(play, 6).gainLineX).toBe(46)
-    // Schematic mode: the gain line in force at the start of the phase (D-082).
+    // Schematic mode: the gain line in force at the start of the interval (D-082).
     const caches = createCaches()
-    expect(phaseSchematic(play, T1, settings, caches)?.gainLineX).toBe(40)
-    expect(phaseSchematic(play, T2, settings, caches)?.gainLineX).toBe(46)
+    const split = { ...play, sequences: [sequence(uuid(60), 0, 5)] }
+    expect(windowSchematic(split, LINE, 3, settings, caches).gainLineX).toBe(40)
+    expect(windowSchematic(split, LINE, 5.5, settings, caches).gainLineX).toBe(46)
   })
 
   it('places the relay position behind the ball when B attacks', () => {
     // Same players in team B, attacking towards -x: B1 runs back into contact at x = 46.
-    const play = ruckPlay([...contact(), breakdown(RUCK, A1, A2, A3, 2)], [], 'B')
+    const asB = ruckPlay([...contact(), breakdown(RUCK, A1, A2, A3, 2)], 'B')
     const bTeam: Play = {
-      ...play,
-      entities: play.entities.map((e) => (e.kind === 'player' ? { ...e, team: 'B' } : e)),
+      ...asB,
+      entities: asB.entities.map((e) => (e.kind === 'player' ? { ...e, team: 'B' } : e)),
     }
     expect(distance(posOf(bTeam, A3, 5), { x: 47, y: 30 })).toBeLessThan(1e-9)
     expect(at(bTeam, 3).gainLineX).toBe(46)
@@ -146,7 +142,7 @@ describe('breakdowns (SPEC 10.3)', () => {
 
   it('cuts the runs of the participants at the formation, with a warning (D-079)', () => {
     const early = ruckPlay([...contact(), breakdown(RUCK, A1, A2, A3, 1)])
-    const compiled = compileLine(early, [T1, T2], settings, createCaches())
+    const compiled = compile(early)
     expect(compiled.issues.map((i) => [i.code, i.target.kind === 'action' && i.target.id])).toEqual(
       [
         ['runCutByBreakdown', uuid(40)],
@@ -156,41 +152,41 @@ describe('breakdowns (SPEC 10.3)', () => {
     // Frozen half way (a few millimetres short, the start ramp).
     const frozen = posOf(early, A1, 3)
     expect(distance(frozen, { x: 43, y: 30 })).toBeLessThan(0.01)
-    const schematic = phaseSchematic(early, T1, settings, createCaches())
-    const cut = schematic?.runs.find((r) => r.actionId === uuid(40))
+    const schematic = windowSchematic(early, LINE, 0, settings, createCaches())
+    const cut = schematic.runs.find((r) => r.actionId === uuid(40))
     expect(cut?.points.at(-1)).toEqual(frozen)
     expect(cut?.ignoredPoints[0]).toEqual(frozen)
     expect(cut?.ignoredPoints.at(-1)).toEqual({ x: 46, y: 30 })
     expect(cut?.waypoints).toEqual([{ x: 46, y: 30 }])
-    // The phase lasts until the ball comes out, not until the end of the cut runs.
-    expect(compiled.phases[0]?.end).toBe(4)
+    // The line lasts until the ball comes out, not until the end of the cut runs.
+    expect(compiled.duration).toBe(4)
+    expect(compiled.blocks[uuid(40)]).toEqual({ start: 0, end: 1 })
   })
 
-  it('ignores a run of a participant that starts after the formation', () => {
+  it('delays a run of a participant that starts after the formation to the ball out', () => {
     const late = ruckPlay([
       ...contact(),
-      run(uuid(42), A3, [{ x: 30, y: 36 }], { delay: 3 }),
+      run(uuid(42), A3, [{ x: 30, y: 36 }], { start: 3 }),
       breakdown(RUCK, A1, A2, A3, 2),
     ])
-    const compiled = compileLine(late, [T1, T2], settings, createCaches())
-    expect(compiled.issues.map((i) => i.code)).toEqual(['runCutByBreakdown'])
-    expect(compiled.phases[0]?.ignoredRuns.map((m) => m.actionId)).toEqual([uuid(42)])
+    const compiled = compile(late)
+    expect(compiled.issues.map((i) => i.code)).toEqual(['runStartDelayed'])
     expect(distance(posOf(late, A3, 5), { x: 45, y: 30 })).toBeLessThan(1e-9)
-    const schematic = phaseSchematic(late, T1, settings, createCaches())
-    const ignored = schematic?.runs.find((r) => r.actionId === uuid(42))
-    expect(ignored?.points).toHaveLength(1)
-    expect(ignored?.ignoredPoints.at(-1)).toEqual({ x: 30, y: 36 })
-    expect(schematic?.relays.map((r) => r.entityId)).toEqual([A3])
+    const schematic = windowSchematic(late, LINE, 0, settings, createCaches())
+    const delayed = schematic.runs.find((r) => r.actionId === uuid(42))
+    expect(delayed?.points[0]).toEqual({ x: 45, y: 30 })
+    expect(delayed?.ignoredPoints).toEqual([])
+    expect(schematic.relays.map((r) => r.entityId)).toEqual([A3])
   })
 
   it('makes a far relayer arrive exactly when the ball comes out, with a warning', () => {
     const far = ruckPlay([...contact(), breakdown(RUCK, A1, A2, A7, 2)])
-    const compiled = compileLine(far, [T1, T2], settings, createCaches())
+    const compiled = compile(far)
     expect(compiled.issues.map((i) => i.code)).toEqual(['relayerLate'])
     expect(distance(posOf(far, A7, 5), { x: 45, y: 30 })).toBeLessThan(1e-9)
     expect(distance(posOf(far, A7, 4.9), { x: 45, y: 30 })).toBeGreaterThan(0.1)
     // Same levers as a run (D-130): her peak speed, and her accelerations scaled if needed.
-    const relay = compiled.phases[0]?.motions.find((m) => m.source === 'relay')
+    const relay = compiled.motions.find((m) => m.source === 'relay')
     const params = compiled.issues[0]?.params
     expect(params?.speed).toBeGreaterThan(settings.paces.sprint)
     expect(params?.speed).toBeCloseTo(Math.max(...(relay?.profile.v ?? [])), 12)
@@ -199,26 +195,26 @@ describe('breakdowns (SPEC 10.3)', () => {
 
   it('ignores a breakdown whose tackled player has no ball, with an error (D-079)', () => {
     const wrong = ruckPlay([...contact(), breakdown(RUCK, A2, A1, A3, 2)])
-    const compiled = compileLine(wrong, [T1, T2], settings, createCaches())
+    const compiled = compile(wrong)
     expect(compiled.issues.map((i) => i.code)).toEqual(['tackledWithoutBall'])
-    expect(compiled.phases[0]?.end).toBe(2)
-    expect(compiled.phases[0]?.breakdowns[0]?.applied).toBe(false)
+    expect(compiled.duration).toBe(2)
+    expect(compiled.breakdowns[0]?.applied).toBe(false)
     const state = at(wrong, 3)
     expect(state.ball?.kind === 'carried' && state.ball.carrierId).toBe(A1)
     expect(state.gainLineX).toBe(40)
     expect(posOf(wrong, A3, 3)).toEqual({ x: 38, y: 36 })
   })
 
-  it('lets the relayer pass after the ball comes out, in the same phase', () => {
+  it('lets the relayer pass after the ball comes out', () => {
     const same = ruckPlay([
       ...contact(),
       breakdown(RUCK, A1, A2, A3, 2),
       pass(uuid(51), A3, A4, 5.5),
     ])
-    const compiled = compileLine(same, [T1], settings, createCaches())
+    const compiled = compile(same)
     expect(compiled.issues).toEqual([])
-    expect(compiled.phases[0]?.passes[0]?.applied).toBe(true)
-    const end = at(same, 100, [T1]).ball
+    expect(compiled.passes[0]?.applied).toBe(true)
+    const end = at(same, 100).ball
     expect(end?.kind === 'carried' && end.carrierId).toBe(A4)
   })
 
@@ -228,7 +224,6 @@ describe('breakdowns (SPEC 10.3)', () => {
       breakdown(RUCK, A1, A2, A3, 2),
       breakdown(uuid(31), A3, A2, A4, 3),
     ])
-    const compiled = compileLine(twice, [T1], settings, createCaches())
-    expect(compiled.issues.map((i) => i.code)).toEqual(['tackledWithoutBall'])
+    expect(compile(twice).issues.map((i) => i.code)).toEqual(['tackledWithoutBall'])
   })
 })

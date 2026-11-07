@@ -1,25 +1,28 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import {
-  canvas,
+  canvasImage,
   clickField,
   createSevenVsSeven,
   drawPass,
   drawRun,
   fillCommit,
+  lineDuration,
+  playFrozen,
   save,
+  stableImage,
 } from './support/editorActions'
 import { stubFolderPicker } from './support/folderStub'
 import { listFolder, readFolderFile, writeFolderFile } from './support/opfs'
 
 // Lot 3 bis in the interface (D-106 to D-117): segment speed by the key 3 then typed in km/h,
-// red threshold (inspector, list, badge and its layer remembered), « Caler sur… » a pass and the
-// run following it, loop refused, settings written in reglages.json v4, reglages.json v2 at
-// 7 m/s migrated with its message, pass on receipt laid by the tool. Lot 3bis-1 (D-134):
-// reglages.json v3 with the former default acceleration migrated with its message; typed pace of a
-// run saved in a version 4 file; speed slider (drag, release, arrow keys, undo; D-133); imposed
-// duration kept with its factors and acceleration alerts (D-130, D-132); top speed and
-// acceleration thresholds in the settings.
+// red threshold (inspector, list, badge and its layer remembered), settings written in
+// reglages.json v4, reglages.json v2 at 7 m/s migrated with its message, pass on receipt laid by
+// the tool at « Bord suivant » (D-167, D-171). Lot 3bis-1 (D-134): reglages.json v3 with the former
+// default acceleration migrated with its message; typed pace of a run saved in a version 5 file;
+// speed slider (drag, release, arrow keys, undo; D-133); imposed duration kept with its factors and
+// acceleration alerts (D-130, D-132); top speed and acceleration thresholds in the settings.
+// « Caler sur… » comes back with the glues laid by hand, in frise-2 (D-148).
 
 /** Read from the root of the repository, where the tests run. */
 const SETTINGS_V2 = 'src/test/fixtures/reglages-v2.json'
@@ -27,15 +30,13 @@ const SETTINGS_V3 = 'src/test/fixtures/reglages-v3.json'
 
 interface StoredPlay {
   schemaVersion: number
-  phases: { actions: { type: string; [key: string]: unknown }[] }[]
+  actions: { id: string; type: string; [key: string]: unknown }[]
 }
 
 const inspector = (page: Page) => page.getByRole('complementary', { name: 'Inspecteur' })
-const list = (page: Page) => page.getByRole('region', { name: 'Actions du temps' })
+const list = (page: Page) => page.getByRole('region', { name: 'Actions de la ligne' })
 const row = (page: Page, title: string) =>
   list(page).getByTestId('action-row').filter({ hasText: title })
-const image = (page: Page) =>
-  canvas(page).evaluate((element) => (element as HTMLCanvasElement).toDataURL())
 
 async function chooseFolder(page: Page): Promise<void> {
   await page
@@ -59,6 +60,8 @@ test.beforeEach(async ({ page }) => {
 test('segment speed by key and in km/h; red threshold in the inspector, the list and its layer', async ({
   page,
 }) => {
+  await page.clock.install()
+  await page.goto('./')
   await chooseFolder(page)
   await createSevenVsSeven(page, 'Vitesses')
   // A4: a short first segment, a long second one.
@@ -85,27 +88,26 @@ test('segment speed by key and in km/h; red threshold in the inspector, the list
   await expect(row(page, 'Course A 4').locator('.action-row__badge--error')).toBeVisible()
   await save(page)
   const play = await storedPlay(page)
-  expect(play.schemaVersion).toBe(4)
-  const run = play.phases[0]?.actions.find((a) => a.type === 'run') as
+  expect(play.schemaVersion).toBe(5)
+  const run = play.actions.find((a) => a.type === 'run') as
     { waypoints: { x: number; y: number; speed?: unknown }[] } | undefined
   expect(run?.waypoints[1]?.speed).toBeCloseTo(7.5, 3)
 
-  // Player: the red badge on the « Vitesses » layer, remembered on this computer.
-  const slider = page.getByRole('slider', { name: 'Curseur temporel' })
-  await slider.focus()
-  await slider.press('End')
-  await expect(canvas(page)).toHaveAttribute('data-mode', 'play')
-  const withBadge = await image(page)
+  // Player: the red badge on the « Vitesses » layer, remembered on this computer. The editor always
+  // shows the badges (D-112): the layer is seen during playback, near the end of the run.
+  await playFrozen(page, (await lineDuration(page)) * 1000 - 300)
+  const withBadge = await stableImage(page)
   const layer = page.getByLabel('Vitesses', { exact: true })
   await expect(layer).toBeChecked()
   await layer.uncheck()
-  await expect.poll(() => image(page)).not.toBe(withBadge)
+  await expect.poll(() => canvasImage(page)).not.toBe(withBadge)
+  await page.clock.resume()
   await page.reload()
   await page.getByRole('button', { name: 'Ouvrir Vitesses' }).click()
   await expect(page.getByRole('checkbox', { name: 'Vitesses', exact: true })).not.toBeChecked()
 })
 
-test('typed pace of a run in km/h, saved in m/s in a version 4 file (D-133)', async ({ page }) => {
+test('typed pace of a run in km/h, saved in m/s in a version 5 file (D-133)', async ({ page }) => {
   await chooseFolder(page)
   await createSevenVsSeven(page, 'Allure saisie')
   await drawRun(page, [40, 35], [[60, 38]])
@@ -117,8 +119,8 @@ test('typed pace of a run in km/h, saved in m/s in a version 4 file (D-133)', as
   await expect(inspector(page).getByLabel('Allure saisie', { exact: true })).toHaveValue('18')
   await save(page)
   const play = await storedPlay(page)
-  expect(play.schemaVersion).toBe(4)
-  const run = play.phases[0]?.actions.find((a) => a.type === 'run')
+  expect(play.schemaVersion).toBe(5)
+  const run = play.actions.find((a) => a.type === 'run')
   expect(run?.pace).toBeCloseTo(5, 3)
   // Back to a named pace.
   await pace.selectOption('sprint')
@@ -131,6 +133,7 @@ const THUMB_PX = 14
 /** Drags the speed slider to `kmh` (track from 1 to 30 km/h with the default settings). */
 async function dragSlider(page: Page, label: string, kmh: number): Promise<void> {
   const slider = inspector(page).getByRole('slider', { name: label, exact: true })
+  await slider.scrollIntoViewIfNeeded()
   const box = await slider.boundingBox()
   if (!box) throw new Error('no slider')
   const xOf = (value: number) => box.x + THUMB_PX / 2 + ((box.width - THUMB_PX) * (value - 1)) / 29
@@ -143,7 +146,7 @@ async function dragSlider(page: Page, label: string, kmh: number): Promise<void>
 
 async function storedRunPace(page: Page): Promise<unknown> {
   await save(page)
-  return (await storedPlay(page)).phases[0]?.actions.find((a) => a.type === 'run')?.pace
+  return (await storedPlay(page)).actions.find((a) => a.type === 'run')?.pace
 }
 
 test('speed slider: snaps to a pace marker, typed speed elsewhere, one undo step per gesture (D-133)', async ({
@@ -219,67 +222,26 @@ test('accelerations: an imposed duration far too short is kept, with its factors
   await expect(page.getByTitle('Vitesses et accélérations')).toContainText('Vitesses')
 })
 
-test('« Caler sur… » the arrival of a pass: the run follows the pass; a loop is refused', async ({
+test('the pass tool releases on receipt at « Bord suivant »: the pass follows the receipt (D-171)', async ({
   page,
 }) => {
   await chooseFolder(page)
-  await createSevenVsSeven(page, 'Rendez-vous')
-  // A4 passes to A5 (both still); A6 and A7 run a little.
-  await drawPass(page, [40, 35], [40, 45])
-  await drawRun(page, [40, 55], [[42, 53]])
-  await drawRun(page, [40, 65], [[43, 63]])
-  await row(page, 'Passe A 4 → A 5').click()
-  await fillCommit(page, 'Délai', '1')
-
-  await row(page, 'Course A 6').click()
-  await inspector(page).getByRole('button', { name: 'Caler sur…' }).click()
-  await expect(page.getByTestId('sync-banner')).toContainText('Caler la course de A 6 (fin)')
-  // On the pass, closer to its arrival than to its release.
-  await clickField(page, 40, 42)
-  await expect(page.getByTestId('sync-banner')).toHaveCount(0)
-  await expect(inspector(page).getByTestId('sync-target')).toHaveText(
-    'Calée sur : arrivée de la passe A 4 → A 5',
-  )
-  const result = inspector(page).getByTestId('sync-result')
-  await expect(result).toContainText('Délai calculé')
-  const first = await result.textContent()
-
-  // The pass leaves one second later: the computed delay follows.
-  await row(page, 'Passe A 4 → A 5').click()
-  await fillCommit(page, 'Délai', '2')
-  await row(page, 'Course A 6').click()
-  await expect(inspector(page).getByTestId('sync-result')).toContainText('Délai calculé')
-  await expect(inspector(page).getByTestId('sync-result')).not.toHaveText(first ?? '')
-
-  // A7 on the end of A6, then A6 on A7: refused, with a message; Escape ends the choice.
-  await row(page, 'Course A 7').click()
-  await inspector(page).getByRole('button', { name: 'Caler sur…' }).click()
-  // The end handle of the run of A6 (the line is short, next to her token).
-  await clickField(page, 42, 53)
-  await expect(inspector(page).getByTestId('sync-target')).toHaveText(
-    'Calée sur : fin de la course de A 6',
-  )
-  await row(page, 'Course A 6').click()
-  await inspector(page).getByRole('button', { name: 'Changer la cible' }).click()
-  await clickField(page, 43, 63)
-  await expect(page.getByText('Lien refusé : il créerait une boucle de liens.')).toBeVisible()
-  await expect(page.getByTestId('sync-banner')).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(page.getByTestId('sync-banner')).toHaveCount(0)
-  await expect(inspector(page).getByTestId('sync-target')).toHaveCount(0)
-})
-
-test('the pass tool releases on receipt a pass from a receiver', async ({ page }) => {
-  await chooseFolder(page)
   await createSevenVsSeven(page, 'À la réception')
   await drawPass(page, [40, 35], [40, 45])
+  // « Bord suivant » brings the cursor exactly onto the arrival of the pass (D-167).
+  await page.getByRole('button', { name: 'Bord suivant' }).click()
   await drawPass(page, [40, 45], [40, 55])
   await row(page, 'Passe A 5 → A 6').click()
-  await expect(inspector(page).getByLabel('Lâcher', { exact: true })).toHaveValue('onReceipt')
+  await expect(inspector(page).getByTestId('start-glue')).toHaveText(
+    'Départ collé à : arrivée de la passe A 4 → A 5',
+  )
   await expect(inspector(page).getByLabel('Temps de contrôle', { exact: true })).toHaveValue('0')
   await save(page)
-  const passes = (await storedPlay(page)).phases[0]?.actions.filter((a) => a.type === 'pass')
-  expect(passes?.map((p) => p.release)).toEqual([undefined, 'onReceipt'])
+  const passes = (await storedPlay(page)).actions.filter((a) => a.type === 'pass')
+  expect(passes.map((p) => p.startGlue)).toEqual([
+    undefined,
+    { targetId: passes[0]?.id, event: 'end' },
+  ])
 })
 
 test('settings: thresholds in km/h and speed profile written in reglages.json v4', async ({

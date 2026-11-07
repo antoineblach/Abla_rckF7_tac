@@ -2,14 +2,13 @@
 // Firefox; the files are downloaded (SPEC 8.6, 9.1).
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { buildScenario, save } from './support/editorActions'
+import { importOptionsScenario } from './support/editorActions'
 import { closeResult, exportFromToolbar, exportResult, readGif, readPdf } from './support/exports'
 
 test('downloads a valid GIF and a valid PDF', async ({ page }, testInfo) => {
   test.setTimeout(150_000)
   await page.goto('./')
-  await buildScenario(page, 'Croisée test')
-  await save(page)
+  await importOptionsScenario(page)
 
   const gifDownload = page.waitForEvent('download', { timeout: 90_000 })
   await exportFromToolbar(page, 'Exporter GIF', async (dialog) => {

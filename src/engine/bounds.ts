@@ -23,26 +23,23 @@ export function boundsOfPoints(points: Iterable<Vec2>): Bounds | null {
 }
 
 /**
- * All positions of the line: starting positions, sampled runs (relays and ignored parts
- * included), pass and kick end points, breakdowns and loose balls.
+ * All positions of the line: starting positions, sampled runs (relays and ignored parts included),
+ * pass and kick end points, breakdowns and loose balls.
  */
 export function lineBounds(compiled: CompiledLine): Bounds | null {
   function* points(): Generator<Vec2> {
-    for (const phase of compiled.phases) {
-      yield* Object.values(phase.startPositions)
-      yield* Object.values(phase.endPositions)
-      for (const motion of [...phase.motions, ...phase.ignoredRuns]) yield* motion.spline.samples
-      for (const pass of phase.passes) {
-        yield pass.from
-        yield pass.to
-      }
-      for (const kick of phase.kicks) {
-        yield kick.from
-        yield kick.to
-      }
-      for (const breakdown of phase.breakdowns) yield breakdown.pos
-      for (const segment of phase.ball) if (segment.kind === 'loose') yield segment.pos
+    yield* Object.values(compiled.startPositions)
+    for (const motion of compiled.motions) yield* motion.spline.samples
+    for (const pass of compiled.passes) {
+      yield pass.from
+      yield pass.to
     }
+    for (const kick of compiled.kicks) {
+      yield kick.from
+      yield kick.to
+    }
+    for (const breakdown of compiled.breakdowns) yield breakdown.pos
+    for (const segment of compiled.ball) if (segment.kind === 'loose') yield segment.pos
   }
   return boundsOfPoints(points())
 }

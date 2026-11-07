@@ -1,13 +1,15 @@
-// renderSchematic: one phase at rest (SPEC 3.3.2, 6.3, DECISIONS Q3). Start positions in full,
-// the actions of the phase with their arrows, the trajectories of the ancestor phases greyed.
-// Arrows end exactly on the end points: no token stands there at rest.
-import type { EvalCaches } from '../engine/caches'
-import { phaseSchematic, type PhaseSchematic } from '../engine/evaluate'
-import { drawField } from '../field/drawField'
+// renderSchematic: the field at rest at an instant (SPEC 3.3.2, 6.3, D-139). Positions at t, the
+// actions of the window with their arrows, earlier trajectories greyed, later ones absent. Arrows
+// end exactly on the end points: a token standing there at t covers its own arrow head.
 import type { EngineSettings } from '../model/settings'
-import type { Id, Play } from '../model/types'
 import type { Ctx2D } from './ctx2d'
 import { arrowAtEnd, drawToken, strokePolyline } from './primitives'
+import { runColor, type Theme } from './themes'
+import { toPx, type Viewport } from './viewport'
+import type { EvalCaches } from '../engine/caches'
+import { windowSchematic, type WindowSchematic } from '../engine/evaluate'
+import { drawField } from '../field/drawField'
+import type { Id, Play } from '../model/types'
 import {
   clearBackground,
   colorOf,
@@ -20,8 +22,6 @@ import {
   drawRunParts,
   drawSpeedBadge,
 } from './render'
-import { runColor, type Theme } from './themes'
-import { toPx, type Viewport } from './viewport'
 
 export interface SchematicOptions {
   /**
@@ -38,7 +38,7 @@ const NO_BADGE: SchematicOptions = { forwardPass: false, speedBadges: false }
 /** Draws already computed schematic data (the editor reuses it for hit tests). */
 export function drawSchematic(
   ctx: Ctx2D,
-  schematic: PhaseSchematic,
+  schematic: WindowSchematic,
   viewport: Viewport,
   theme: Theme,
   options: SchematicOptions = NO_BADGE,
@@ -57,14 +57,14 @@ export function drawSchematic(
     )
   }
   const ghost = { color: theme.ghost, width: theme.ghostWidth, cap: 'round' as const }
-  for (const run of schematic.ancestorRuns) strokePolyline(ctx, viewport, run.points, ghost)
-  for (const pass of schematic.ancestorPasses) {
+  for (const run of schematic.earlierRuns) strokePolyline(ctx, viewport, run.points, ghost)
+  for (const pass of schematic.earlierPasses) {
     strokePolyline(ctx, viewport, [pass.from, pass.to], { ...ghost, dash: theme.passDash })
   }
-  for (const kick of schematic.ancestorKicks) {
+  for (const kick of schematic.earlierKicks) {
     strokePolyline(ctx, viewport, [kick.from, kick.to], { ...ghost, dash: theme.kickDash })
   }
-  for (const breakdown of schematic.ancestorBreakdowns) {
+  for (const breakdown of schematic.earlierBreakdowns) {
     drawBreakdownRing(ctx, viewport, theme, breakdown.pos, theme.ghost)
   }
   for (const run of [...schematic.runs, ...schematic.relays]) {
@@ -131,19 +131,13 @@ export function drawSchematic(
 export function renderSchematic(
   ctx: Ctx2D,
   play: Play,
-  _branchPath: readonly Id[],
-  phaseId: Id,
+  line: readonly Id[],
+  t: number,
   viewport: Viewport,
   theme: Theme,
   settings: EngineSettings,
   caches: EvalCaches,
   options: SchematicOptions = NO_BADGE,
 ): void {
-  const schematic = phaseSchematic(play, phaseId, settings, caches)
-  if (!schematic) {
-    clearBackground(ctx, viewport, theme)
-    drawField(ctx, viewport, theme, play.field)
-    return
-  }
-  drawSchematic(ctx, schematic, viewport, theme, options)
+  drawSchematic(ctx, windowSchematic(play, line, t, settings, caches), viewport, theme, options)
 }

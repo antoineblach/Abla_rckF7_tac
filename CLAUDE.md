@@ -59,6 +59,7 @@ Dans le dépôt, jamais seulement dans la conversation ni dans la mémoire autom
 | `test`, `test:e2e` | Vitest ; Playwright (Chromium et Firefox) |
 | `check` | Lint, types et tests unitaires en parallèle ; n'affiche que les échecs |
 | `test:short`, `test:e2e:short` | Vitest, Playwright en sortie concise ; filtres après `--` |
+| `bench` | Temps de compilation, hors CI (D-150) |
 | `format` | Prettier |
 
 ## Glossaire (interface française, code anglais)

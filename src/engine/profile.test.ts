@@ -9,15 +9,18 @@ import {
 import type { MotionSettings } from '../model/settings'
 import type { Vec2 } from '../model/types'
 import {
+  admissibleStartSpeed,
   brakingOf,
   buildProfile,
   distanceAt,
+  endSpeedOf,
   scaleTime,
   segmentPeak,
   solveLevers,
   speedAt,
   timeAtDistance,
   timeAtSegmentEnd,
+  type ProfileInput,
   type SpeedProfile,
 } from './profile'
 import { PROFILE_TOLERANCE, exactMotion, straightRun, timeFromRest } from '../test/profileMath'
@@ -308,6 +311,152 @@ describe('speed profile: bounds per segment (D-130)', () => {
     expect(launched.v[0]).toBe(4)
     expect(Math.max(...launched.v)).toBeCloseTo(6, 9)
     expect(launched.duration).toBeLessThan(profileOf(straight(20), [4], { startSpeed: 4 }).duration)
+  })
+})
+
+describe('speed profile: junction of two runs (SPEC 5.2, 5.3, D-176)', () => {
+  const inputOf = (
+    points: Vec2[],
+    targets: number[],
+    extra: Partial<ProfileInput> = {},
+  ): ProfileInput => ({
+    spline: buildSpline(points, ARC_LENGTH_SAMPLES_PER_SEGMENT),
+    targets,
+    startSpeed: 0,
+    endsAtSpeed: false,
+    motion,
+    sprint,
+    ...extra,
+  })
+  const peakBraking = (p: SpeedProfile): number =>
+    Math.max(0, ...p.v.slice(1).map((_, k) => brakingOf(p, k)))
+  /** A tight turn soon after the start. */
+  const TURN: Vec2[] = [
+    { x: 0, y: 0 },
+    { x: 1.5, y: 0 },
+    { x: 1.5, y: 5 },
+  ]
+  const STORED = [sprint, sprint]
+
+  describe('admissible start speed', () => {
+    it('is the target on a straight run long enough to stop', () => {
+      expect(admissibleStartSpeed(inputOf(straight(20), [sprint]))).toBe(sprint)
+      const walk = PACE_DEFAULTS.walk
+      expect(admissibleStartSpeed(inputOf(straight(20), [walk]))).toBe(walk)
+    })
+
+    it('is the speed it can stop from on a short run: sqrt(2 d L)', () => {
+      expect(admissibleStartSpeed(inputOf(straight(2), [sprint]))).toBeCloseTo(
+        Math.sqrt(2 * motion.decel * 2),
+        9,
+      )
+    })
+
+    it('anticipates a turn: held at the braking, not beyond', () => {
+      const admissible = admissibleStartSpeed(inputOf(TURN, STORED))
+      expect(admissible).toBeLessThan(sprint)
+      const length = buildSpline(TURN, ARC_LENGTH_SAMPLES_PER_SEGMENT).length
+      expect(admissible).toBeLessThan(Math.sqrt(2 * motion.decel * length))
+      const held = buildProfile(inputOf(TURN, STORED, { startSpeed: admissible }))
+      expect(peakBraking(held)).toBeLessThanOrEqual(motion.decel + 1e-9)
+      const above = buildProfile(inputOf(TURN, STORED, { startSpeed: admissible + 0.5 }))
+      expect(brakingOf(above, 0)).toBeGreaterThan(motion.decel)
+    })
+
+    it('does not depend on how the run starts', () => {
+      const speeds = [0, 2, 9].map((startSpeed) =>
+        admissibleStartSpeed(inputOf(TURN, STORED, { startSpeed })),
+      )
+      expect(speeds[1]).toBe(speeds[0])
+      expect(speeds[2]).toBe(speeds[0])
+    })
+
+    it('bounds nothing for a run without length', () => {
+      expect(admissibleStartSpeed(inputOf([{ x: 1, y: 1 }], [sprint]))).toBe(Infinity)
+    })
+
+    it('goes back from the arrival of a run that ends at speed', () => {
+      const ends = { endsAtSpeed: true }
+      expect(
+        admissibleStartSpeed(inputOf(straight(2), [sprint], { ...ends, endSpeedCap: 3 })),
+      ).toBeCloseTo(Math.sqrt(3 ** 2 + 2 * motion.decel * 2), 9)
+      expect(admissibleStartSpeed(inputOf(straight(2), [sprint], ends))).toBeCloseTo(sprint, 9)
+    })
+  })
+
+  describe('arrival cap', () => {
+    it('is anticipated at the constant braking', () => {
+      const free = buildProfile(inputOf(straight(20), [sprint], { endsAtSpeed: true }))
+      const capped = buildProfile(
+        inputOf(straight(20), [sprint], { endsAtSpeed: true, endSpeedCap: 2 }),
+      )
+      expect(endSpeedOf(capped)).toBe(2)
+      expect(peakBraking(capped)).toBeCloseTo(motion.decel, 9)
+      expect(capped.duration).toBeGreaterThan(free.duration)
+    })
+
+    it('has no effect above the cap of the last sample', () => {
+      const ends = { endsAtSpeed: true }
+      const free = buildProfile(inputOf(straight(20), [4], ends))
+      expect(buildProfile(inputOf(straight(20), [4], { ...ends, endSpeedCap: 4 }))).toEqual(free)
+      expect(buildProfile(inputOf(straight(20), [4], { ...ends, endSpeedCap: 9 }))).toEqual(free)
+    })
+
+    it('does not apply to a run that stops', () => {
+      expect(endSpeedOf(buildProfile(inputOf(straight(20), [4], { endSpeedCap: 2 })))).toBe(0)
+    })
+
+    it('is a bound in m/s, not scaled by k; its braking is', () => {
+      const capped = buildProfile(
+        inputOf(straight(20), [sprint], { endsAtSpeed: true, endSpeedCap: 2, boundScale: [2] }),
+      )
+      expect(endSpeedOf(capped)).toBe(2)
+      expect(peakBraking(capped)).toBeCloseTo(motion.decel * 4, 9)
+    })
+  })
+
+  describe('run started above its target', () => {
+    it('brakes at the constant braking down to its target, then holds it', () => {
+      const p = profileOf(straight(20), [2], { startSpeed: 5 })
+      expect(p.v[0]).toBe(5)
+      const reached = p.v.findIndex((v) => v <= 2)
+      // Reached after (5² − 2²) / (2 d) metres.
+      expect(p.s[reached]).toBeCloseTo((5 ** 2 - 2 ** 2) / (2 * motion.decel), 0)
+      for (let k = 0; k < reached - 1; k++) {
+        expect(brakingOf(p, k)).toBeCloseTo(motion.decel, 9)
+      }
+      expect(peakBraking(p)).toBeLessThanOrEqual(motion.decel + 1e-9)
+      expect(Math.max(...p.v.slice(reached))).toBe(2)
+    })
+
+    it('stays under the caps of a turn', () => {
+      const start = admissibleStartSpeed(inputOf(TURN, STORED))
+      const natural = buildProfile(inputOf(TURN, STORED, { startSpeed: start }))
+      const slowed = buildProfile(inputOf(TURN, [1, 1], { startSpeed: start }))
+      slowed.v.forEach((v, k) => {
+        expect(v).toBeLessThanOrEqual((natural.v[k] ?? 0) + 1e-9)
+      })
+      expect(peakBraking(slowed)).toBeLessThanOrEqual(motion.decel + 1e-9)
+      // Even above what its curve admits, it takes the sharpest point at its cap.
+      const corners = buildProfile(
+        inputOf(TURN, [100, 100], { startSpeed: 100, endsAtSpeed: true }),
+      )
+      const sharpest = corners.v.indexOf(Math.min(...corners.v))
+      const over = buildProfile(inputOf(TURN, [1, 1], { startSpeed: 9 }))
+      expect(over.v[sharpest]).toBeLessThanOrEqual((corners.v[sharpest] ?? 0) + 1e-9)
+    })
+
+    it('leaves alone a natural run and a start from rest', () => {
+      const atPace = profileOf(straight(20), [4], { startSpeed: 4 })
+      expect(Math.max(...atPace.v)).toBe(4)
+      expectDuration(atPace.duration, straightRun(20, 4, motion, sprint, 4, 0))
+      const start = admissibleStartSpeed(inputOf(TURN, STORED))
+      const natural = buildProfile(inputOf(TURN, STORED, { startSpeed: start }))
+      expect(Math.max(...natural.v)).toBeLessThanOrEqual(sprint)
+      const rest = profileOf(straight(20), [2])
+      expect(rest.v[0]).toBe(0)
+      expect(Math.max(...rest.v)).toBe(2)
+    })
   })
 })
 

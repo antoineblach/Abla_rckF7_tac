@@ -11,7 +11,7 @@ import { DEFAULT_LAYERS } from '../render/layers'
 import { render } from '../render/render'
 import { THEMES, type Theme } from '../render/themes'
 import { sizePx } from '../render/viewport'
-import { ACCELS, accelPlay, SPEEDS, speedsPlay } from '../test/builders'
+import { accelPlay, ROOT_BRANCH, speedsPlay } from '../test/builders'
 import { loadPdfFonts, napiSurface } from '../test/exportFixtures'
 import { compareWithSnapshot } from '../test/imageSnapshot'
 import { openPdf, rasterize } from '../test/pdfInspect'
@@ -31,6 +31,7 @@ const ENCODING_TIMEOUT_MS = 60_000
 
 const settings = engineSettingsOf(defaultSettings())
 const play = speedsPlay()
+const LINE = [ROOT_BRANCH]
 
 /** The « Vitesses » layer of the player is on: the exports must ignore it (D-112). */
 const OPTIONS: GifOptions = {
@@ -85,7 +86,7 @@ describe('exports: fast segments in, speed badges out (D-112, D-115)', () => {
   })
 
   it('PDF: the thumbnail draws the fast segments wider and no badge, in the print themes', () => {
-    const bounds = lineBounds(compileLine(play, [SPEEDS.T1], settings, createCaches()))
+    const bounds = lineBounds(compileLine(play, LINE, settings, createCaches()))
     if (!bounds) throw new Error('empty play')
     for (const themeId of ['printColor', 'printBw'] as const) {
       const theme = THEMES[themeId]
@@ -94,7 +95,7 @@ describe('exports: fast segments in, speed badges out (D-112, D-115)', () => {
       drawThumbnail(
         recording.ctx,
         play,
-        SPEEDS.T1,
+        LINE,
         { x: 10, y: 10, w: 80, h: 50 },
         bounds,
         theme,
@@ -128,14 +129,14 @@ describe('exports: acceleration and braking badges out (D-132)', () => {
     const gif = createRecordingContext()
     drawGifItem(gif.ctx, accel, item, layout, OPTIONS.layers, settings, caches)
     expect(badgeFills(paintEvents(gif.calls), layout.theme)).toBe(0)
-    const bounds = lineBounds(compileLine(accel, [ACCELS.T1], settings, createCaches()))
+    const bounds = lineBounds(compileLine(accel, LINE, settings, createCaches()))
     if (!bounds) throw new Error('empty play')
     const theme = THEMES.printColor
     const pdf = createRecordingContext()
     drawThumbnail(
       pdf.ctx,
       accel,
-      ACCELS.T1,
+      LINE,
       { x: 10, y: 10, w: 80, h: 50 },
       bounds,
       theme,
@@ -188,7 +189,7 @@ describe('whole export files (D-112, D-115)', { timeout: ENCODING_TIMEOUT_MS }, 
   })
 
   it('PDF: the N&B thumbnail draws the fast segments thicker (reference image)', async () => {
-    const frame = linesFrame(play, [[SPEEDS.T1]], settings, createCaches())
+    const frame = linesFrame(play, [LINE], settings, createCaches())
     const w = 90
     const h = w * thumbRatio(frame)
     const doc = createPdfDoc(loadPdfFonts(), w, h)
@@ -196,7 +197,7 @@ describe('whole export files (D-112, D-115)', { timeout: ENCODING_TIMEOUT_MS }, 
     drawThumbnail(
       pdfContext(doc),
       play,
-      SPEEDS.T1,
+      LINE,
       { x: 0, y: 0, w, h },
       frame,
       theme,

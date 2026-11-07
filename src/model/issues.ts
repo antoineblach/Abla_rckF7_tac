@@ -8,8 +8,9 @@ export type IssueSeverity = 'error' | 'warning'
 export type IssueTarget =
   | { kind: 'play' }
   | { kind: 'entity'; id: Id }
-  | { kind: 'phase'; id: Id }
-  | { kind: 'action'; id: Id; phaseId: Id }
+  | { kind: 'branch'; id: Id }
+  | { kind: 'action'; id: Id; branchId: Id }
+  | { kind: 'sequence'; id: Id; branchId: Id }
 
 export type IssueCode =
   // Business validation (SPEC 4.3)
@@ -30,30 +31,47 @@ export type IssueCode =
   | 'duplicateNumber'
   | 'fieldOutOfRange'
   | 'instructionTooLong'
+  // Business validation of branches and sequences (SPEC 4.3, D-139)
+  | 'tooFewOptions'
+  | 'branchAtMissing'
+  | 'branchAtUnexpected'
+  | 'branchAtNotIncreasing'
+  | 'missingBranch'
+  | 'startsBeforeBranch'
+  | 'startsAfterBranch'
+  | 'sequenceCrossesBranch'
+  | 'sequenceOverlap'
+  | 'sequenceEndBeforeStart'
   // Business validation of kicks and breakdowns (lot 3, SPEC 10.3, 10.4)
   | 'actorNotPlayer'
   | 'kickSelfTarget'
   | 'breakdownDuplicate'
   | 'breakdownTeam'
   // Engine validation (SPEC 5.3, 5.4)
-  | 'twoRunsSamePhase'
   | 'passToOpponent'
   | 'passerWithoutBall'
   | 'simultaneousPass'
   | 'unsupportedAction'
+  // « Départ retardé de x s » (SPEC 5.2, 5.3, 4.3, D-139)
+  | 'runStartDelayed'
   // Engine validation of lot 3 (SPEC 5.7, 10.3, 10.4, D-079, D-083)
   | 'kickerWithoutBall'
   | 'tackledWithoutBall'
   | 'runCutByBreakdown'
   | 'relayerLate'
   | 'forwardPass'
-  // Synchronisation links, business validation (lot 3 bis, SPEC 5.8, D-108)
-  | 'syncTargetMissing'
-  | 'syncTargetInvalid'
-  | 'syncCycle'
-  // Engine validation of lot 3 bis (SPEC 5.2, 5.3, 5.8, 5.9), intentions met (lot 3bis-1, D-131)
-  | 'syncLate'
-  | 'syncTargetBeforeStart'
+  // Glues, business validation (SPEC 4.3, 5.8, D-139)
+  | 'glueTargetMissing'
+  | 'glueTargetInvalid'
+  | 'glueCycle'
+  // Glues, engine validation (SPEC 5.4, 5.8): target never reached; « il aurait fallu partir x s
+  // plus tôt »; arrival late by x s
+  | 'glueTargetUnreached'
+  | 'glueStartedLate'
+  | 'glueArrivesLate'
+  // The ball goes slower than its receiver: the convergence is not guaranteed (SPEC 5.4)
+  | 'ballSlowerThanReceiver'
+  // Engine validation of lot 3 bis (SPEC 5.2, 5.3, 5.9)
   | 'runSpeedHigh'
   | 'runSpeedTooHigh'
   | 'runNotContinued'
@@ -68,7 +86,7 @@ export interface Issue {
   severity: IssueSeverity
   target: IssueTarget
   params?: Record<string, string | number>
-  /** Tells apart several issues of the same code on the same target (segment, option). */
+  /** Tells apart several issues of the same code on the same target (segment, option, edge). */
   key?: string
 }
 

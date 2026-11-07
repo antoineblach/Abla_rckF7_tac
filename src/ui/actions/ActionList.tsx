@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { phaseLabelOf } from '../../model/labels'
+import { lineOptionsText } from '../../model/labels'
 import {
   hoverListedAction,
   selectListedAction,
@@ -7,7 +7,7 @@ import {
 } from '../../state/editorActions'
 import { useEditorStore } from '../../state/editorStore'
 import { usePlayerStore } from '../../state/playerStore'
-import { displayedPhaseId, phaseReportOf, playIssues } from '../../state/selectors'
+import { actionsInProgress, lineReportOf, playIssues } from '../../state/selectors'
 import { useSettingsStore } from '../../state/settingsStore'
 import { timeTicks } from '../describe'
 import { decimal } from '../format'
@@ -49,33 +49,34 @@ function Badges({ row }: { row: ActionRow }) {
 }
 
 /**
- * Actions of the phase (SPEC 6.7, D-113), at the right of the phase tree: one row per action,
- * sorted by start, with its bar on the time scale of the phase. Click: selection; hover: halo on
- * the field; Delete: the shortcut of the selection.
+ * Actions of the line (SPEC 6.7, D-113, D-145): one row per action, sorted by start, with its bar
+ * on the time scale of the line, those in progress at the cursor marked. Click: selection; hover:
+ * halo on the field; Delete: the shortcut of the selection.
  */
 export function ActionList() {
   const play = useEditorStore((s) => s.play)
-  const selectedPhaseId = useEditorStore((s) => s.selectedPhaseId)
   const selection = useEditorStore((s) => s.selection)
-  const playing = usePlayerStore((s) => s.mode === 'play')
   const line = usePlayerStore((s) => s.transport.line)
   const t = usePlayerStore((s) => s.transport.t)
   const settings = useSettingsStore((s) => s.settings)
   const hovered = useInteractionStore((s) => s.hoveredActionId)
-  const phaseId = play ? displayedPhaseId(play, playing, line, t, selectedPhaseId, settings) : null
-  const data = useMemo(() => {
-    if (!play || !phaseId) return null
-    const report = phaseReportOf(play, phaseId, settings)
-    return report ? actionRows(play, report, playIssues(play, settings)) : null
-  }, [play, phaseId, settings])
-
-  const heading =
-    play && phaseId ? `Actions du temps : ${phaseLabelOf(play, phaseId)}` : 'Actions du temps'
+  const report = useMemo(
+    () => (play ? lineReportOf(play, line, settings) : null),
+    [play, line, settings],
+  )
+  const data = useMemo(
+    () => (play && report ? actionRows(play, report, playIssues(play, settings)) : null),
+    [play, report, settings],
+  )
+  const inProgress = report ? actionsInProgress(report, t) : []
+  const options = play ? lineOptionsText(play, line) : ''
   return (
-    <section className="action-list" aria-label="Actions du temps">
-      <h3 className="action-list__title">{heading}</h3>
+    <section className="action-list" aria-label="Actions de la ligne">
+      <h3 className="action-list__title">
+        {options ? `Actions de la ligne : ${options}` : 'Actions de la ligne'}
+      </h3>
       {!data ? null : data.rows.length === 0 ? (
-        <p className="action-list__empty">Aucune action dans ce temps.</p>
+        <p className="action-list__empty">Aucune action sur cette ligne.</p>
       ) : (
         <div className="action-list__scroll">
           <div className="action-list__scale" aria-hidden="true">
@@ -96,8 +97,10 @@ export function ActionList() {
             {data.rows.map((row) => {
               const selected = selection.actions.includes(row.actionId)
               const bar = barGeometry(row, data.duration)
+              const current = inProgress.includes(row.actionId)
               const classes = ['action-row', `action-row--${row.kind}`]
               if (selected) classes.push('action-row--selected')
+              if (current) classes.push('action-row--current')
               if (row.ignored) classes.push('action-row--ignored')
               if (hovered === row.actionId) classes.push('action-row--hovered')
               return (
@@ -106,6 +109,7 @@ export function ActionList() {
                     type="button"
                     className={classes.join(' ')}
                     aria-pressed={selected}
+                    aria-current={current ? 'true' : undefined}
                     data-testid="action-row"
                     data-action-id={row.actionId}
                     title={[KIND_LABELS[row.kind], ...row.details].join('\n')}

@@ -1,14 +1,14 @@
-// Hit testing on the schematic of the displayed phase, in metres (tolerances given in metres by
+// Hit testing on the field at the cursor (SPEC 6.2, 6.3), in metres (tolerances given in metres by
 // the caller from the viewport scale).
 import type { Bounds } from '../engine/bounds'
-import type { PhaseSchematic, SchematicRun } from '../engine/evaluate'
+import type { SchematicRun, WindowSchematic } from '../engine/evaluate'
 import type { Id, Vec2 } from '../model/types'
 
 export type Hit =
   | { kind: 'waypoint'; actionId: Id; index: number }
   /** Target point of a kick to a point (lot 3), draggable like a waypoint. */
   | { kind: 'kickTarget'; actionId: Id }
-  /** Ball on the ground at the start of the phase (lot 3, D-083). */
+  /** Ball on the ground at the cursor (lot 3, D-083). */
   | { kind: 'ball' }
   | { kind: 'player'; id: Id }
   /** Line of a run, with the input segment under the pointer (D-114). */
@@ -85,27 +85,38 @@ function closest<T>(candidates: readonly { value: T; d: number; max: number }[])
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y)
 
 /**
- * Priority: waypoint handles and kick target points, then the ball on the ground, then players,
- * then runs (ignored parts included) and relays (they select their breakdown), passes, kicks,
- * and the ring of a breakdown (closest first in each).
+ * Priority: waypoint handles and kick target points of the interval, then the ball on the ground,
+ * then players, then the lines of the interval: runs (ignored parts included) and relays (they select
+ * their breakdown), passes, kicks and the ring of a breakdown, closest first; then, the same way, the
+ * earlier lines in grey: selecting one brings the cursor to its interval (SPEC 6.3). The points of an
+ * earlier run are not drawn: only the interval has handles. Handles exist with the selection tool
+ * only, as on the overlay: at the end of a run, the last one lies on the token of the player, that
+ * the other tools must reach (SPEC 6.2, D-175).
  */
-export function hitTest(schematic: PhaseSchematic, p: Vec2, tol: HitTolerances): Hit {
-  const handle = closest<Hit>([
-    ...schematic.runs.flatMap((run) =>
-      run.waypoints.map((w, index) => ({
-        value: { kind: 'waypoint' as const, actionId: run.actionId, index },
-        d: dist(p, w),
-        max: tol.handle,
-      })),
-    ),
-    ...schematic.kicks
-      .filter((k) => k.receiverId === null)
-      .map((k) => ({
-        value: { kind: 'kickTarget' as const, actionId: k.actionId },
-        d: dist(p, k.to),
-        max: tol.handle,
-      })),
-  ])
+export function hitTest(
+  schematic: WindowSchematic,
+  p: Vec2,
+  tol: HitTolerances,
+  withHandles = true,
+): Hit {
+  const handle = withHandles
+    ? closest<Hit>([
+        ...schematic.runs.flatMap((run) =>
+          run.waypoints.map((w, index) => ({
+            value: { kind: 'waypoint' as const, actionId: run.actionId, index },
+            d: dist(p, w),
+            max: tol.handle,
+          })),
+        ),
+        ...schematic.kicks
+          .filter((k) => k.receiverId === null)
+          .map((k) => ({
+            value: { kind: 'kickTarget' as const, actionId: k.actionId },
+            d: dist(p, k.to),
+            max: tol.handle,
+          })),
+      ])
+    : null
   if (handle) return handle
   if (schematic.ball?.kind === 'loose' && dist(p, schematic.ball.pos) <= tol.handle) {
     return { kind: 'ball' }
@@ -118,38 +129,75 @@ export function hitTest(schematic: PhaseSchematic, p: Vec2, tol: HitTolerances):
     })),
   )
   if (player) return player
-  return closest<Hit>([
-    ...schematic.runs.map((r) => ({
-      value: { kind: 'run' as const, actionId: r.actionId, segment: segmentAt(r, p) },
-      d: distanceToPolyline(p, [...r.points, ...r.ignoredPoints]),
-      max: tol.line,
-    })),
-    ...schematic.relays.map((r) => ({
-      value: { kind: 'breakdown' as const, actionId: r.actionId },
-      d: distanceToPolyline(p, r.points),
-      max: tol.line,
-    })),
-    ...schematic.passes.map((ps) => ({
-      value: { kind: 'pass' as const, actionId: ps.actionId },
-      d: distanceToSegment(p, ps.from, ps.to),
-      max: tol.line,
-    })),
-    ...schematic.kicks.map((k) => ({
-      value: { kind: 'kick' as const, actionId: k.actionId },
-      d: distanceToSegment(p, k.from, k.to),
-      max: tol.line,
-    })),
-    ...schematic.breakdowns.map((b) => ({
-      // The ring of a breakdown has a radius of two tokens (D-084).
-      value: { kind: 'breakdown' as const, actionId: b.actionId },
-      d: Math.abs(dist(p, b.pos) - 2 * tol.token),
-      max: tol.line,
-    })),
-  ])
+  return (
+    closest<Hit>([
+      ...schematic.runs.map((r) => runCandidate(r, p, tol)),
+      ...schematic.relays.map((r) => relayCandidate(r, p, tol)),
+      ...passCandidates(schematic.passes, p, tol),
+      ...kickCandidates(schematic.kicks, p, tol),
+      ...breakdownCandidates(schematic.breakdowns, p, tol),
+    ]) ??
+    closest<Hit>([
+      ...schematic.earlierRuns.map((r) =>
+        // Relays come with the runs there: their action is the breakdown they join.
+        schematic.earlierBreakdowns.some((b) => b.actionId === r.actionId)
+          ? relayCandidate(r, p, tol)
+          : runCandidate(r, p, tol),
+      ),
+      ...passCandidates(schematic.earlierPasses, p, tol),
+      ...kickCandidates(schematic.earlierKicks, p, tol),
+      ...breakdownCandidates(schematic.earlierBreakdowns, p, tol),
+    ])
+  )
 }
 
-/** Players whose start position lies in a rubber-band box. */
-export function playersInBox(schematic: PhaseSchematic, box: Bounds): Id[] {
+function runCandidate(run: SchematicRun, p: Vec2, tol: HitTolerances) {
+  return {
+    value: { kind: 'run' as const, actionId: run.actionId, segment: segmentAt(run, p) },
+    d: distanceToPolyline(p, [...run.points, ...run.ignoredPoints]),
+    max: tol.line,
+  }
+}
+
+function relayCandidate(relay: SchematicRun, p: Vec2, tol: HitTolerances) {
+  return {
+    value: { kind: 'breakdown' as const, actionId: relay.actionId },
+    d: distanceToPolyline(p, relay.points),
+    max: tol.line,
+  }
+}
+
+function passCandidates(passes: WindowSchematic['passes'], p: Vec2, tol: HitTolerances) {
+  return passes.map((pass) => ({
+    value: { kind: 'pass' as const, actionId: pass.actionId },
+    d: distanceToSegment(p, pass.from, pass.to),
+    max: tol.line,
+  }))
+}
+
+function kickCandidates(kicks: WindowSchematic['kicks'], p: Vec2, tol: HitTolerances) {
+  return kicks.map((kick) => ({
+    value: { kind: 'kick' as const, actionId: kick.actionId },
+    d: distanceToSegment(p, kick.from, kick.to),
+    max: tol.line,
+  }))
+}
+
+function breakdownCandidates(
+  breakdowns: WindowSchematic['breakdowns'],
+  p: Vec2,
+  tol: HitTolerances,
+) {
+  return breakdowns.map((breakdown) => ({
+    // The ring of a breakdown has a radius of two tokens (D-084).
+    value: { kind: 'breakdown' as const, actionId: breakdown.actionId },
+    d: Math.abs(dist(p, breakdown.pos) - 2 * tol.token),
+    max: tol.line,
+  }))
+}
+
+/** Players whose position at the cursor lies in a rubber-band box. */
+export function playersInBox(schematic: WindowSchematic, box: Bounds): Id[] {
   const minX = Math.min(box.min.x, box.max.x)
   const maxX = Math.max(box.min.x, box.max.x)
   const minY = Math.min(box.min.y, box.max.y)

@@ -1,175 +1,159 @@
-// Dependencies between the timings of the actions of a phase (SPEC 4.3, 5.8, D-108, D-110).
-// Nodes: the motion of a run, the release and the arrival of a pass or a kick, the formation of
-// a breakdown. A run with a link depends on its target; the arrival of a pass on its release and
-// on the runs of its passer and receiver; the arrival of a kick on its release; a release on
-// receipt on everything that may bring the ball to the player in the phase. Fixed releases and
-// formations depend on nothing. A receiver whose run meets the arrival of the pass she receives
-// depends only on its release and on the run of the passer: the ball arrives at the rendez-vous
-// point when she gets there (D-108). Pure; shared by the validation, the engine and the commands.
-import type { Action, Id, Phase, RunAction, RunSync, SyncTarget } from './types'
+// Glues between edges and their dependency graph (SPEC 4.3, 5.8, D-139, D-152). Nodes: the left edge
+// and the end event of each block (action or sequence), each branch point. The end of a block depends
+// on its start; a glued edge on its target; the arrival of a pass on the runs of its passer and its
+// receiver in its line, those that depend on this arrival themselves aside (D-152). A receiver glued
+// to the arrival of her pass depends on its release and on the runs of the passer instead. Seen from
+// here, a waypoint of a run is its end: both change with its speeds. A cycle always goes through a
+// glue. Pure; shared by the validation, the engine and the commands.
+import { findBranch, isBranchPoint, pathToBranch } from './branches'
+import type { Action, GlueKeep, GlueRef, Id, Play, Sequence } from './types'
 
-/** Why a link cannot apply. */
-export type SyncProblem =
-  /** No action with this id in the phase (« cible supprimée »). */
+/** Why a glue cannot apply. */
+export type GlueProblem =
+  /** No action, sequence or branch with this id (« cible supprimée »). */
   | 'missing'
-  /** The link targets its own run. */
+  /** The glue targets its own block. */
   | 'self'
-  /** The event does not exist for the type of the target action. */
+  /** The target is neither in the branch of the edge nor in one of its ancestors. */
+  | 'line'
+  /** The event does not exist for this target. */
   | 'event'
   /** The waypoint of the target run does not exist. */
-  | 'index'
-  /** The rendez-vous waypoint of the run does not exist. */
-  | 'at'
+  | 'point'
 
-/** Problem of a link (by default the link of the run) in its phase, or null when usable. */
-export function syncProblem(
-  phase: Phase,
-  run: RunAction,
-  sync: RunSync | undefined = run.sync,
-): SyncProblem | null {
-  if (!sync) return null
-  if (sync.at !== undefined && sync.at >= run.waypoints.length) return 'at'
-  const target = phase.actions.find((action) => action.id === sync.target.actionId)
-  if (!target) return 'missing'
-  if (target.id === run.id) return 'self'
-  switch (sync.target.event) {
-    case 'runEnd':
-      return target.type === 'run' ? null : 'event'
-    case 'runPoint':
-      if (target.type !== 'run') return 'event'
-      return sync.target.index < target.waypoints.length ? null : 'index'
-    case 'release':
-    case 'arrival':
-      return target.type === 'pass' || target.type === 'kick' ? null : 'event'
-    case 'formation':
-      return target.type === 'breakdown' ? null : 'event'
+/**
+ * Problem of a glue, or null when usable. `ownerId` is the block of the edge (action, sequence or
+ * branch), `edgeBranchId` the branch that holds the edge: its `branchId`, or the branch itself for
+ * a branch point.
+ */
+export function glueProblem(
+  play: Play,
+  ownerId: Id,
+  edgeBranchId: Id,
+  glue: GlueRef,
+): GlueProblem | null {
+  if (glue.targetId === ownerId) return 'self'
+  const line = pathToBranch(play, edgeBranchId)
+  const action = play.actions.find((candidate) => candidate.id === glue.targetId)
+  const block = action ?? play.sequences.find((candidate) => candidate.id === glue.targetId)
+  if (block) {
+    if (!line.includes(block.branchId)) return 'line'
+    if (typeof glue.event === 'string') return null
+    if (action?.type !== 'run') return 'event'
+    return glue.event.point < action.waypoints.length ? null : 'point'
   }
+  const branch = findBranch(play, glue.targetId)
+  if (!branch) return 'missing'
+  if (!line.includes(branch.id)) return 'line'
+  return glue.event === 'end' && isBranchPoint(play, branch.id) ? null : 'event'
+}
+
+export type GlueEdgeKind = 'start' | 'end' | 'branchAt'
+
+/** A glued edge of a play. */
+export interface GlueEdge {
+  kind: GlueEdgeKind
+  /** Action, sequence or branch that holds the edge. */
+  ownerId: Id
+  /** Branch that holds the edge: its `branchId`, or the branch itself for a branch point. */
+  branchId: Id
+  glue: GlueRef
+  /** Right edge only: the block slides or stretches (SPEC 5.8). */
+  keep: GlueKeep | null
+}
+
+/** Every glued edge of a play: branch points, then the edges of the actions and the sequences. */
+export function glueEdges(play: Play): GlueEdge[] {
+  const edges: GlueEdge[] = []
+  for (const branch of play.branches) {
+    if (branch.branchAtGlue) {
+      edges.push({
+        kind: 'branchAt',
+        ownerId: branch.id,
+        branchId: branch.id,
+        glue: branch.branchAtGlue,
+        keep: null,
+      })
+    }
+  }
+  for (const block of [...play.actions, ...play.sequences]) {
+    const { id: ownerId, branchId, startGlue, endGlue } = block
+    if (startGlue) edges.push({ kind: 'start', ownerId, branchId, glue: startGlue, keep: null })
+    if (endGlue) edges.push({ kind: 'end', ownerId, branchId, glue: endGlue, keep: endGlue.keep })
+  }
+  return edges
+}
+
+/** Key of an edge among the edges of a play. */
+export function edgeKey(edge: Pick<GlueEdge, 'ownerId' | 'kind'>): string {
+  return `${edge.ownerId}|${edge.kind}`
 }
 
 type NodeKey = string
+type Graph = Map<NodeKey, NodeKey[]>
 
-const runNode = (id: Id): NodeKey => `run:${id}`
+const startNode = (id: Id): NodeKey => `start:${id}`
+const endNode = (id: Id): NodeKey => `end:${id}`
+const branchNode = (id: Id): NodeKey => `branch:${id}`
 
-/**
- * True when the link makes the run of a receiver meet the arrival of the pass she receives: the
- * arrival is then computed at the rendez-vous point (release + distance / ball speed), without
- * depending on her run (D-108).
- */
-export function meetsOwnPass(phase: Phase, run: RunAction, sync: RunSync): boolean {
-  if (sync.target.event !== 'arrival') return false
-  const targetId = sync.target.actionId
-  const target = phase.actions.find((action) => action.id === targetId)
-  return target?.type === 'pass' && target.toId === run.entityId
+function targetNode(play: Play, glue: GlueRef): NodeKey {
+  if (findBranch(play, glue.targetId)) return branchNode(glue.targetId)
+  return glue.event === 'start' ? startNode(glue.targetId) : endNode(glue.targetId)
 }
 
-function targetNode(target: SyncTarget): NodeKey {
-  switch (target.event) {
-    case 'runEnd':
-    case 'runPoint':
-      return runNode(target.actionId)
-    case 'release':
-      return `release:${target.actionId}`
-    case 'arrival':
-      return `arrival:${target.actionId}`
-    case 'formation':
-      return `formation:${target.actionId}`
-  }
+/** The node a glued edge moves: a block that slides moves from its start (SPEC 5.8). */
+function edgeNode(edge: GlueEdge, gluedStarts: ReadonlySet<Id>): NodeKey {
+  if (edge.kind === 'branchAt') return branchNode(edge.ownerId)
+  if (edge.kind === 'start') return startNode(edge.ownerId)
+  const slides = edge.keep === 'duration' && !gluedStarts.has(edge.ownerId)
+  return slides ? startNode(edge.ownerId) : endNode(edge.ownerId)
 }
 
-/** First run of each entity in the phase: the one the engine applies (D-013). */
-function firstRuns(actions: readonly Action[]): Map<Id, Id> {
-  const result = new Map<Id, Id>()
-  for (const action of actions) {
-    if (action.type === 'run' && !result.has(action.entityId))
-      result.set(action.entityId, action.id)
-  }
-  return result
-}
-
-/** Actions that may bring the ball to a player: passes and kicks to her, breakdowns she relays. */
-function receptionSources(actions: readonly Action[], playerId: Id): NodeKey[] {
-  const sources: NodeKey[] = []
-  for (const action of actions) {
-    if (action.type === 'pass' && action.toId === playerId) sources.push(`arrival:${action.id}`)
-    if (action.type === 'kick' && 'receiverId' in action.target) {
-      if (action.target.receiverId === playerId) sources.push(`arrival:${action.id}`)
-    }
-    if (action.type === 'breakdown' && action.relayerId === playerId) {
-      sources.push(`formation:${action.id}`)
-    }
-  }
-  return sources
-}
-
-/** Dependency graph of a phase, with `links` giving the link of each run (overrides allowed). */
-function dependencies(
-  phase: Phase,
-  links: (run: RunAction) => RunSync | undefined,
-): Map<NodeKey, NodeKey[]> {
-  const graph = new Map<NodeKey, NodeKey[]>()
-  const runs = firstRuns(phase.actions)
-  const add = (from: NodeKey, to: NodeKey[]): void => {
-    graph.set(from, [...(graph.get(from) ?? []), ...to])
-  }
-  for (const action of phase.actions) {
-    switch (action.type) {
-      case 'run': {
-        const sync = links(action)
-        if (!sync || syncProblem(phase, action, sync)) {
-          add(runNode(action.id), [])
-        } else if (meetsOwnPass(phase, action, sync)) {
-          const targetId = sync.target.actionId
-          const passer = phase.actions.find((a) => a.id === targetId)
-          const passerRun = passer?.type === 'pass' ? runs.get(passer.fromId) : undefined
-          add(runNode(action.id), [
-            `release:${targetId}`,
-            ...(passerRun === undefined ? [] : [runNode(passerRun)]),
-          ])
-        } else {
-          add(runNode(action.id), [targetNode(sync.target)])
-        }
-        break
-      }
-      case 'pass': {
-        const movers = [runs.get(action.fromId), runs.get(action.toId)].flatMap((id) =>
-          id === undefined ? [] : [runNode(id)],
-        )
-        add(`arrival:${action.id}`, [`release:${action.id}`, ...movers])
-        add(
-          `release:${action.id}`,
-          action.release === 'onReceipt' ? receptionSources(phase.actions, action.fromId) : [],
-        )
-        break
-      }
-      case 'kick':
-        add(`arrival:${action.id}`, [`release:${action.id}`])
-        add(
-          `release:${action.id}`,
-          action.release === 'onReceipt' ? receptionSources(phase.actions, action.kickerId) : [],
-        )
-        break
-      case 'breakdown':
-        add(`formation:${action.id}`, [])
-        break
-      case 'groupRun':
-        // Lot 5, declared only.
-        break
-    }
-  }
-  return graph
+function addTo(graph: Graph, from: NodeKey, to: readonly NodeKey[]): void {
+  const known = graph.get(from)
+  if (known) known.push(...to)
+  else graph.set(from, [...to])
 }
 
 /**
- * Strongly connected components (Tarjan), in an order where every component comes after the
- * components it depends on. Nodes are visited in insertion order (deterministic).
+ * True when the right edge of a run is glued to the arrival of the pass its player receives: the
+ * target is then the release plus the flight to her point, without depending on her run (SPEC 4.3,
+ * 5.8).
  */
-function components(graph: Map<NodeKey, NodeKey[]>): NodeKey[][] {
+export function meetsOwnPass(play: Play, edge: GlueEdge): boolean {
+  if (edge.kind !== 'end' || edge.glue.event !== 'end') return false
+  const target = play.actions.find((action) => action.id === edge.glue.targetId)
+  const owner = play.actions.find((action) => action.id === edge.ownerId)
+  return target?.type === 'pass' && owner?.type === 'run' && owner.entityId === target.toId
+}
+
+/** Nodes that depend on `node`, itself included. */
+function dependentsOf(graph: Graph, node: NodeKey): Set<NodeKey> {
+  const reversed: Graph = new Map()
+  for (const [from, deps] of graph) for (const dep of deps) addTo(reversed, dep, [from])
+  const seen = new Set<NodeKey>([node])
+  const stack = [node]
+  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
+    for (const dependent of reversed.get(next) ?? []) {
+      if (seen.has(dependent)) continue
+      seen.add(dependent)
+      stack.push(dependent)
+    }
+  }
+  return seen
+}
+
+/**
+ * Component of each node, by strongly connected component (Tarjan). Nodes are visited in insertion
+ * order (deterministic). Only the size of a component matters here.
+ */
+function componentsOf(graph: Graph): Map<NodeKey, NodeKey[]> {
   let next = 0
   const index = new Map<NodeKey, number>()
   const low = new Map<NodeKey, number>()
   const stack: NodeKey[] = []
   const onStack = new Set<NodeKey>()
-  const result: NodeKey[][] = []
+  const result = new Map<NodeKey, NodeKey[]>()
   const visit = (node: NodeKey): void => {
     index.set(node, next)
     low.set(node, next)
@@ -184,64 +168,197 @@ function components(graph: Map<NodeKey, NodeKey[]>): NodeKey[][] {
         low.set(node, Math.min(low.get(node) ?? 0, index.get(dep) ?? 0))
       }
     }
-    if (low.get(node) === index.get(node)) {
-      const component: NodeKey[] = []
-      for (;;) {
-        const top = stack.pop()
-        if (top === undefined) break
-        onStack.delete(top)
-        component.push(top)
-        if (top === node) break
-      }
-      result.push(component)
+    if (low.get(node) !== index.get(node)) return
+    const component: NodeKey[] = []
+    for (;;) {
+      const top = stack.pop()
+      if (top === undefined) break
+      onStack.delete(top)
+      component.push(top)
+      if (top === node) break
     }
+    for (const member of component) result.set(member, component)
   }
   for (const node of graph.keys()) if (!index.has(node)) visit(node)
   return result
 }
 
-export interface SyncAnalysis {
-  /** Runs whose link applies, in dependency order (targets before the runs depending on them). */
-  order: Id[]
-  /** Runs whose link is part of a cycle (ignored by the engine, D-108). */
-  cyclic: Set<Id>
-  /** Links that cannot apply, by run. */
-  problems: Map<Id, SyncProblem>
+export interface GlueAnalysis {
+  /** Edges that apply, in the order of their dependencies (targets first). */
+  order: GlueEdge[]
+  /** Edges of a cycle: ignored by the engine (SPEC 5.8). */
+  cyclic: GlueEdge[]
+  /** Blocks whose left edge applies: both edges glued, the start follows its glue (SPEC 5.8). */
+  gluedStarts: ReadonlySet<Id>
+  /** By pass: the runs of its passer and its receiver that depend on its arrival (D-152). */
+  arrivalDependents: ReadonlyMap<Id, ReadonlySet<Id>>
 }
 
-function analyse(phase: Phase, links: (run: RunAction) => RunSync | undefined): SyncAnalysis {
-  const problems = new Map<Id, SyncProblem>()
-  for (const action of phase.actions) {
-    if (action.type !== 'run') continue
-    const problem = syncProblem(phase, action, links(action))
-    if (problem) problems.set(action.id, problem)
+function runsOf(play: Play, entityId: Id): Action[] {
+  return play.actions.filter((action) => action.type === 'run' && action.entityId === entityId)
+}
+
+/** Stored instant of a block, used to order what the graph leaves free. */
+const byStoredStart = <T extends { start: number }>(blocks: readonly T[]): T[] =>
+  blocks
+    .map((block, order) => ({ block, order }))
+    .sort((a, b) => a.block.start - b.block.start || a.order - b.order)
+    .map(({ block }) => block)
+
+/**
+ * What resolves better when done first, without being a dependency of the graph (the run before on
+ * the same player, the ball event before, the breakdown that may stop a run): never a cycle, only the
+ * order of the edges that the graph leaves free.
+ */
+function softOrder(play: Play, inLine: (branchId: Id, otherBranchId: Id) => boolean): Graph {
+  const soft: Graph = new Map()
+  const chain = (blocks: readonly (Action | Sequence)[]): void => {
+    blocks.forEach((block, i) => {
+      for (let j = i - 1; j >= 0; j--) {
+        const previous = blocks[j]
+        if (previous && inLine(block.branchId, previous.branchId)) {
+          addTo(soft, startNode(block.id), [endNode(previous.id)])
+          return
+        }
+      }
+    })
   }
-  const linked = new Set(
-    phase.actions
-      .filter((a): a is RunAction => a.type === 'run' && links(a) !== undefined)
-      .filter((run) => !problems.has(run.id))
-      .map((run) => run.id),
+  const entities = new Set<Id>()
+  for (const action of play.actions) if (action.type === 'run') entities.add(action.entityId)
+  for (const id of entities) chain(byStoredStart(runsOf(play, id)))
+  chain(byStoredStart(play.actions.filter((action) => action.type !== 'run')))
+  for (const action of play.actions) {
+    if (action.type !== 'breakdown') continue
+    for (const id of [action.tackledId, action.supportId, action.relayerId]) {
+      for (const run of runsOf(play, id)) {
+        if (inLine(run.branchId, action.branchId)) {
+          addTo(soft, endNode(run.id), [startNode(action.id)])
+        }
+      }
+    }
+  }
+  return soft
+}
+
+function analyse(play: Play, edges: readonly GlueEdge[]): GlueAnalysis {
+  const usable = edges.filter(
+    (edge) => glueProblem(play, edge.ownerId, edge.branchId, edge.glue) === null,
   )
-  const order: Id[] = []
-  const cyclic = new Set<Id>()
-  for (const component of components(dependencies(phase, links))) {
-    const runs = component
-      .filter((node) => node.startsWith('run:'))
-      .map((node) => node.slice('run:'.length))
-      .filter((id) => linked.has(id))
-    // A component of several nodes is a cycle; it matters only when it goes through a link.
-    if (component.length > 1) for (const id of runs) cyclic.add(id)
-    else order.push(...runs)
+  const gluedStarts = new Set(usable.filter((e) => e.kind === 'start').map((e) => e.ownerId))
+  const blocks = [...play.actions, ...play.sequences]
+
+  /** What an edge reads; the runs of the passer come on top for a receiver (`ownMovers`). */
+  const directTarget = (edge: GlueEdge): NodeKey =>
+    meetsOwnPass(play, edge) ? startNode(edge.glue.targetId) : targetNode(play, edge.glue)
+
+  // Chains of glues: what a run depends on through them (D-152).
+  const chains: Graph = new Map()
+  for (const block of blocks) addTo(chains, endNode(block.id), [startNode(block.id)])
+  for (const edge of usable) addTo(chains, edgeNode(edge, gluedStarts), [directTarget(edge)])
+
+  const paths = new Map<Id, readonly Id[]>()
+  const pathOf = (branchId: Id): readonly Id[] => {
+    const known = paths.get(branchId)
+    if (known) return known
+    const path = pathToBranch(play, branchId)
+    paths.set(branchId, path)
+    return path
   }
-  return { order, cyclic, problems }
+  const inLine = (branchId: Id, otherBranchId: Id): boolean =>
+    pathOf(branchId).includes(otherBranchId)
+
+  const movers: [NodeKey, NodeKey][] = []
+  /** Runs of the passer that a receiver glued to the arrival reads (SPEC 4.3), by edge. */
+  const ownMovers = new Map<GlueEdge, NodeKey[]>()
+  const arrivalDependents = new Map<Id, ReadonlySet<Id>>()
+  for (const action of play.actions) {
+    if (action.type !== 'pass') continue
+    const arrival = endNode(action.id)
+    const dependents = dependentsOf(chains, arrival)
+    const ids = new Set<Id>()
+    const independentRuns = (entityId: Id): NodeKey[] =>
+      runsOf(play, entityId).flatMap((run) => {
+        if (dependents.has(endNode(run.id))) {
+          ids.add(run.id)
+          return []
+        }
+        return inLine(action.branchId, run.branchId) ? [endNode(run.id)] : []
+      })
+    const passerRuns = independentRuns(action.fromId)
+    for (const run of [...passerRuns, ...independentRuns(action.toId)]) movers.push([arrival, run])
+    for (const edge of usable) {
+      if (edge.glue.targetId === action.id && meetsOwnPass(play, edge)) {
+        ownMovers.set(edge, passerRuns)
+      }
+    }
+    arrivalDependents.set(action.id, ids)
+  }
+
+  const full: Graph = new Map()
+  for (const branch of play.branches) full.set(branchNode(branch.id), [])
+  for (const [from, deps] of chains) addTo(full, from, deps)
+  for (const [from, dep] of movers) addTo(full, from, [dep])
+  for (const [edge, deps] of ownMovers) addTo(full, edgeNode(edge, gluedStarts), deps)
+
+  const components = componentsOf(full)
+  const isCyclic = (edge: GlueEdge): boolean => {
+    const component = components.get(edgeNode(edge, gluedStarts))
+    if (component === undefined || component.length <= 1) return false
+    const deps = [directTarget(edge), ...(ownMovers.get(edge) ?? [])]
+    return deps.some((dep) => component.includes(dep))
+  }
+  const cyclic = usable.filter(isCyclic)
+  const applying = usable.filter((edge) => !isCyclic(edge))
+  const appliedStarts = new Set(applying.filter((e) => e.kind === 'start').map((e) => e.ownerId))
+
+  // Dependencies without the cycles: the graph left is acyclic.
+  const hard: Graph = new Map()
+  for (const branch of play.branches) hard.set(branchNode(branch.id), [])
+  for (const block of blocks) {
+    addTo(hard, startNode(block.id), [])
+    addTo(hard, endNode(block.id), [startNode(block.id)])
+  }
+  for (const edge of applying) {
+    const node = edgeNode(edge, appliedStarts)
+    addTo(hard, node, [directTarget(edge), ...(ownMovers.get(edge) ?? [])])
+  }
+  for (const [from, dep] of movers) addTo(hard, from, [dep])
+
+  const soft = softOrder(play, inLine)
+  const byNode = new Map<NodeKey, GlueEdge[]>()
+  for (const edge of applying) {
+    const node = edgeNode(edge, appliedStarts)
+    byNode.set(node, [...(byNode.get(node) ?? []), edge])
+  }
+
+  // Nodes in stored order; among those whose dependencies are done, the first one.
+  const remaining: NodeKey[] = [
+    ...byStoredStart(blocks).flatMap((block) => [startNode(block.id), endNode(block.id)]),
+    ...play.branches.map((branch) => branchNode(branch.id)),
+  ]
+  const done = new Set<NodeKey>()
+  const allDone = (deps: readonly NodeKey[] | undefined): boolean =>
+    (deps ?? []).every((dep) => done.has(dep))
+  const order: GlueEdge[] = []
+  while (remaining.length > 0) {
+    let pick = remaining.findIndex((n) => allDone(hard.get(n)) && allDone(soft.get(n)))
+    if (pick < 0) pick = remaining.findIndex((n) => allDone(hard.get(n)))
+    const [node] = remaining.splice(Math.max(pick, 0), 1)
+    if (node === undefined) break
+    done.add(node)
+    order.push(...(byNode.get(node) ?? []))
+  }
+  return { order, cyclic, gluedStarts: appliedStarts, arrivalDependents }
 }
 
-/** Links of the runs of a phase: usable ones in dependency order, cycles, problems. */
-export function analyseSyncs(phase: Phase): SyncAnalysis {
-  return analyse(phase, (run) => run.sync)
+/** The glues of a play: those that apply in the order of their dependencies, the cycles. */
+export function analyseGlues(play: Play): GlueAnalysis {
+  return analyse(play, glueEdges(play))
 }
 
-/** True when giving `sync` to the run would close a cycle of links (refused, D-109). */
-export function createsCycle(phase: Phase, runId: Id, sync: RunSync): boolean {
-  return analyse(phase, (run) => (run.id === runId ? sync : run.sync)).cyclic.has(runId)
+/** True when this glue, given to its edge, closes a cycle (refused when laid, SPEC 5.8). */
+export function createsCycle(play: Play, edge: GlueEdge): boolean {
+  const key = edgeKey(edge)
+  const edges = [...glueEdges(play).filter((known) => edgeKey(known) !== key), edge]
+  return analyse(play, edges).cyclic.some((known) => edgeKey(known) === key)
 }

@@ -36,11 +36,28 @@ export interface RunPart {
   fast: boolean
 }
 
+/**
+ * An interval of a line (SPEC 5.1, D-139): a sequence, or a gap of a branch where at least one
+ * action starts. Between `start` and `end`, in time order, they never overlap.
+ */
+export interface LineInterval {
+  start: number
+  end: number
+  /** The branch of the line it belongs to. */
+  branchId: Id
+  /** Its sequence, null for a gap. */
+  sequenceId: Id | null
+  /** Displayed label of the sequence, empty for a gap. */
+  label: string
+  /** Instruction of the sequence, empty for a gap. */
+  instruction: string
+}
+
 export interface RunTrace {
   actionId: Id
   entityId: Id
-  phaseId: Id
-  /** True for the phase being played (drawn emphasised), false for previous phases (faded). */
+  branchId: Id
+  /** True for an action of the interval being played (emphasised), false before it (faded). */
   current: boolean
   /** True when the run is finished (drawn with its arrow head). */
   completed: boolean
@@ -64,7 +81,7 @@ export interface SpeedBadge {
 
 export interface PassTrace {
   actionId: Id
-  phaseId: Id
+  branchId: Id
   current: boolean
   from: Vec2
   /** Arrival point, or current ball position while in flight. */
@@ -78,7 +95,7 @@ export interface PassTrace {
 
 export interface KickTrace {
   actionId: Id
-  phaseId: Id
+  branchId: Id
   current: boolean
   from: Vec2
   /** Landing point, or current ball position while in flight. */
@@ -102,11 +119,9 @@ export interface SceneState {
   /** Duration of the line, in seconds. */
   duration: number
   line: Id[]
-  /** Index of the current phase in the line, -1 when the line is empty. */
-  phaseIndex: number
-  phaseId: Id | null
-  phaseStart: number
-  phaseEnd: number
+  /** The interval at t, null in a gap where no action starts (SPEC 5.1). */
+  interval: LineInterval | null
+  /** Instruction of the sequence at t (SPEC 7). */
   instruction: string
   attackingTeam: Team
   field: { length: number; width: number; inGoal: number }

@@ -1,5 +1,5 @@
 // Export dressing (SPEC 9.2, D-060): cards (title, option, speed) and the header of a GIF image
-// (phase label on the left, speed badge on the right), with the instruction banner just under
+// (label on the left, speed badge on the right), with the instruction banner just under
 // it. Pure drawing with the same primitives and flat colours as the scene; the texts come ready
 // to print. Sizes are CSS pixels at scale 1, multiplied by the pixel ratio like the theme sizes.
 import { CAPTION_SIZES } from '../config/defaults'
@@ -30,7 +30,7 @@ export function dressingHeightPx(frame: ImageFrame, theme: Theme, bannerLines: n
   return headerHeightPx(frame) + bannerHeightPx(frame, theme, bannerLines)
 }
 
-/** Header across the top: phase label on the left, badge (« Ralenti »...) on the right. */
+/** Header across the top: label on the left, badge (« Ralenti »...) on the right. */
 export function drawHeader(
   ctx: Ctx2D,
   frame: ImageFrame,

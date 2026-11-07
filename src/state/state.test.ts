@@ -24,13 +24,18 @@ import {
   openPlay,
   previewGesture,
   reloadPlay,
-  selectPhase,
   setEditorChangeListener,
   setTool,
   useEditorStore,
 } from './editorStore'
 import { visibleSummaries } from './libraryState'
-import { playPause, setOrientation, showPhaseInPlayer, usePlayerStore } from './playerStore'
+import {
+  playPause,
+  seekPlayer,
+  setOrientation,
+  showLineInPlayer,
+  usePlayerStore,
+} from './playerStore'
 import { appCaches, currentEngineSettings } from './settingsStore'
 import { savedFrame, setCanvasSize, setView, useViewStore } from './viewStore'
 
@@ -54,7 +59,7 @@ beforeEach(() => {
   })
   openPlay(sevenVsSevenWithOptions(), null, false)
   setTool('select')
-  usePlayerStore.setState({ mode: 'edit', orientation: 'landscape' })
+  usePlayerStore.setState({ orientation: 'landscape' })
   useInteractionStore.setState({ metersPerPx: 0 })
 })
 
@@ -138,7 +143,7 @@ describe('field interactions (SPEC 6.2)', () => {
     down({ x: 43, y: 6 })
     down({ x: 46, y: 4 })
     key('Enter')
-    const run = current().phases[0]?.actions.find(
+    const run = current().actions.find(
       (a) => a.type === 'run' && a.entityId === P.A(1),
     ) as RunAction
     expect(run.waypoints).toEqual([
@@ -149,7 +154,7 @@ describe('field interactions (SPEC 6.2)', () => {
     down({ x: 44, y: 15 })
     down({ x: 44, y: 15 })
     editorDoubleClick()
-    const second = current().phases[0]?.actions.find(
+    const second = current().actions.find(
       (a) => a.type === 'run' && a.entityId === P.A(2),
     ) as RunAction
     expect(second.waypoints).toEqual([{ x: 44, y: 15 }])
@@ -157,19 +162,17 @@ describe('field interactions (SPEC 6.2)', () => {
     down({ x: 40, y: 25 }, { kind: 'player', id: P.A(3) })
     down({ x: 41, y: 25 })
     key('Escape')
-    expect(
-      current().phases[0]?.actions.some((a) => a.type === 'run' && a.entityId === P.A(3)),
-    ).toBe(false)
+    expect(current().actions.some((a) => a.type === 'run' && a.entityId === P.A(3))).toBe(false)
   })
 
   it('draws a pass: passer then receiver', () => {
     key('p')
     down({ x: 40, y: 35 }, { kind: 'player', id: P.A(4) })
     down({ x: 40, y: 25 }, { kind: 'player', id: P.A(3) })
-    expect(current().phases[0]?.actions.filter((a) => a.type === 'pass')).toHaveLength(2)
+    expect(current().actions.filter((a) => a.type === 'pass')).toHaveLength(5)
   })
 
-  it('drags players of the starting placement in phase 1, as one undo step', () => {
+  it('drags players of the starting placement at t = 0, as one undo step', () => {
     down({ x: 40, y: 5 }, { kind: 'player', id: P.A(1) })
     editorPointerMove({ x: 41, y: 6 })
     editorPointerMove({ x: 42, y: 7 })
@@ -178,20 +181,20 @@ describe('field interactions (SPEC 6.2)', () => {
     expect(useEditorStore.getState().history.past).toHaveLength(1)
   })
 
-  it('never moves a position inherited from a previous phase (D-009)', () => {
-    selectPhase(P.t2)
+  it('never moves a position at another instant than t = 0 (D-009, D-141)', () => {
+    seekPlayer(2)
     const before = current()
     down({ x: 47, y: 50 }, { kind: 'player', id: P.A(5) })
     editorPointerMove({ x: 50, y: 50 })
     editorPointerUp()
     expect(current()).toBe(before)
-    expect(useEditorStore.getState().notice).toBe('inheritedPosition')
+    expect(useEditorStore.getState().notice).toBe('placementAtStart')
     key('ArrowRight')
     expect(current()).toBe(before)
-    // The notice goes away with the phase it was about, and during playback.
-    selectPhase(P.t1)
+    // The notice goes away with the instant it was about, and during playback.
+    seekPlayer(0)
     expect(useEditorStore.getState().notice).toBeNull()
-    useEditorStore.setState({ notice: 'inheritedPosition' })
+    useEditorStore.setState({ notice: 'placementAtStart' })
     key('l')
     expect(useEditorStore.getState().notice).toBeNull()
     playPause()
@@ -201,10 +204,10 @@ describe('field interactions (SPEC 6.2)', () => {
     down({ x: 44, y: 36 }, { kind: 'waypoint', actionId: uuid(200), index: 0 })
     editorPointerMove({ x: 45, y: 37 })
     editorPointerUp()
-    let run = current().phases[0]?.actions.find((a) => a.id === uuid(200)) as RunAction
+    let run = current().actions.find((a) => a.id === uuid(200)) as RunAction
     expect(run.waypoints[0]).toEqual({ x: 45, y: 37 })
     editorContextMenu({ kind: 'waypoint', actionId: uuid(200), index: 0 })
-    run = current().phases[0]?.actions.find((a) => a.id === uuid(200)) as RunAction
+    run = current().actions.find((a) => a.id === uuid(200)) as RunAction
     expect(run.waypoints).toEqual([{ x: 46, y: 40 }])
   })
 
@@ -285,7 +288,7 @@ describe('view (D-048, D-049)', () => {
     setView({ center: { x: 3, y: 4 }, scale: 30 })
     key('f')
     expect(useViewStore.getState().view).toEqual(fit(current()))
-    showPhaseInPlayer(P.t3b)
+    showLineInPlayer([P.root, P.optB])
     adjustViewTo('useful')
     const line = usePlayerStore.getState().transport.line
     const frame = autoFrame(compileLine(current(), line, currentEngineSettings(), appCaches))
@@ -311,37 +314,38 @@ describe('view (D-048, D-049)', () => {
   it('playback, a chosen option and the way back to editing leave the view as it is', () => {
     const view = { center: { x: 3, y: 4 }, scale: 30 }
     setView(view)
-    showPhaseInPlayer(P.t1)
     key('l')
-    expect(usePlayerStore.getState().mode).toBe('play')
+    expect(usePlayerStore.getState().transport.playing).toBe(true)
     playPause()
-    showPhaseInPlayer(P.t3b)
-    usePlayerStore.setState({ mode: 'play' })
+    showLineInPlayer([P.root, P.optB])
+    playPause()
     down({ x: 10, y: 10 })
-    expect(usePlayerStore.getState().mode).toBe('edit')
+    expect(usePlayerStore.getState().transport.playing).toBe(false)
     expect(useViewStore.getState().view).toBe(view)
   })
 })
 
-describe('player store (SPEC 7, D-010)', () => {
-  it('enters playback with L and comes back to edit mode on a phase selection', () => {
-    showPhaseInPlayer(P.t1)
+describe('player store (SPEC 7, 6.3, D-010)', () => {
+  it('plays with L; at rest, the field edits the instant of the cursor', () => {
     key('l')
-    expect(usePlayerStore.getState()).toMatchObject({ mode: 'play' })
     expect(usePlayerStore.getState().transport.playing).toBe(true)
     playPause()
-    showPhaseInPlayer(P.t3b)
-    expect(usePlayerStore.getState().mode).toBe('edit')
-    expect(usePlayerStore.getState().transport.line).toEqual([P.t1, P.t2, P.t3b])
+    expect(usePlayerStore.getState().transport.playing).toBe(false)
+    showLineInPlayer([P.root, P.optB])
+    expect(usePlayerStore.getState().transport.line).toEqual([P.root, P.optB])
   })
 
-  it('a click on the field during playback returns to edit mode without editing', () => {
-    usePlayerStore.setState({ mode: 'play' })
-    const before = current()
+  it('a click on the field during playback returns to editing without editing', () => {
     key('a')
+    playPause()
+    const before = current()
+    const { t } = usePlayerStore.getState().transport
     down({ x: 10, y: 10 })
-    expect(usePlayerStore.getState().mode).toBe('edit')
+    expect(usePlayerStore.getState().transport).toMatchObject({ playing: false, t })
     expect(current()).toBe(before)
+    // The next click edits.
+    down({ x: 10, y: 10 })
+    expect(current()).not.toBe(before)
   })
 })
 

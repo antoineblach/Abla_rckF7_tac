@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { buildScenario, imageAtEndOf, save } from './support/editorActions'
+import { imageAtEndOf, importOptionsScenario } from './support/editorActions'
 
-test('degraded mode: same scenario in the browser library, with export and import (SPEC 8.6)', async ({
+const LINE_A = 'Option A : Défense en retrait'
+const LINE_B = 'Option B : Défense montée'
+
+test('degraded mode: the scenario with options in the browser library, exported and imported (SPEC 8.6)', async ({
   page,
 }, testInfo) => {
   await page.goto('./')
@@ -11,15 +14,14 @@ test('degraded mode: same scenario in the browser library, with export and impor
   )
   await expect(page.getByRole('button', { name: 'Choisir un dossier' })).toHaveCount(0)
 
-  await buildScenario(page, 'Croisée test')
-  await save(page)
-  const beforeA = await imageAtEndOf(page, 'Temps 3, option A')
-  const beforeB = await imageAtEndOf(page, 'Temps 3, option B')
+  await importOptionsScenario(page)
+  const beforeA = await imageAtEndOf(page, LINE_A)
+  const beforeB = await imageAtEndOf(page, LINE_B)
 
   await page.reload()
   await page.getByRole('button', { name: 'Ouvrir Croisée test' }).click()
-  expect(await imageAtEndOf(page, 'Temps 3, option A')).toBe(beforeA)
-  expect(await imageAtEndOf(page, 'Temps 3, option B')).toBe(beforeB)
+  expect(await imageAtEndOf(page, LINE_A)).toBe(beforeA)
+  expect(await imageAtEndOf(page, LINE_B)).toBe(beforeB)
 
   // Export of one play and of the whole library.
   const playDownload = page.waitForEvent('download')
@@ -44,7 +46,7 @@ test('degraded mode: same scenario in the browser library, with export and impor
   await page.getByTestId('import-input').setInputFiles(playPath)
   await expect(page.getByText('Combinaison importée.')).toBeVisible()
   await page.getByRole('button', { name: 'Ouvrir Croisée test' }).click()
-  expect(await imageAtEndOf(page, 'Temps 3, option A')).toBe(beforeA)
+  expect(await imageAtEndOf(page, LINE_A)).toBe(beforeA)
 
   // Importing the pack again: the id exists, « Garder les deux » makes a copy.
   await page.getByTestId('import-input').setInputFiles(packPath)

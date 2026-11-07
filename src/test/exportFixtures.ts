@@ -1,28 +1,23 @@
 // Fixtures and surfaces of the export tests. Never imported by the application.
 import { createCanvas } from '@napi-rs/canvas'
 import { readFileSync } from 'node:fs'
+import type { Ctx2D } from '../render/ctx2d'
+import { registerFonts } from './imageSnapshot'
 import type { PdfFonts } from '../export/pdf/pdfCtx'
 import type { PixelSurface } from '../export/types'
 import type { Play } from '../model/types'
-import type { Ctx2D } from '../render/ctx2d'
 import {
   basePlay,
+  branch,
   fourVsTwoNoBall,
   P,
-  phase,
   player,
+  ROOT_BRANCH,
   run,
+  sequence,
   sevenVsSevenWithOptions,
   uuid,
 } from './builders'
-import { registerFonts } from './imageSnapshot'
-
-/** The frozen fixture of lot 1: 7 v 7, trunk of 2 phases, 2 options at phase 3 (read only). */
-export function loadOptionsFixture(): Play {
-  return JSON.parse(
-    readFileSync(new URL('./fixtures/play-v1-7v7-options.json', import.meta.url), 'utf8'),
-  ) as Play
-}
 
 /** The embedded font, as the worker fetches it from public/fonts/. */
 export function loadPdfFonts(): PdfFonts {
@@ -35,30 +30,32 @@ export function loadPdfFonts(): PdfFonts {
   return { regular: read('Regular'), bold: read('Bold') }
 }
 
-/** The acceptance scenario with a third option at phase 3, and French typography in its texts. */
+/** The acceptance scenario with a third option, and French typography in its texts. */
 export function threeOptionsPlay(): Play {
   const play = sevenVsSevenWithOptions()
+  const optC = { branchId: uuid(104) }
   return {
     ...play,
     id: uuid(9001),
     name: 'Trois options « au large »',
-    notes: 'l’option dépend de la « défense » adverse, décidée au temps 2. Œil sur la 6.',
+    notes: 'l’option dépend de la « défense » adverse, décidée à l’embranchement. Œil sur la 6.',
     updatedAt: '2026-10-12T08:00:00.000Z',
-    phases: [
-      ...play.phases,
-      phase(uuid(104), P.t2, [run(uuid(240), P.A(7), [{ x: 52, y: 68 }], { pace: 'sprint' })], {
-        condition: 'Défense glissée',
-        instruction: 'Jeu au large',
-      }),
+    branches: [...play.branches, branch(optC.branchId, P.root, { condition: 'Défense glissée' })],
+    actions: [
+      ...play.actions,
+      run(uuid(240), P.A(7), [{ x: 52, y: 68 }], { ...optC, pace: 'sprint', start: 6.335 }),
+    ],
+    sequences: [
+      ...play.sequences,
+      sequence(uuid(242), 6.335, 8.5, { ...optC, instruction: 'Jeu au large' }),
     ],
   }
 }
 
 /** Five plays of a playbook, one of them with three options (plan of lot 2, section 7). */
 export function bookPlays(): Play[] {
-  const fixture = loadOptionsFixture()
   return [
-    fixture,
+    sevenVsSevenWithOptions(),
     threeOptionsPlay(),
     { ...twoBranchPointsPlay(), id: uuid(9002), updatedAt: '2026-10-13T09:30:00.000Z' },
     { ...fourVsTwoNoBall(), id: uuid(9003), updatedAt: '2026-10-11T10:00:00.000Z' },
@@ -96,26 +93,64 @@ export function canvasFromPixels(pixels: Uint8Array, width: number, height: numb
   return canvas
 }
 
+/** Branches of `twoBranchPointsPlay`. */
+export const TWO_POINTS = {
+  root: ROOT_BRANCH,
+  large: uuid(101),
+  tight: uuid(102),
+  deep: uuid(103),
+  rising: uuid(104),
+} as const
+
 /**
- * Two branch points, three lines: options A and B at phase 2, then options A and B at phase 3
- * under 2A. One player runs 4 m at a jog (4 m/s) in every phase: each phase lasts 1 s.
+ * Two branch points, three lines: options A and B at the end of the first run, then options A and B
+ * at the end of the run of option A. One player runs in every branch; each run starts at the branch
+ * point it comes from.
  */
 export function twoBranchPointsPlay(): Play {
+  const { root, large, tight, deep, rising } = TWO_POINTS
   const a1 = uuid(1)
-  const step = (n: number, to: { x: number; y: number }) => [run(uuid(200 + n), a1, [to])]
+  const first = uuid(200)
+  const second = uuid(201)
   return basePlay({
     name: 'Double option',
     entities: [player(a1, 'A', 1)],
     setup: { positions: { [a1]: { x: 40, y: 35 } }, ballCarrierId: null, ballPosition: null },
-    phases: [
-      phase(uuid(100), null, step(0, { x: 44, y: 35 }), { instruction: 'Fixer' }),
-      phase(uuid(101), uuid(100), step(1, { x: 48, y: 35 }), {
+    branches: [
+      branch(root, null, { branchAt: 1, branchAtGlue: { targetId: first, event: 'end' } }),
+      branch(large, root, {
         isDefault: true,
         condition: 'Large',
+        branchAt: 2,
+        branchAtGlue: { targetId: second, event: 'end' },
       }),
-      phase(uuid(102), uuid(100), step(2, { x: 44, y: 39 }), { condition: 'Serré' }),
-      phase(uuid(103), uuid(101), step(3, { x: 52, y: 35 }), { isDefault: true }),
-      phase(uuid(104), uuid(101), step(4, { x: 48, y: 39 }), { condition: 'Montée' }),
+      branch(tight, root, { condition: 'Serré' }),
+      branch(deep, large, { isDefault: true }),
+      branch(rising, large, { condition: 'Montée' }),
     ],
+    actions: [
+      run(first, a1, [{ x: 44, y: 35 }]),
+      run(second, a1, [{ x: 48, y: 35 }], {
+        branchId: large,
+        start: 1,
+        startGlue: { targetId: root, event: 'end' },
+      }),
+      run(uuid(202), a1, [{ x: 44, y: 39 }], {
+        branchId: tight,
+        start: 1,
+        startGlue: { targetId: root, event: 'end' },
+      }),
+      run(uuid(203), a1, [{ x: 52, y: 35 }], {
+        branchId: deep,
+        start: 2,
+        startGlue: { targetId: large, event: 'end' },
+      }),
+      run(uuid(204), a1, [{ x: 48, y: 39 }], {
+        branchId: rising,
+        start: 2,
+        startGlue: { targetId: large, event: 'end' },
+      }),
+    ],
+    sequences: [sequence(uuid(300), 0, 1, { instruction: 'Fixer' })],
   })
 }

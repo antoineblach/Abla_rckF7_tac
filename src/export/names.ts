@@ -1,6 +1,6 @@
 // Export file names: <nom-court>--<variante>.<ext> (SPEC 9.1, D-066). Two different variants
 // never share a name; an existing file gets a numbered suffix only on « Garder les deux » (D-065).
-import { childrenOf, isBranchPoint } from '../model/phaseTree'
+import { childrenOf, isBranchPoint } from '../model/branches'
 import type {
   ExportOrientation,
   GifQuality,

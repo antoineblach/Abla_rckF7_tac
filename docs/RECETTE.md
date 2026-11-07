@@ -248,6 +248,38 @@ Indispensables et impossibles à automatiser, après le déploiement et après a
 
 Tracer quelques courses et intentions (durées imposées, liens, regroupements) : ressenti du mouvement, curseur, réglages de la pointe et des seuils, pastilles ; puis faire un retour avec `/correction-recette`.
 
+## Lot frise-1 : modèle et moteur de la frise
+
+Combinaisons en version 5, à instants absolus, branches, séquences et collages (D-139, SPEC 1.11), moteur à simulation unique par ligne, application entière portée (`docs/plans/lot-frise-1.md`, D-140 à D-179). La frise elle-même, la création d'options, de séquences et de collages à la main, et « Couper la course ici » viennent en frise-2. Une combinaison d'une version antérieure est refusée, jamais modifiée : les combinaisons existantes sont à refaire.
+
+### Comportements couverts par les tests
+
+| Comportement | Tests |
+|---|---|
+| Refus des versions antérieures sans écriture : lecture, dossier (octets identiques, rien dans `_corbeille/`), bibliothèque du mode dégradé, cache de lecture, brouillon (statut obsolète, message au démarrage), import d'un lot mélangé ; message dit une seule fois | `model/migrations.test.ts`, `io/refusal.test.ts` ; `refusal-v4.chromium.spec.ts`, `refusal-v4.firefox.spec.ts` |
+| Modèle v5 : schéma, fixture figée égale à son builder, branches, validation sur les instants enregistrés, « Séquence n », séquence à l'envers, embranchement non croissant | `model/schema.test.ts`, `model/branches.test.ts`, `model/validate.test.ts`, `model/labels.test.ts`, `engine/overlap.test.ts` |
+| Graphe des collages : cycles refusés à la pose et ignorés dans un fichier, pas de faux cycle après une réception collée (D-152) | `model/syncGraph.test.ts`, `engine/glue.test.ts`, `editor/glues.test.ts` |
+| Tronc identique dans toutes les lignes sur une grille d'instants ; course du tronc prolongée par une partie des options, passe en vol à l'embranchement | `engine/trunk.test.ts`, `engine/launch.test.ts` |
+| Intervalles (D-159), chevauchements de courses et de séquences, participante d'un regroupement à la formation ou à la sortie (D-160), avec l'alerte | `engine/overlap.test.ts`, `engine/breakdown.test.ts`, `engine/evaluate.test.ts` |
+| Collages : glisser, s'étirer, deux bords, séquence au bord gauche seul, borne et solveur, cible avant le départ, jamais atteinte, passe reçue sur une course collée (D-163), ballon plus lent que la receveuse (D-166), blocs absents des simulations et indépendance aux `start` enregistrés (D-169, D-177) | `engine/glue.test.ts` (contrôles dans `test/glueChecks.ts`) |
+| Lancée et raccord : collée sans écart, écart positif, partie à sa borne, arrêtée par un regroupement, vitesse admise, chaîne, options, seconde passe ; écart au point de coupe dans les seuils de D-161 et D-176 | `engine/launch.test.ts`, `engine/cut.test.ts`, `engine/profile.test.ts` |
+| Déterminisme, saut direct égal à la lecture continue, nombre de profils plafonné (D-150, D-178) | `engine/evaluate.test.ts`, `engine/runs.test.ts`, `engine/profileCount.test.ts` |
+| Outils et commandes : pose au curseur (fin de course, réception, ramassage, regroupement, D-171), gel des valeurs résolues au décollage et à la suppression d'une cible (D-170), poignées réservées à la Sélection (D-175) | `editor/editor.test.ts`, `editor/glues.test.ts`, `editor/segments.test.ts`, `editor/setPieces.test.ts` ; `actions-list.chromium.spec.ts` |
+| État : pas de mode de lecture, à l'arrêt le terrain édite, premier clic en pause, ligne gardée après un changement, curseur ramené dans la durée, halo selon la lecture (D-172, D-173) | `state/state.test.ts`, `state/cursor.test.ts`, `state/glues.test.ts` ; `actions-list.chromium.spec.ts`, `field-stability.chromium.spec.ts` |
+| Rendu, lecteur et exports sur la frise : grisé, « Bord précédent » et « Bord suivant », arrêt aux options, en-tête du GIF (libellé saisi, après la dernière séquence), légende des vignettes du PDF (D-167, D-168) | `render/render.test.ts`, `player/player.test.ts`, `export/gif/timeline.test.ts`, `export/gif/gif.test.ts`, `export/pdf/pdf.test.ts` ; `export-gif.chromium.spec.ts`, `export-pdf.chromium.spec.ts`, `export.firefox.spec.ts` |
+| Application entière sur la v5 : dossier, modifications extérieures, mode dégradé, modèles, ruck et jeu au pied, vitesses, Espace, interface | les 18 specs de `e2e/` (55 tests, Chromium et Firefox) |
+
+### Vérifications manuelles
+
+Indispensables et impossibles à automatiser, après le déploiement et après avoir rechargé la page (Ctrl+F5) sur les deux PC :
+- [ ] Dossier Drive réel, qui contient les combinaisons v4 : chacune signalée comme refusée, aucun fichier modifié, déplacé ni copié dans `_corbeille/`, sur les deux PC (historique de version Drive inchangé).
+- [ ] Deux courses collées d'une même joueuse, en virage, dans le lecteur : raccord sans à-coup visible, vitesse et direction continues (D-176).
+- [ ] Terrain à l'arrêt, dans les thèmes Écran et Contraste fort : actions de l'intervalle au curseur et actions antérieures en grisé faciles à distinguer, halo de survol lisible.
+
+### Séance d'usage libre
+
+Refaire deux ou trois combinaisons réelles : courses enchaînées (lancées), passes à la réception, regroupement, jeu au pied ; instants et collages réglés dans l'inspecteur ; lire, recharger, exporter un GIF et un PDF ; puis faire un retour avec `/correction-recette`.
+
 ## Lot 4 : défense simulée
 
 Comportements attendus, à couvrir par les tests (D-054). Les vérifications manuelles (au plus 5) et la séance d'usage libre seront précisées en fin de lot.

@@ -1,33 +1,6 @@
-// Editing of lot 3 bis (D-106, D-107, D-110, D-114): segment speeds kept by every move, « Finit
-// lancée », release mode laid by the tools, segment under the pointer, speed shortcuts.
+// Editing of the speeds (D-114, D-133): segment speeds kept by every move, segment under the pointer,
+// speed shortcuts.
 import { describe, expect, it } from 'vitest'
-import { createCaches } from '../engine/caches'
-import { ballObtainedAt, phaseSchematic } from '../engine/evaluate'
-import { defaultSettings, engineSettingsOf } from '../model/settings'
-import type { Action, Id, Play, RunAction } from '../model/types'
-import {
-  P,
-  run,
-  sequentialIds,
-  setPiecesPlay,
-  sevenVsSevenWithOptions,
-  uuid,
-} from '../test/builders'
-import {
-  addKick,
-  addPass,
-  addRun,
-  markProlongedRun,
-  moveWaypoint,
-  setRunSync,
-  setSegmentSpeed,
-  updateKick,
-  updatePass,
-  updateRun,
-  updateRunSync,
-  type CommandContext,
-} from './commands'
-import { hitTest, segmentAt } from './hitTest'
 import {
   actionsSelection,
   EMPTY_SELECTION,
@@ -37,25 +10,25 @@ import {
   waypointSelection,
 } from './selection'
 import { shortcutFor, type KeyInput } from './shortcuts'
+import { defaultSettings, engineSettingsOf } from '../model/settings'
+import { createCaches } from '../engine/caches'
+import { windowSchematic } from '../engine/evaluate'
+import type { Id, Play, RunAction } from '../model/types'
+import { P, run, sevenVsSevenWithOptions, uuid } from '../test/builders'
+import { moveWaypoint, setSegmentSpeed, updateRun } from './commands'
+import { hitTest, segmentAt } from './hitTest'
 import { mirrorPlay, translatePlay } from './transform'
 
 const settings = engineSettingsOf(defaultSettings())
-const ctx = (): CommandContext => ({ ids: sequentialIds(700), settings, caches: createCaches() })
-
-function actionOf(play: Play, id: Id): Action {
-  const action = play.phases.flatMap((p) => p.actions).find((a) => a.id === id)
-  if (!action) throw new Error(`no action ${id}`)
-  return action
-}
+const LINE = [P.root, P.optA]
 
 function runOf(play: Play, id: Id): RunAction {
-  const action = actionOf(play, id)
-  if (action.type !== 'run') throw new Error(`not a run ${id}`)
+  const action = play.actions.find((candidate) => candidate.id === id)
+  if (action?.type !== 'run') throw new Error(`not a run ${id}`)
   return action
 }
 
 const RUN_A4 = uuid(200)
-const RUN_A5 = uuid(201)
 
 describe('segment speeds (D-114)', () => {
   it('sets a named pace, a typed speed, or back to the pace of the run', () => {
@@ -112,41 +85,8 @@ describe('typed run pace (D-133)', () => {
     }
     expect(updateRun(play, uuid(999), { pace: 3 })).toBe(play)
     // Another field applies, the invalid pace is ignored.
-    const delayed = updateRun(play, RUN_A4, { pace: 0, delay: 1 })
-    expect(runOf(delayed, RUN_A4)).toMatchObject({ pace: 4.5, delay: 1 })
-  })
-})
-
-describe('run settings (D-106, D-107)', () => {
-  it('sets and clears « Finit lancée »', () => {
-    let play = updateRun(sevenVsSevenWithOptions(), RUN_A4, { endsAtSpeed: true })
-    expect(runOf(play, RUN_A4).endsAtSpeed).toBe(true)
-    play = updateRun(play, RUN_A4, { endsAtSpeed: false })
-    expect('endsAtSpeed' in runOf(play, RUN_A4)).toBe(false)
-  })
-
-  it('makes the imposed duration and the adjusted speed exclusive', () => {
-    const linked = setRunSync(sevenVsSevenWithOptions(), RUN_A5, {
-      target: { actionId: RUN_A4, event: 'runEnd' },
-      adjust: 'speed',
-    })
-    expect(linked.refused).toBeNull()
-    // An imposed duration removes the link with an adjusted speed...
-    const timed = updateRun(linked.play, RUN_A5, { durationOverride: 4 })
-    expect(runOf(timed, RUN_A5)).toMatchObject({ durationOverride: 4 })
-    expect(runOf(timed, RUN_A5).sync).toBeUndefined()
-    // ... but keeps a « Départ différé » link.
-    const delayed = updateRunSync(linked.play, RUN_A5, { adjust: 'delay' })
-    expect(runOf(updateRun(delayed, RUN_A5, { durationOverride: 4 }), RUN_A5).sync).toBeDefined()
-    // An adjusted speed removes the imposed duration.
-    const both = updateRun(delayed, RUN_A5, { durationOverride: 4 })
-    const adjusted = updateRunSync(both, RUN_A5, { adjust: 'speed' })
-    expect(runOf(adjusted, RUN_A5).durationOverride).toBeUndefined()
-    const relinked = setRunSync(both, RUN_A5, {
-      target: { actionId: RUN_A4, event: 'runEnd' },
-      adjust: 'speed',
-    })
-    expect(runOf(relinked.play, RUN_A5).durationOverride).toBeUndefined()
+    const timed = updateRun(play, RUN_A4, { pace: 0, durationOverride: 2 })
+    expect(runOf(timed, RUN_A4)).toMatchObject({ pace: 4.5, durationOverride: 2 })
   })
 
   it('refuses a pace that does not exist', () => {
@@ -155,75 +95,12 @@ describe('run settings (D-106, D-107)', () => {
   })
 })
 
-describe('release laid by the pass and kick tools (D-110, D-119)', () => {
-  it('fixed instant from the carrier at the start, on receipt for a receiver', () => {
-    const play = sevenVsSevenWithOptions()
-    const carrier = addPass(play, P.t1, P.A(4), P.A(3), ctx())
-    expect(actionOf(carrier.play, carrier.actionId ?? '')).toMatchObject({ delay: 0 })
-    expect('release' in actionOf(carrier.play, carrier.actionId ?? '')).toBe(false)
-    const receiver = addKick(play, P.t1, P.A(5), { point: { x: 70, y: 40 } }, ctx())
-    expect(actionOf(receiver.play, receiver.actionId ?? '')).toMatchObject({
-      delay: 0,
-      release: 'onReceipt',
-    })
-    // Without any ball in the phase, on receipt too: it waits for a pass to come.
-    const later = addPass(play, P.t1, P.A(1), P.A(2), ctx())
-    expect(actionOf(later.play, later.actionId ?? '')).toMatchObject({ release: 'onReceipt' })
-  })
-
-  it('fixed instant of the pickup for a player who picks the ball up from the ground', () => {
-    const play = setPiecesPlay()
-    const c = ctx()
-    const obtained = ballObtainedAt(play, P.t1, P.A(4), c.settings, c.caches)
-    expect(obtained).not.toBeNull()
-    const added = addPass(play, P.t1, P.A(4), P.A(2), c)
-    const pass = actionOf(added.play, added.actionId ?? '')
-    expect(pass).toMatchObject({ delay: obtained })
-    expect('release' in pass).toBe(false)
-  })
-
-  it('sets and clears the release mode of a pass and of a kick', () => {
-    let play = updatePass(sevenVsSevenWithOptions(), uuid(202), { release: 'onReceipt' })
-    expect(actionOf(play, uuid(202))).toMatchObject({ release: 'onReceipt' })
-    play = updatePass(play, uuid(202), { release: null })
-    expect('release' in actionOf(play, uuid(202))).toBe(false)
-    const kicked = addKick(play, P.t1, P.A(4), { point: { x: 80, y: 30 } }, ctx())
-    const id = kicked.actionId ?? ''
-    play = updateKick(kicked.play, id, { release: 'onReceipt' })
-    expect(actionOf(play, id)).toMatchObject({ release: 'onReceipt' })
-    play = updateKick(play, id, { release: null })
-    expect('release' in actionOf(play, id)).toBe(false)
-  })
-})
-
-describe('« Finit lancée » laid by the run tool (D-106)', () => {
-  it('flags the run of the previous phase when every option prolongs it', () => {
-    // T2 is the only option after T1: a run of A5 in T2, delay 0, prolongs her run of T1.
-    const added = addRun(sevenVsSevenWithOptions(), P.t2, P.A(5), [{ x: 55, y: 50 }], ctx())
-    expect(runOf(markProlongedRun(added.play, P.t2, P.A(5)), RUN_A5).endsAtSpeed).toBe(true)
-  })
-
-  it('waits for every option, and ignores a run that does not start at once', () => {
-    const play = sevenVsSevenWithOptions()
-    // T3 a has a run of A6, T3 b none: her run of T2 is not prolonged everywhere.
-    expect(markProlongedRun(play, P.t3a, P.A(6))).toBe(play)
-    const both = addRun(play, P.t3b, P.A(6), [{ x: 50, y: 62 }], ctx())
-    expect(runOf(markProlongedRun(both.play, P.t3b, P.A(6)), uuid(210)).endsAtSpeed).toBe(true)
-    const delayed = updateRun(both.play, both.actionId ?? '', { delay: 0.5 })
-    expect(markProlongedRun(delayed, P.t3b, P.A(6))).toBe(delayed)
-    // Root phase, or no run in the previous phase: nothing to flag.
-    expect(markProlongedRun(play, P.t1, P.A(4))).toBe(play)
-    const lone = addRun(play, P.t2, P.A(1), [{ x: 45, y: 5 }], ctx())
-    expect(markProlongedRun(lone.play, P.t2, P.A(1))).toBe(lone.play)
-  })
-})
-
 describe('segment under the pointer and selection (D-114)', () => {
   it('gives the segment of the run line under the pointer', () => {
     const play = sevenVsSevenWithOptions()
-    const schematic = phaseSchematic(play, P.t1, settings, createCaches())
-    const line = schematic?.runs.find((r) => r.actionId === RUN_A4)
-    if (!schematic || !line) throw new Error('no run')
+    const schematic = windowSchematic(play, LINE, 0, settings, createCaches())
+    const line = schematic.runs.find((r) => r.actionId === RUN_A4)
+    if (!line) throw new Error('no run')
     expect(line.segmentEnds).toHaveLength(2)
     const early = line.points[8]
     const late = line.points[line.points.length - 8]
@@ -236,24 +113,18 @@ describe('segment under the pointer and selection (D-114)', () => {
 
   it('counts the segments of a duplicate point (zero length) without shifting the others', () => {
     const play = sevenVsSevenWithOptions()
-    const doubled = {
+    const doubled: Play = {
       ...play,
-      phases: play.phases.map((p) =>
-        p.id === P.t1
-          ? {
-              ...p,
-              actions: [
-                run(uuid(200), P.A(4), [
-                  { x: 44, y: 36 },
-                  { x: 44, y: 36 },
-                  { x: 46, y: 40 },
-                ]),
-              ],
-            }
-          : p,
-      ),
+      actions: [
+        run(uuid(200), P.A(4), [
+          { x: 44, y: 36 },
+          { x: 44, y: 36 },
+          { x: 46, y: 40 },
+        ]),
+      ],
+      sequences: [],
     }
-    const line = phaseSchematic(doubled, P.t1, settings, createCaches())?.runs[0]
+    const line = windowSchematic(doubled, LINE, 0, settings, createCaches()).runs[0]
     if (!line) throw new Error('no run')
     expect(line.segmentEnds[0]).toBe(line.segmentEnds[1])
     const late = line.points[line.points.length - 4]

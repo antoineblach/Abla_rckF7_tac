@@ -43,10 +43,7 @@ export function mapPlayPoints(play: Play, f: (p: Vec2) => Vec2): Play {
       positions,
       ballPosition: play.setup.ballPosition ? f(play.setup.ballPosition) : null,
     },
-    phases: play.phases.map((phase) => ({
-      ...phase,
-      actions: phase.actions.map((action) => mapAction(action, f)),
-    })),
+    actions: play.actions.map((action) => mapAction(action, f)),
   }
 }
 

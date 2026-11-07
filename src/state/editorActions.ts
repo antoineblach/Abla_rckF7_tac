@@ -1,10 +1,10 @@
-// Interactions of the field canvas and keyboard shortcuts (SPEC 6.2, 6.3, D-009, D-010,
-// D-015; lot 3 bis: segments, speed keys, « Caler sur… », D-109, D-114). Positions arrive already
-// converted to metres; the logic is delegated to editor/.
+// Interactions of the field canvas and keyboard shortcuts (SPEC 6.2, 6.3, D-009, D-010, D-015; lot 3
+// bis: segments, speed keys, D-114; frise: the field edits the instant of the cursor, D-141).
+// Positions arrive already converted to metres; the logic is delegated to editor/.
 import { create } from 'zustand'
 import { DRAG_THRESHOLD_PX, NUDGE_STEP, NUDGE_STEP_LARGE } from '../config/defaults'
 import type { Bounds } from '../engine/bounds'
-import { phaseSchematic, type PhaseSchematic } from '../engine/evaluate'
+import { evaluate, lineSchematic, windowSchematic, type WindowSchematic } from '../engine/evaluate'
 import {
   addBreakdown,
   addKick,
@@ -15,12 +15,11 @@ import {
   deletePlayers,
   deleteWaypoint,
   duplicatePlayers,
-  markProlongedRun,
   moveBallPosition,
   moveKickTarget,
   moveSetupPositions,
   moveWaypoint,
-  setRunSync,
+  runAnchor,
   setSegmentSpeed,
   updateRun,
   type CommandContext,
@@ -47,15 +46,12 @@ import {
   type SpaceEvent,
   type SpaceState,
 } from '../editor/spaceKey'
-import { pickRendezVous, syncPickClick, type SyncPick } from '../editor/syncPick'
 import { kickToolClick } from '../editor/tools/kickTool'
 import { passToolClick } from '../editor/tools/passTool'
 import { runToolClick, runToolFinish } from '../editor/tools/runTool'
 import { mirrorPlay } from '../editor/transform'
 import { randomIds } from '../model/ids'
-import { findPhase, rootPhase } from '../model/phaseTree'
 import type { PlacementPreset } from '../model/preset'
-import { phaseIndexAtTime } from '../player/transport'
 import type { Id, Pace, Play, Vec2 } from '../model/types'
 import {
   applyEdit,
@@ -66,30 +62,30 @@ import {
   placementDropsCreation,
   previewGesture,
   redoEdit,
-  selectPhase,
   setNotice,
   setPlacement,
   setSelection,
-  setSyncPick,
   setTool,
   undoEdit,
   useEditorStore,
   validateCreation,
 } from './editorStore'
 import {
-  enterEditMode,
+  currentCursor,
+  pausePlayer,
   playPause,
-  showPhaseInPlayer,
-  timingOf,
+  seekPlayer,
+  showActionInPlayer,
   usePlayerStore,
 } from './playerStore'
+import { drawnInScene } from './overlay'
 import { appCaches, currentEngineSettings } from './settingsStore'
 import { adjustView, type FitTarget } from './viewStore'
 
 export interface InteractionState {
   cursor: Vec2 | null
   selectionBox: Bounds | null
-  /** Action hovered in the list of the phase, haloed on the field (D-113). */
+  /** Action hovered in the list of the line, haloed on the field (D-113). */
   hoveredActionId: Id | null
   /** Space bar: short press plays or pauses, held with a drag pans (D-116). */
   space: SpaceState
@@ -155,41 +151,47 @@ export function commandContext(): CommandContext {
   return { ids: randomIds, settings: currentEngineSettings(), caches: appCaches }
 }
 
-export function currentSchematic(): PhaseSchematic | null {
-  const { play, selectedPhaseId } = useEditorStore.getState()
-  if (!play || !selectedPhaseId) return null
-  return phaseSchematic(play, selectedPhaseId, currentEngineSettings(), appCaches)
+/** The field at the cursor (SPEC 6.3). */
+export function currentSchematic(): WindowSchematic | null {
+  const { play } = useEditorStore.getState()
+  if (!play) return null
+  const { line, t } = currentCursor()
+  return windowSchematic(play, line, t, currentEngineSettings(), appCaches)
 }
 
-function isRootSelected(play: Play, phaseId: Id | null): boolean {
-  return phaseId !== null && findPhase(play, phaseId)?.parentId === null
+/**
+ * Where the hovered action is haloed from (D-173): during playback, what the scene at t has drawn
+ * (SPEC 6.4, D-121); at rest, the whole line, the field showing only the interval at the cursor.
+ */
+export function currentHoverSchematic(): WindowSchematic | null {
+  const { play } = useEditorStore.getState()
+  if (!play) return null
+  const { line, t, playing } = usePlayerStore.getState().transport
+  const settings = currentEngineSettings()
+  const whole = lineSchematic(play, line, settings, appCaches)
+  return playing ? drawnInScene(whole, evaluate(play, line, t, settings, appCaches)) : whole
 }
 
-/** During playback, a click on the field comes back to edit mode on the displayed phase. */
+/** Placements and the ball on the ground move only at t = 0 (SPEC 6.3, D-141). */
+function atStart(): boolean {
+  return currentCursor().t === 0
+}
+
+/** During playback, a click on the field comes back to editing at the cursor, nothing else. */
 function leavePlayback(): boolean {
-  const player = usePlayerStore.getState()
-  if (player.mode !== 'play') return false
-  const play = useEditorStore.getState().play
-  if (play) {
-    const timing = timingOf(play, player.transport.line)
-    const phaseId = timing.phaseIds[phaseIndexAtTime(timing, player.transport.t)]
-    if (phaseId) {
-      selectPhase(phaseId)
-      showPhaseInPlayer(phaseId)
-      return true
-    }
-  }
-  enterEditMode()
+  if (!usePlayerStore.getState().transport.playing) return false
+  pausePlayer()
   return true
 }
 
 /**
- * Click on a row of the list of the actions (D-113): selects the action, on the field and in the
- * inspector; during playback, back to edit mode on the displayed phase first.
+ * Click on a row of the list of the actions (D-113, D-145): selects the action, on the field and in
+ * the inspector, and brings the cursor to it when it is out of its interval; during playback, back
+ * to editing first.
  */
 export function selectListedAction(actionId: Id): void {
   leavePlayback()
-  setSelection(actionsSelection([actionId]))
+  selectShown(actionId)
 }
 
 /** Row of the list under the pointer: its action is haloed on the field (D-113). */
@@ -199,14 +201,10 @@ export function hoverListedAction(actionId: Id | null): void {
   }
 }
 
-function anchorOf(play: Play, phaseId: Id, schematic: PhaseSchematic | null) {
-  return (entityId: Id): Vec2 | undefined => {
-    const existing = findPhase(play, phaseId)?.actions.find(
-      (a) => a.type === 'run' && a.entityId === entityId,
-    )
-    if (existing?.type === 'run') return existing.waypoints[existing.waypoints.length - 1]
-    return schematic?.players.find((p) => p.id === entityId)?.pos
-  }
+/** The action selected alone, its interval shown (SPEC 6.3). */
+function selectShown(actionId: Id): void {
+  setSelection(actionsSelection([actionId]))
+  showActionInPlayer(actionId)
 }
 
 export interface PointerInput {
@@ -218,15 +216,11 @@ export interface PointerInput {
 export function editorPointerDown(input: PointerInput): void {
   if (leavePlayback()) return
   const state = useEditorStore.getState()
-  const { play, selectedPhaseId, tool, snap } = state
-  if (!play || !selectedPhaseId) return
+  const { play, tool, snap } = state
+  if (!play) return
   const pos = maybeSnap(input.pos, snap)
   if (state.placement) {
     placementPointerDown(play, state.placement, pos)
-    return
-  }
-  if (state.syncPick) {
-    syncPickPointerDown(play, state.syncPick, input)
     return
   }
   switch (tool) {
@@ -237,11 +231,8 @@ export function editorPointerDown(input: PointerInput): void {
       return
     }
     case 'run': {
-      const draft = runToolClick(
-        state.runDraft,
-        input.hit,
-        pos,
-        anchorOf(play, selectedPhaseId, currentSchematic()),
+      const draft = runToolClick(state.runDraft, input.hit, pos, (entityId) =>
+        runAnchor(play, currentCursor(), entityId, commandContext()),
       )
       useEditorStore.setState({ runDraft: draft })
       return
@@ -252,7 +243,7 @@ export function editorPointerDown(input: PointerInput): void {
       const commit = result.commit
       if (commit)
         applyEdit(
-          (p) => addPass(p, selectedPhaseId, commit.fromId, commit.toId, commandContext()).play,
+          (p) => addPass(p, currentCursor(), commit.fromId, commit.toId, commandContext()).play,
         )
       return
     }
@@ -263,7 +254,7 @@ export function editorPointerDown(input: PointerInput): void {
       if (commit) {
         const added = addKick(
           play,
-          selectedPhaseId,
+          currentCursor(),
           commit.kickerId,
           commit.target,
           commandContext(),
@@ -271,7 +262,7 @@ export function editorPointerDown(input: PointerInput): void {
         const actionId = added.actionId
         if (actionId !== null) {
           applyEdit(() => added.play)
-          setSelection(actionsSelection([actionId]))
+          selectShown(actionId)
         }
       }
       return
@@ -280,95 +271,36 @@ export function editorPointerDown(input: PointerInput): void {
       // The marker is laid on the carrier; support and relayer are proposed (D-081).
       if (input.hit?.kind !== 'player') return
       const tackledId = input.hit.id
-      const result = addBreakdown(play, selectedPhaseId, tackledId, commandContext())
+      const result = addBreakdown(play, currentCursor(), tackledId, commandContext())
       if (result.refused === 'noBall') setNotice('breakdownNoBall')
       else if (result.refused === 'teammates') setNotice('breakdownTeammates')
       const actionId = result.actionId
       if (actionId !== null) {
         applyEdit(() => result.play)
-        setSelection(actionsSelection([actionId]))
+        selectShown(actionId)
       }
       return
     }
     case 'select':
-      selectPointerDown(play, selectedPhaseId, input, pos)
+      selectPointerDown(play, input, pos)
   }
 }
 
-/**
- * « Caler sur… » of the run selected alone (D-109): waits for the click on the target, the
- * rendez-vous being the selected point of the run, or its end. False when no run is selected.
- */
-export function startSyncPick(): boolean {
-  const { play, selection, readOnly } = useEditorStore.getState()
-  if (!play) return false
-  if (readOnly) {
-    setNotice('readOnly')
-    return false
-  }
-  const [runId] = selection.actions
-  const run = play.phases.flatMap((p) => p.actions).find((a) => a.id === runId)
-  if (selection.actions.length !== 1 || run?.type !== 'run') return false
-  setSyncPick(pickRendezVous(run.id, run.waypoints.length, selection.waypoint))
-  return true
+/** A placement concerns the starting positions: the field shows them (D-096, D-147). */
+function cursorToStart(): void {
+  seekPlayer(0)
 }
 
-export function cancelSyncPick(): void {
-  setSyncPick(null)
-}
-
-const SYNC_REFUSALS = { self: 'syncSelf', cycle: 'syncCycle', invalid: 'syncInvalid' } as const
-
-/** Click during « Caler sur… »: the link is made, or refused with a message (D-109). */
-function syncPickPointerDown(play: Play, pick: SyncPick, input: PointerInput): void {
-  const schematic = currentSchematic()
-  if (!schematic) return
-  const result = syncPickClick(pick, schematic, input.hit, input.pos)
-  if (result.kind === 'none') return
-  if (result.kind === 'self') {
-    setNotice('syncSelf')
-    return
-  }
-  const run = play.phases.flatMap((p) => p.actions).find((a) => a.id === pick.runId)
-  if (run?.type !== 'run') {
-    setSyncPick(null)
-    return
-  }
-  // « Départ différé » by default; a link replaced keeps its setting.
-  const sync = {
-    target: result.target,
-    adjust: run.sync?.adjust ?? ('delay' as const),
-    ...(pick.at === undefined ? {} : { at: pick.at }),
-  }
-  const linked = setRunSync(play, pick.runId, sync)
-  if (linked.refused) {
-    setNotice(SYNC_REFUSALS[linked.refused])
-    return
-  }
-  setSyncPick(null)
-  applyEdit(() => linked.play)
-  setSelection(actionsSelection([pick.runId]))
-}
-
-/** Shows the first phase in edit mode: a placement concerns the starting positions. */
-function showRootPhase(play: Play): void {
-  const root = rootPhase(play)
-  if (!root) return
-  selectPhase(root.id)
-  showPhaseInPlayer(root.id)
-}
-
-/** Starts a placement on the first phase, the selection tool active (D-096). */
+/** Starts a placement at t = 0, the selection tool active (D-096, D-147). */
 export function startPlacement(mode: PlacementMode): void {
   // Another placement drops a new play still waiting for its anchor (D-101).
   if (placementDropsCreation()) {
     setPlacement(null)
     return
   }
-  const play = useEditorStore.getState().play
-  if (!play) return
+  if (!useEditorStore.getState().play) return
   setTool('select')
-  showRootPhase(play)
+  cursorToStart()
   setPlacement(mode)
 }
 
@@ -386,7 +318,7 @@ function placementPointerDown(play: Play, mode: PlacementMode, pos: Vec2): void 
       const created = mode.kind === 'applyPreset' && validateCreation()
       setPlacement(null)
       applyEdit(() => step.play)
-      if (mode.kind === 'applyPreset') showRootPhase(play)
+      if (mode.kind === 'applyPreset') cursorToStart()
       if (created) creationValidated()
       return
     }
@@ -413,7 +345,7 @@ export function flipWholePlay(): void {
   applyEdit(mirrorPlay)
 }
 
-function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Vec2): void {
+function selectPointerDown(play: Play, input: PointerInput, pos: Vec2): void {
   const { selection } = useEditorStore.getState()
   const hit = input.hit
   if (hit?.kind === 'waypoint') {
@@ -436,8 +368,8 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
   }
   if (hit?.kind === 'ball') {
     // The ball on the ground at the start moves like a starting placement (D-009, D-083).
-    if (!isRootSelected(play, phaseId)) {
-      setNotice('inheritedPosition')
+    if (!atStart()) {
+      setNotice('placementAtStart')
       return
     }
     drag = { kind: 'ball', origin: input.pos, started: false }
@@ -449,9 +381,9 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     const next = keep ? selection : selectPlayer(selection, hit.id, input.shift)
     setSelection(next)
     if (!next.players.includes(hit.id)) return
-    if (!isRootSelected(play, phaseId)) {
-      // Positions inherited from a previous phase never move (D-009).
-      setNotice('inheritedPosition')
+    if (!atStart()) {
+      // The position of a player at t comes from her actions (D-009, D-141).
+      setNotice('placementAtStart')
       return
     }
     const grab = play.setup.positions[hit.id]
@@ -463,6 +395,7 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
   if (hit?.kind === 'run' && !input.shift) {
     // A click on the line of a run selects it with the segment under the pointer (D-114).
     setSelection(segmentSelection(hit.actionId, hit.segment))
+    showActionInPlayer(hit.actionId)
     return
   }
   if (
@@ -471,7 +404,9 @@ function selectPointerDown(play: Play, phaseId: Id, input: PointerInput, pos: Ve
     hit?.kind === 'kick' ||
     hit?.kind === 'breakdown'
   ) {
-    setSelection(selectAction(selection, hit.actionId, input.shift))
+    const next = selectAction(selection, hit.actionId, input.shift)
+    setSelection(next)
+    if (next.actions.includes(hit.actionId)) showActionInPlayer(hit.actionId)
     return
   }
   if (!input.shift) setSelection(EMPTY_SELECTION)
@@ -538,15 +473,15 @@ export function editorDoubleClick(): void {
   if (useEditorStore.getState().tool === 'run') finishRun()
 }
 
-/** Removes a waypoint; a link carried by the point goes with it, with a message (D-108). */
+/** Removes a waypoint; an edge glued to it stays at its value, with a message (SPEC 5.8). */
 function removeWaypoint(actionId: Id, index: number): void {
-  let removedLinks = 0
+  let frozen = 0
   applyEdit((p) => {
-    const result = deleteWaypoint(p, actionId, index)
-    removedLinks = result.removedLinks
+    const result = deleteWaypoint(p, actionId, index, commandContext())
+    frozen = result.frozen
     return result.play
   })
-  if (removedLinks > 0) setNotice('syncLinkRemoved')
+  if (frozen > 0) setNotice('edgeFrozen')
 }
 
 /** Right click on a waypoint removes it (SPEC 6.2). */
@@ -557,16 +492,15 @@ export function editorContextMenu(hit: Hit): void {
   }
 }
 
-/** Ends the run tool; « Finit lancée » laid on the run it prolongs, same undo step (D-106). */
+/** Ends the run tool: the run is laid at the cursor, glued to the previous one if it ends there. */
 function finishRun(): void {
-  const { runDraft, selectedPhaseId } = useEditorStore.getState()
+  const { runDraft } = useEditorStore.getState()
   const result = runToolFinish(runDraft)
   useEditorStore.setState({ runDraft: null })
-  if (!result || !selectedPhaseId) return
-  applyEdit((p) => {
-    const added = addRun(p, selectedPhaseId, result.entityId, result.waypoints, commandContext())
-    return markProlongedRun(added.play, selectedPhaseId, result.entityId)
-  })
+  if (!result) return
+  applyEdit(
+    (p) => addRun(p, currentCursor(), result.entityId, result.waypoints, commandContext()).play,
+  )
 }
 
 export function deleteSelection(): void {
@@ -575,7 +509,15 @@ export function deleteSelection(): void {
   if (waypoint) {
     removeWaypoint(waypoint.actionId, waypoint.index)
   } else {
-    applyEdit((p) => deleteActions(deletePlayers(p, selection.players), selection.actions))
+    let frozen = 0
+    applyEdit((p) => {
+      const players = deletePlayers(p, selection.players, commandContext())
+      const actions = deleteActions(players.play, selection.actions, commandContext())
+      frozen = players.frozen + actions.frozen
+      return actions.play
+    })
+    // An edge glued to what was removed stays at its value, with a message (SPEC 5.8).
+    if (frozen > 0) setNotice('edgeFrozen')
   }
   setSelection(EMPTY_SELECTION)
 }
@@ -590,8 +532,7 @@ function applySpeedKey(speed: Pace | null): boolean {
   const segment = selectedSegment(selection)
   if (segment) return applyEdit((p) => setSegmentSpeed(p, segment.actionId, segment.index, speed))
   if (speed === null) return false
-  const runs = play.phases
-    .flatMap((p) => p.actions)
+  const runs = play.actions
     .filter((a) => a.type === 'run' && selection.actions.includes(a.id))
     .map((a) => a.id)
   if (runs.length === 0) return false
@@ -599,12 +540,12 @@ function applySpeedKey(speed: Pace | null): boolean {
 }
 
 function nudge(dx: number, dy: number): void {
-  const { play, selection, selectedPhaseId } = useEditorStore.getState()
+  const { play, selection } = useEditorStore.getState()
   if (!play) return
   const delta = useInteractionStore.getState().screenToField(dx, dy)
   const waypoint = selection.waypoint
   if (waypoint) {
-    const run = play.phases.flatMap((p) => p.actions).find((a) => a.id === waypoint.actionId)
+    const run = play.actions.find((a) => a.id === waypoint.actionId)
     const point = run?.type === 'run' ? run.waypoints[waypoint.index] : undefined
     if (point)
       applyEdit((p) =>
@@ -616,8 +557,8 @@ function nudge(dx: number, dy: number): void {
     return
   }
   if (selection.players.length === 0) return
-  if (!isRootSelected(play, selectedPhaseId)) {
-    setNotice('inheritedPosition')
+  if (!atStart()) {
+    setNotice('placementAtStart')
     return
   }
   applyEdit((p) => moveSetupPositions(p, selection.players, delta))
@@ -679,8 +620,6 @@ export function handleKey(input: KeyInput): boolean {
     case 'cancel':
       cancelGesture()
       drag = null
-      // Ends « Caler sur… » without a link (D-109).
-      if (useEditorStore.getState().syncPick) setSyncPick(null)
       // Ends the placement; a new play still waiting for its anchor is dropped (D-101).
       if (useEditorStore.getState().placement) setPlacement(null)
       useEditorStore.setState({ runDraft: null, passFromId: null, kickFromId: null })

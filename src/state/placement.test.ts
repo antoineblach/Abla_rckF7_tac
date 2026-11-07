@@ -16,17 +16,10 @@ import {
   startPlacement,
   useInteractionStore,
 } from './editorActions'
-import {
-  openPlay,
-  selectPhase,
-  setPlacementOpenSide,
-  setSnap,
-  setTool,
-  useEditorStore,
-} from './editorStore'
+import { openPlay, setPlacementOpenSide, setSnap, setTool, useEditorStore } from './editorStore'
 import { buildOverlay } from './overlay'
 import { currentSchematic } from './editorActions'
-import { usePlayerStore } from './playerStore'
+import { seekPlayer, usePlayerStore } from './playerStore'
 
 const down = (pos: { x: number; y: number }, hit: Hit = null) => {
   editorPointerDown({ pos, hit, shift: false })
@@ -48,15 +41,14 @@ beforeEach(() => {
   openPlay(sevenVsSevenWithOptions(), null, false)
   setTool('select')
   setSnap(false)
-  usePlayerStore.setState({ mode: 'edit' })
   useInteractionStore.setState({ metersPerPx: 0, cursor: null })
 })
 
 describe('applying a preset by its anchor (SPEC 10.1, D-088)', () => {
-  it('lays the preset in one undo step, the first phase selected', () => {
-    selectPhase(P.t2)
+  it('lays the preset in one undo step, the cursor brought back to t = 0 (D-147)', () => {
+    seekPlayer(2)
     startPlacement({ kind: 'applyPreset', preset: lineoutPreset(), openSide: 'auto' })
-    expect(useEditorStore.getState().selectedPhaseId).toBe(P.t1)
+    expect(usePlayerStore.getState().transport.t).toBe(0)
     down({ x: 30.3, y: 2 })
     const play = current()
     expect(useEditorStore.getState().placement).toBeNull()
@@ -67,7 +59,7 @@ describe('applying a preset by its anchor (SPEC 10.1, D-088)', () => {
     expect(placed(play, 'B', 2)).toEqual({ x: 32, y: 2 })
     // Players not in the preset are unchanged.
     expect(placed(play, 'A', 7)).toEqual({ x: 40, y: 65 })
-    expect(useEditorStore.getState().selectedPhaseId).toBe(P.t1)
+    expect(usePlayerStore.getState().transport.t).toBe(0)
     handleKey({ key: 'z', ctrl: true, shift: false, alt: false })
     expect(canonicalJson(current())).toBe(canonicalJson(sevenVsSevenWithOptions()))
   })
@@ -101,6 +93,7 @@ describe('applying a preset by its anchor (SPEC 10.1, D-088)', () => {
     const overlay = buildOverlay({
       play: current(),
       schematic,
+      hoverSchematic: schematic,
       selection: state.selection,
       tool: state.tool,
       runDraft: null,

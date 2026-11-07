@@ -5,7 +5,7 @@ import { evaluate } from '../engine/evaluate'
 import { compileLine } from '../engine/timeline'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
 import type { Play } from '../model/types'
-import { ball, basePlay, pass, phase, player, run, uuid } from '../test/builders'
+import { ball, basePlay, pass, player, ROOT_BRANCH, run, sequence, uuid } from '../test/builders'
 import { compareWithSnapshot, createTestCanvas } from '../test/imageSnapshot'
 import { createRecordingContext } from '../test/recordingCtx'
 import type { Ctx2D } from './ctx2d'
@@ -20,11 +20,10 @@ const settings = engineSettingsOf(defaultSettings())
 const A1 = uuid(1)
 const A2 = uuid(2)
 const B1 = uuid(11)
-const T1 = uuid(100)
-const T2 = uuid(101)
-const LINE = [T1, T2]
+const SECOND = uuid(300)
+const LINE = [ROOT_BRANCH]
 
-/** Simple scene: a run, a pass to a running receiver, a defender; two phases. */
+/** Simple scene: a run, a pass to a running receiver, a defender; a sequence after them. */
 function simpleScene(): Play {
   return basePlay({
     entities: [player(A1, 'A', 1), player(A2, 'A', 2), player(B1, 'B', 1), ball(uuid(20))],
@@ -33,23 +32,30 @@ function simpleScene(): Play {
       ballCarrierId: A1,
       ballPosition: null,
     },
-    phases: [
-      phase(T1, null, [
-        run(uuid(200), A1, [{ x: 48, y: 28 }], { pace: 'jog' }),
-        run(
-          uuid(201),
-          A2,
-          [
-            { x: 43, y: 41 },
-            { x: 47, y: 43 },
-          ],
-          { pace: 'sprint' },
-        ),
-        run(uuid(202), B1, [{ x: 49, y: 34 }], { pace: 'walk' }),
-        pass(uuid(203), A1, A2, 1.2),
-      ]),
-      phase(T2, T1, [run(uuid(210), A2, [{ x: 56, y: 45 }], { pace: 'sprint' })], {
+    actions: [
+      run(uuid(200), A1, [{ x: 48, y: 28 }], { pace: 'jog' }),
+      run(
+        uuid(201),
+        A2,
+        [
+          { x: 43, y: 41 },
+          { x: 47, y: 43 },
+        ],
+        { pace: 'sprint' },
+      ),
+      run(uuid(202), B1, [{ x: 49, y: 34 }], { pace: 'walk' }),
+      pass(uuid(203), A1, A2, 1.2),
+      run(uuid(210), A2, [{ x: 56, y: 45 }], {
+        pace: 'sprint',
+        start: 3,
+        startGlue: { targetId: uuid(201), event: 'end' },
+      }),
+    ],
+    sequences: [
+      sequence(SECOND, 3, 5, {
         instruction: 'Fixer puis passer',
+        startGlue: { targetId: uuid(201), event: 'end' },
+        endGlue: { targetId: uuid(210), event: 'end', keep: 'start' },
       }),
     ],
   })
@@ -72,8 +78,8 @@ function drawScene(
   const compiled = compileLine(play, LINE, settings, caches)
   const bounds = lineBounds(compiled)
   if (!bounds) throw new Error('empty scene')
-  const t2 = compiled.phases[1]
-  const t = ((t2?.start ?? 0) + (t2?.end ?? 0)) / 2
+  const second = compiled.blocks[SECOND]
+  const t = ((second?.start ?? 0) + (second?.end ?? 0)) / 2
   const state = evaluate(play, LINE, t, settings, caches)
   const [widthPx, heightPx] = sizes[orientation]
   const viewport = createViewport({
@@ -104,7 +110,7 @@ describe('render: reference images (SPEC 3.3, 13)', () => {
     }
   }
 
-  it('schematic of a phase, theme screen, landscape', async () => {
+  it('schematic at the start of a sequence, theme screen, landscape', async () => {
     const { canvas, ctx } = createTestCanvas(480, 270)
     const play = simpleScene()
     const viewport = createViewport({
@@ -115,7 +121,8 @@ describe('render: reference images (SPEC 3.3, 13)', () => {
       orientation: 'landscape',
       attackingTeam: 'A',
     })
-    renderSchematic(ctx, play, LINE, T2, viewport, THEMES.screen, settings, createCaches())
+    const start = compileLine(play, LINE, settings, createCaches()).blocks[SECOND]?.start ?? 0
+    renderSchematic(ctx, play, LINE, start, viewport, THEMES.screen, settings, createCaches())
     const result = await compareWithSnapshot(canvas, 'schematic-screen-landscape')
     expect(result.pass, result.message).toBe(true)
   })

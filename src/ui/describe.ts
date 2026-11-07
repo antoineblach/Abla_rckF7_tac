@@ -1,6 +1,6 @@
-// French descriptions of the actions of a phase, shared by the list of the actions and the
-// inspector (SPEC 6.5, 6.7, D-113, D-117): actors, link target and result, release, segment
-// speeds. Pure formatting of model and engine data; speeds in m/s and km/h.
+// French descriptions of the actions of a line, shared by the list of the actions and the inspector
+// (SPEC 6.5, 6.7, D-113, D-117, D-145): actors, glues and their result, release, segment speeds.
+// Pure formatting of model and engine data; speeds in m/s and km/h.
 import type {
   ActionReport,
   KickReport,
@@ -8,18 +8,15 @@ import type {
   RunReport,
   SegmentReport,
 } from '../engine/actionReport'
-import type { RunSyncResult, SpeedLevel } from '../engine/timeline'
-import { BREAKDOWN_KIND_LABELS } from '../model/labels'
-import {
-  isPlayer,
-  type Id,
-  type Play,
-  type RunSync,
-  type SpeedValue,
-  type SyncTarget,
-} from '../model/types'
+import type { CompiledGlue, SpeedLevel } from '../engine/timeline'
+import { findBranch } from '../model/branches'
+import { BREAKDOWN_KIND_LABELS, sequenceLabelOf } from '../model/labels'
+import { isPlayer, type GlueRef, type Id, type Play, type SpeedValue } from '../model/types'
 import { decimal, formatAccel, formatMeters, formatSeconds, formatSpeed } from './format'
 import { PACE_LABELS } from './strings'
+
+/** Below this, a start was not delayed. */
+const DELAY_EPSILON = 1e-6
 
 /** « A 4 »: team and number of a player, or « ? ». */
 export function actorName(play: Play, id: Id): string {
@@ -27,43 +24,39 @@ export function actorName(play: Play, id: Id): string {
   return isPlayer(player) ? `${player.team} ${String(player.number)}` : '?'
 }
 
-function findAction(play: Play, id: Id) {
-  for (const phase of play.phases) {
-    const action = phase.actions.find((a) => a.id === id)
-    if (action) return action
-  }
-  return undefined
-}
-
-/** « fin de la course de A 3 », « arrivée de la passe A 4 → A 5 »... (D-108). */
-export function syncTargetText(play: Play, target: SyncTarget): string {
-  const action = findAction(play, target.actionId)
-  if (!action) return 'action supprimée'
+/** « fin de la course de A 3 », « arrivée de la passe A 4 → A 5 »... (SPEC 5.8). */
+export function glueTargetText(play: Play, glue: Pick<GlueRef, 'targetId' | 'event'>): string {
+  const { targetId, event } = glue
+  const starts = event === 'start'
   const name = (id: Id) => actorName(play, id)
-  switch (action.type) {
-    case 'run':
-      if (target.event === 'runPoint') {
-        return `point ${String(target.index + 1)} de la course de ${name(action.entityId)}`
+  const action = play.actions.find((a) => a.id === targetId)
+  if (action) {
+    switch (action.type) {
+      case 'run':
+        if (typeof event !== 'string') {
+          return `point ${String(event.point + 1)} de la course de ${name(action.entityId)}`
+        }
+        return `${starts ? 'départ' : 'fin'} de la course de ${name(action.entityId)}`
+      case 'pass': {
+        const what = `la passe ${name(action.fromId)} → ${name(action.toId)}`
+        return starts ? `lâcher de ${what}` : `arrivée de ${what}`
       }
-      return `fin de la course de ${name(action.entityId)}`
-    case 'pass': {
-      const what = `la passe ${name(action.fromId)} → ${name(action.toId)}`
-      return target.event === 'release' ? `lâcher de ${what}` : `arrivée de ${what}`
+      case 'kick': {
+        const what = `du jeu au pied de ${name(action.kickerId)}`
+        return starts ? `frappe ${what}` : `réception ${what}`
+      }
+      case 'breakdown': {
+        const what = `du ${BREAKDOWN_KIND_LABELS[action.kind].toLowerCase()} sur ${name(action.tackledId)}`
+        return starts ? `formation ${what}` : `sortie de balle ${what}`
+      }
+      case 'groupRun':
+        return 'action d’un lot ultérieur'
     }
-    case 'kick': {
-      const what = `du jeu au pied de ${name(action.kickerId)}`
-      return target.event === 'release' ? `frappe ${what}` : `réception ${what}`
-    }
-    case 'breakdown':
-      return `formation du ${BREAKDOWN_KIND_LABELS[action.kind].toLowerCase()} sur ${name(action.tackledId)}`
-    case 'groupRun':
-      return 'action d’un lot ultérieur'
   }
-}
-
-/** « Fin », « Point 2 »: rendez-vous point of a link. */
-export function rendezVousText(sync: RunSync): string {
-  return sync.at === undefined ? 'Fin' : `Point ${String(sync.at + 1)}`
+  if (play.sequences.some((s) => s.id === targetId)) {
+    return `${starts ? 'début' : 'fin'} de la séquence « ${sequenceLabelOf(play, targetId)} »`
+  }
+  return findBranch(play, targetId) ? 'embranchement' : 'cible supprimée'
 }
 
 /** « vitesses × 1,25, accélérations × 1,60 »: factors of the levers (D-130). */
@@ -72,26 +65,53 @@ export function factorsText(factor: number, accelFactor: number): string {
   return `vitesses × ${decimal(factor, 2)}${accel}`
 }
 
-/** Result of a link: computed delay, speed factor, or why it does not apply (D-108). */
-export function syncResultText(result: RunSyncResult | null): string {
-  if (!result) return 'Lien ignoré.'
-  if (result.status === 'unreached') return 'Cible jamais atteinte : lien ignoré.'
-  if (result.status === 'beforeStart') return 'Cible avant le départ : arrivée en retard.'
-  const factors = factorsText(result.factor, result.accelFactor)
-  if (result.adjust === 'speed') return `${factors.charAt(0).toUpperCase()}${factors.slice(1)}.`
-  if (result.status === 'late') return `Départ immédiat, course accélérée : ${factors}.`
-  return `Délai calculé : ${formatSeconds(result.delay)}.`
+/** What a glue gives when it does not simply hold, null when it does (SPEC 5.8). */
+export function glueStatusText(glue: CompiledGlue): string | null {
+  switch (glue.status) {
+    case 'ok':
+      return null
+    case 'late':
+      return 'départ à la borne'
+    case 'beforeStart':
+      return 'cible avant le départ, arrivée en retard'
+    case 'unreached':
+      return 'cible jamais atteinte, collage ignoré'
+  }
+}
+
+/** The stored glue of a compiled edge: the event and the gap are not compiled. */
+function storedGlue(play: Play, glue: CompiledGlue): GlueRef | undefined {
+  const owner = play.actions.find((a) => a.id === glue.ownerId)
+  return glue.kind === 'start' ? owner?.startGlue : owner?.endGlue
+}
+
+/** « fin de la course de A 4 + 0,2 s » and the result: what an edge is glued to (SPEC 5.8). */
+export function glueText(play: Play, glue: CompiledGlue): string {
+  const stored = storedGlue(play, glue)
+  if (!stored) return 'cible supprimée'
+  const gap = stored.offset ? ` + ${formatSeconds(stored.offset)}` : ''
+  const status = glueStatusText(glue)
+  return `${glueTargetText(play, stored)}${gap}${status ? ` (${status})` : ''}`
 }
 
 /**
  * « Durée imposée : vitesses × 0,80. »: factors of an imposed duration (D-130), null when they are
- * 1 or when the link gives them (vitesse ajustée, départ différé en retard).
+ * 1 or when a glue gives them: a right edge that applies (SPEC 5.8).
  */
 export function durationFactorsText(run: RunReport): string | null {
-  const { sync } = run
-  if (sync && (sync.adjust === 'speed' || sync.status === 'late')) return null
+  const { endGlue } = run
+  if (endGlue && endGlue.status !== 'unreached') return null
   if (Math.abs(run.factor - 1) < 5e-3 && run.accelFactor <= 1) return null
   return `Durée imposée : ${factorsText(run.factor, run.accelFactor)}.`
+}
+
+/** « Vitesses × 1,12. »: factors given by a right edge glued (solver of SPEC 5.3), null at 1. */
+export function glueFactorsText(run: RunReport): string | null {
+  const { endGlue } = run
+  if (!endGlue || endGlue.status === 'unreached') return null
+  if (Math.abs(run.factor - 1) < 5e-3 && run.accelFactor <= 1) return null
+  const factors = factorsText(run.factor, run.accelFactor)
+  return `${factors.charAt(0).toUpperCase()}${factors.slice(1)}.`
 }
 
 /** « Trot », or « vitesse saisie » for a speed in m/s (D-133). */
@@ -123,28 +143,22 @@ export function segmentLevel(segment: SegmentReport): SpeedLevel | null {
   return levels.includes('warning') ? 'warning' : null
 }
 
-/** « Finit lancée », « Finit lancée : sans effet, attente de 1,2 s avant le temps suivant ». */
+/** « Finit lancée »: the next run of the player is glued to its end, without gap (SPEC 5.2). */
 export function launchText(run: RunReport): string | null {
   if (!run.endsAtSpeed) return null
-  if (run.launchWait !== null) {
-    return `Finit lancée : sans effet, attente de ${formatSeconds(run.launchWait)} avant le temps suivant`
-  }
-  return 'Finit lancée'
+  return run.atSpeed ? 'Finit lancée' : 'Finit lancée : arrêtée par le regroupement'
 }
 
-/** « à un instant fixe (1,2 s) », « à la réception (+ 0,3 s) ». */
-export function releaseModeText(report: PassReport | KickReport, delay: number): string {
-  if (report.releaseMode === 'onReceipt') return `à la réception (+ ${formatSeconds(delay)})`
-  return `à un instant fixe (${formatSeconds(report.plannedT ?? delay)})`
+/** « collé à l’arrivée de la passe A 4 → A 5 + 0,2 s », « à 1,2 s ». */
+export function releaseModeText(play: Play, report: PassReport | KickReport): string {
+  if (report.startGlue) return `collé à ${glueText(play, report.startGlue)}`
+  return `à ${formatSeconds(report.plannedT)}`
 }
 
-/** Real release instant, with the tolerance of a fixed release when it waited (D-110). */
+/** Real release instant, with the tolerance of a release not glued when it waited (D-110). */
 export function releaseRealText(report: PassReport | KickReport): string {
   const real = `Lâcher réel : ${formatSeconds(report.start)}`
-  const waited =
-    report.releaseMode === 'fixed' &&
-    report.plannedT !== null &&
-    report.start > report.plannedT + 1e-6
+  const waited = report.startGlue === null && report.start > report.plannedT + DELAY_EPSILON
   return waited ? `${real} (attend la réception)` : real
 }
 
@@ -176,13 +190,13 @@ export function actionSummary(row: ActionReport): string {
   }
 }
 
+/** The glued right edge of a block, on one line. */
+function endGlueLines(play: Play, row: ActionReport): string[] {
+  return row.endGlue ? [`Fin collée à : ${glueText(play, row.endGlue)}`] : []
+}
+
 /** Every detail of a row (tooltip), one line each (SPEC 6.7). */
-export function actionDetails(
-  play: Play,
-  row: ActionReport,
-  link: { sync: RunSync; delay: number } | null,
-  delay: number,
-): string[] {
+export function actionDetails(play: Play, row: ActionReport): string[] {
   const name = (id: Id) => actorName(play, id)
   const span = `${formatSeconds(row.start)} → ${formatSeconds(row.end)}`
   switch (row.kind) {
@@ -196,16 +210,14 @@ export function actionDetails(
         `Vitesse de pointe : ${formatSpeed(row.peakSpeed)}`,
         ...row.segments.map((segment) => segmentText(segment, row)),
       ]
-      const factors = durationFactorsText(row)
+      const factors = durationFactorsText(row) ?? glueFactorsText(row)
       if (factors) lines.push(factors)
-      if (link) {
-        lines.push(
-          `Calée sur : ${syncTargetText(play, link.sync.target)} (${rendezVousText(link.sync)}) ; ${syncResultText(row.sync)}`,
-        )
-      }
+      if (row.delay > DELAY_EPSILON) lines.push(`Départ retardé de ${formatSeconds(row.delay)}`)
+      if (row.startGlue) lines.push(`Départ collé à : ${glueText(play, row.startGlue)}`)
+      lines.push(...endGlueLines(play, row))
       const launch = launchText(row)
       if (launch) lines.push(launch)
-      if (row.prolongs) lines.push('Part lancée, dans le prolongement du temps précédent')
+      if (row.prolongs) lines.push('Part lancée, dans le prolongement de la course précédente')
       if (row.cutAt !== null)
         lines.push(`Arrêtée par le regroupement à ${formatSeconds(row.cutAt)}`)
       if (!row.applied) lines.push('Course ignorée')
@@ -215,9 +227,10 @@ export function actionDetails(
       return [
         `Passeuse : ${name(row.fromId)}`,
         `Receveuse : ${name(row.toId)}`,
-        `Lâcher : ${releaseModeText(row, delay)}`,
+        `Lâcher : ${releaseModeText(play, row)}`,
         releaseRealText(row),
         `Arrivée : ${formatSeconds(row.end)}`,
+        ...endGlueLines(play, row),
         `Distance : ${formatMeters(row.distance)}`,
         `Temps de vol : ${formatSeconds(row.flight)}`,
         ...(row.forward ? ['En-avant probable'] : []),
@@ -231,8 +244,9 @@ export function actionDetails(
             ? `point (${decimal(row.point?.x ?? 0)} ; ${decimal(row.point?.y ?? 0)})`
             : name(row.receiverId)
         }`,
-        `Lâcher : ${releaseModeText(row, delay)}`,
+        `Lâcher : ${releaseModeText(play, row)}`,
         releaseRealText(row),
+        ...endGlueLines(play, row),
         `Distance : ${formatMeters(row.distance)}`,
         `Temps de vol : ${formatSeconds(row.flight)}`,
         ...(row.applied ? [] : ['Jeu au pied ignoré']),
@@ -242,7 +256,9 @@ export function actionDetails(
         `Type : ${BREAKDOWN_KIND_LABELS[row.breakdownKind]}`,
         `Plaquée : ${name(row.tackledId)}`,
         `Formation : ${formatSeconds(row.start)}`,
+        ...(row.startGlue ? [`Formation collée à : ${glueText(play, row.startGlue)}`] : []),
         `Sortie de balle : ${formatSeconds(row.end)}`,
+        ...endGlueLines(play, row),
         ...(row.applied ? [] : ['Regroupement ignoré']),
       ]
   }

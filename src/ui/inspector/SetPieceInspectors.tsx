@@ -18,7 +18,8 @@ import { commandContext } from '../../state/editorActions'
 import { applyEdit } from '../../state/editorStore'
 import { actionReportOf, kickLanding, playerName, teammatesOf } from '../../state/selectors'
 import { CheckboxField, NumberField, SelectField } from '../common/fields'
-import { ReleaseFields } from './ReleaseFields'
+import { releaseRealText } from '../describe'
+import { BlockFields } from './BlockFields'
 
 const POINT = 'point'
 const fmt = (seconds: number) => `${seconds.toFixed(1).replace('.', ',')} s`
@@ -26,19 +27,19 @@ const fmt = (seconds: number) => `${seconds.toFixed(1).replace('.', ',')} s`
 export function KickInspector({
   play,
   kick,
-  phaseId,
+  line,
   settings,
   disabled,
 }: {
   play: Play
   kick: KickAction
-  phaseId: Id
+  line: readonly Id[]
   settings: Settings
   disabled: boolean
 }) {
   const target = isReceiverTarget(kick.target) ? kick.target.receiverId : POINT
   const receivers = play.entities.filter((e) => isPlayer(e) && e.id !== kick.kickerId)
-  const report = actionReportOf(play, phaseId, kick.id, settings)
+  const report = actionReportOf(play, line, kick.id, settings)
   return (
     <section className="inspector__section" aria-label="Jeu au pied">
       <h3>Jeu au pied de {playerName(play, kick.kickerId)}</h3>
@@ -59,7 +60,7 @@ export function KickInspector({
         ]}
         onChange={(value) => {
           if (value === POINT) {
-            const landing = kickLanding(play, phaseId, kick.id, settings)
+            const landing = kickLanding(play, line, kick.id, settings)
             if (landing) applyEdit((p) => updateKick(p, kick.id, { target: { point: landing } }))
           } else {
             applyEdit((p) => updateKick(p, kick.id, { target: { receiverId: value } }))
@@ -96,14 +97,12 @@ export function KickInspector({
           />
         </>
       )}
-      <ReleaseFields
-        release={kick.release}
-        delay={kick.delay}
-        report={report?.kind === 'kick' ? report : null}
-        disabled={disabled}
-        onRelease={(release) => applyEdit((p) => updateKick(p, kick.id, { release }))}
-        onDelay={(delay) => applyEdit((p) => updateKick(p, kick.id, { delay }))}
-      />
+      <BlockFields play={play} action={kick} report={report} disabled={disabled} />
+      {report?.kind === 'kick' ? (
+        <p className="inspector__info" data-testid="release-real">
+          {releaseRealText(report)}
+        </p>
+      ) : null}
       <CheckboxField
         label="Temps de vol propre"
         checked={kick.flightTime !== undefined}
@@ -136,10 +135,14 @@ export function KickInspector({
 export function BreakdownInspector({
   play,
   breakdown,
+  line,
+  settings,
   disabled,
 }: {
   play: Play
   breakdown: BreakdownAction
+  line: readonly Id[]
+  settings: Settings
   disabled: boolean
 }) {
   const mates = teammatesOf(play, breakdown.tackledId).map((e) => ({
@@ -170,15 +173,11 @@ export function BreakdownInspector({
         options={mates}
         onChange={(relayerId) => applyEdit((p) => updateBreakdown(p, breakdown.id, { relayerId }))}
       />
-      <NumberField
-        label="Formation"
-        unit="s"
-        min={0}
-        max={60}
-        step={0.01}
-        value={Math.round(breakdown.delay * 100) / 100}
+      <BlockFields
+        play={play}
+        action={breakdown}
+        report={actionReportOf(play, line, breakdown.id, settings)}
         disabled={disabled}
-        onCommit={(delay) => applyEdit((p) => updateBreakdown(p, breakdown.id, { delay }))}
       />
       <NumberField
         label="Durée"

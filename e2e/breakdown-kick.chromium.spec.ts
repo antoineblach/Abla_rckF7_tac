@@ -1,22 +1,26 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
-  canvas,
+  canvasImage,
   clickField,
   createSevenVsSeven,
   drawPass,
   drawRun,
   fillCommit,
+  playFrozen,
   save,
+  seekEnd,
+  stableImage,
 } from './support/editorActions'
 import { closeResult, exportFromToolbar, exportResult, readGif, readPdf } from './support/exports'
 import { stubFolderPicker } from './support/folderStub'
 import { listFolder, readFolderBytes, readFolderFile } from './support/opfs'
 
 // Lot 3 in the interface: ruck laid with the G tool (support and relayer proposed, then changed),
-// kick to a point with the J tool, forward pass layer of the player, toolbar width (D-078 to
-// D-085, D-093).
+// kick to a point with the J tool from the relayer at the ball exit, glued to it (D-171), forward
+// pass layer of the player, toolbar width (D-078 to D-085, D-093).
 
 interface StoredAction {
+  id: string
   type: string
   [key: string]: unknown
 }
@@ -24,7 +28,7 @@ interface StoredAction {
 interface StoredPlay {
   schemaVersion: number
   entities: { id: string; kind: string; team?: string; number?: number }[]
-  phases: { actions: StoredAction[] }[]
+  actions: StoredAction[]
 }
 
 const inspector = (page: Page) => page.getByRole('complementary', { name: 'Inspecteur' })
@@ -71,9 +75,9 @@ test('lays a ruck with G and a kick with J, edited in the inspector and saved', 
   await section.getByLabel('Défense au regroupement').selectOption({ label: 'Gratteur' })
   await section.getByLabel('Type').selectOption({ label: 'Maul' })
 
-  // Phase 2: the relayer A2 kicks to a point from the relay position (45, 36).
-  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
-  await expect(page.getByTestId('current-phase')).toContainText('Temps 2')
+  // At the end of the line, the ball exit: the relayer A2 kicks to a point from the relay
+  // position (45, 36).
+  await seekEnd(page)
   await page.keyboard.press('j')
   await clickField(page, 45, 36)
   await clickField(page, 70, 20)
@@ -84,8 +88,8 @@ test('lays a ruck with G and a kick with J, edited in the inspector and saved', 
   await save(page)
 
   const play = await storedPlay(page)
-  expect(play.schemaVersion).toBe(4)
-  const ruck = play.phases[0]?.actions.find((a) => a.type === 'breakdown')
+  expect(play.schemaVersion).toBe(5)
+  const ruck = play.actions.find((a) => a.type === 'breakdown')
   expect(ruck).toMatchObject({
     kind: 'maul',
     tackledId: idOf(play, 'A', 4),
@@ -94,9 +98,17 @@ test('lays a ruck with G and a kick with J, edited in the inspector and saved', 
     duration: 2,
     contest: 'jackal',
   })
-  const kick = play.phases[1]?.actions.find((a) => a.type === 'kick') as
-    { kickerId: string; kind: string; target: { point: { x: number; y: number } } } | undefined
+  const kick = play.actions.find((a) => a.type === 'kick') as
+    | {
+        kickerId: string
+        kind: string
+        target: { point: { x: number; y: number } }
+        startGlue?: unknown
+      }
+    | undefined
   expect(kick?.kickerId).toBe(idOf(play, 'A', 2))
+  // The ball exit of a breakdown the kicker relays counts as a receipt: kick glued to it (D-171).
+  expect(kick?.startGlue).toEqual({ targetId: ruck?.id, event: 'end' })
   expect(kick?.kind).toBe('long')
   expect(kick?.target.point.x).toBeCloseTo(70, 0)
   expect(kick?.target.point.y).toBeCloseTo(20, 0)
@@ -108,20 +120,20 @@ test('lays a ruck with G and a kick with J, edited in the inspector and saved', 
 })
 
 test('the forward pass layer changes the player image and is remembered', async ({ page }) => {
+  await page.clock.install()
+  await page.goto('./')
   await chooseFolder(page)
   await createSevenVsSeven(page, 'Passe en avant')
   // A5 runs ahead, A4 still passes to her at once: forward in the passer frame (SPEC 5.7).
   await drawRun(page, [40, 45], [[52, 45]])
   await drawPass(page, [40, 35], [40, 45])
   await expect(inspector(page).getByText('En-avant probable').first()).toBeVisible()
-  const slider = page.getByRole('slider', { name: 'Curseur temporel' })
-  await slider.focus()
-  await slider.press('End')
-  await expect(canvas(page)).toHaveAttribute('data-mode', 'play')
-  const image = () => canvas(page).evaluate((element) => (element as HTMLCanvasElement).toDataURL())
-  const withBadge = await image()
+  // The editor always shows the badge (D-085): the layer is seen during playback, after the pass.
+  await playFrozen(page, 1500)
+  const withBadge = await stableImage(page)
   await page.getByRole('checkbox', { name: 'En-avant' }).uncheck()
-  await expect.poll(image).not.toBe(withBadge)
+  await expect.poll(() => canvasImage(page)).not.toBe(withBadge)
+  await page.clock.resume()
   await save(page)
   await page.reload()
   await page.getByRole('button', { name: 'Ouvrir Passe en avant' }).click()
@@ -148,9 +160,8 @@ test('exports a GIF and a PDF of a play with a ruck and a kick (SPEC 9, 10.3, 10
   await drawRun(page, [40, 35], [[46, 36]])
   await page.keyboard.press('g')
   await clickField(page, 40, 35)
-  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
-  await expect(page.getByTestId('current-phase')).toContainText('Temps 2')
-  // The relayer A3 kicks from the relay position (45, 36).
+  // At the end of the line, the relayer A3 kicks from the relay position (45, 36).
+  await seekEnd(page)
   await page.keyboard.press('j')
   await clickField(page, 45, 36)
   await clickField(page, 70, 20)
@@ -175,5 +186,4 @@ test('exports a GIF and a PDF of a play with a ruck and a kick (SPEC 9, 10.3, 10
   )
   expect(printed.pages).toBe(1)
   expect(printed.texts[0]).toContain('Export lot 3')
-  expect(printed.texts[0]).toContain('Temps 2')
 })

@@ -4,7 +4,7 @@ import { createCaches } from '../src/engine/caches'
 import { gifTargets, gifTimeline } from '../src/export/gif/timeline'
 import { engineSettingsOf, readSettings, type EngineSettings } from '../src/model/settings'
 import type { Play } from '../src/model/types'
-import { buildScenario, save } from './support/editorActions'
+import { importOptionsScenario } from './support/editorActions'
 import {
   closeResult,
   exportFromToolbar,
@@ -27,8 +27,7 @@ test.beforeEach(async ({ page }) => {
     .getByRole('button', { name: 'Choisir un dossier' })
     .click()
   await expect(page.getByText('Dossier : Rugby7')).toBeVisible()
-  await buildScenario(page, 'Croisée test')
-  await save(page)
+  await importOptionsScenario(page)
 })
 
 async function savedPlay(page: Page): Promise<{ play: Play; settings: EngineSettings }> {

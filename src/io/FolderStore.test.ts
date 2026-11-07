@@ -13,11 +13,6 @@ import { serialize } from './serialize'
 import { SyncLog } from './syncLog'
 
 const NOW = new Date(2026, 9, 14, 15, 30, 5)
-const v0Text = readFileSync(new URL('../test/fixtures/play-v0.json', import.meta.url), 'utf8')
-const v1Text = readFileSync(
-  new URL('../test/fixtures/play-v1-7v7-options.json', import.meta.url),
-  'utf8',
-)
 
 let fs: MemoryFs
 const open = () => FolderStore.open(fs.root, { now: () => NOW, ids: sequentialIds(5000) })
@@ -49,7 +44,7 @@ describe('round trip (SPEC 4.4)', () => {
     expect(fileName).toBe(`croisee-au-centre--${play.id}.combi.json`)
     expect(saved.updatedAt).toBe(NOW.toISOString())
     const text = fs.read(`combinaisons/${fileName}`) ?? ''
-    expect(text.startsWith('{\n  "attackingTeam": "A",')).toBe(true)
+    expect(text.startsWith('{\n  "actions": [')).toBe(true)
     expect(text.endsWith('}\n')).toBe(true)
     const reopened = await open()
     expect(await reopened.get(play.id)).toEqual(saved)
@@ -90,12 +85,12 @@ describe('invalid files (CLAUDE.md rule 9, D-024)', () => {
 
   it('never overwrites a file written by a newer version of the application', async () => {
     const play = sevenVsSevenWithOptions()
-    const future = serialize({ ...play, schemaVersion: 5 })
+    const future = serialize({ ...play, schemaVersion: 6 })
     fs.writeExternal(playPath(play), future)
     const store = await open()
     expect((await store.issues())[0]).toMatchObject({
       kind: 'invalid',
-      error: { code: 'futureVersion', version: 5 },
+      error: { code: 'futureVersion', version: 6 },
     })
     await expect(store.put(play)).rejects.toBeInstanceOf(InvalidStoredFileError)
     expect(fs.read(playPath(play))).toBe(future)
@@ -116,42 +111,6 @@ describe('invalid files (CLAUDE.md rule 9, D-024)', () => {
     const store = await open()
     expect(await store.issues()).toEqual([])
     expect(await store.list()).toEqual([])
-  })
-})
-
-describe('migration on read (SPEC 4.5)', () => {
-  it('reads a version 0 file migrated in memory, file untouched until the next save', async () => {
-    fs.writeExternal(
-      'combinaisons/ancienne-version--00000000-0000-4000-8000-000000009999.combi.json',
-      v0Text,
-    )
-    const store = await open()
-    const play = await store.get('00000000-0000-4000-8000-000000009999')
-    expect(play.schemaVersion).toBe(4)
-    expect(play.attackingTeam).toBe('B')
-    expect(
-      fs.read('combinaisons/ancienne-version--00000000-0000-4000-8000-000000009999.combi.json'),
-    ).toBe(v0Text)
-    // Saving writes the current version in place.
-    await store.put(play, { expected: store.versionOf(play.id) })
-    const written = JSON.parse(
-      fs.read('combinaisons/ancienne-version--00000000-0000-4000-8000-000000009999.combi.json') ??
-        '{}',
-    ) as { schemaVersion: number }
-    expect(written.schemaVersion).toBe(4)
-  })
-
-  it('reads a file of lots 1 and 2 (version 1) unchanged, rewritten in version 4 on save', async () => {
-    const path = playPath(sevenVsSevenWithOptions())
-    fs.writeExternal(path, v1Text)
-    const store = await open()
-    const play = await store.get(sevenVsSevenWithOptions().id)
-    expect(play).toEqual(sevenVsSevenWithOptions())
-    expect(fs.read(path)).toBe(v1Text)
-    await store.put(play, { expected: store.versionOf(play.id) })
-    const written = JSON.parse(fs.read(path) ?? '{}') as Play
-    expect(written.schemaVersion).toBe(4)
-    expect({ ...written, updatedAt: play.updatedAt }).toEqual(play)
   })
 })
 
@@ -405,8 +364,8 @@ describe('Drive gives back an older version written by the page (D-098)', () => 
 })
 
 describe('one content hash everywhere (D-097)', () => {
-  const v2Text = readFileSync(
-    new URL('../test/fixtures/play-v2-lot3.json', import.meta.url),
+  const fixtureText = readFileSync(
+    new URL('../test/fixtures/play-v5-frise.json', import.meta.url),
     'utf8',
   )
   const readBack = (path: string) => {
@@ -416,8 +375,7 @@ describe('one content hash everywhere (D-097)', () => {
   }
 
   it.each([
-    ['fixture v1', v1Text],
-    ['fixture v2', v2Text],
+    ['fixture v5', fixtureText],
     [
       'coordinates that are not integers',
       serialize({

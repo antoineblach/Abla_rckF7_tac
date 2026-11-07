@@ -1,8 +1,8 @@
-// Engine validations (SPEC 5.3, 5.4) over every line of the play. A phase compiles the same way
-// in every line that contains it, so issues are merged without duplicates.
-import { issueKey, type Issue } from '../model/issues'
-import { allLines } from '../model/phaseTree'
+// Engine validations (SPEC 4.3, 5.3, 5.4) over every line of the play. A block of the trunk compiles
+// the same way in every line that contains it, so issues are merged without duplicates.
 import type { EngineSettings } from '../model/settings'
+import { allLines } from '../model/branches'
+import { issueKey, type Issue } from '../model/issues'
 import type { Play } from '../model/types'
 import type { EvalCaches } from './caches'
 import { compileLine } from './timeline'

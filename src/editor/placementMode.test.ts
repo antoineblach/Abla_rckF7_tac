@@ -209,7 +209,7 @@ describe('new play from a preset and thumbnails (D-091, SPEC 10.1)', () => {
     const withBall = createPlayForPreset(true, sequentialIds(), NOW)
     expect(withBall.entities).toEqual([{ id: expect.any(String) as string, kind: 'ball' }])
     expect(withBall.setup).toEqual({ positions: {}, ballCarrierId: null, ballPosition: null })
-    expect(withBall.phases).toHaveLength(1)
+    expect(withBall.branches).toHaveLength(1)
     expect(withBall.name).toBe('Nouvelle combinaison')
     expect(createPlayForPreset(false, sequentialIds(), NOW).entities).toEqual([])
     expect(validatePlay(createPlayForPreset(false, sequentialIds(), NOW))).toEqual([])

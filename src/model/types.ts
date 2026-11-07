@@ -1,6 +1,5 @@
-// Data model, schemaVersion 4 (SPEC 4.1; lot 3: kicks and breakdowns; lot 3 bis: segment speeds,
-// runs ending at speed, synchronisation links, release on receipt; lot 3bis-1: typed run pace,
-// D-133). Units: metres, seconds, m/s.
+// Data model, schemaVersion 5: continuous timeline, branches, sequences and glues between edges
+// (SPEC 4.1, 10.3, 10.4, D-139). Units: metres, seconds, m/s.
 import type {
   AnnotationEntity,
   DefenseSettings,
@@ -69,7 +68,68 @@ export type Entity =
   | ZoneEntity // lot 5
   | AnnotationEntity // lot 5
 
-/** A named pace (settings), or a speed in m/s (lot 3 bis, D-114; run pace since 3bis-1, D-133). */
+/**
+ * Event an edge is glued to (SPEC 5.8). start: start of a run, release, formation, start of a
+ * sequence. end: end of a run, arrival of a pass or a kick, ball out of a breakdown, end of a
+ * sequence, branch point. point: index of a waypoint of a run.
+ */
+export type GlueEvent = 'start' | 'end' | { point: number }
+
+/** Glue of an edge to an event of the same line (SPEC 5.8). */
+export interface GlueRef {
+  /** Action, sequence, or branch that divides (with the event `end`). */
+  targetId: Id
+  event: GlueEvent
+  /** Gap >= 0 after the event, default 0 (« Temps de contrôle » on a pass and a kick). */
+  offset?: number
+}
+
+/** Target moved: the start stays and the duration adapts, or the duration stays and the start follows. */
+export type GlueKeep = 'start' | 'duration'
+
+export interface EndGlue extends GlueRef {
+  keep: GlueKeep
+}
+
+/** Stretch of the timeline between two branch points. */
+export interface Branch {
+  id: Id
+  /** null for the root. */
+  parentId: Id | null
+  /** Present when it divides: absolute instant of its branch point. */
+  branchAt?: number
+  /** Branch point glued to an event of the trunk (SPEC 5.8). */
+  branchAtGlue?: GlueRef
+  /** Empty: computed label « Option A » (D-012). */
+  label: string
+  /** Text of the option, empty for the root. */
+  condition: string
+  isDefault: boolean
+}
+
+/** Common to all actions and to the sequences. A glued edge keeps its last value (SPEC 4.1). */
+export interface Timed {
+  id: Id
+  branchId: Id
+  /** Absolute instant, >= 0: start of a run, release, formation, start of a sequence. */
+  start: number
+  /** Left edge glued. */
+  startGlue?: GlueRef
+  /** Right edge glued. */
+  endGlue?: EndGlue
+}
+
+/** Label and instruction laid on a duration, a block like any other (D-139). */
+export interface Sequence extends Timed {
+  /** Absolute instant of its end. */
+  end: number
+  /** Empty: « Séquence n ». */
+  label: string
+  /** Instruction displayed during the sequence. */
+  instruction: string
+}
+
+/** A named pace (settings), or a speed in m/s (D-114, D-133). */
 export type SpeedValue = Pace | number
 
 /** Speed of a run segment. */
@@ -80,63 +140,23 @@ export interface Waypoint extends Vec2 {
   speed?: SegmentSpeed
 }
 
-/** Event of another action of the same phase that a run is synchronised with (SPEC 5.8). */
-export type SyncTarget =
-  | { actionId: Id; event: 'runEnd' }
-  | { actionId: Id; event: 'runPoint'; index: number }
-  | { actionId: Id; event: 'release' }
-  | { actionId: Id; event: 'arrival' }
-  | { actionId: Id; event: 'formation' }
-
-export type SyncEvent = SyncTarget['event']
-
-export const SYNC_EVENTS: readonly SyncEvent[] = [
-  'runEnd',
-  'runPoint',
-  'release',
-  'arrival',
-  'formation',
-]
-
-/** Synchronisation link of a run (SPEC 5.8, D-108). */
-export interface RunSync {
-  target: SyncTarget
-  /** Waypoint of this run that meets the target (rendez-vous); absent: its end. */
-  at?: number
-  /** « Départ différé » (computed delay) or « Vitesse ajustée » (common speed factor). */
-  adjust: 'delay' | 'speed'
-}
-
-export interface RunAction {
-  id: Id
+export interface RunAction extends Timed {
   type: 'run'
   entityId: Id
   /** Segment i goes from point i - 1 (the start position for i = 0) to point i. */
   waypoints: Waypoint[]
   /** Pace of the run: speed of the segments without their own speed (D-133). */
   pace: SpeedValue
-  /** Imposed duration: every speed scaled by a common factor (D-107). */
+  /** Imposed duration: every speed scaled by a common factor (SPEC 5.3, D-107). */
   durationOverride?: number
-  /** Ignored while a « départ différé » link applies (SPEC 5.8). */
-  delay: number
-  /** « Finit lancée » (SPEC 5.2, D-106). */
-  endsAtSpeed?: true
-  sync?: RunSync
 }
 
-/** Release of a pass or a kick on receipt of the ball, plus the delay (SPEC 5.4, D-110). */
-export type ReleaseMode = 'onReceipt'
-
-export interface PassAction {
-  id: Id
+/** `start` is the release. */
+export interface PassAction extends Timed {
   type: 'pass'
   fromId: Id
   toId: Id
-  /** Fixed release: from the phase start; on receipt: control time after the reception. */
-  delay: number
   ballSpeed?: number
-  /** Absent: release at a fixed instant (D-110). */
-  release?: ReleaseMode
 }
 
 export type KickKind = 'restart' | 'long'
@@ -145,19 +165,14 @@ export const KICK_KINDS: readonly KickKind[] = ['restart', 'long']
 
 export type KickTarget = { receiverId: Id } | { point: Vec2 }
 
-/** Kick (SPEC 10.4): restart, or long kick / switch. */
-export interface KickAction {
-  id: Id
+/** Kick (SPEC 10.4): restart, or long kick / switch. `start` is the release. */
+export interface KickAction extends Timed {
   type: 'kick'
   kickerId: Id
   kind: KickKind
   target: KickTarget
-  /** Fixed release: from the phase start; on receipt: control time after the reception. */
-  delay: number
   /** Default: KICK_FLIGHT_TIME of its kind. */
   flightTime?: number
-  /** Absent: release at a fixed instant (D-110). */
-  release?: ReleaseMode
 }
 
 export type BreakdownKind = 'ruck' | 'maul'
@@ -166,17 +181,14 @@ export const BREAKDOWN_KINDS: readonly BreakdownKind[] = ['ruck', 'maul']
 
 export type BreakdownContest = 'guard' | 'jackal'
 
-/** Ruck or maul (SPEC 10.3). Only `contest` records the defence roles (D-078). */
-export interface BreakdownAction {
-  id: Id
+/** Ruck or maul (SPEC 10.3). `start` is the formation. Only `contest` records the defence roles (D-078). */
+export interface BreakdownAction extends Timed {
   type: 'breakdown'
   kind: BreakdownKind
   /** The carrier who is tackled. */
   tackledId: Id
   supportId: Id
   relayerId: Id
-  /** Formation instant in the phase. */
-  delay: number
   duration: number
   /** Override of the defence setting (lot 4); absent: the setting applies. */
   contest?: BreakdownContest
@@ -188,20 +200,6 @@ export function isReceiverTarget(target: KickTarget): target is { receiverId: Id
 
 export type Action = RunAction | PassAction | KickAction | BreakdownAction | GroupRunAction // lot 5
 
-export interface Phase {
-  id: Id
-  /** null for the root. */
-  parentId: Id | null
-  /** Empty: computed label; non empty: label typed by the user (DECISIONS Q12). */
-  label: string
-  /** Text of the option, empty for the trunk. */
-  condition: string
-  /** Instruction displayed during the phase. */
-  instruction: string
-  isDefault: boolean
-  actions: Action[]
-}
-
 export interface PlaySetup {
   positions: Record<Id, Vec2>
   ballCarrierId: Id | null
@@ -209,7 +207,7 @@ export interface PlaySetup {
 }
 
 export interface Play {
-  schemaVersion: 4
+  schemaVersion: 5
   id: Id
   createdAt: string
   updatedAt: string
@@ -220,7 +218,11 @@ export interface Play {
   field: FieldSettings
   entities: Entity[]
   setup: PlaySetup
-  phases: Phase[]
+  /** At least the root. */
+  branches: Branch[]
+  /** Flat array; its order breaks ties. */
+  actions: Action[]
+  sequences: Sequence[]
   defenseSettings?: DefenseSettings // lot 4
 }
 

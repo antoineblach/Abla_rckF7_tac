@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { expandBounds, lineBounds, unionBounds, type Bounds } from '../../engine/bounds'
 import { createCaches } from '../../engine/caches'
 import { compileLine } from '../../engine/timeline'
-import { allLines } from '../../model/phaseTree'
+import { allLines } from '../../model/branches'
 import {
   defaultSettings,
   engineSettingsOf,
@@ -15,12 +15,8 @@ import { attackDirection, type Play } from '../../model/types'
 import { dressingHeightPx } from '../../render/captions'
 import { DEFAULT_LAYERS } from '../../render/layers'
 import { directionPx, toPx } from '../../render/viewport'
-import {
-  canvasFromPixels,
-  loadOptionsFixture,
-  napiSurface,
-  twoBranchPointsPlay,
-} from '../../test/exportFixtures'
+import { sevenVsSevenWithOptions } from '../../test/builders'
+import { canvasFromPixels, napiSurface, twoBranchPointsPlay } from '../../test/exportFixtures'
 import { composeGif, inspectGif } from '../../test/gifInspect'
 import { compareWithSnapshot } from '../../test/imageSnapshot'
 import { createRecordingContext, paintEvents } from '../../test/recordingCtx'
@@ -35,7 +31,7 @@ import { gifTargets, gifTimeline, type GifTarget } from './timeline'
 const ENCODING_TIMEOUT_MS = 60_000
 
 const settings = engineSettingsOf(defaultSettings())
-const fixture = loadOptionsFixture()
+const fixture = sevenVsSevenWithOptions()
 
 const targetOf = (play: Play, mode: GifLinesMode, index = 0): GifTarget => {
   const target = gifTargets(play, mode)[index]
@@ -145,11 +141,12 @@ describe('GIF layout (SPEC 9.2, D-060, D-061)', { timeout: ENCODING_TIMEOUT_MS }
     }
   })
 
-  it('shows the phase label, the speed badge and the instruction even without the banner layer', () => {
+  it('shows the sequence and the option, the speed badge and the instruction without the banner layer', () => {
     const caches = createCaches()
     const target = targetOf(fixture, 'chained', 0)
     const items = gifTimeline(fixture, target, 'both', 12, settings, caches)
-    const lastSlowB = items.findLastIndex((i) => i.kind === 'scene' && i.speed === 0.5)
+    // The sequence of option B ends a fraction of a millisecond before the line: not its last image.
+    const lastSlowB = items.findLastIndex((i) => i.kind === 'scene' && i.speed === 0.5 && i.t < 8)
     const recording = createRecordingContext()
     const layout = gifLayout(recording.ctx, fixture, target, OPTIONS, settings, caches)
     const item = items[lastSlowB]
@@ -166,9 +163,35 @@ describe('GIF layout (SPEC 9.2, D-060, D-061)', { timeout: ENCODING_TIMEOUT_MS }
     const texts = paintEvents(recording.calls)
       .filter((e) => e.kind === 'fillText')
       .map((e) => e.args[0])
-    expect(texts).toContain('Temps 3, option B')
+    expect(texts).toContain('Séquence 2, option B')
     expect(texts).toContain('Ralenti')
     expect(texts).toContain('Retour intérieur')
+  })
+
+  it('leaves the header empty in the trunk without sequence, the option alone in a gap of an option', () => {
+    const caches = createCaches()
+    const target = targetOf(fixture, 'chained', 0)
+    const headerAt = (play: Play, t: number): unknown => {
+      const recording = createRecordingContext()
+      const layout = gifLayout(recording.ctx, play, target, OPTIONS, settings, caches)
+      const line = target.lines[1] ?? []
+      drawGifItem(
+        recording.ctx,
+        play,
+        { kind: 'scene', line, t, speed: 1, delayCs: 8 },
+        layout,
+        DEFAULT_LAYERS,
+        settings,
+        caches,
+      )
+      // Header text first, then the banner; the badge is drawn before the label.
+      const events = paintEvents(recording.calls).filter((e) => e.kind === 'fillText')
+      return events[events.findIndex((e) => e.args[0] === 'Vitesse réelle') + 1]?.args[0]
+    }
+    expect(headerAt(fixture, 1)).toBe('')
+    const noSequence = { ...fixture, sequences: [] }
+    expect(headerAt(noSequence, 8)).toBe('Option B')
+    expect(headerAt(fixture, 7)).toBe('Séquence 2, option B')
   })
 
   it('makes the light version standard at 8 images/s (D-067)', () => {

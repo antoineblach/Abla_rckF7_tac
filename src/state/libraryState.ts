@@ -23,7 +23,6 @@ export type LibraryDialog =
   | { kind: 'import'; candidate: ImportCandidate; existingUpdatedAt: string }
   | { kind: 'copyBrowserPlays'; count: number; presets: number }
   | { kind: 'confirmDelete'; id: string; name: string }
-  | { kind: 'confirmDeletePhase'; phaseId: string; label: string; descendants: number }
   | { kind: 'newPlay' }
   // Placement presets (lot 3, D-096). `update`: « Mettre à jour », with the version read.
   | { kind: 'savePreset'; update: { entry: PresetEntry; version: VersionToken | null } | null }

@@ -15,6 +15,10 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - Playwright : `fill` refusé sur un curseur hors pas (touche End) ; `selectOption` ne donne pas le focus ; coordonnées de souris arrondies au pixel ; un clic à moins d'un rayon de jeton sélectionne la joueuse (viser plutôt la poignée de fin d'une course courte).
 - `getByLabel` sans `exact` trouve aussi un libellé qui contient le texte (« Curseur de la vitesse du segment » pour « Vitesse du segment ») : libellés distincts, ou `exact: true`.
 - Une liste de `combinaisons/` pendant une écriture contient le `.crswap` de Chrome : filtrer sur `.combi.json`.
+- Calques du lecteur (traces, ligne d'avantage, en-avant, vitesses) : ils ne changent l'image qu'en lecture, l'éditeur dessine toujours en-avant et pastilles ; une pastille de vitesse n'apparaît qu'une fois son segment atteint. Pour comparer des images en lecture : `page.clock.install()` avant le chargement, puis `playFrozen` ; horloge en pause, plus de `requestAnimationFrame` : `stableImage`, jamais `settle`.
+- Inspecteur plus haut que la fenêtre : `scrollIntoViewIfNeeded` avant un glisser à la souris (`boundingBox` donne une position hors écran sans erreur).
+- `git mv -f` vers un fichier existant l'écrase : déplacer d'abord, réécrire ensuite.
+- Sous Windows, arrêter la tâche de fond `npm run preview` laisse `vite preview` écouter sur 4173 : Playwright réutilise ce serveur (`reuseExistingServer`) et teste l'ancienne construction. Arrêter le processus du port 4173, ou reconstruire `dist/`.
 - **OPFS et tests de bout en bout :**
   - une lecture pendant une écriture de la page échoue (`NotReadableError`, puis `NotFoundError` pendant le remplacement) ; `expect.poll` ne réessaie pas sur une erreur : lire avec `.catch(() => null)` ;
   - après « Choisir un dossier », attendre « Dossier : Rugby7 » avant de créer une combinaison (sinon elle part dans IndexedDB) ;
@@ -39,7 +43,10 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 ## Outils de Claude Code
 
 - `prettier --write` reformate les fichiers : relire avant un Edit ou un Write.
+- `npm run format -- <chemins>` reformate tout le dépôt (le script contient déjà `.`), fichiers v4 compris : `npx prettier --write <chemins>`.
+- `test:short` masque `console.log` : pour déboguer, `npx vitest run <filtre>`.
 - L'outil Bash échoue sur les longs heredocs, et une commande qui lit l'entrée standard (`cat > fichier` sans heredoc) bloque : écrire les gros fichiers avec Write ou Edit, les scripts dans un fichier.
+- Grep : un `glob` à accolades dont les éléments contiennent un `/` (`{io,state}/**/*.ts`, `{engine/a,model/b}.ts`) ne trouve rien, sans erreur : faux négatif. Viser le dossier par `path`, ou des accolades sans `/`.
 - Les cases d'un plan sont indentées sous leur bloc (`  - [ ]`) : le motif `^- \[[ x]\]` de `/reprise` n'en trouve aucune ; chercher `^\s*- \[[ x]\]` (corrigé dans le skill).
 
 ## Vitest et images de référence
@@ -47,6 +54,12 @@ Rangés par domaine. Lire la section d'un domaine avant d'y toucher. Un nouveau 
 - Vitest coupe un test à 5 s par défaut ; le runner de la CI encode 2 à 3 fois moins vite que ce poste : les groupes de tests qui encodent réellement ont un délai explicite (`ENCODING_TIMEOUT_MS`).
 - Une compilation coûte plusieurs millisecondes depuis les leviers (D-130 : environ 50 profils par résolution ; combinaison réaliste 3 puis 14 ms) : un test qui évalue à chaque instant garde un cache par ligne, sinon il dépasse 5 s en parallèle.
 - La tolérance des images de référence (0,5 % des pixels) masque un trait épaissi ou une petite dérive : après un changement de rendu, régénérer (`UPDATE_SNAPSHOTS=1`) et comparer à `HEAD` pour voir ce qui a bougé.
+- Vitest 5 : le rapporteur `basic` n'existe plus (`minimal`, ou celui par défaut), et un `console.log` n'apparaît pas pour un test réussi : pour un script jetable, écrire dans un fichier du scratchpad.
+- Point fixe de la passe : la première estimation de l'arrivée (position au lâcher) ne dépasse l'arrivée réelle que si la receveuse court vers le ballon. Un test de lecture en avant doit viser ce cas : une receveuse immobile ne lit rien d'avance, et le test passe sans rien exercer.
+- Vitest 5 : `bench` n'est plus exporté, c'est un élément du contexte d'un test (`test('x', async ({ bench }) => bench.compare(bench('a', fn), bench('b', fn)))`) ; le tableau des résultats n'apparaît qu'avec `--reporter=verbose`, et l'avertissement sur les accès aux exports vaut pour les deux côtés d'une comparaison.
+- Un test de collage qui attend un départ à la borne doit vérifier que la course est vraiment trop longue : marge à calculer, sinon le départ calculé reste après la borne et le test échoue sans défaut du moteur.
+- Test d'une chaîne de courses collées : depuis D-177, le `start` enregistré d'un départ calculé n'entre plus dans la résolution (sauf repli, collage ignoré). Une chaîne rompue passe pourtant sans alerte, et un test peut passer à vide (vitesses nulles des deux côtés) : exiger `launch` non nul et `expectGluesOnTarget` (`src/test/glueChecks.ts`). Pour l'indépendance aux valeurs enregistrées, `withComputedStarts` ; au-delà de la ligne, l'ordre des bords (D-162) peut encore changer un résultat (D-178).
+- Attribuer les profils comptés par `profileCount.test` : `vi.mock('./motion')` n'intercepte que les appels venus d'autres modules ; envelopper `solveRun`, `runMotion` et `relayMotion`. Un relayeur coûte une résolution (54 profils) à chaque position nouvelle du regroupement.
 - Compter une forme dans les événements de dessin (`recordingCtx`) : en N&B, le noir et le blanc des pastilles remplissent aussi jetons, pointes de flèche et rectangles du terrain ; reconnaître la forme par son chemin (sommets), pas par sa couleur seule.
 
 ## Application

@@ -3,9 +3,9 @@
 // whole GIF, so that the field never moves.
 import { GIF_FORMATS, GIF_LIGHT_FPS } from '../../config/defaults'
 import type { EvalCaches } from '../../engine/caches'
-import { evaluate } from '../../engine/evaluate'
-import { phaseLabelOf } from '../../model/labels'
-import { findPhase } from '../../model/phaseTree'
+import { sampleLine } from '../../engine/evaluate'
+import { compileLine } from '../../engine/timeline'
+import { sceneHeaderLabel } from '../../model/labels'
 import type { EngineSettings, ExportOrientation, GifQuality } from '../../model/settings'
 import type { Play } from '../../model/types'
 import { dressingHeightPx, drawCard, drawDressing, smallestTextCss } from '../../render/captions'
@@ -68,13 +68,12 @@ export function gifLayout(
     smallestTextCss(theme),
   )
   const frame = { widthPx: format.width, heightPx: format.height, pixelRatio }
-  const phaseIds = [...new Set(target.lines.flat())]
+  const branchIds = new Set(target.lines.flat())
   const lines = Math.max(
     0,
-    ...phaseIds.map(
-      (id) =>
-        bannerLines(ctx, frame, theme, exportText(findPhase(play, id)?.instruction ?? '')).length,
-    ),
+    ...play.sequences
+      .filter((sequence) => branchIds.has(sequence.branchId))
+      .map((sequence) => bannerLines(ctx, frame, theme, exportText(sequence.instruction)).length),
   )
   const viewport = createViewport({
     widthPx: format.width,
@@ -105,7 +104,9 @@ export function drawGifItem(
     drawCard(ctx, viewport, theme, exportText(item.title), exportText(item.subtitle))
     return
   }
-  const state = evaluate(play, item.line, item.t, settings, caches)
+  const compiled = compileLine(play, item.line, settings, caches)
+  const state = sampleLine(compiled, item.t)
+  const branch = compiled.branches.findLast((candidate) => candidate.start <= state.t)
   // The banner is part of the dressing; the forward pass badge is never exported (D-086).
   // The forward pass and speed badges help the coach only: never exported (D-086, D-112).
   render(ctx, state, viewport, theme, {
@@ -118,7 +119,7 @@ export function drawGifItem(
     ctx,
     viewport,
     theme,
-    exportText(state.phaseId === null ? '' : phaseLabelOf(play, state.phaseId)),
+    exportText(sceneHeaderLabel(play, state.interval?.label ?? '', branch?.id ?? '')),
     item.speed < 1 ? EXPORT_TEXT.slow : EXPORT_TEXT.real,
     exportText(state.instruction),
     layout.bannerLines,

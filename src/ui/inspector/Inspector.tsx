@@ -1,20 +1,15 @@
-import { FIELD_LIMITS, INSTRUCTION_RECOMMENDED_LENGTH } from '../../config/defaults'
+import { FIELD_LIMITS } from '../../config/defaults'
 import {
   addBall,
-  deleteActions,
-  deletePlayers,
   removeBall,
   setBallCarrier,
-  setDefaultOption,
   updateField,
   updatePass,
-  updatePhase,
   updatePlayMeta,
   updatePlayer,
 } from '../../editor/commands'
-import { EMPTY_SELECTION } from '../../editor/selection'
+import { actionsSelection, playersSelection } from '../../editor/selection'
 import type { Issue } from '../../model/issues'
-import { findPhase } from '../../model/phaseTree'
 import { THEME_IDS, type AccelAlertSettings, type Settings } from '../../model/settings'
 import {
   PACES,
@@ -28,30 +23,24 @@ import {
 import {
   adjustViewTo,
   commandContext,
+  deleteSelection,
   flipWholePlay,
   startMovePlay,
 } from '../../state/editorActions'
 import { applyEdit, setSelection, useEditorStore } from '../../state/editorStore'
-import {
-  actionReportOf,
-  findAction,
-  labelParts,
-  phaseDurationAt,
-  playIssues,
-  siblingsOf,
-} from '../../state/selectors'
+import { usePlayerStore } from '../../state/playerStore'
+import { actionReportOf, findAction, playIssues } from '../../state/selectors'
 import { copySyncLog, updateSettings } from '../../state/session'
 import { setPlaySectionCollapsed, usePanelsStore } from '../../state/panelsStore'
 import { useSettingsStore } from '../../state/settingsStore'
 import { useViewStore } from '../../state/viewStore'
 import { CheckboxField, CommitTextField, NumberField, SelectField } from '../common/fields'
 import { formatKmh, kmhToMps, mpsToKmh } from '../format'
-import { CATEGORY_LABELS, issueMessage, PACE_LABELS, phaseLabel, TEXT } from '../strings'
-import { ReleaseFields } from './ReleaseFields'
+import { releaseRealText } from '../describe'
+import { CATEGORY_LABELS, issueMessage, PACE_LABELS, TEXT } from '../strings'
+import { BlockFields } from './BlockFields'
 import { RunInspector } from './RunInspector'
 import { BallAtStart, BreakdownInspector, KickInspector } from './SetPieceInspectors'
-
-const fmt = (seconds: number) => `${seconds.toFixed(1).replace('.', ',')} s`
 
 function IssueList({ issues }: { issues: Issue[] }) {
   if (issues.length === 0) return null
@@ -125,8 +114,8 @@ function PlayerInspector({
         type="button"
         disabled={disabled}
         onClick={() => {
-          applyEdit((p) => deletePlayers(p, [id]))
-          setSelection(EMPTY_SELECTION)
+          setSelection(playersSelection([id]))
+          deleteSelection()
         }}
       >
         Supprimer la joueuse
@@ -139,28 +128,26 @@ function PlayerInspector({
 function PassInspector({
   play,
   pass,
-  phaseId,
+  line,
   settings,
   disabled,
 }: {
   play: Play
   pass: PassAction
-  phaseId: Id
+  line: readonly Id[]
   settings: Settings
   disabled: boolean
 }) {
-  const report = actionReportOf(play, phaseId, pass.id, settings)
+  const report = actionReportOf(play, line, pass.id, settings)
   return (
     <section className="inspector__section" aria-label="Passe">
       <h3>Passe</h3>
-      <ReleaseFields
-        release={pass.release}
-        delay={pass.delay}
-        report={report?.kind === 'pass' ? report : null}
-        disabled={disabled}
-        onRelease={(release) => applyEdit((p) => updatePass(p, pass.id, { release }))}
-        onDelay={(delay) => applyEdit((p) => updatePass(p, pass.id, { delay }))}
-      />
+      <BlockFields play={play} action={pass} report={report} disabled={disabled} />
+      {report?.kind === 'pass' ? (
+        <p className="inspector__info" data-testid="release-real">
+          {releaseRealText(report)}
+        </p>
+      ) : null}
       <CheckboxField
         label="Vitesse de passe propre"
         checked={pass.ballSpeed !== undefined}
@@ -394,62 +381,6 @@ function PlayInspector({ play, disabled }: { play: Play; disabled: boolean }) {
 
 const round = (v: number) => Math.round(v * 10) / 10
 
-function PhaseInspector({
-  play,
-  phaseId,
-  settings,
-  disabled,
-}: {
-  play: Play
-  phaseId: Id
-  settings: Settings
-  disabled: boolean
-}) {
-  const phase = findPhase(play, phaseId)
-  if (!phase) return null
-  const siblings = siblingsOf(play, phaseId)
-  const isOption = phase.parentId !== null && siblings.length >= 2
-  const parts = labelParts(play, phaseId)
-  return (
-    <section className="inspector__section" aria-label="Temps">
-      <h3>{phaseLabel(parts)}</h3>
-      <p className="inspector__info">
-        Durée du temps : {fmt(phaseDurationAt(play, phaseId, settings))}
-      </p>
-      <CommitTextField
-        label="Libellé (vide : calculé)"
-        value={phase.label}
-        disabled={disabled}
-        onCommit={(label) => applyEdit((p) => updatePhase(p, phaseId, { label }))}
-      />
-      {isOption ? (
-        <>
-          <CommitTextField
-            label="Condition de l’option"
-            value={phase.condition}
-            disabled={disabled}
-            onCommit={(condition) => applyEdit((p) => updatePhase(p, phaseId, { condition }))}
-          />
-          <CheckboxField
-            label="Option par défaut"
-            checked={phase.isDefault}
-            disabled={disabled || phase.isDefault}
-            onChange={() => applyEdit((p) => setDefaultOption(p, phaseId))}
-          />
-        </>
-      ) : null}
-      <CommitTextField
-        label="Consigne"
-        multiline
-        value={phase.instruction}
-        maxLengthHint={INSTRUCTION_RECOMMENDED_LENGTH}
-        disabled={disabled}
-        onCommit={(instruction) => applyEdit((p) => updatePhase(p, phaseId, { instruction }))}
-      />
-    </section>
-  )
-}
-
 const MOTION_FIELDS: readonly {
   key: Exclude<keyof Settings['motion'], 'topSpeed'>
   label: string
@@ -626,7 +557,7 @@ function SettingsSection({ settings }: { settings: Settings }) {
 export function Inspector() {
   const play = useEditorStore((s) => s.play)
   const selection = useEditorStore((s) => s.selection)
-  const phaseId = useEditorStore((s) => s.selectedPhaseId)
+  const line = usePlayerStore((s) => s.transport.line)
   const readOnly = useEditorStore((s) => s.readOnly)
   const settings = useSettingsStore((s) => s.settings)
   if (!play) {
@@ -652,36 +583,42 @@ export function Inspector() {
       {single ? (
         <PlayerInspector play={play} id={single} issues={issues} disabled={readOnly} />
       ) : null}
-      {found?.action.type === 'run' ? (
+      {found?.type === 'run' ? (
         <RunInspector
           play={play}
-          run={found.action}
-          phaseId={found.phase.id}
+          run={found}
+          line={line}
           settings={settings}
           selection={selection}
           disabled={readOnly}
         />
       ) : null}
-      {found?.action.type === 'pass' ? (
+      {found?.type === 'pass' ? (
         <PassInspector
           play={play}
-          pass={found.action}
-          phaseId={found.phase.id}
+          pass={found}
+          line={line}
           settings={settings}
           disabled={readOnly}
         />
       ) : null}
-      {found?.action.type === 'kick' ? (
+      {found?.type === 'kick' ? (
         <KickInspector
           play={play}
-          kick={found.action}
-          phaseId={found.phase.id}
+          kick={found}
+          line={line}
           settings={settings}
           disabled={readOnly}
         />
       ) : null}
-      {found?.action.type === 'breakdown' ? (
-        <BreakdownInspector play={play} breakdown={found.action} disabled={readOnly} />
+      {found?.type === 'breakdown' ? (
+        <BreakdownInspector
+          play={play}
+          breakdown={found}
+          line={line}
+          settings={settings}
+          disabled={readOnly}
+        />
       ) : null}
       {found ? (
         <>
@@ -689,21 +626,16 @@ export function Inspector() {
             type="button"
             disabled={readOnly}
             onClick={() => {
-              applyEdit((p) => deleteActions(p, [found.action.id]))
-              setSelection(EMPTY_SELECTION)
+              setSelection(actionsSelection([found.id]))
+              deleteSelection()
             }}
           >
             Supprimer l’action
           </button>
           <IssueList
-            issues={issues.filter(
-              (i) => i.target.kind === 'action' && i.target.id === found.action.id,
-            )}
+            issues={issues.filter((i) => i.target.kind === 'action' && i.target.id === found.id)}
           />
         </>
-      ) : null}
-      {phaseId ? (
-        <PhaseInspector play={play} phaseId={phaseId} settings={settings} disabled={readOnly} />
       ) : null}
       <section className="inspector__section" aria-label="Alertes de la combinaison">
         <h3>Alertes</h3>

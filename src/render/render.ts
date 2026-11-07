@@ -311,7 +311,7 @@ export function drawRunParts(
 
 function drawTraces(ctx: Ctx2D, viewport: Viewport, theme: Theme, state: SceneState): void {
   const tokenRadius = sizePx(viewport, theme.tokenRadius)
-  // Previous phases first (faded), then the current phase (emphasised) on top.
+  // Earlier intervals first (faded), then the current interval (emphasised) on top.
   for (const current of [false, true]) {
     for (const trace of state.traces.filter((tr) => tr.current === current)) {
       const base = runColor(theme, colorOf(state.players, trace.entityId))

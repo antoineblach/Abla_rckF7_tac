@@ -3,7 +3,8 @@
 import { describe, expect, it } from 'vitest'
 import { defaultSettings, engineSettingsOf } from '../../model/settings'
 import { DEFAULT_LAYERS } from '../../render/layers'
-import { bookPlays, loadOptionsFixture } from '../../test/exportFixtures'
+import { sevenVsSevenWithOptions } from '../../test/builders'
+import { bookPlays } from '../../test/exportFixtures'
 import { createInlineEngine, runJobDirectly } from '../../test/inlineEngine'
 import type { ExportJob } from '../jobs'
 import type { ExportProgress } from '../types'
@@ -13,7 +14,7 @@ import { isFromWorker, isToWorker } from './protocol'
 const ENCODING_TIMEOUT_MS = 60_000
 
 const settings = engineSettingsOf(defaultSettings())
-const fixture = loadOptionsFixture()
+const fixture = sevenVsSevenWithOptions()
 
 const GIF_JOB: ExportJob = {
   kind: 'gif',

@@ -1,34 +1,32 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
   canvas,
+  canvasImage,
   clickField,
   createSevenVsSeven,
   drawPass,
   drawRun,
   fieldToClient,
-  fillCommit,
+  playFrozen,
   save,
-  selectPhase,
   shakyClickField,
+  stableImage,
 } from './support/editorActions'
 import { stubFolderPicker } from './support/folderStub'
 import { listFolder, readFolderFile } from './support/opfs'
 
 // Wiring of the interface (lot 1 acceptance, automated per D-054): every control reaches the play
-// written in the folder, or the preferences of the computer.
+// written in the folder, or the preferences of the computer. Options, sequences and their
+// instruction come back with their creation, in frise-2 (D-142, D-148).
 
 interface StoredPlay {
   category: string
   attackingTeam: string
   entities: { id: string; kind: string; team?: string; number?: number }[]
   setup: { positions: Record<string, { x: number; y: number }>; ballCarrierId: string | null }
-  phases: {
-    id: string
-    parentId: string | null
-    isDefault: boolean
-    instruction: string
-    actions: { type: string; entityId?: string; pace?: string; waypoints?: unknown[] }[]
-  }[]
+  schemaVersion: number
+  branches: unknown[]
+  actions: { type: string; entityId?: string; pace?: string; waypoints?: unknown[] }[]
 }
 
 const inspector = (page: Page) => page.getByRole('complementary', { name: 'Inspecteur' })
@@ -62,9 +60,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('./')
 })
 
-test('toolbar, inspector, keyboard and phase tree edit the play written in the folder', async ({
-  page,
-}) => {
+test('toolbar, inspector and keyboard edit the play written in the folder', async ({ page }) => {
   await chooseFolder(page)
   await createSevenVsSeven(page, 'Interface')
   const panel = inspector(page)
@@ -131,21 +127,6 @@ test('toolbar, inspector, keyboard and phase tree edit the play written in the f
   await drawPass(page, [40, 25], [50, 25])
   await expect(panel.getByText('Passe vers l’autre équipe.').first()).toBeVisible()
 
-  // Phases: two more, an option made default, a phase inserted after phase 1, long instruction.
-  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
-  await page.getByRole('button', { name: 'Ajouter un temps' }).click()
-  await page.getByRole('button', { name: 'Créer une option à partir d’ici' }).click()
-  await panel.getByLabel('Option par défaut').check()
-  await selectPhase(page, 'Temps 1')
-  await page.getByRole('button', { name: 'Insérer un temps après' }).click()
-  await expect(page.getByTestId('current-phase')).toContainText('Temps 2')
-  await expect(
-    page.getByRole('region', { name: 'Arbre des temps' }).getByText('Temps 4, option B'),
-  ).toBeVisible()
-  await fillCommit(page, 'Consigne', 'x'.repeat(61))
-  await expect(panel.getByText('61 caractères : au-delà de 60')).toBeVisible()
-  await expect(panel.getByText(/^Consigne longue \(61 caractères/)).toBeVisible()
-
   // Automatic save, without Ctrl+S.
   await expect(page.getByTestId('save-status')).toHaveText('Enregistré', { timeout: 10_000 })
   const play = await storedPlay(page)
@@ -158,38 +139,33 @@ test('toolbar, inspector, keyboard and phase tree edit the play written in the f
   expect(id('A', 2)).toBe('')
   expect(play.setup.ballCarrierId).toBe(id('A', 3))
   expect(play.entities.filter((e) => e.kind === 'ball')).toHaveLength(1)
-  const run = play.phases
-    .flatMap((p) => p.actions)
-    .find((a) => a.type === 'run' && a.entityId === id('A', 5))
+  expect(play.schemaVersion).toBe(5)
+  expect(play.branches).toHaveLength(1)
+  const run = play.actions.find((a) => a.type === 'run' && a.entityId === id('A', 5))
   expect(run?.waypoints).toHaveLength(3)
   expect(run?.pace).toBe('sprint')
-  expect(play.phases).toHaveLength(5)
-  const options = play.phases.filter((p) => p.parentId !== null && !p.actions.length)
-  expect(options.some((p) => p.isDefault)).toBe(true)
-  expect(play.phases.some((p) => p.instruction === 'x'.repeat(61))).toBe(true)
 })
 
 test('player controls are remembered by the computer; layers change the image', async ({
   page,
 }) => {
+  await page.clock.install()
+  await page.goto('./')
   await chooseFolder(page)
   await createSevenVsSeven(page, 'Lecteur')
-  const slider = page.getByRole('slider', { name: 'Curseur temporel' })
   await drawRun(page, [40, 35], [[46, 38]])
-  await slider.focus()
-  await slider.press('End')
-  await expect(canvas(page)).toHaveAttribute('data-mode', 'play')
-  const image = () => canvas(page).evaluate((element) => (element as HTMLCanvasElement).toDataURL())
-  const withGainLine = await image()
+  // The layers change the image of the player, during playback.
+  await playFrozen(page, 1000)
+  const withGainLine = await stableImage(page)
   await page.getByLabel('Ligne d’avantage').uncheck()
-  await expect.poll(image).not.toBe(withGainLine)
-  const withoutGainLine = await image()
+  await expect.poll(() => canvasImage(page)).not.toBe(withGainLine)
+  const withoutGainLine = await stableImage(page)
   await page.getByLabel('Traces').uncheck()
-  await expect.poll(image).not.toBe(withoutGainLine)
+  await expect.poll(() => canvasImage(page)).not.toBe(withoutGainLine)
+  await page.clock.resume()
 
   await page.getByRole('checkbox', { name: 'Consigne' }).uncheck()
   await page.getByLabel('Boucle').check()
-  await page.getByLabel('Pause entre les temps').check()
   await page.getByLabel('S’arrêter aux options').uncheck()
   await page.getByRole('combobox', { name: 'Vitesse' }).selectOption('2')
   const orientation = page.getByRole('combobox', { name: 'Orientation' })
@@ -209,7 +185,6 @@ test('player controls are remembered by the computer; layers change the image', 
   await expect(page.getByLabel('Traces')).not.toBeChecked()
   await expect(page.getByRole('checkbox', { name: 'Consigne' })).not.toBeChecked()
   await expect(page.getByLabel('Boucle')).toBeChecked()
-  await expect(page.getByLabel('Pause entre les temps')).toBeChecked()
   await expect(page.getByLabel('S’arrêter aux options')).not.toBeChecked()
   await expect(page.getByRole('combobox', { name: 'Vitesse' })).toHaveValue('2')
   await expect(page.getByRole('combobox', { name: 'Orientation' })).toHaveValue('portrait')

@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
+import { defaultSettings, engineSettingsOf, type GifLinesMode } from '../../model/settings'
 import { createCaches } from '../../engine/caches'
 import { compileLine } from '../../engine/timeline'
-import { allLines } from '../../model/phaseTree'
-import { defaultSettings, engineSettingsOf, type GifLinesMode } from '../../model/settings'
+import { allLines } from '../../model/branches'
 import type { Play } from '../../model/types'
-import { basePlay, uuid } from '../../test/builders'
-import { loadOptionsFixture, twoBranchPointsPlay } from '../../test/exportFixtures'
+import {
+  basePlay,
+  branch,
+  P,
+  player,
+  run,
+  sevenVsSevenWithOptions,
+  uuid,
+} from '../../test/builders'
+import { TWO_POINTS, twoBranchPointsPlay } from '../../test/exportFixtures'
 import { paletteSample } from './encode'
 import {
   frameDelaysCs,
@@ -18,8 +26,7 @@ import {
 } from './timeline'
 
 const settings = engineSettingsOf(defaultSettings())
-const fixture = loadOptionsFixture()
-const [, , T3A, T3B] = fixture.phases.map((p) => p.id) as [string, string, string, string]
+const fixture = sevenVsSevenWithOptions()
 
 const cards = (items: GifItem[]) =>
   items.filter((i): i is Extract<GifItem, { kind: 'card' }> => i.kind === 'card')
@@ -40,7 +47,7 @@ describe('GIF plan (SPEC 9.2, D-058, D-059)', () => {
     const [lineA, lineB] = allLines(fixture) as [string[], string[]]
     const compiledA = compileLine(fixture, lineA, settings, caches)
     const compiledB = compileLine(fixture, lineB, settings, caches)
-    const resumeB = compiledB.phases[2]?.start ?? 0
+    const resumeB = compiledB.branches[1]?.start ?? 0
     expect(resumeB).toBeGreaterThan(0)
     // Each segment: ⌈D·f/s⌉ + 1 images; one option card per pass; title and speed cards.
     const pass = (s: number) =>
@@ -87,18 +94,18 @@ describe('GIF plan (SPEC 9.2, D-058, D-059)', () => {
       }
       expect(items[items.length - 1]?.delayCs).toBe(200)
       // Within a segment, the delays add up to the exact duration of its images.
-      let run: number[] = []
+      let segment: number[] = []
       const segments: number[][] = []
       for (const item of items) {
-        if (item.kind === 'scene') run.push(item.delayCs)
-        else if (run.length > 0) {
-          segments.push(run)
-          run = []
+        if (item.kind === 'scene') segment.push(item.delayCs)
+        else if (segment.length > 0) {
+          segments.push(segment)
+          segment = []
         }
       }
-      segments.push(run)
-      for (const segment of segments) {
-        const moving = segment.slice(0, -1)
+      segments.push(segment)
+      for (const images of segments) {
+        const moving = images.slice(0, -1)
         expect(moving.reduce((a, b) => a + b, 0)).toBe(Math.round((moving.length * 100) / fps))
         for (const d of moving) expect([Math.floor(100 / fps), Math.ceil(100 / fps)]).toContain(d)
       }
@@ -115,7 +122,7 @@ describe('GIF plan (SPEC 9.2, D-058, D-059)', () => {
     expect(segmentSteps(0, 12, 1)).toBe(0)
   })
 
-  it('resumes each option at the branch point where it leaves the previous line (D-058)', () => {
+  it('resumes each option at the instant of the branch point where it leaves the previous line', () => {
     const caches = createCaches()
     const items = gifTimeline(
       fixture,
@@ -129,27 +136,52 @@ describe('GIF plan (SPEC 9.2, D-058, D-059)', () => {
     const resumed = items[card + 1]
     const lineB = allLines(fixture)[1] ?? []
     expect(resumed).toMatchObject({ kind: 'scene', line: lineB })
-    expect(resumed?.kind === 'scene' ? resumed.t : -1).toBeCloseTo(
-      compileLine(fixture, lineB, settings, caches).phases[2]?.start ?? -1,
-      9,
-    )
-    expect(lineB).toContain(T3B)
-    expect(allLines(fixture)[0]).toContain(T3A)
+    const compiledB = compileLine(fixture, lineB, settings, caches)
+    expect(sceneT(resumed)).toBeCloseTo(compiledB.branches[0]?.branchAt ?? -1, 9)
+    expect(lineB).toContain(P.optB)
+    expect(allLines(fixture)[0]).toContain(P.optA)
 
     const play = twoBranchPointsPlay()
     const two = gifTimeline(play, targetOf(play, 'chained', 0), 'real', 12, settings, caches)
     const optionCards = two.flatMap((item, i) =>
       item.kind === 'card' && item.card === 'option' ? [i] : [],
     )
+    // Without the prefix « À 4,5 s, » until frise-4.
     expect(optionCards.map((i) => (two[i]?.kind === 'card' ? two[i].title : ''))).toEqual([
-      'Temps 3, option B : Montée',
-      'Temps 2, option B : Serré',
+      'Option B : Montée',
+      'Option B : Serré',
     ])
-    // Each phase is a 4 m jog: the options resume at the end of phase 2, then of phase 1.
-    const step = compileLine(play, [play.phases[0]?.id ?? ''], settings, caches).duration
+    const deep = compileLine(
+      play,
+      [TWO_POINTS.root, TWO_POINTS.large, TWO_POINTS.deep],
+      settings,
+      caches,
+    )
     const resumedAt = optionCards.map((i) => sceneT(two[i + 1]))
-    expect(resumedAt[0]).toBeCloseTo(2 * step, 9)
-    expect(resumedAt[1]).toBeCloseTo(step, 9)
+    expect(resumedAt[0]).toBeCloseTo(deep.branches[1]?.branchAt ?? -1, 9)
+    expect(resumedAt[1]).toBeCloseTo(deep.branches[0]?.branchAt ?? -1, 9)
+  })
+
+  it('bounds the resumption by the duration of the option (D-153)', () => {
+    const a1 = uuid(1)
+    const play = basePlay({
+      name: 'Option vide',
+      entities: [player(a1, 'A', 1)],
+      setup: { positions: { [a1]: { x: 40, y: 35 } }, ballCarrierId: null, ballPosition: null },
+      branches: [
+        branch(P.root, null, { branchAt: 50 }),
+        branch(P.optA, P.root, { isDefault: true }),
+        branch(P.optB, P.root),
+      ],
+      actions: [run(uuid(200), a1, [{ x: 44, y: 35 }])],
+    })
+    const caches = createCaches()
+    const duration = compileLine(play, [P.root, P.optB], settings, caches).duration
+    const items = gifTimeline(play, targetOf(play, 'chained', 0), 'real', 12, settings, caches)
+    const card = items.findIndex((i) => i.kind === 'card' && i.card === 'option')
+    // A single image after the card: the end of the line, held.
+    expect(items.slice(card + 1).map(sceneT)).toEqual([duration])
+    expect(items.at(-1)?.delayCs).toBe(200)
   })
 
   it('plays the slow speed only or the real speed only, without a speed card', () => {
@@ -191,7 +223,7 @@ describe('GIF plan (SPEC 9.2, D-058, D-059)', () => {
       createCaches(),
     )
     expect(deep[0]?.kind === 'card' ? deep[0].subtitle : '').toBe(
-      'Temps 2, option A : Large ; Temps 3, option B : Montée',
+      'Option A : Large ; Option B : Montée',
     )
   })
 

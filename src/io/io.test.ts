@@ -119,7 +119,7 @@ describe('import and export (SPEC 4.4, 8.4, 8.7)', () => {
   })
 
   it('imports the valid plays of a pack and reports the invalid ones', () => {
-    const text = JSON.stringify([sevenVsSevenWithOptions(), { schemaVersion: 1 }])
+    const text = JSON.stringify([sevenVsSevenWithOptions(), { schemaVersion: 5 }])
     const result = parseImportText(text)
     expect(result.plays).toHaveLength(1)
     expect(result.failures).toEqual([
@@ -153,7 +153,7 @@ describe('conflicts (SPEC 8.4)', () => {
     const copy = keepBothCopy(play, uuid(5), NOW)
     expect(copy.id).toBe(uuid(5))
     expect(copy.name).toBe('Croisée au centre (copie)')
-    expect(copy.phases).toEqual(play.phases)
+    expect(copy.actions).toEqual(play.actions)
   })
 
   it('reloads silently a content never written by the page without local change, asks otherwise', () => {
@@ -182,8 +182,8 @@ describe('draft (SPEC 3.5, D-025)', () => {
     expect(await loadDraft(kv)).toBeNull()
     await saveDraft(kv, { ...play, notes: 'brouillon' })
     const draft = await loadDraft(kv)
-    expect(draft?.notes).toBe('brouillon')
-    if (!draft) return
+    if (!draft || draft === 'obsolete') throw new Error('no draft')
+    expect(draft.notes).toBe('brouillon')
     expect(draftDiffers(draft, play)).toBe(true)
     expect(draftDiffers({ ...play, updatedAt: 'x' }, play)).toBe(false)
     expect(draftDiffers(draft, null)).toBe(true)

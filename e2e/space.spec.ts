@@ -6,8 +6,6 @@ import { createSevenVsSeven, drawRun, fieldState, fieldToClient } from './suppor
 // in a text field; ignored on the time slider.
 
 const playButton = (page: Page) => page.getByTitle('Lecture / pause (L)')
-const phaseNodes = (page: Page) =>
-  page.getByRole('region', { name: 'Arbre des temps' }).locator('.phase-node')
 
 async function playWithARun(page: Page, name: string): Promise<void> {
   await page.goto('./')
@@ -48,14 +46,14 @@ test('never activates the focused button, checkbox or summary; typed in a field;
   page,
 }) => {
   await playWithARun(page, 'Focus')
-  // Focused button: playback toggles, the button is not clicked.
-  const add = page.getByRole('button', { name: 'Ajouter un temps' })
-  await add.focus()
+  // Focused button: playback toggles, the button is not clicked (it would open a dialog).
+  const create = page.getByRole('button', { name: 'Nouvelle combinaison' }).first()
+  await create.focus()
   await page.keyboard.press('Space')
   await expect(playButton(page)).toHaveText('Pause')
   await page.keyboard.press('Space')
   await expect(playButton(page)).toHaveText('Lecture')
-  await expect(phaseNodes(page)).toHaveCount(1)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
 
   // Focused checkbox: not ticked.
   const loop = page.getByLabel('Boucle', { exact: true })

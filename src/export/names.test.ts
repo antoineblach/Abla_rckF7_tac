@@ -1,10 +1,9 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { GIF_FORMATS, LEGIBILITY } from '../config/defaults'
-import { allLines } from '../model/phaseTree'
+import { allLines } from '../model/branches'
 import type { ExportOrientation, GifQuality, GifSpeedMode } from '../model/settings'
 import type { Play } from '../model/types'
-import { basePlay, phase, uuid } from '../test/builders'
+import { basePlay, branch, sevenVsSevenWithOptions, uuid } from '../test/builders'
 import { legiblePixelRatio, minTextSize, phoneScreenWidthMm } from './legibility'
 import {
   gifFileName,
@@ -16,20 +15,18 @@ import {
 } from './names'
 import { exportText } from './text'
 
-const fixture = JSON.parse(
-  readFileSync(new URL('../test/fixtures/play-v1-7v7-options.json', import.meta.url), 'utf8'),
-) as Play
+const fixture = sevenVsSevenWithOptions()
 
-/** Two branch points: options A and B at phase 2, then options A and B at phase 3 under 2A. */
+/** Two branch points: options A and B, then options A and B under the first A. */
 function twoBranchPoints(): Play {
   return basePlay({
     name: 'Double option',
-    phases: [
-      phase(uuid(1), null, []),
-      phase(uuid(2), uuid(1), [], { isDefault: true, condition: 'Large' }),
-      phase(uuid(3), uuid(1), [], { condition: 'Serré' }),
-      phase(uuid(4), uuid(2), [], { isDefault: true }),
-      phase(uuid(5), uuid(2), [], { condition: 'Montée' }),
+    branches: [
+      branch(uuid(1), null, { branchAt: 1 }),
+      branch(uuid(2), uuid(1), { isDefault: true, condition: 'Large', branchAt: 2 }),
+      branch(uuid(3), uuid(1), { condition: 'Serré' }),
+      branch(uuid(4), uuid(2), { isDefault: true }),
+      branch(uuid(5), uuid(2), { condition: 'Montée' }),
     ],
   })
 }

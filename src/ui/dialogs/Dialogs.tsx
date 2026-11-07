@@ -1,6 +1,4 @@
-import { deletePhase } from '../../editor/commands'
 import { PRESET_TYPE_LABELS } from '../../model/labels'
-import { applyEdit, selectPhase, useEditorStore } from '../../state/editorStore'
 import {
   closeDialog,
   sortedPresets,
@@ -77,34 +75,6 @@ function DialogView({ dialog }: { dialog: LibraryDialog }) {
               }}
             >
               Déplacer dans la corbeille
-            </button>
-            <button type="button" onClick={close}>
-              Annuler
-            </button>
-          </div>
-        </Modal>
-      )
-    case 'confirmDeletePhase':
-      return (
-        <Modal title="Supprimer le temps" onClose={close}>
-          <p>
-            Supprimer « {dialog.label} »
-            {dialog.descendants > 0 ? ` et ses ${dialog.descendants} temps suivants` : ''} ? Ctrl+Z
-            annule.
-          </p>
-          <div className="modal__actions">
-            <button
-              type="button"
-              className="button--danger"
-              onClick={() => {
-                close()
-                const play = useEditorStore.getState().play
-                const parentId = play?.phases.find((p) => p.id === dialog.phaseId)?.parentId ?? null
-                applyEdit((p) => deletePhase(p, dialog.phaseId))
-                if (parentId) selectPhase(parentId)
-              }}
-            >
-              Supprimer
             </button>
             <button type="button" onClick={close}>
               Annuler

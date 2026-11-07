@@ -1,6 +1,7 @@
-// Builds the editor overlay (selection, handles, previews, links, hover) from the editor state.
+// Builds the editor overlay (selection, handles, previews, glue lines, hover) from the editor state.
 import type { Bounds } from '../engine/bounds'
-import type { PhaseSchematic } from '../engine/evaluate'
+import type { SchematicRun, WindowSchematic } from '../engine/evaluate'
+import type { SceneState } from '../engine/sceneState'
 import { placementPreview, type PlacementMode } from '../editor/placementMode'
 import type { Selection } from '../editor/selection'
 import { runToolPreview, type RunDraft } from '../editor/tools/runTool'
@@ -15,7 +16,10 @@ import {
 
 export interface OverlayInput {
   play: Play
-  schematic: PhaseSchematic
+  /** The field at the cursor. */
+  schematic: WindowSchematic
+  /** Where the hovered action is haloed from: `currentHoverSchematic` (D-173). */
+  hoverSchematic: WindowSchematic
   selection: Selection
   tool: ToolId
   runDraft: RunDraft | null
@@ -24,12 +28,12 @@ export interface OverlayInput {
   placement: PlacementMode | null
   cursor: Vec2 | null
   selectionBox: Bounds | null
-  /** Action hovered in the list of the phase (D-113). */
+  /** Action hovered in the list (D-113, D-145). */
   hoveredActionId: Id | null
 }
 
-/** Curves and points of an action of the displayed phase, haloed when hovered in the list. */
-function hoverOf(schematic: PhaseSchematic, actionId: Id | null): OverlayHover | null {
+/** Curves and points of an action of the line, haloed when hovered in the list. */
+function hoverOf(schematic: WindowSchematic, actionId: Id | null): OverlayHover | null {
   if (actionId === null) return null
   const paths: Vec2[][] = [
     ...[...schematic.runs, ...schematic.relays]
@@ -42,20 +46,50 @@ function hoverOf(schematic: PhaseSchematic, actionId: Id | null): OverlayHover |
   return paths.length > 0 || points.length > 0 ? { paths, points } : null
 }
 
-/** Links drawn when the linked run or its target is selected (D-108); unreached targets skipped. */
-function linksOf(schematic: PhaseSchematic, selection: Selection): OverlayLink[] {
-  const links: OverlayLink[] = []
-  for (const link of schematic.syncLinks) {
-    const shown =
-      selection.actions.includes(link.actionId) || selection.actions.includes(link.targetActionId)
-    if (shown && link.to) links.push({ from: link.from, to: link.to })
+/** Glue lines of the window, when the glued block or its target is selected (SPEC 5.8). */
+function glueLinksOf(schematic: WindowSchematic, selection: Selection): OverlayLink[] {
+  return schematic.glueLinks.flatMap(({ ownerId, targetId, from, to }) =>
+    to && (selection.actions.includes(ownerId) || selection.actions.includes(targetId))
+      ? [{ from, to }]
+      : [],
+  )
+}
+
+/**
+ * A whole line reduced to what the scene at t has drawn (SPEC 6.4, D-121, D-173): the actions still
+ * to come are absent, those under way stop where they are, the earlier ones drawn in grey remain.
+ */
+export function drawnInScene(whole: WindowSchematic, scene: SceneState): WindowSchematic {
+  const drawnRun = (run: SchematicRun): SchematicRun[] => {
+    const trace = scene.traces.find(
+      (tr) => tr.actionId === run.actionId && tr.entityId === run.entityId,
+    )
+    return trace ? [{ ...run, points: trace.points, ignoredPoints: [] }] : []
   }
-  return links
+  return {
+    ...whole,
+    runs: whole.runs.flatMap(drawnRun),
+    relays: whole.relays.flatMap(drawnRun),
+    passes: whole.passes.flatMap((pass) => {
+      const trace = scene.passTraces.find((tr) => tr.actionId === pass.actionId)
+      return trace ? [{ ...pass, to: trace.to }] : []
+    }),
+    kicks: whole.kicks.flatMap((kick) => {
+      const trace = scene.kickTraces.find((tr) => tr.actionId === kick.actionId)
+      return trace ? [{ ...kick, to: trace.to }] : []
+    }),
+    breakdowns: whole.breakdowns.filter((b) =>
+      scene.breakdowns.some((drawn) => drawn.actionId === b.actionId),
+    ),
+  }
 }
 
 /** Only the halo of the action hovered in the list, over the scene during playback (D-113). */
-export function hoverOverlay(schematic: PhaseSchematic, hoveredActionId: Id | null): EditorOverlay {
-  return { ...EMPTY_OVERLAY, hover: hoverOf(schematic, hoveredActionId) }
+export function hoverOverlay(
+  hoverSchematic: WindowSchematic,
+  hoveredActionId: Id | null,
+): EditorOverlay {
+  return { ...EMPTY_OVERLAY, hover: hoverOf(hoverSchematic, hoveredActionId) }
 }
 
 export function buildOverlay(input: OverlayInput): EditorOverlay {
@@ -66,13 +100,21 @@ export function buildOverlay(input: OverlayInput): EditorOverlay {
     .map((p) => p.pos)
   // A selected breakdown is ringed like a selected player (lot 3).
   selectedPlayers.push(
-    ...schematic.breakdowns.filter((b) => selected(b.actionId)).map((b) => b.pos),
+    ...[...schematic.breakdowns, ...schematic.earlierBreakdowns]
+      .filter((b) => selected(b.actionId))
+      .map((b) => b.pos),
   )
+  // With Shift, a selection can hold an action of an earlier interval, drawn in grey.
   const selectedPaths: Vec2[][] = [
-    ...schematic.runs.filter((r) => selected(r.actionId)).map((r) => r.points),
-    ...schematic.relays.filter((r) => selected(r.actionId)).map((r) => r.points),
-    ...schematic.passes.filter((p) => selected(p.actionId)).map((p) => [p.from, p.to]),
-    ...schematic.kicks.filter((k) => selected(k.actionId)).map((k) => [k.from, k.to]),
+    ...[...schematic.runs, ...schematic.relays, ...schematic.earlierRuns]
+      .filter((r) => selected(r.actionId))
+      .map((r) => r.points),
+    ...[...schematic.passes, ...schematic.earlierPasses]
+      .filter((p) => selected(p.actionId))
+      .map((p) => [p.from, p.to]),
+    ...[...schematic.kicks, ...schematic.earlierKicks]
+      .filter((k) => selected(k.actionId))
+      .map((k) => [k.from, k.to]),
   ]
   if (input.placement) {
     // A placement shows its ghost tokens and its anchor, nothing of the tools (D-096).
@@ -85,7 +127,7 @@ export function buildOverlay(input: OverlayInput): EditorOverlay {
       preview: placed.path,
       ghosts: placed.ghosts.map((g) => ({ pos: g.pos, team: g.team, label: String(g.number) })),
       anchor: placed.anchor,
-      syncLinks: [],
+      glueLinks: [],
       hover: null,
     }
   }
@@ -112,7 +154,7 @@ export function buildOverlay(input: OverlayInput): EditorOverlay {
     preview,
     ghosts: [],
     anchor: null,
-    syncLinks: linksOf(schematic, selection),
-    hover: hoverOf(schematic, input.hoveredActionId),
+    glueLinks: glueLinksOf(schematic, selection),
+    hover: hoverOf(input.hoverSchematic, input.hoveredActionId),
   }
 }

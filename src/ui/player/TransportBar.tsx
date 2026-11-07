@@ -1,26 +1,29 @@
 import type { RefObject } from 'react'
-import { childrenOf, isBranchPoint } from '../../model/phaseTree'
-import { PLAYBACK_SPEEDS, phaseIndexAtTime, type PlaybackSpeed } from '../../player/transport'
+import { childrenOf } from '../../model/branches'
+import { optionTitle } from '../../model/labels'
+import type { Id, Play } from '../../model/types'
+import { hasPassedBranchPoint, PLAYBACK_SPEEDS, type PlaybackSpeed } from '../../player/transport'
 import { ORIENTATIONS, type Orientation } from '../../render/viewport'
 import { adjustViewTo } from '../../state/editorActions'
 import { useEditorStore } from '../../state/editorStore'
 import {
   backToBranchPointInPlayer,
   chooseOptionInPlayer,
-  nextPhaseInPlayer,
+  nextEdgeInPlayer,
   playPause,
-  previousPhaseInPlayer,
+  previousEdgeInPlayer,
   seekPlayer,
   setLayer,
   setOrientation,
   setSpeed,
   setTransportFlag,
+  showLineInPlayer,
   timingOf,
   usePlayerStore,
 } from '../../state/playerStore'
-import { labelParts } from '../../state/selectors'
+import { intervalLabelAt, lineChoices } from '../../state/selectors'
+import { useSettingsStore } from '../../state/settingsStore'
 import { CheckboxField } from '../common/fields'
-import { phaseLabel } from '../strings'
 
 const ORIENTATION_LABELS: Record<Orientation, string> = {
   landscape: 'Paysage',
@@ -38,22 +41,45 @@ export function OptionChooser() {
   return (
     <div className="option-chooser" role="group" aria-label="Point d’option">
       <span>Point d’option :</span>
-      {options.map((option) => {
-        const parts = labelParts(play, option.id)
-        return (
-          <button
-            key={option.id}
-            type="button"
-            className="button--primary"
-            onClick={() => {
-              chooseOptionInPlayer(option.id)
-            }}
-          >
-            Option {parts.option ?? ''} : {option.condition || phaseLabel(parts)}
-          </button>
-        )
-      })}
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          className="button--primary"
+          onClick={() => {
+            chooseOptionInPlayer(option.id)
+          }}
+        >
+          {optionTitle(play, option.id)}
+        </button>
+      ))}
     </div>
+  )
+}
+
+/** Liste « Ligne » (D-142): the line read, shown and edited, hidden when there is only one. */
+function LineChooser({ play, line }: { play: Play; line: readonly Id[] }) {
+  const choices = lineChoices(play)
+  if (choices.length < 2) return null
+  const shown = line.join()
+  return (
+    <label>
+      Ligne{' '}
+      <select
+        aria-label="Ligne"
+        value={String(choices.findIndex((choice) => choice.line.join() === shown))}
+        onChange={(e) => {
+          const choice = choices[Number(e.target.value)]
+          if (choice) showLineInPlayer(choice.line)
+        }}
+      >
+        {choices.map((choice, index) => (
+          <option key={choice.line.join()} value={String(index)}>
+            {choice.label}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -62,25 +88,15 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
   const transport = usePlayerStore((s) => s.transport)
   const layers = usePlayerStore((s) => s.layers)
   const orientation = usePlayerStore((s) => s.orientation)
-  const mode = usePlayerStore((s) => s.mode)
-  const selectedPhaseId = useEditorStore((s) => s.selectedPhaseId)
+  const settings = useSettingsStore((s) => s.settings)
   if (!play) return null
   const timing = timingOf(play, transport.line)
-  const index = phaseIndexAtTime(timing, transport.t)
-  // In edit mode, the phase being edited (empty phases share their start instant with others).
-  const currentId = mode === 'edit' && selectedPhaseId ? selectedPhaseId : timing.phaseIds[index]
-  const passedBranch = timing.phaseIds.some(
-    (id, i) =>
-      i < timing.phaseIds.length - 1 &&
-      isBranchPoint(play, id) &&
-      (timing.ends[i] ?? 0) <= transport.t,
-  )
 
   return (
     <div className="transport" aria-label="Lecture">
       <div className="transport__main">
-        <button type="button" onClick={previousPhaseInPlayer} title="Temps précédent">
-          Temps précédent
+        <button type="button" onClick={previousEdgeInPlayer} title="Bord de bloc précédent">
+          Bord précédent
         </button>
         <button
           type="button"
@@ -90,8 +106,8 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
         >
           {transport.playing ? 'Pause' : 'Lecture'}
         </button>
-        <button type="button" onClick={nextPhaseInPlayer} title="Temps suivant">
-          Temps suivant
+        <button type="button" onClick={nextEdgeInPlayer} title="Bord de bloc suivant">
+          Bord suivant
         </button>
         <input
           type="range"
@@ -108,11 +124,11 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
         <span className="transport__time" data-testid="transport-time">
           {fmt(transport.t)} / {fmt(timing.duration)}
         </span>
-        <span className="transport__phase" role="status" data-testid="current-phase">
-          {currentId ? phaseLabel(labelParts(play, currentId)) : ''}
-          {mode === 'edit' ? ' (édition)' : ''}
+        <LineChooser play={play} line={transport.line} />
+        <span className="transport__interval" role="status" data-testid="current-interval">
+          {intervalLabelAt(play, transport.line, transport.t, settings)}
         </span>
-        {passedBranch && mode === 'play' ? (
+        {hasPassedBranchPoint(timing, transport.t) && !transport.waitingAt ? (
           <button type="button" onClick={backToBranchPointInPlayer}>
             Revenir au point d’option
           </button>
@@ -187,13 +203,6 @@ export function TransportBar({ stageRef }: { stageRef: RefObject<HTMLElement | n
           checked={transport.loop}
           onChange={(v) => {
             setTransportFlag('loop', v)
-          }}
-        />
-        <CheckboxField
-          label="Pause entre les temps"
-          checked={transport.pauseBetweenPhases}
-          onChange={(v) => {
-            setTransportFlag('pauseBetweenPhases', v)
           }}
         />
         <CheckboxField

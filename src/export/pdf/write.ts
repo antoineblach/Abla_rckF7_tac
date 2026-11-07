@@ -6,7 +6,7 @@ import type { Bounds } from '../../engine/bounds'
 import type { EvalCaches } from '../../engine/caches'
 import { canonicalJson, hashString } from '../../model/canonical'
 import { CATEGORY_LABELS } from '../../model/labels'
-import { allLines } from '../../model/phaseTree'
+import { allLines } from '../../model/branches'
 import type { EngineSettings, PdfLayout } from '../../model/settings'
 import type { Play } from '../../model/types'
 import { THEMES, type Theme } from '../../render/themes'
@@ -78,7 +78,7 @@ export function* writePdf(
       const play = spec.plays[item.play]
       const frame = spec.frames[item.play]
       if (!play || !frame) continue
-      drawThumbnail(ctx, play, item.phaseId, item, frame, spec.theme, mmPerPx, settings, caches)
+      drawThumbnail(ctx, play, item.line, item, frame, spec.theme, mmPerPx, settings, caches)
       doc.setDrawColor(THUMB_FRAME_COLOR)
       doc.setLineWidth(0.2)
       doc.setLineDashPattern([], 0)

@@ -5,7 +5,7 @@ import { expectedFileNames, type ExportJob } from '../export/jobs'
 import type { ExportFile, ExportProgress, GifOptions } from '../export/types'
 import { defaultSettings, engineSettingsOf } from '../model/settings'
 import { DEFAULT_LAYERS } from '../render/layers'
-import { loadOptionsFixture } from '../test/exportFixtures'
+import { sevenVsSevenWithOptions } from '../test/builders'
 import { createInlineEngine } from '../test/inlineEngine'
 import { createMemoryFs, type MemoryFs } from '../test/memoryFs'
 import { runExport, type ExistingDecision, type ExportRunDeps } from './exportRun'
@@ -18,7 +18,7 @@ const ENCODING_TIMEOUT_MS = 60_000
 const NOW = new Date(2026, 9, 15, 21, 30, 5)
 const STAMP = '2026-10-15_21-30-05'
 const settings = engineSettingsOf(defaultSettings())
-const fixture = loadOptionsFixture()
+const fixture = sevenVsSevenWithOptions()
 
 const GIF_OPTIONS: GifOptions = {
   orientation: 'portrait',
@@ -283,7 +283,7 @@ describe('export run (SPEC 9.1, D-065)', { timeout: ENCODING_TIMEOUT_MS }, () =>
   })
 
   it('reports an engine error without writing', async () => {
-    const job = { ...GIF_JOB, play: { ...fixture, phases: 'broken' } } as unknown as ExportJob
+    const job = { ...GIF_JOB, play: { ...fixture, actions: 'broken' } } as unknown as ExportJob
     const before = fs.writeCount
     const result = await runExport(job, deps())
     expect(result.kind).toBe('error')
