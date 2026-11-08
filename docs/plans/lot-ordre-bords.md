@@ -70,7 +70,7 @@ Lecture : SPEC 5.8 (Résolution et « Limites assumées » seulement, Grep `Rés
 3. Prototype de B, avec un drapeau qui coupe la lecture de l'instant (donne A). Pour R0, A et B : cas 1 à 7, `npm run test:short` (tests en échec), profils sur la scène réaliste et la fixture, bench ; ordre exposé par `compiledGlues`.
 4. Si B rate le cas 6 ou le cas 7 : variante proposée, prototypée et mesurée de la même façon.
 5. **Arrêt** : tableau R0, A, B (et variante) sur les cas 1 à 7, profils, bench, ordre exposé par `compiledGlues`, couverture de la seconde moitié de la première limite ; recommandation ; choix de l'utilisateur.
-6. Après la réponse : D-182 (règle, mesures, remplace la partie (1) de D-178, précise D-162 et D-177 ; plafonds relevés s'il y a lieu, mesurés et justifiés) ; SPEC 5.8, Résolution et « Limites assumées » (seconde limite retirée ou réduite à ce qui reste, mesure à l'appui ; première limite précisée si la règle couvre sa seconde moitié) ; `docs/spec/README.md` 1.12 (version, décisions intégrées, ligne de `05-moteur.md`) ; mesures ci-dessous, section « Sonde » ; prototype en `git stash`. `/fin-etape 1`.
+6. Après la réponse : D-182 (règle, mesures, remplace la partie (1) de D-178, précise D-162 et D-177 ; plafonds relevés s'il y a lieu, mesurés et justifiés) ; D-181 intégrée à 5.8 avec D-182 (sa règle d'égalité entre deux blocs absents en conflit est une règle durable de la Résolution) : statut « 5.8 » dans l'index, citée dans les décisions intégrées de la SPEC 1.12 ; si la règle retenue change l'égalité, D-181 est « remplacée en partie par D-182 » (précision de l'utilisateur du 08/11) ; SPEC 5.8, Résolution et « Limites assumées » (seconde limite retirée ou réduite à ce qui reste, mesure à l'appui ; première limite précisée si la règle couvre sa seconde moitié) ; `docs/spec/README.md` 1.12 (version, décisions intégrées, ligne de `05-moteur.md`) ; mesures ci-dessous, section « Sonde » ; prototype en `git stash`. `/fin-etape 1`.
 
 ### Étape 2 : moteur et tests
 
@@ -105,7 +105,48 @@ Règle retenue, réécrite proprement : `syncGraph.ts` (et `glue.ts` si B ou sa 
 
 ## Sonde
 
-À remplir à l'étape 1.
+Mesures du 08/11 (étape 1), avant le choix. Sortie complète : `probe.txt` du scratchpad de la session, non gardée.
+
+**Référence avant toute modification** : bench 12,5 et 11,9 ms (une ligne, glisser) ; profils 443 et 560.
+
+**Prototype** (non commité) : `syncGraph.ts`, chaînes et ordre des nœuds selon la règle, ordonnanceur ; `glue.ts`, boucle de `visit` tirée de l'ordonnanceur pour B et V, ordre réel exposé par `PlayResolution` et lu par `compiledGlues` ; règle choisie par `ORDER_RULE`. Sonde : `src/engine/orderProbe.test.ts`, `orderProbeCount.test.ts`.
+
+**Règles mesurées**
+- A : un bloc absent passe en tête de ses chaînes et de la liste des nœuds, après ce dont il dépend ; entre blocs absents, ordre du tableau.
+- B : un bloc absent reçoit son instant (cible + `offset`) dès que ses dépendances dures sont faites ; cible non atteinte à cette lecture : rangé en dernier. Cet instant range aussi les nœuds prêts hors chaîne ; à égalité, `start` enregistré.
+- V, variante (D-180, point 4) : B pour un bord gauche ; un bloc qui glisse passe après les blocs de sa chaîne qui finissent au plus tard à l'instant de sa cible, lus sur la simulation courante (la « course précédente » de 5.8, étendue aux événements de ballon), et avant les autres ; un bloc qui n'a pas lieu dans cette simulation (passe ou jeu au pied non appliqué) ne passe jamais avant lui ; entre deux blocs qui glissent, l'instant de la cible, puis le `start` enregistré (Q3). Égalité « au plus tard », comme 5.8, et non « le bloc qui glisse d'abord » de l'exemple : aucun cas mesuré ne les distingue.
+
+**Cas** (✓ : (a) et (b) tenus à la pose, à 0 et au-delà, valeur juste)
+
+| Cas | R0 | A | B | V |
+|---|---|---|---|---|
+| 1, R2 courte : départ de O, fin réelle de R3 14,672 | 15,709 | ✓ | ✓ | ✓ |
+| 1, R2 longue, R3 retardée : 16,623 | 15,709 | ✓ | ✓ | ✓ |
+| 2, O collée à l'arrivée de la passe | ✓ | ✓ | ✓ | ✓ |
+| 2v, O collée au lâcher | poursuite rangée à 40 s : « cible jamais atteinte » | ✓ | ✓ | ✓ |
+| 3, fixture, arrivée du jeu au pied de B1 : 24,373 | au-delà : 24,859 | ✓ | dès la pose : 24,859 | ✓ |
+| 4a, `start` inversés | ✗ | ✓ | ✓ | ✓ |
+| 4b, `start` et tableau inversés | ✗ | ✗ | ✓ | ✓ |
+| 4c, tableau inversé | ✗ | ✗ | ✓ | ✓ |
+| 5, S entre E1 et E2 étirées | ✗ (b) | S arrive à 14,807 au lieu de 12, deux « départ retardé » | ✓ | ✓ |
+| 6a, F libre à la fin de S (O à 0, −3, −4,5 s) | ✗ | ✓ | ✓ | ✓ |
+| 6a''', O collée 8 s avant la fin de F | ✗ | ✓ | ✗ | ✓ |
+| 6b, passes | « cible jamais atteinte » | ✓ | ✓ | ✓ |
+| 7a, 7c, 7d (O à 0, −4, −7 s) | ✗ | ✓ | ✓ | ✓ |
+| 7e, O collée 10,5 s avant la fin de F | ✗ | ✓ | 11,480 au lieu de 7,705 | ✓ |
+| 7b, F courte | ✓ | ✓ | ✓ | ✓ |
+
+- B ne tient 6a et 7a à écart nul que par l'ordre des nœuds hors chaîne ; un écart qui range O avant S le fait échouer, comme prévu. Sur la fixture, il range la passe 22c, qui glisse, par son arrivée (≈ 16,49 s) contre le lâcher enregistré du jeu au pied (16 s) : le jeu au pied passe d'abord, sans ballon.
+- 7b : sans S, F finit (11,586) avant la cible de S ; elle est donc sa course précédente (5.8), S part à sa fin, en retard avec alerte, sans « départ retardé » de F. Le cas 7 du plan (F retardée) suppose une F qui finit après la cible : 7a.
+- Cas 1 : le plan inversait les valeurs ; R0 donne 15,71 (mesure de C4c, retrouvée), la valeur juste est la fin réelle de R3.
+
+**Autres mesures**
+- Test de D-162 (Q3) : ordre réel juste avec R0, B et V (la course rangée à 1 s d'abord), faux avec A (ordre du tableau). Le test lit l'ordre statique `analysis.order`, celui de A pour B et V : il échoue avec les trois.
+- Suite unitaire : R0, 977 sur 977 ; A, 1 échec (D-162) ; B, 2 (D-162, fixture) ; V, 1 (D-162).
+- Profils : 443 et 560 avec les quatre règles.
+- Bench, une ligne et glisser : R0 11,6 et 11,5 ; A 12,1 et 11,9 ; B 12,2 et 12,1 ; V 12,7 et 12,4 ms (prototype non optimisé ; ±0,5 ms d'une mesure à l'autre).
+- Ordre exposé par `compiledGlues` : R0 et A, l'ordre statique (celui de la résolution dans chaque branche) ; B et V, l'ordre réel. Sur la fixture, l'ordre de la liste change encore avec les `start` enregistrés (égalités), avec toutes les règles ; valeurs et statuts jamais.
+- Première limite, seconde moitié : sans la poursuite, A5 ramasse à 9,54 s et la passe est ignorée (L1). R0 y tombe quand la poursuite est rangée à 40 s ; A, B et V résolvent la poursuite d'abord (2v, L1). Poursuite et passe ne sont pas dans une même chaîne : tenu par l'ordre des nœuds (instant de la cible, passe pas encore appliquée rangée en dernier), mesuré, pas démontré en général.
 
 ## Étapes
 

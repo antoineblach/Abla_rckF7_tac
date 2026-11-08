@@ -8,7 +8,8 @@
 ## En cours
 
 - Lot ordre-bords (`docs/plans/lot-ordre-bords.md`, D-180, D-181) : ordre des bords qui ne lit plus un `start` périmé (5.8). Étape 0 faite.
-- Suite : bloc 1, sonde (R0, A, B sur les cas 1 à 7, bench avant toute modification), arrêt pour le choix de la règle, puis D-182 et SPEC 5.8 (1.12).
+- Étape 1 : sonde faite (section « Sonde » du plan : R0, A, B et variante V), **arrêt pour le choix de la règle** ; prototype et sonde non commités dans l'arbre (`syncGraph.ts`, `glue.ts`, `orderProbe*.test.ts`), à mettre en `git stash` « sonde ordre-bords » après la réponse.
+- Suite : D-182, SPEC 5.8 (1.12), D-181 intégrée selon le point 6 de l'étape 1, `/fin-etape 1` ; puis bloc 2.
 
 ## Reste à faire
 
