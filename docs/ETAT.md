@@ -7,9 +7,8 @@
 
 ## En cours
 
-- Lot ordre-bords (`docs/plans/lot-ordre-bords.md`, D-180, D-181) : ordre des bords qui ne lit plus un `start` périmé (5.8). Étape 0 faite.
-- Étape 1 : sonde faite (section « Sonde » du plan : R0, A, B et variante V), **arrêt pour le choix de la règle** ; prototype et sonde non commités dans l'arbre (`syncGraph.ts`, `glue.ts`, `orderProbe*.test.ts`), à mettre en `git stash` « sonde ordre-bords » après la réponse.
-- Suite : D-182, SPEC 5.8 (1.12), D-181 intégrée selon le point 6 de l'étape 1, `/fin-etape 1` ; puis bloc 2.
+- Lot ordre-bords (`docs/plans/lot-ordre-bords.md`, D-180 à D-182) : ordre des bords qui ne lit plus un `start` périmé (5.8). Étapes 0 et 1 faites : règle V retenue (D-182), SPEC 1.12 ; mesures dans la section « Sonde » du plan ; prototype et sonde en `git stash` « sonde ordre-bords », sur ce poste seulement.
+- Suite : bloc 2, étape 2 : règle V dans le moteur (`syncGraph.ts`, `glue.ts`), cas 1 à 7, 2v, 6a''', 7e, 7b en tests, test de D-162 sur l'ordre réel, bench, ARCHITECTURE, PIEGES, ETAT ; puis `/fin-lot` par l'utilisateur.
 
 ## Reste à faire
 
@@ -26,7 +25,7 @@
 
 - Embranchement après la dernière action (D-153, D-167) : à reposer au `/nouveau-lot frise-2`.
 - D-172 à D-175 : précisions de C3 et C4, à contredire au besoin.
-- Ordre des bords (D-162, par `start` enregistré) : traité par le lot ordre-bords (D-180). Mesuré en C4c : Q3, départ 15,71 s contre 15,15 ; fixture v5, jeu au pied de B1, 24,86 s contre 24,37 (D-178).
+- Ordre des bords : tranché par D-182 (SPEC 5.8, 1.12), code au bloc 2 ; d'ici là, le moteur suit encore D-162 (par `start` enregistré).
 
 ## Écarts connus
 

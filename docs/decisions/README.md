@@ -189,7 +189,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-159 | lecture des intervalles dans le moteur | en vigueur | 5.1 |
 | D-160 | course d'une participante à l'instant de la formation ou de la sortie | en vigueur | 5.3 |
 | D-161 | seuils de l'écart au point de coupe, relatifs à la longueur | précisée par D-176 | 5.8 |
-| D-162 | résolution des collages sur tout l'arbre, une fois par combinaison | précisée par D-169 | 5.8 |
+| D-162 | résolution des collages sur tout l'arbre, une fois par combinaison | précisée par D-169, D-182 | 5.8 |
 | D-163 | passe reçue par une course collée à son arrivée | en vigueur | 5.4 |
 | D-164 | seconde passe de la lancée | précisée par D-176 | 5.2 |
 | D-165 | bord gauche seul d'une séquence | en vigueur | 5.8 |
@@ -204,8 +204,9 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-174 | message propre pour les combinaisons refusées à l'import | en vigueur | 4.4 |
 | D-175 | poignées réservées à l'outil Sélection, précisions de l'interface de frise-1 | en vigueur | 6.2, 6.5 |
 | D-176 | raccord de deux courses collées : vitesse admise de la suite | en vigueur | 5.2, 5.3, 5.9 |
-| D-177 | départ calculé par un collage, absent des simulations tant qu'il n'est pas résolu | en vigueur | 5.8 |
-| D-178 | C4c : (b) de la fixture à 0 seulement, plafonds de profils relevés à 490 et 610 | en vigueur | — |
+| D-177 | départ calculé par un collage, absent des simulations tant qu'il n'est pas résolu | précisée par D-182 | 5.8 |
+| D-178 | C4c : (b) de la fixture à 0 seulement, plafonds de profils relevés à 490 et 610 | remplacée en partie (1) par D-182 | — |
 | D-179 | fixtures des versions antérieures, seule la v4 gardée pour les e2e | en vigueur | 4.5 |
 | D-180 | lot ordre-bords : cadrage, règles candidates et cas mesurés | précisée par D-181 | — |
-| D-181 | lot ordre-bords : égalités et ramassage (Q3 complétée, Q4) | en vigueur | — |
+| D-181 | lot ordre-bords : égalités et ramassage (Q3 complétée, Q4) | précisée par D-182 | 5.8 |
+| D-182 | lot ordre-bords : règle V, ordre dynamique, un bloc qui glisse rangé comme sa course précédente | en vigueur | 5.8 |

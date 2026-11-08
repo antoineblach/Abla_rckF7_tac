@@ -49,7 +49,7 @@ Première « Limite assumée » de 5.8 (collage qui change un ramassage et déca
 
 - Étape 0 : `docs/plans/lot-ordre-bords.md` (ce fichier) ; `docs/plans/lot-frise-1.md` déplacé vers `docs/archive/plans/` ; `docs/decisions/frise.md` (D-180, D-181) et `docs/decisions/README.md` ; `docs/ETAT.md`.
 - Étape 1 : `docs/decisions/frise.md` (D-182) et `docs/decisions/README.md` ; `docs/spec/05-moteur.md` (5.8, Résolution et « Limites assumées ») ; `docs/spec/README.md` (version 1.12) ; mesures de la sonde dans ce plan. Prototype et `src/engine/orderProbe.test.ts` jamais commités (`git stash` « sonde ordre-bords »).
-- Étape 2 : `src/model/syncGraph.ts` (chaînes et ordre ; ensemble des départs calculés exposé par `GlueAnalysis`, partagé par `unresolved` de `glue.ts` et `withComputedStarts`) ; `src/engine/glue.ts` (en-tête ; boucle de `visit`, ordre réel exposé et lu par `compiledGlues`, si B ou sa variante) ; `src/test/glueChecks.ts` (commentaires de `resolvedParts`, ensemble partagé) ; `src/model/syncGraph.test.ts` ; `src/engine/glue.test.ts` ; `src/engine/profileCount.test.ts` (plafonds, seulement si une hausse est mesurée et justifiée) ; `docs/ARCHITECTURE.md` (« Moteur et rendu », ligne frise-1) ; `docs/PIEGES.md` (« Vitest et images de référence », ligne des chaînes de courses collées) ; `docs/decisions/README.md` (D-178 : « remplacée en partie (1) par D-182 ») ; `docs/ETAT.md`.
+- Étape 2 : `src/model/syncGraph.ts` (chaînes et ordre ; ensemble des départs calculés exposé par `GlueAnalysis`, partagé par `unresolved` de `glue.ts` et `withComputedStarts`) ; `src/engine/glue.ts` (en-tête ; boucle de `visit`, ordre réel exposé et lu par `compiledGlues`, si B ou sa variante) ; `src/test/glueChecks.ts` (commentaires de `resolvedParts`, ensemble partagé) ; `src/model/syncGraph.test.ts` ; `src/engine/glue.test.ts` ; `src/engine/profileCount.test.ts` (plafonds, seulement si une hausse est mesurée et justifiée) ; `docs/ARCHITECTURE.md` (« Moteur et rendu », ligne frise-1) ; `docs/PIEGES.md` (« Vitest et images de référence », ligne des chaînes de courses collées) ; `docs/ETAT.md`. Faits à l'étape 1 : statut de D-178 dans l'index, avec D-182 ; deux pièges Vitest de la sonde dans PIEGES.
 
 ## Dépendances
 
@@ -76,12 +76,12 @@ Lecture : SPEC 5.8 (Résolution et « Limites assumées » seulement, Grep `Rés
 
 Lecture : D-182 ; section « Sonde » de ce plan ; mêmes fichiers que l'étape 1, plus `syncGraph.test.ts` (`describe` « order of the glued edges »). Prototype : `git stash list`, s'il est sur ce poste ; sinon réécrit depuis D-182.
 
-Règle retenue, réécrite proprement : `syncGraph.ts` (et `glue.ts` si B ou sa variante, avec l'ordre réel exposé par `PlayResolution` et lu par `compiledGlues`). Tests ci-dessous. Plafonds de `profileCount.test` (hausse seulement mesurée et justifiée dans D-182). `npm run bench`. ARCHITECTURE (« Moteur et rendu », ligne frise-1 : ordre et bench), PIEGES (ligne des chaînes de courses collées : plus de « au-delà de la ligne, l'ordre des bords peut encore changer un résultat »), statut de D-178 dans l'index, ETAT (question ouverte retirée ou réduite à ce qui reste). Tests ciblés pendant l'étape (`test:short`), puis `npm run check` et `npm run test:e2e`. `/fin-etape 2`. Le lot est alors prêt pour le `/fin-lot` de l'utilisateur.
+Règle V (D-182), réécrite proprement sans drapeau de règle : `syncGraph.ts` (chaînes, ordonnanceur) et `glue.ts` (boucle de `visit` tirée de l'ordonnanceur, ordre réel exposé par `PlayResolution` et lu par `compiledGlues`). Tests ci-dessous. Plafonds de `profileCount.test` inchangés (443 et 560 mesurés avec V). `npm run bench`. ARCHITECTURE (« Moteur et rendu », ligne frise-1 : ordre et bench), PIEGES (ligne des chaînes de courses collées : plus de « au-delà de la ligne, l'ordre des bords peut encore changer un résultat »), ETAT (question ouverte retirée ou réduite à ce qui reste). Tests ciblés pendant l'étape (`test:short`), puis `npm run check` et `npm run test:e2e`. `/fin-etape 2`. Le lot est alors prêt pour le `/fin-lot` de l'utilisateur.
 
 ## Tests
 
-- `glue.test.ts`, dans le `describe` de D-177 ou un `describe` voisin cité D-182 : cas 1 à 7, chacun avec `expectGluesOnTarget` et `expectIndependent` (0 et au-delà), plus la valeur attendue (cas 1 : départ à la fin réelle de R3 ; cas 3 : arrivée du jeu au pied de B1) ; cas 2 aux trois `start` de la poursuite, et sa variante selon D-181 ; test de la fixture sans `{ beyond: false }`.
-- `syncGraph.test.ts` : un bloc absent n'est plus rangé par son `start` enregistré (ordre statique identique quand on permute ces `start`) ; il ne passe jamais devant ce dont il dépend ; le test de D-162 « takes the run before on the same player first » inchangé (Q3).
+- `glue.test.ts`, dans le `describe` de D-177 ou un `describe` voisin cité D-182 : cas 1 à 7, chacun avec `expectGluesOnTarget` et `expectIndependent` (0 et au-delà), plus la valeur attendue (cas 1 : départ à la fin réelle de R3 ; cas 3 : arrivée du jeu au pied de B1, 24,373 ; cas 5 : S arrive à 12) ; cas 2 et 2v aux trois `start` de la poursuite, l'autre départ calculé fixe ; 6a''' et 7e (O collée 8 s et 10,5 s avant la fin de F) ; 7b (F courte, course précédente de S) ; test de la fixture sans `{ beyond: false }`. Géométries de la sonde (section « Sonde », prototype en `git stash`).
+- `syncGraph.test.ts` et `glue.test.ts` : l'ordre réel exposé ne range pas un bloc absent par son `start` enregistré (identique quand on permute ces `start`, hors égalité) ; il ne passe jamais devant ce dont il dépend ; le test de D-162 « takes the run before on the same player first » garde sa scène et son attente, et lit l'ordre réel (D-182).
 - Relancés, inchangés : déterminisme, `trunk.test.ts`, `editor/glues.test.ts` (chaîne de trois courses, D-177), `profileCount.test.ts`.
 
 ## Performances
@@ -106,6 +106,8 @@ Règle retenue, réécrite proprement : `syncGraph.ts` (et `glue.ts` si B ou sa 
 ## Sonde
 
 Mesures du 08/11 (étape 1), avant le choix. Sortie complète : `probe.txt` du scratchpad de la session, non gardée.
+
+**Choix du 08/11 (D-182)** : règle V ; le test de D-162 garde sa scène et son attente mais lit l'ordre réel ; tests : cas 1 à 7, 2v, 6a''', 7e et 7b ; seconde moitié de la première « Limite assumée » retirée de la SPEC, sa nuance dans D-182.
 
 **Référence avant toute modification** : bench 12,5 et 11,9 ms (une ligne, glisser) ; profils 443 et 560.
 
@@ -153,6 +155,6 @@ Mesures du 08/11 (étape 1), avant le choix. Sortie complète : `probe.txt` du s
 - **Bloc 0**
   - [x] **Étape 0 : branche, plan de frise-1 archivé, plan du lot, D-180 et D-181, ETAT.** (commit « Étape 0 : plan du lot ordre-bords, D-180 et D-181, ETAT », après `381480a`)
 - **Bloc 1**
-  - [ ] **Étape 1 : sonde (R0, A, B, variante s'il y a lieu ; cas 1 à 7), arrêt pour le choix, puis D-182 et SPEC 5.8 (1.12).**
+  - [x] **Étape 1 : sonde (R0, A, B, variante s'il y a lieu ; cas 1 à 7), arrêt pour le choix, puis D-182 et SPEC 5.8 (1.12).** (commit « Étape 1 : règle V, D-182, SPEC 5.8 en 1.12 », après `23dfcff`)
 - **Bloc 2**
   - [ ] **Étape 2 : règle retenue dans le moteur, cas 1 à 7 en tests, plafonds, bench, ARCHITECTURE, PIEGES, ETAT.**
