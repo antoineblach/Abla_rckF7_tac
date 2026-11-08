@@ -58,14 +58,8 @@ export function expectGluesOnTarget(compiled: CompiledLine): void {
  * edge that slides (a sequence that slides keeps its length); a glued branch point at `t`.
  */
 export function withComputedStarts(play: Play, t: number): Play {
-  const { order, gluedStarts } = analyseGlues(play)
-  const computed = new Set<Id>()
-  const branchPoints = new Set<Id>()
-  for (const edge of order) {
-    if (edge.kind === 'branchAt') branchPoints.add(edge.ownerId)
-    else if (edge.kind === 'start') computed.add(edge.ownerId)
-    else if (edge.keep === 'duration' && !gluedStarts.has(edge.ownerId)) computed.add(edge.ownerId)
-  }
+  const { order, gluedStarts, computedStarts: computed } = analyseGlues(play)
+  const branchPoints = new Set(order.filter((e) => e.kind === 'branchAt').map((e) => e.ownerId))
   return {
     ...play,
     branches: play.branches.map((b) => (branchPoints.has(b.id) ? { ...b, branchAt: t } : b)),
@@ -80,7 +74,7 @@ export function withComputedStarts(play: Play, t: number): Play {
   }
 }
 
-/** In a canonical order: the order of these lists follows the order of the edges (D-162). */
+/** In a canonical order: the order of these lists follows the order of the edges (D-182). */
 const sorted = <T>(items: readonly T[]): T[] =>
   items
     .map((item) => ({ item, key: canonicalJson(item) }))
@@ -88,9 +82,9 @@ const sorted = <T>(items: readonly T[]): T[] =>
     .map(({ item }) => item)
 
 /**
- * What (b) compares between two compilations of a line. Where the graph leaves the choice, the
- * edges go by stored start (D-162): the alerts and the glues of the line come in that order, which
- * (b) leaves aside; their values do not depend on it.
+ * What (b) compares between two compilations of a line. The edges go in an order read on the
+ * simulation (D-182), at equal instants by stored start: the alerts and the glues of the line come in
+ * that order, which (b) leaves aside; their values and statuses do not depend on it.
  */
 export function resolvedParts(compiled: CompiledLine) {
   return {
