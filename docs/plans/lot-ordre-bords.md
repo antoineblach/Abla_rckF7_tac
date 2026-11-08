@@ -158,3 +158,5 @@ Mesures du 08/11 (étape 1), avant le choix. Sortie complète : `probe.txt` du s
   - [x] **Étape 1 : sonde (R0, A, B, variante s'il y a lieu ; cas 1 à 7), arrêt pour le choix, puis D-182 et SPEC 5.8 (1.12).** (commit « Étape 1 : règle V, D-182, SPEC 5.8 en 1.12 », après `23dfcff`)
 - **Bloc 2**
   - [x] **Étape 2 : règle retenue dans le moteur, cas 1 à 7 en tests, plafonds, bench, ARCHITECTURE, PIEGES, ETAT.** (commit « Étape 2 : règle V dans le moteur, cas 1 à 7 en tests, SPEC 5.8 rectifiée », après `b4b4d19`)
+- **Fin de lot**
+  - [x] **`/fin-lot` : recette automatisable verte (991 unitaires, 55 e2e, build), SPEC déjà à 1.12, RECETTE sans vérification manuelle, séance d'usage libre renvoyée à frise-2, PR vers `main`.** (commit « Fin du lot ordre-bords : recette, documents, ETAT », après `3d7b7e4`)

@@ -280,6 +280,28 @@ Indispensables et impossibles à automatiser, après le déploiement et après a
 
 Refaire deux ou trois combinaisons réelles : courses enchaînées (lancées), passes à la réception, regroupement, jeu au pied ; instants et collages réglés dans l'inspecteur ; lire, recharger, exporter un GIF et un PDF ; puis faire un retour avec `/correction-recette`.
 
+## Lot ordre-bords : ordre des bords
+
+Moteur seul (`docs/plans/lot-ordre-bords.md`, D-180 à D-182, SPEC 1.12) : l'ordre de résolution des collages ne lit plus un `start` enregistré périmé. Il se décide bord après bord sur la simulation courante (règle V) et l'ordre réel est exposé par `PlayResolution.order`. Ni modèle, ni interface, ni export ne changent.
+
+### Comportements couverts par les tests
+
+| Comportement | Tests |
+|---|---|
+| Cas 1 à 7 de la sonde (fin réelle d'une course après un départ calculé, poursuite qui ramasse avant sa passe, 2v et L1, deux courses qui glissent, course entre deux courses étirées, bloc libre au bout d'un bloc qui glisse 6a, 6a''' et 6b, chevauchement 7a, 7e et 7b) : collages sur leur cible, indépendance aux `start` enregistrés (0 et au-delà), valeur attendue | `engine/glue.test.ts` (contrôles dans `test/glueChecks.ts`) |
+| Fixture v5 tenue sur toutes ses lignes, départs calculés à 0 et au-delà de la ligne | `engine/glue.test.ts` |
+| Ordre réel : bloc absent rangé à l'instant de sa cible et jamais par son `start`, jamais devant ce dont il dépend, bloc qui glisse après les blocs de sa chaîne qui finissent au plus tard à sa cible ; course précédente de la joueuse d'abord (D-162) | `model/syncGraph.test.ts`, `engine/glue.test.ts` |
+| Relancés, inchangés : déterminisme, tronc identique, chaîne de trois courses (D-177), nombre de profils sous les plafonds 490 et 610 | `engine/evaluate.test.ts`, `engine/trunk.test.ts`, `editor/glues.test.ts`, `engine/profileCount.test.ts` |
+| Application entière inchangée | les 18 specs de `e2e/` (55 tests, Chromium et Firefox) |
+
+### Vérifications manuelles
+
+Aucune : le lot ne touche que le moteur, et tout est couvert par les tests.
+
+### Séance d'usage libre
+
+Pas de séance propre au lot : elle est renvoyée à celle de frise-2, qui exercera le moteur sur de vraies combinaisons.
+
 ## Lot 4 : défense simulée
 
 Comportements attendus, à couvrir par les tests (D-054). Les vérifications manuelles (au plus 5) et la séance d'usage libre seront précisées en fin de lot.
