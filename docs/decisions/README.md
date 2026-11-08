@@ -16,7 +16,7 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | [lot-3.md](lot-3.md) | D-078 à D-101 (mise en place, puis correction après recette) |
 | [lot-3bis.md](lot-3bis.md) | D-103 à D-121 (lot 3 bis), D-129 à D-138 (3bis-1), puis les décisions de 3bis-2 et 3bis-3 |
 | [exploitation.md](exploitation.md) | D-102 (exploitation du dépôt), D-123 à D-128 (documentation et outils de travail) |
-| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-179 (frise-1), puis les décisions de frise-2 à frise-4 |
+| [frise.md](frise.md) | D-139 (frise chronologique, SPEC 1.9), D-140 à D-179 (frise-1), D-180 et suivantes (lot ordre-bords), puis les décisions de frise-2 à frise-4 |
 
 ## Lecture
 
@@ -207,3 +207,5 @@ Les décisions structurantes initiales (ancienne section 16 de la SPEC) sont rep
 | D-177 | départ calculé par un collage, absent des simulations tant qu'il n'est pas résolu | en vigueur | 5.8 |
 | D-178 | C4c : (b) de la fixture à 0 seulement, plafonds de profils relevés à 490 et 610 | en vigueur | — |
 | D-179 | fixtures des versions antérieures, seule la v4 gardée pour les e2e | en vigueur | 4.5 |
+| D-180 | lot ordre-bords : cadrage, règles candidates et cas mesurés | précisée par D-181 | — |
+| D-181 | lot ordre-bords : égalités et ramassage (Q3 complétée, Q4) | en vigueur | — |

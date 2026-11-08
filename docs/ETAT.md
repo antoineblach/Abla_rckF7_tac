@@ -1,15 +1,14 @@
 # État du projet
 
-- Mise à jour : 2026-11-07
-- Branche : `lot-frise-1-corrections` (depuis `main` à `b963894`), PR vers `main`, non fusionnée
-- `main` : lots 1 à 3bis-1, frise-1, chantiers `docs-outils` et `frise-spec` (PR #1 à #11, `b963894`) ; CI rouge après la fusion de #11 (délai dépassé, `cut.test.ts`)
+- Mise à jour : 2026-11-08
+- Branche : `lot-ordre-bords` (depuis `main` à `381480a`), PR vers `main` à la fin du lot
+- `main` : lots 1 à 3bis-1, frise-1, chantiers `docs-outils` et `frise-spec`, correctif de CI (PR #1 à #12, `381480a`) ; CI verte ; frise-1 déployée et recettée
 - Dépôt public ; Pages en mode « GitHub Actions » ; protection de `main` selon D-055 (D-102)
 
 ## En cours
 
-- Lot frise-1 (`docs/plans/lot-frise-1.md`, D-140 à D-179) : étapes faites ; `/fin-lot` du 07/11 : SPEC 1.11 (D-168 pour sa partie GIF ; D-178 hors SPEC), fixtures v0 à v3 supprimées (D-179), documents, PR.
-- Correctif de CI (`lot-frise-1-corrections`) : délai explicite et écarts mis en cache dans `src/engine/cut.test.ts`, test lourd au bord des 5 s sur le runner ; aucune attente changée.
-- Suite : fusion du correctif par l'utilisateur, puis les 3 vérifications manuelles et la séance d'usage libre de `docs/RECETTE.md` (« Lot frise-1 ») ; retour par `/correction-recette`.
+- Lot ordre-bords (`docs/plans/lot-ordre-bords.md`, D-180, D-181) : ordre des bords qui ne lit plus un `start` périmé (5.8). Étape 0 faite.
+- Suite : bloc 1, sonde (R0, A, B sur les cas 1 à 7, bench avant toute modification), arrêt pour le choix de la règle, puis D-182 et SPEC 5.8 (1.12).
 
 ## Reste à faire
 
@@ -26,7 +25,7 @@
 
 - Embranchement après la dernière action (D-153, D-167) : à reposer au `/nouveau-lot frise-2`.
 - D-172 à D-175 : précisions de C3 et C4, à contredire au besoin.
-- Ordre des bords (D-162, par `start` enregistré) : un bord peut être résolu avant une course absente (D-177) dont dépend ce qu'il lit ; collage « ok » mais faux. Limite assumée de 5.8 (Résolution). Mesuré en C4c : Q3, départ 15,71 s contre 15,15 ; fixture v5, jeu au pied de B1, 24,86 s contre 24,37 (D-178). À trancher par `/changement-spec`.
+- Ordre des bords (D-162, par `start` enregistré) : traité par le lot ordre-bords (D-180). Mesuré en C4c : Q3, départ 15,71 s contre 15,15 ; fixture v5, jeu au pied de B1, 24,86 s contre 24,37 (D-178).
 
 ## Écarts connus
 

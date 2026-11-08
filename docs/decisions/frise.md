@@ -383,3 +383,27 @@ Plan : `docs/plans/lot-frise-1.md`, validé le 4 novembre 2026 : recommandations
 - Raison : D-139 et le plan (C4) les disaient supprimées, elles étaient restées ; les e2e de refus de C5 ont besoin d'un vrai fichier v4.
 - Alternatives écartées : tout garder comme archives figées ; tout supprimer et écrire le fichier v4 dans le support des e2e.
 - Origine : écart constaté par `/fin-lot` frise-1, choix d'Antoine du 07/11. Intégrée à la SPEC 1.11 (4.5).
+
+## Lot ordre-bords
+
+### D-180 : lot ordre-bords, cadrage
+- Date : 2026-11-08
+- Décision : la question ouverte d'ETAT « Ordre des bords » (5.8, seconde « Limite assumée », D-177) est traitée par un lot court avant frise-2 (plan : `docs/plans/lot-ordre-bords.md`). But : là où un `start` enregistré change ce qu'un bord lit, la résolution n'en dépend plus. Sonde d'abord (prototype non commité), arrêt avec les mesures pour le choix de l'utilisateur, texte de la SPEC ensuite.
+  - **Règles candidates** : R0, aujourd'hui (D-162) ; A, un bloc dont un collage calcule le départ n'a plus de place par `start` enregistré et passe en tête de ses chaînes (même joueuse, événements de ballon, regroupement), sauf devant ce dont il dépend ; B, A puis, dès que ses dépendances sont résolues, ce bloc est rangé dans ses chaînes à l'instant de sa cible (+ `offset`), lu sur la simulation courante (sa fin s'il glisse, son départ pour un bord gauche). Q1 : B est admissible, car c'est une lecture de la simulation et non l'ordre estimé à partir des collages qu'écarte D-177.
+  - **Cas mesurés pour R0, A et B**, chacun avec l'invariant de `src/test/glueChecks.ts` et gardés comme tests avec la règle retenue : (1) Q3 de C4c ; (2) ramassage par une poursuite qui glisse, à trois `start` ; (3) fixture v5 au-delà de la ligne ; (4) deux courses glissées d'une joueuse, `start` inversés (Q2) ; (5) course glissée entre deux courses étirées de sa joueuse (Q2) ; (6) égalité sans conflit (D-181) ; (7) chevauchement : course glissée jusqu'à 12 s, partie avant 10 s, course libre de la même joueuse à 10 s retardée à sa fin (4.3), course d'une autre joueuse collée à la fin de cette dernière.
+  - **Variante de B** : si B rate le cas 6 ou le cas 7, l'arrêt de la sonde en propose et mesure une (par exemple : dans une chaîne, un bloc qui glisse comparé par sa fin à la fin des autres blocs ; à égalité, le bloc qui glisse d'abord). Le tableau donne R0, A, B et la variante sur les cas 1 à 7. Pas de choix sans l'utilisateur.
+  - **Ordre exposé** : avec B, `compiledGlues` lit encore `analysis.order`, donc l'ordre des `start` enregistrés ; le tableau dit quel ordre il expose. Préférence : l'ordre réel de résolution.
+  - Hors périmètre : la première « Limite assumée » de 5.8, sauf à dire, mesure à l'appui, si la règle retenue couvre sa seconde moitié. Aucune migration, `schemaVersion` reste 5 ; aucune vérification manuelle.
+- Raison : D-177 a gardé l'ordre de D-162 comme limite connue ; le glisser de frise-2 rendra courants les `start` périmés.
+- Alternatives écartées : traiter la question en frise-2 ; trancher la règle sans mesure.
+- Origine : `/nouveau-lot ordre-bords` du 08/11, réponses et compléments d'Antoine du 08/11. Précisée par D-181.
+
+### D-181 : lot ordre-bords, égalités et ramassage (Q3 complétée, Q4)
+- Date : 2026-11-08
+- Décision :
+  - **Q3, égalité entre deux blocs absents en conflit** (même instant de cible, par exemple deux courses glissées sur la même cible) : l'ordre des `start` enregistrés. Il ne départage qu'un conflit déjà signalé, l'un des deux finissant au repli avec alerte, jamais un collage « ok ». Le test de D-162 « takes the run before on the same player first » reste tel quel.
+  - **Égalité sans conflit** : elle n'est pas couverte par Q3. « Décoller » fige un départ à sa valeur résolue (D-170), donc un bloc libre part exactement à la fin du bloc qui glisse ; une règle qui compare cette fin à ce départ et départage par le `start` enregistré, périmé, lit un collage faux. Cas 6, mesuré pour R0, A et B et gardé comme test : (a) course S glissée, `start` enregistré périmé au-delà de F, course libre F de la même joueuse partant à la fin de S, course d'une autre joueuse collée à la fin de F ; (b) passe P1 glissée, passe libre P2 de la receveuse lâchée à l'arrivée de P1, course d'une autre joueuse collée à l'arrivée de P2.
+  - **Q4, cas 2** : la poursuite est collée par son bord droit qui glisse (`keep: 'duration'`) à l'arrivée du jeu au pied. Variante « course collée au lâcher de la passe » : si R0 la rate et que la règle retenue la tient, elle entre dans les tests sans nouvelle question.
+- Raison : l'égalité sans conflit est le cas courant après « Décoller » ; le cas 2 tient peut-être déjà avec R0, l'arrivée d'une passe dépendant des courses de la passeuse (D-152), d'où la variante au lâcher.
+- Alternatives écartées : départager toute égalité par l'ordre du tableau (réécrit le test de D-162) ; laisser l'égalité sans conflit à la règle des conflits.
+- Origine : réponses d'Antoine du 08/11 (Q3, Q4) et compléments du 08/11. Précise D-180.
