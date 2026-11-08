@@ -4,7 +4,8 @@
 // receiver in its line, those that depend on this arrival themselves aside (D-152). A receiver glued
 // to the arrival of her pass depends on its release and on the runs of the passer instead. Seen from
 // here, a waypoint of a run is its end: both change with its speeds. A cycle always goes through a
-// glue. Pure; shared by the validation, the engine and the commands.
+// glue. Where the graph leaves the choice, the order of the edges is decided edge after edge on the
+// current simulation (D-182). Pure; shared by the validation, the engine and the commands.
 import { findBranch, isBranchPoint, pathToBranch } from './branches'
 import type { Action, GlueKeep, GlueRef, Id, Play, Sequence } from './types'
 
@@ -184,35 +185,135 @@ function componentsOf(graph: Graph): Map<NodeKey, NodeKey[]> {
 }
 
 export interface GlueAnalysis {
-  /** Edges that apply, in the order of their dependencies (targets first). */
+  /**
+   * Edges that apply, targets first, ordered without reading any simulation: an absent block before
+   * the other blocks of its chains, after what it depends on. The engine resolves them in the order
+   * of `createEdgeScheduler`, decided edge after edge (D-182).
+   */
   order: GlueEdge[]
   /** Edges of a cycle: ignored by the engine (SPEC 5.8). */
   cyclic: GlueEdge[]
   /** Blocks whose left edge applies: both edges glued, the start follows its glue (SPEC 5.8). */
   gluedStarts: ReadonlySet<Id>
+  /** Blocks whose start an applied glue computes: left edge glued, or right edge that slides. */
+  computedStarts: ReadonlySet<Id>
   /** By pass: the runs of its passer and its receiver that depend on its arrival (D-152). */
   arrivalDependents: ReadonlyMap<Id, ReadonlySet<Id>>
+  /** What the order of the edges needs (D-182). */
+  plan: OrderPlan
 }
+
+type Block = Action | Sequence
+
+/** The fixed part of the order of the edges (D-182). */
+export interface OrderPlan {
+  play: Play
+  blocks: readonly Block[]
+  hard: Graph
+  byNode: ReadonlyMap<NodeKey, readonly GlueEdge[]>
+  /**
+   * Actions whose start a glue computes, group runs aside: left out of the simulations until their
+   * edge is resolved (D-177).
+   */
+  absent: ReadonlySet<Id>
+  /** Among them, those that slide by their right edge. */
+  sliding: ReadonlySet<Id>
+  /** By absent action, the edge that computes its start. */
+  absentEdge: ReadonlyMap<Id, GlueEdge>
+  /** By absent action, the blocks it depends on (hard graph, transitive). */
+  dependsOn: ReadonlyMap<Id, ReadonlySet<Id>>
+  inLine: (branchId: Id, otherBranchId: Id) => boolean
+}
+
+/** What the order of the edges reads on the current simulation (D-182). */
+export interface OrderReading {
+  /**
+   * By absent action whose dependencies are resolved: the instant of its target, gap included, read
+   * then; Infinity when the target was not reached yet.
+   */
+  instants: ReadonlyMap<Id, number>
+  /** End of a block on the current simulation; null when it does not happen there. */
+  endOf: (id: Id) => number | null
+  /** Changes whenever the current simulation changes. */
+  version: number
+}
+
+const NO_READING: OrderReading = { instants: new Map(), endOf: () => null, version: 0 }
+
+/** Rounding of an instant read on a simulation, as for the run before (SPEC 5.8). */
+const ORDER_EPSILON = 1e-9
 
 function runsOf(play: Play, entityId: Id): Action[] {
   return play.actions.filter((action) => action.type === 'run' && action.entityId === entityId)
 }
 
-/** Stored instant of a block, used to order what the graph leaves free. */
-const byStoredStart = <T extends { start: number }>(blocks: readonly T[]): T[] =>
-  blocks
-    .map((block, order) => ({ block, order }))
-    .sort((a, b) => a.block.start - b.block.start || a.order - b.order)
+/**
+ * By instant, then stored start, then order of the array. The stored start only breaks a tie: between
+ * two absent blocks, a conflict already signalled (Q3, D-181).
+ */
+function byInstant(blocks: readonly Block[], instant: (block: Block) => number): Block[] {
+  return blocks
+    .map((block, order) => ({ block, order, at: instant(block) }))
+    .sort((a, b) => a.at - b.at || a.block.start - b.block.start || a.order - b.order)
     .map(({ block }) => block)
+}
+
+/**
+ * Order of the blocks of a chain (D-182). A free block goes by its stored start. An absent block
+ * whose instant is not read yet comes first, after the blocks of the chain it depends on. Once read,
+ * a left edge goes by this instant; a block that slides comes after the blocks of the chain that end
+ * by this instant on the current simulation, as its run before (SPEC 5.8), and before the others; a
+ * block that does not happen there never comes before it.
+ */
+function chainOrder(plan: OrderPlan, blocks: readonly Block[], reading: OrderReading): Block[] {
+  const { instants, endOf } = reading
+  const unread = (b: Block): boolean => plan.absent.has(b.id) && !instants.has(b.id)
+  const instant = (b: Block): number => instants.get(b.id) ?? b.start
+  const read = blocks.filter((b) => !unread(b))
+  const sorted = byInstant(
+    read.filter((b) => !plan.sliding.has(b.id)),
+    instant,
+  )
+  for (const slid of byInstant(
+    read.filter((b) => plan.sliding.has(b.id)),
+    instant,
+  )) {
+    const wanted = instant(slid)
+    let at = 0
+    sorted.forEach((other, i) => {
+      // A block still absent is at its instant; one that does not happen here, never before.
+      const pending =
+        plan.sliding.has(other.id) || (plan.absent.has(other.id) && endOf(other.id) === null)
+      const end = pending ? instant(other) : (endOf(other.id) ?? Infinity)
+      if (end <= wanted + ORDER_EPSILON) at = i + 1
+    })
+    sorted.splice(at, 0, slid)
+  }
+  const inChain = new Set(blocks.map((b) => b.id))
+  const waiting = blocks.filter(unread)
+  const placed = new Set<Id>()
+  const result: Block[] = []
+  while (waiting.length > 0 || sorted.length > 0) {
+    const ready = waiting.findIndex((b) =>
+      [...(plan.dependsOn.get(b.id) ?? [])].every((dep) => !inChain.has(dep) || placed.has(dep)),
+    )
+    const block = ready >= 0 ? waiting.splice(ready, 1)[0] : (sorted.shift() ?? waiting.shift())
+    if (!block) break
+    result.push(block)
+    placed.add(block.id)
+  }
+  return result
+}
 
 /**
  * What resolves better when done first, without being a dependency of the graph (the run before on
  * the same player, the ball event before, the breakdown that may stop a run): never a cycle, only the
- * order of the edges that the graph leaves free.
+ * order of the edges that the graph leaves free. Each chain in the order of `chainOrder`.
  */
-function softOrder(play: Play, inLine: (branchId: Id, otherBranchId: Id) => boolean): Graph {
+function softOrder(plan: OrderPlan, reading: OrderReading): Graph {
+  const { play, inLine } = plan
   const soft: Graph = new Map()
-  const chain = (blocks: readonly (Action | Sequence)[]): void => {
+  const chain = (blocks: readonly Block[]): void => {
     blocks.forEach((block, i) => {
       for (let j = i - 1; j >= 0; j--) {
         const previous = blocks[j]
@@ -225,8 +326,9 @@ function softOrder(play: Play, inLine: (branchId: Id, otherBranchId: Id) => bool
   }
   const entities = new Set<Id>()
   for (const action of play.actions) if (action.type === 'run') entities.add(action.entityId)
-  for (const id of entities) chain(byStoredStart(runsOf(play, id)))
-  chain(byStoredStart(play.actions.filter((action) => action.type !== 'run')))
+  for (const id of entities) chain(chainOrder(plan, runsOf(play, id), reading))
+  const events = play.actions.filter((action) => action.type !== 'run')
+  chain(chainOrder(plan, events, reading))
   for (const action of play.actions) {
     if (action.type !== 'breakdown') continue
     for (const id of [action.tackledId, action.supportId, action.relayerId]) {
@@ -238,6 +340,77 @@ function softOrder(play: Play, inLine: (branchId: Id, otherBranchId: Id) => bool
     }
   }
   return soft
+}
+
+/**
+ * Nodes in the order they are tried: the absent blocks whose instant is not read yet, then the others
+ * by instant (their stored start for a free block), then the branch points.
+ */
+function nodeOrder(plan: OrderPlan, reading: OrderReading): NodeKey[] {
+  const { instants } = reading
+  const unread = (b: Block): boolean => plan.absent.has(b.id) && !instants.has(b.id)
+  const ordered = [
+    ...plan.blocks.filter(unread),
+    ...byInstant(
+      plan.blocks.filter((b) => !unread(b)),
+      (b) => instants.get(b.id) ?? b.start,
+    ),
+  ]
+  return [
+    ...ordered.flatMap((block) => [startNode(block.id), endNode(block.id)]),
+    ...plan.play.branches.map((branch) => branchNode(branch.id)),
+  ]
+}
+
+/** Gives the edges node after node, in an order read on the current simulation (D-182). */
+export interface EdgeScheduler {
+  /** Edges that compute the start of an absent action whose dependencies are all resolved. */
+  readable: () => GlueEdge[]
+  /** Edges of the next node, maybe none; null once every node is done. */
+  next: (reading: OrderReading) => readonly GlueEdge[] | null
+}
+
+/**
+ * Among the nodes whose dependencies are done, the first one in the order of `nodeOrder` whose
+ * chains (`softOrder`) are done too, else the first one. The order is read again when an instant
+ * comes in, or when the simulation changes once a block that slides has its instant.
+ */
+export function createEdgeScheduler(plan: OrderPlan): EdgeScheduler {
+  const done = new Set<NodeKey>()
+  const allDone = (deps: readonly NodeKey[] | undefined): boolean =>
+    (deps ?? []).every((dep) => done.has(dep))
+  let soft: Graph | null = null
+  let remaining: NodeKey[] = []
+  let readInstants = -1
+  let readVersion = -1
+  return {
+    readable: () =>
+      [...plan.absentEdge].flatMap(([id, edge]) =>
+        allDone(plan.hard.get(startNode(id))) ? [edge] : [],
+      ),
+    next: (reading) => {
+      const { instants, version } = reading
+      const slidingRead = [...plan.sliding].some((id) => instants.has(id))
+      if (
+        soft === null ||
+        instants.size !== readInstants ||
+        (slidingRead && version !== readVersion)
+      ) {
+        soft = softOrder(plan, reading)
+        remaining = nodeOrder(plan, reading).filter((node) => !done.has(node))
+        readInstants = instants.size
+        readVersion = version
+      }
+      if (remaining.length === 0) return null
+      const graph = soft
+      let pick = remaining.findIndex((n) => allDone(plan.hard.get(n)) && allDone(graph.get(n)))
+      if (pick < 0) pick = remaining.findIndex((n) => allDone(plan.hard.get(n)))
+      const [node] = remaining.splice(Math.max(pick, 0), 1)
+      if (node === undefined) return null
+      done.add(node)
+      return plan.byNode.get(node) ?? []
+    },
+  }
 }
 
 function analyse(play: Play, edges: readonly GlueEdge[]): GlueAnalysis {
@@ -324,31 +497,61 @@ function analyse(play: Play, edges: readonly GlueEdge[]): GlueAnalysis {
   }
   for (const [from, dep] of movers) addTo(hard, from, [dep])
 
-  const soft = softOrder(play, inLine)
   const byNode = new Map<NodeKey, GlueEdge[]>()
   for (const edge of applying) {
     const node = edgeNode(edge, appliedStarts)
     byNode.set(node, [...(byNode.get(node) ?? []), edge])
   }
 
-  // Nodes in stored order; among those whose dependencies are done, the first one.
-  const remaining: NodeKey[] = [
-    ...byStoredStart(blocks).flatMap((block) => [startNode(block.id), endNode(block.id)]),
-    ...play.branches.map((branch) => branchNode(branch.id)),
-  ]
-  const done = new Set<NodeKey>()
-  const allDone = (deps: readonly NodeKey[] | undefined): boolean =>
-    (deps ?? []).every((dep) => done.has(dep))
-  const order: GlueEdge[] = []
-  while (remaining.length > 0) {
-    let pick = remaining.findIndex((n) => allDone(hard.get(n)) && allDone(soft.get(n)))
-    if (pick < 0) pick = remaining.findIndex((n) => allDone(hard.get(n)))
-    const [node] = remaining.splice(Math.max(pick, 0), 1)
-    if (node === undefined) break
-    done.add(node)
-    order.push(...(byNode.get(node) ?? []))
+  // Starts computed by a glue: the edge moves the left edge of its block.
+  const computedStarts = new Set<Id>()
+  const absent = new Set<Id>()
+  const sliding = new Set<Id>()
+  const absentEdge = new Map<Id, GlueEdge>()
+  for (const edge of applying) {
+    if (edge.kind === 'branchAt' || edgeNode(edge, appliedStarts) !== startNode(edge.ownerId)) {
+      continue
+    }
+    computedStarts.add(edge.ownerId)
+    const action = play.actions.find((a) => a.id === edge.ownerId)
+    if (!action || action.type === 'groupRun') continue
+    absent.add(action.id)
+    absentEdge.set(action.id, edge)
+    if (edge.kind === 'end') sliding.add(action.id)
   }
-  return { order, cyclic, gluedStarts: appliedStarts, arrivalDependents }
+  const dependsOn = new Map<Id, Set<Id>>()
+  for (const id of absent) {
+    const seen = new Set<NodeKey>()
+    const stack = [...(hard.get(startNode(id)) ?? [])]
+    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+      if (seen.has(node)) continue
+      seen.add(node)
+      stack.push(...(hard.get(node) ?? []))
+    }
+    const ids = new Set<Id>()
+    for (const block of blocks) {
+      if (seen.has(startNode(block.id)) || seen.has(endNode(block.id))) ids.add(block.id)
+    }
+    dependsOn.set(id, ids)
+  }
+  const plan: OrderPlan = {
+    play,
+    blocks,
+    hard,
+    byNode,
+    absent,
+    sliding,
+    absentEdge,
+    dependsOn,
+    inLine,
+  }
+
+  const scheduler = createEdgeScheduler(plan)
+  const order: GlueEdge[] = []
+  for (let edges = scheduler.next(NO_READING); edges; edges = scheduler.next(NO_READING)) {
+    order.push(...edges)
+  }
+  return { order, cyclic, gluedStarts: appliedStarts, computedStarts, arrivalDependents, plan }
 }
 
 /** The glues of a play: those that apply in the order of their dependencies, the cycles. */

@@ -49,7 +49,7 @@ Première « Limite assumée » de 5.8 (collage qui change un ramassage et déca
 
 - Étape 0 : `docs/plans/lot-ordre-bords.md` (ce fichier) ; `docs/plans/lot-frise-1.md` déplacé vers `docs/archive/plans/` ; `docs/decisions/frise.md` (D-180, D-181) et `docs/decisions/README.md` ; `docs/ETAT.md`.
 - Étape 1 : `docs/decisions/frise.md` (D-182) et `docs/decisions/README.md` ; `docs/spec/05-moteur.md` (5.8, Résolution et « Limites assumées ») ; `docs/spec/README.md` (version 1.12) ; mesures de la sonde dans ce plan. Prototype et `src/engine/orderProbe.test.ts` jamais commités (`git stash` « sonde ordre-bords »).
-- Étape 2 : `src/model/syncGraph.ts` (chaînes et ordre ; ensemble des départs calculés exposé par `GlueAnalysis`, partagé par `unresolved` de `glue.ts` et `withComputedStarts`) ; `src/engine/glue.ts` (en-tête ; boucle de `visit`, ordre réel exposé et lu par `compiledGlues`, si B ou sa variante) ; `src/test/glueChecks.ts` (commentaires de `resolvedParts`, ensemble partagé) ; `src/model/syncGraph.test.ts` ; `src/engine/glue.test.ts` ; `src/engine/profileCount.test.ts` (plafonds, seulement si une hausse est mesurée et justifiée) ; `docs/ARCHITECTURE.md` (« Moteur et rendu », ligne frise-1) ; `docs/PIEGES.md` (« Vitest et images de référence », ligne des chaînes de courses collées) ; `docs/ETAT.md`. Faits à l'étape 1 : statut de D-178 dans l'index, avec D-182 ; deux pièges Vitest de la sonde dans PIEGES.
+- Étape 2 : `src/model/syncGraph.ts` (chaînes et ordre ; ensemble des départs calculés exposé par `GlueAnalysis`, partagé par `unresolved` de `glue.ts` et `withComputedStarts`) ; `src/engine/glue.ts` (en-tête ; boucle de `visit`, ordre réel exposé et lu par `compiledGlues`, si B ou sa variante) ; `src/test/glueChecks.ts` (commentaires de `resolvedParts`, ensemble partagé) ; `src/model/syncGraph.test.ts` ; `src/engine/glue.test.ts` ; `src/engine/profileCount.test.ts` (plafonds, seulement si une hausse est mesurée et justifiée) ; `docs/ARCHITECTURE.md` (« Moteur et rendu », ligne frise-1) ; `docs/PIEGES.md` (« Vitest et images de référence », ligne des chaînes de courses collées) ; `docs/ETAT.md` ; choix revu du 08/11 : `docs/spec/05-moteur.md` (5.8, 1.12 rectifiée) et `docs/decisions/frise.md` (D-182 mise en accord). Faits à l'étape 1 : statut de D-178 dans l'index, avec D-182 ; deux pièges Vitest de la sonde dans PIEGES.
 
 ## Dépendances
 
@@ -107,7 +107,7 @@ Règle V (D-182), réécrite proprement sans drapeau de règle : `syncGraph.ts` 
 
 Mesures du 08/11 (étape 1), avant le choix. Sortie complète : `probe.txt` du scratchpad de la session, non gardée.
 
-**Choix du 08/11 (D-182)** : règle V ; le test de D-162 garde sa scène et son attente mais lit l'ordre réel ; tests : cas 1 à 7, 2v, 6a''', 7e et 7b ; seconde moitié de la première « Limite assumée » retirée de la SPEC, sa nuance dans D-182.
+**Choix du 08/11 (D-182)** : règle V ; le test de D-162 garde sa scène et son attente mais lit l'ordre réel ; tests : cas 1 à 7, 2v, 6a''', 7e et 7b. Choix revu le 08/11 à l'étape 2 : seconde moitié de la première « Limite assumée » gardée dans la SPEC, reformulée en second point (mesurée seulement), et dernière phrase de « Ordre des bords » restreinte aux chaînes ; 1.12 rectifiée, pas de 1.13 (lot non fusionné).
 
 **Référence avant toute modification** : bench 12,5 et 11,9 ms (une ligne, glisser) ; profils 443 et 560.
 
@@ -157,4 +157,4 @@ Mesures du 08/11 (étape 1), avant le choix. Sortie complète : `probe.txt` du s
 - **Bloc 1**
   - [x] **Étape 1 : sonde (R0, A, B, variante s'il y a lieu ; cas 1 à 7), arrêt pour le choix, puis D-182 et SPEC 5.8 (1.12).** (commit « Étape 1 : règle V, D-182, SPEC 5.8 en 1.12 », après `23dfcff`)
 - **Bloc 2**
-  - [ ] **Étape 2 : règle retenue dans le moteur, cas 1 à 7 en tests, plafonds, bench, ARCHITECTURE, PIEGES, ETAT.**
+  - [x] **Étape 2 : règle retenue dans le moteur, cas 1 à 7 en tests, plafonds, bench, ARCHITECTURE, PIEGES, ETAT.** (commit « Étape 2 : règle V dans le moteur, cas 1 à 7 en tests, SPEC 5.8 rectifiée », après `b4b4d19`)

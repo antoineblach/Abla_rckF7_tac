@@ -27,6 +27,7 @@ import {
   withComputedStarts,
 } from '../test/glueChecks'
 import { createCaches } from './caches'
+import { resolvePlay } from './glue'
 import { motionEnd, motionPosition, motionSpeed, waypointTime, type RunMotion } from './motion'
 import { compileLine, type CompiledLine } from './timeline'
 
@@ -1082,10 +1083,15 @@ describe('a computed start never reads its stored start (D-177)', () => {
     expectIndependent(realisticRunsPlay())
   })
 
-  it('holds on every line of the v5 fixture, its computed starts at 0 (D-178)', () => {
-    // Beyond the line, the order of the edges by stored start (D-162) resolves the kick of option
-    // B1 before the pass that gives the ball to its kicker, absent (D-169): known limit of D-177.
-    expectIndependent(frise(), { beyond: false })
+  it('holds on every line of the v5 fixture, its computed starts at 0 and beyond (D-182)', () => {
+    const p = frise()
+    expectIndependent(p)
+    // The kick of option B1 after the pass that gives the ball to its kicker (24.859 by stored start).
+    const kickId = uuid(0x22a)
+    const kickBranch = p.actions.find((a) => a.id === kickId)?.branchId
+    const line = allLines(p).find((l) => kickBranch !== undefined && l.includes(kickBranch))
+    const kicked = compile(p, line ?? []).kicks.find((k) => k.actionId === kickId)
+    expect(kicked?.arrivalT).toBeCloseTo(24.373, 3)
   })
 
   const R1 = uuid(40)
@@ -1160,5 +1166,238 @@ describe('a computed start never reads its stored start (D-177)', () => {
       PASS_END_ON_TARGET,
     )
     expectIndependent(p)
+  })
+
+  describe('order of the edges, read on the simulation (D-182)', () => {
+    const O = uuid(43)
+    const REF = uuid(44)
+    const S = uuid(45)
+    const F = uuid(46)
+    const K = uuid(47)
+    const C = uuid(48)
+    const PS = uuid(49)
+    const E1 = uuid(50)
+    const E2 = uuid(51)
+    const S1 = uuid(52)
+    const S2 = uuid(53)
+    const P1 = uuid(54)
+    const P2 = uuid(55)
+    const X5 = uuid(56)
+
+    /** A run of A4 from 0: targets at a given instant. */
+    const ref = (): Action => run(REF, A(4), [{ x: 50, y: 15 }])
+    const at = (offset: number): Partial<EndGlue> => ({ event: 'start', offset })
+    const realOrder = (p: Play): string[] =>
+      resolvePlay(p, settings, createCaches()).order.map((e) => `${e.ownerId}|${e.kind}`)
+    const withStart = (p: Play, id: Id, start: number): Play => ({
+      ...p,
+      actions: p.actions.map((a) => (a.id === id ? { ...a, start } : a)),
+    })
+    /** « Décoller » (D-170): the left edge of `id` frozen at its resolved value. */
+    function unglued(p: Play, id: Id): Play {
+      const start = compile(p).blocks[id]?.start
+      if (start === undefined) throw new Error(`no block ${id}`)
+      return {
+        ...p,
+        actions: p.actions.map((a) => {
+          if (a.id !== id) return a
+          const { startGlue: _dropped, ...rest } = a
+          return { ...rest, start }
+        }),
+      }
+    }
+    /** (a) and (b) with this computed start alone at 0 and well after the line, the others kept. */
+    function expectStartFree(p: Play, id: Id): void {
+      const was = compile(p)
+      for (const t of [0, was.duration + 10]) {
+        const now = compile(withStart(p, id, t))
+        expectGluesOnTarget(now)
+        expect(resolvedParts(now), `${id} stored at ${t}`).toEqual(resolvedParts(was))
+      }
+    }
+
+    it('takes the run before on the same player first, in the real order (D-162)', () => {
+      const p = play([
+        run(uuid(20), A(1), [{ x: 90, y: 30 }], { start: 9, endGlue: slides(uuid(30)) }),
+        run(uuid(21), A(1), [{ x: 80, y: 30 }], { start: 1, endGlue: slides(uuid(30)) }),
+        run(uuid(30), A(2), [{ x: 90, y: 25 }]),
+      ])
+      const expected = [`${uuid(21)}|end`, `${uuid(20)}|end`]
+      expect(realOrder(p)).toEqual(expected)
+      expect(compile(p).glues.map((g) => `${g.ownerId}|${g.kind}`)).toEqual(expected)
+    })
+
+    it('1. reads the real end of a run that follows a computed start (Q3 of C4c)', () => {
+      for (const [r2End, r3End, delayed] of [
+        [{ x: 58, y: 28 }, 14.672, false],
+        [{ x: 85, y: 40 }, 16.623, true],
+      ] as const) {
+        const p = play([
+          run(R1, A(2), [{ x: 55, y: 25 }], { pace: 'sprint' }),
+          run(R2, A(2), [r2End], { pace: 'sprint', start: 12, startGlue: onEnd(R1) }),
+          run(R3, A(2), [{ x: 65, y: 40 }], { start: 10 }),
+          run(O, A(3), [{ x: 60, y: 10 }], { start: 11, startGlue: onEnd(R3) }),
+        ])
+        const c = compile(p)
+        expect(motionEnd(motion(c, R3))).toBeCloseTo(r3End, 3)
+        expect(motion(c, O).start).toBeCloseTo(motionEnd(motion(c, R3)), 9)
+        expect(codes(c).includes('runStartDelayed')).toBe(delayed)
+        expectIndependent(p)
+      }
+    })
+
+    it('2. resolves a chaser that picks the ball up before the pass it gives', () => {
+      const pickup = (event: 'start' | 'end', other: boolean): Play =>
+        play([
+          kick(K, A(1), { point: { x: 60, y: 30 } }, 1),
+          run(C, A(2), [{ x: 60, y: 30 }], { pace: 'sprint', start: 2, endGlue: slides(K) }),
+          pass(PS, A(2), A(3), 7),
+          run(O, A(4), [{ x: 55, y: 5 }], { start: 3, startGlue: { targetId: PS, event } }),
+          // L1: a player of the other side runs through the landing point later (SPEC 5.8).
+          ...(other
+            ? [
+                run(
+                  X5,
+                  A(5),
+                  [
+                    { x: 60, y: 30 },
+                    { x: 75, y: 40 },
+                  ],
+                  { start: 2, pace: 'jog' },
+                ),
+              ]
+            : []),
+        ])
+      // 2, 2v (glued to the release, « cible jamais atteinte » by stored start), L1.
+      for (const [event, other] of [
+        ['end', false],
+        ['start', false],
+        ['start', true],
+      ] as const) {
+        const p = pickup(event, other)
+        const c = compile(p)
+        const thrown = c.passes.find((x) => x.actionId === PS)
+        expect(thrown?.applied, `${event} ${other}`).toBe(true)
+        expect(glueOf(c, O, 'start')?.status).toBe('ok')
+        const instant = event === 'start' ? thrown?.releaseT : thrown?.arrivalT
+        expect(motion(c, O).start).toBeCloseTo(instant ?? NaN, 9)
+        expectStartFree(p, C)
+        expectIndependent(p)
+      }
+    })
+
+    it('4. orders two runs that slide by their targets, whatever their stored starts', () => {
+      const s1 = (start: number): Action =>
+        run(S1, A(2), [{ x: 55, y: 25 }], { start, endGlue: slides(REF, at(10)) })
+      const s2 = (start: number): Action =>
+        run(S2, A(2), [{ x: 60, y: 35 }], { start, endGlue: slides(REF, at(20)) })
+      // a, stored starts inverted; b, the array too; c, the array alone.
+      for (const p of [
+        play([ref(), s1(15), s2(2)]),
+        play([ref(), s2(2), s1(15)]),
+        play([ref(), s2(15), s1(2)]),
+      ]) {
+        const c = compile(p)
+        expect(codes(c)).toEqual([])
+        expect(c.blocks[S1]?.end).toBeCloseTo(10, 9)
+        expect(c.blocks[S2]?.end).toBeCloseTo(20, 9)
+        expect(motion(c, S2).spline.points[0]).toEqual(motion(c, S1).spline.points.at(-1))
+        expect(realOrder(p)).toEqual([`${S1}|end`, `${S2}|end`])
+        expectIndependent(p)
+      }
+    })
+
+    it('5. slides a run between two stretched runs of its player', () => {
+      const p = play([
+        ref(),
+        run(E1, A(2), [{ x: 48, y: 25 }], { endGlue: stretches(REF, at(6)) }),
+        run(S, A(2), [{ x: 80, y: 35 }], { start: 25, endGlue: slides(REF, at(12)) }),
+        run(E2, A(2), [{ x: 70, y: 20 }], { start: 14, endGlue: stretches(REF, at(20)) }),
+      ])
+      const c = compile(p)
+      expect(codes(c)).not.toContain('runStartDelayed')
+      expect(c.blocks[S]?.end).toBeCloseTo(12, 9)
+      expect(motion(c, S).start).toBeGreaterThanOrEqual(motionEnd(motion(c, E1)) - 1e-9)
+      expectIndependent(p)
+    })
+
+    describe('6. a free block that starts at the end of a block that slides (D-181)', () => {
+      const six = (offset: number): Play =>
+        unglued(
+          play([
+            ref(),
+            run(S, A(2), [{ x: 55, y: 25 }], { start: 20, endGlue: slides(REF, at(8)) }),
+            run(F, A(2), [{ x: 65, y: 35 }], { start: 3, startGlue: onEnd(S) }),
+            run(O, A(3), [{ x: 60, y: 10 }], { start: 5, startGlue: onEnd(F, { offset }) }),
+          ]),
+          F,
+        )
+
+      // a: O on the end of F; a''': 8 s before it.
+      for (const offset of [0, -8]) {
+        it(`a. runs, O glued ${-offset} s before the end of F`, () => {
+          const p = six(offset)
+          const c = compile(p)
+          expect(motion(c, F).start).toBeCloseTo(c.blocks[S]?.end ?? NaN, 9)
+          expect(motion(c, O).start).toBeCloseTo(motionEnd(motion(c, F)) + offset, 9)
+          expectIndependent(p)
+        })
+      }
+
+      it('b. passes, O glued to the arrival of P2', () => {
+        const p = unglued(
+          play([
+            ref(),
+            pass(P1, A(1), A(2), 10, { endGlue: slides(REF, at(3)) }),
+            pass(P2, A(2), A(3), 0, { startGlue: onEnd(P1) }),
+            run(O, A(5), [{ x: 60, y: 5 }], { start: 1, startGlue: onEnd(P2) }),
+          ]),
+          P2,
+        )
+        const c = compile(p)
+        const second = c.passes.find((x) => x.actionId === P2)
+        expect(second?.applied).toBe(true)
+        expect(motion(c, O).start).toBeCloseTo(second?.arrivalT ?? NaN, 9)
+        expectIndependent(p)
+      })
+    })
+
+    describe('7. a run that slides over a free run of its player', () => {
+      const seven = (fEnd: { x: number; y: number }, offset: number): Play =>
+        play([
+          ref(),
+          run(S, A(2), [{ x: 75, y: 30 }], { start: 20, endGlue: slides(REF, at(12)) }),
+          run(F, A(2), [fEnd], { start: 10 }),
+          run(O, A(3), [{ x: 60, y: 10 }], { start: 2, startGlue: onEnd(F, { offset }) }),
+        ])
+
+      // a: F delayed to the end of S; e: O glued 10.5 s before the end of F.
+      for (const [label, offset, oStart] of [
+        ['a', 0, null],
+        ['e', -10.5, 7.705],
+      ] as const) {
+        it(`${label}. F long, delayed to the end of S, O glued ${-offset} s before its end`, () => {
+          const p = seven({ x: 75, y: 50 }, offset)
+          const c = compile(p)
+          expect(c.blocks[S]?.end).toBeCloseTo(12, 9)
+          expect(motion(c, F).start).toBeCloseTo(12, 9)
+          expect(issueOf(c, 'runStartDelayed')?.target).toMatchObject({ id: F })
+          expect(motion(c, O).start).toBeCloseTo(motionEnd(motion(c, F)) + offset, 9)
+          if (oStart !== null) expect(motion(c, O).start).toBeCloseTo(oStart, 3)
+          expectIndependent(p)
+        })
+      }
+
+      it('b. F short: the run before of S, which starts at its end', () => {
+        const p = seven({ x: 42, y: 26 }, 0)
+        const c = compile(p)
+        expect(motion(c, F).start).toBeCloseTo(10, 9)
+        expect(motionEnd(motion(c, F))).toBeCloseTo(11.586, 3)
+        expect(motion(c, S).start).toBeCloseTo(motionEnd(motion(c, F)), 9)
+        expect(codes(c)).not.toContain('runStartDelayed')
+        expect(motion(c, O).start).toBeCloseTo(motionEnd(motion(c, F)), 9)
+        expectIndependent(p)
+      })
+    })
   })
 })

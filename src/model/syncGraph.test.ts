@@ -16,6 +16,7 @@ import {
 } from '../test/builders'
 import {
   analyseGlues,
+  createEdgeScheduler,
   createsCycle,
   edgeKey,
   glueEdges,
@@ -43,6 +44,29 @@ const slides = (targetId: Id) => ({ ...end(targetId), keep: 'duration' as const 
 const stretches = (targetId: Id) => ({ ...end(targetId), keep: 'start' as const })
 const keys = (edges: readonly GlueEdge[]) => edges.map(edgeKey)
 const key = (ownerId: Id, kind: GlueEdge['kind']) => edgeKey({ ownerId, kind })
+
+/**
+ * Order of the scheduler on a reading given in advance (D-182): the instant of the target of each
+ * absent block, Infinity when absent from `targets`; the end of the blocks of `ends`, null otherwise.
+ */
+function readOrder(
+  p: Play,
+  targets: Readonly<Record<Id, number>>,
+  ends: Readonly<Record<Id, number>> = {},
+): string[] {
+  const scheduler = createEdgeScheduler(analyseGlues(p).plan)
+  const instants = new Map<Id, number>()
+  const order: GlueEdge[] = []
+  for (;;) {
+    for (const edge of scheduler.readable()) {
+      if (!instants.has(edge.ownerId)) instants.set(edge.ownerId, targets[edge.ownerId] ?? Infinity)
+    }
+    const edges = scheduler.next({ instants, endOf: (id) => ends[id] ?? null, version: 0 })
+    if (edges === null) break
+    order.push(...edges)
+  }
+  return keys(order)
+}
 
 describe('order of the glued edges (SPEC 4.3, 5.8)', () => {
   it('puts the targets first, whatever the order of the array', () => {
@@ -101,7 +125,9 @@ describe('order of the glued edges (SPEC 4.3, 5.8)', () => {
       run(uuid(21), A(1), [{ x: 80, y: 30 }], { start: 1, endGlue: slides(uuid(30)) }),
       run(uuid(30), A(2), [{ x: 90, y: 25 }]),
     ])
-    expect(keys(analyseGlues(p).order)).toEqual([key(uuid(21), 'end'), key(uuid(20), 'end')])
+    // Read order (D-182): same target, so the stored starts break the tie (Q3, D-181).
+    const instants = { [uuid(20)]: 5, [uuid(21)]: 5 }
+    expect(readOrder(p, instants)).toEqual([key(uuid(21), 'end'), key(uuid(20), 'end')])
   })
 
   it('leaves out an edge that cannot apply, without a cycle', () => {
@@ -115,6 +141,78 @@ describe('order of the glued edges (SPEC 4.3, 5.8)', () => {
       expect(analysis.cyclic).toEqual([])
       expect(analysis.order).toHaveLength(glueEdges(p).length)
     }
+  })
+})
+
+describe('order read on the simulation (D-182)', () => {
+  const REF = uuid(40)
+  const S1 = uuid(41)
+  const S2 = uuid(42)
+  const R = uuid(43)
+  const X = uuid(44)
+  const S = uuid(45)
+  const F = uuid(46)
+  const O = uuid(47)
+  /** A run from 0: targets at a given instant. */
+  const ref = () => run(REF, A(4), [{ x: 50, y: 15 }])
+  const slidesTo = (offset: number) => ({
+    targetId: REF,
+    event: 'start' as const,
+    offset,
+    keep: 'duration' as const,
+  })
+
+  it('ranks an absent block by the instant of its target, never by its stored start', () => {
+    const twoRuns = (start1: number, start2: number, swapped: boolean): Play => {
+      const s1 = run(S1, A(2), [{ x: 55, y: 25 }], { start: start1, endGlue: slidesTo(10) })
+      const s2 = run(S2, A(2), [{ x: 60, y: 35 }], { start: start2, endGlue: slidesTo(20) })
+      return play([ref(), ...(swapped ? [s2, s1] : [s1, s2])])
+    }
+    const instants = { [S1]: 10, [S2]: 20 }
+    for (const [start1, start2, swapped] of [
+      [15, 2, false],
+      [15, 2, true],
+      [2, 15, true],
+      [2, 15, false],
+    ] as const) {
+      const p = twoRuns(start1, start2, swapped)
+      expect(readOrder(p, instants)).toEqual([key(S1, 'end'), key(S2, 'end')])
+    }
+    // Without a reading, the absent blocks come first, in the order of the array.
+    expect(keys(analyseGlues(twoRuns(2, 15, true)).order)).toEqual([key(S2, 'end'), key(S1, 'end')])
+  })
+
+  it('never puts an absent block before what it depends on', () => {
+    const p = play([
+      run(S, A(2), [{ x: 50, y: 25 }], {
+        start: 0,
+        endGlue: { targetId: R, event: 'start', keep: 'duration' },
+      }),
+      run(R, A(2), [{ x: 60, y: 15 }], { start: 30, startGlue: end(X) }),
+      run(X, A(3), [{ x: 60, y: 20 }]),
+    ])
+    const expected = [key(R, 'start'), key(S, 'end')]
+    expect(readOrder(p, { [R]: 4, [S]: 4 })).toEqual(expected)
+    expect(keys(analyseGlues(p).order)).toEqual(expected)
+  })
+
+  it('puts a block that slides after the blocks of its chain that end by its target', () => {
+    const p = play([
+      ref(),
+      run(S, A(2), [{ x: 75, y: 30 }], { start: 20, endGlue: slidesTo(12) }),
+      run(F, A(2), [{ x: 75, y: 50 }], { start: 10 }),
+      run(O, A(3), [{ x: 60, y: 10 }], { start: 2, startGlue: { ...end(F), offset: -10.5 } }),
+    ])
+    // F ends after the target of S: not its run before, so S first, though O reads earlier.
+    expect(readOrder(p, { [S]: 12, [O]: 2.5 }, { [F]: 13 })).toEqual([
+      key(S, 'end'),
+      key(O, 'start'),
+    ])
+    // F ends by the target: it is the run before of S, and O comes first by its instant.
+    expect(readOrder(p, { [S]: 12, [O]: 0.5 }, { [F]: 11 })).toEqual([
+      key(O, 'start'),
+      key(S, 'end'),
+    ])
   })
 })
 

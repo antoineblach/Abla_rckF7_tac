@@ -1,11 +1,12 @@
 // Resolution of the glues of a play (SPEC 4.3, 5.2, 5.8, D-139). Branch by branch from the trunk to
 // the leaves, an edge is resolved with the actions of its branch and of its ancestors only, in the
-// order of the dependency graph: the trunk is the same in every line by construction. For each edge,
-// the line is simulated with the current values and the instant of the target is read there; then
-// the block is adjusted. An action whose start a glue computes is left out of the simulations until
-// its edge is resolved: its stored start is only a fallback (D-162, D-169, D-177). One compilation
-// for the whole tree, shared by its lines; at most one more when a next run does not really start at
-// the end of the run it may prolong (SPEC 5.2). Pure.
+// order of the dependency graph: the trunk is the same in every line by construction. Where the
+// graph leaves the choice, the next edge comes from a scheduler that reads the current simulation
+// (D-182). For each edge, the line is simulated with the current values and the instant of the target
+// is read there; then the block is adjusted. An action whose start a glue computes is left out of the
+// simulations until its edge is resolved: its stored start is only a fallback (D-162, D-169, D-177).
+// One compilation for the whole tree, shared by its lines; at most one more when a next run does not
+// really start at the end of the run it may prolong (SPEC 5.2). Pure.
 import { PASS_FIXED_POINT_ITERATIONS } from '../config/defaults'
 import { copy, distance } from './vec'
 import { contentHash } from '../model/canonical'
@@ -14,6 +15,7 @@ import { childrenOf, findBranch, pathToBranch, rootBranch } from '../model/branc
 import type { Issue, IssueCode, IssueTarget } from '../model/issues'
 import {
   analyseGlues,
+  createEdgeScheduler,
   edgeKey,
   meetsOwnPass,
   type GlueAnalysis,
@@ -107,6 +109,8 @@ export interface PlayResolution {
   prolongedBy: ReadonlyMap<Id, readonly Id[]>
   /** By run ending at speed, the runs that bound its arrival speed (D-176). */
   followers: ReadonlyMap<Id, readonly RunAction[]>
+  /** The edges in the order they were resolved, branch after branch (D-182). */
+  order: readonly GlueEdge[]
 }
 
 /**
@@ -317,6 +321,7 @@ interface Walk {
   statuses: Map<string, GlueStatus>
   issues: Issue[]
   prolongedBy: Map<Id, Id[]>
+  order: GlueEdge[]
 }
 
 function initialStates(play: Play): Map<Id, ActionState> {
@@ -352,6 +357,7 @@ function walkBranches(
     statuses: new Map(),
     issues: [],
     prolongedBy: new Map(),
+    order: [],
   }
   const { actions: states, sequences, branchAt, statuses, issues } = walk
   const targets: TargetContext = { play, settings, states, sequences, branchAt }
@@ -365,12 +371,7 @@ function walkBranches(
    * players, a release would take the ball or be simultaneous with the very target it may be glued
    * to, a run would go before a run of its player and move it (D-162, D-169, D-177).
    */
-  const unresolved = new Set<Id>()
-  for (const edge of analysis.order) {
-    if (edge.kind === 'branchAt' || (edge.kind === 'end' && stretches(edge))) continue
-    const type = states.get(edge.ownerId)?.action.type
-    if (type !== undefined && type !== 'groupRun') unresolved.add(edge.ownerId)
-  }
+  const unresolved = new Set<Id>(analysis.plan.absent)
 
   const simulate = (line: readonly Id[]): LineSimulation => {
     const ignored: Issue[] = []
@@ -702,6 +703,11 @@ function walkBranches(
     }
   }
 
+  /**
+   * By absent action, the instant of its target (gap included), read in its branch once its
+   * dependencies are resolved; Infinity when not reached then (D-182).
+   */
+  const instants = new Map<Id, number>()
   const seen = new Set<Id>()
   const visit = (branchId: Id): void => {
     if (seen.has(branchId)) return
@@ -709,8 +715,29 @@ function walkBranches(
     const line = pathToBranch(play, branchId)
     let current: LineSimulation | null = null
     const read = (): LineSimulation => (current ??= simulate(line))
-    for (const edge of analysis.order) {
-      if (edge.branchId === branchId && applyEdge(edge, read)) current = null
+    const endOf = (id: Id): number | null => {
+      const action = states.get(id)?.action
+      if (!action || unresolved.has(id)) return null
+      return actionEvent(read(), action, 'end')?.t ?? null
+    }
+    const scheduler = createEdgeScheduler(analysis.plan)
+    let version = 0
+    for (;;) {
+      for (const edge of scheduler.readable()) {
+        if (edge.branchId !== branchId || instants.has(edge.ownerId)) continue
+        const target = readTarget(edge, targets, read)
+        instants.set(edge.ownerId, target ? target.t + (edge.glue.offset ?? 0) : Infinity)
+      }
+      const edges = scheduler.next({ instants, endOf, version })
+      if (edges === null) break
+      for (const edge of edges) {
+        if (edge.branchId !== branchId) continue
+        walk.order.push(edge)
+        if (applyEdge(edge, read)) {
+          current = null
+          version++
+        }
+      }
     }
     const inBranch = candidatesIn.get(branchId)
     if (inBranch) {
@@ -769,6 +796,7 @@ export function resolvePlay(
     prolongs,
     prolongedBy: walk.prolongedBy,
     followers,
+    order: walk.order,
   }
   caches.resolutions.set(key, resolution)
   return resolution
@@ -781,7 +809,7 @@ function edgePoint(edge: GlueEdge, simulation: LineSimulation, states: PlayResol
   return actionEvent(simulation, action, edge.kind === 'start' ? 'start' : 'end')?.point ?? null
 }
 
-/** The glued edges of a line, once its compilation is known. */
+/** The glued edges of a line, once its compilation is known, in the order they were resolved. */
 export function compiledGlues(
   play: Play,
   settings: EngineSettings,
@@ -796,7 +824,7 @@ export function compiledGlues(
     sequences: resolution.sequences,
     branchAt: resolution.branchAt,
   }
-  return resolution.analysis.order
+  return resolution.order
     .filter((edge) => line.includes(edge.branchId))
     .map((edge) => {
       const target = readTarget(edge, targets, () => simulation)
